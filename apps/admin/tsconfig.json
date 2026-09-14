@@ -1,4 +1,5 @@
 {
+  "extends": "@workspace/typescript-config/base.json",
   "files": [],
   "references": [
     { "path": "./tsconfig.app.json" },

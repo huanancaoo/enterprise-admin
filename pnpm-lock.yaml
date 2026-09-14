@@ -24,7 +24,7 @@ importers:
         specifier: ~6
         version: 6.0.3
 
-  apps/web:
+  apps/admin:
     dependencies:
       '@workspace/ui':
         specifier: workspace:*
@@ -39,9 +39,6 @@ importers:
         specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
     devDependencies:
-      '@eslint/js':
-        specifier: ^10
-        version: 10.0.1(eslint@10.10.0(jiti@2.7.0))
       '@tailwindcss/vite':
         specifier: ^4
         version: 4.3.3(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0))
@@ -57,24 +54,18 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^6
         version: 6.1.1(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0))
+      '@workspace/eslint-config':
+        specifier: workspace:*
+        version: link:../../packages/eslint-config
+      '@workspace/typescript-config':
+        specifier: workspace:*
+        version: link:../../packages/typescript-config
       eslint:
         specifier: ^10
         version: 10.10.0(jiti@2.7.0)
-      eslint-plugin-react-hooks:
-        specifier: ^7.1.1
-        version: 7.1.1(eslint@10.10.0(jiti@2.7.0))
-      eslint-plugin-react-refresh:
-        specifier: ^0.5.6
-        version: 0.5.6(eslint@10.10.0(jiti@2.7.0))
-      globals:
-        specifier: ^17
-        version: 17.12.0
       typescript:
         specifier: ~6
         version: 6.0.3
-      typescript-eslint:
-        specifier: ^8
-        version: 8.70.0(eslint@10.10.0(jiti@2.7.0))(typescript@6.0.3)
       vite:
         specifier: ^8
         version: 8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)
