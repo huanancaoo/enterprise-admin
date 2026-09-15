@@ -6,7 +6,9 @@
     "target": "ES2023",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "types": ["node", "jest"],
+    "types": [
+      "node"
+    ],
     "resolvePackageJsonExports": true,
     "esModuleInterop": true,
     "isolatedModules": true,

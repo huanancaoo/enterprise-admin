@@ -53,13 +53,15 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 
 **依赖：** S0。
 
-- [ ] S1-01：初始化 pnpm workspace、Turborepo、TypeScript strict、共享 ESLint/TypeScript 配置。
-- [ ] S1-02：创建 `apps/admin`、`apps/platform`、`apps/api`、`apps/storybook` 的可运行入口。
-- [ ] S1-03：创建 `packages/ui`、`admin`、`mocks`、`contracts`、`api-client`、`database`、`permissions`、`i18n` 的最小包边界；不一次实现所有预想组件。
-- [ ] S1-04：预留 `apps/worker` 的规划位置；未启用异步任务时，不要求它运行或部署。
-- [ ] S1-05：设置依赖边界检查：前端不能依赖 database/API server；contracts 不能依赖 Drizzle；公共 UI 不绑定 Projects 等具体业务模块。
-- [ ] S1-06：接入 frozen-lockfile 安装、lint、typecheck、最小 unit test、build。后续阶段逐步增加对应门禁。
-- [ ] S1-07：建立 `.env.example`，区分公开前端配置、API runtime 配置和迁移凭据；API 接入 requestId 与结构化日志最小入口。
+本地实施及验收已完成，见 [S1 验收记录](s1-validation.md)。远端 CI 尚未推送触发。
+
+- [x] S1-01：初始化 pnpm workspace、Turborepo、TypeScript strict、共享 ESLint/TypeScript 配置。
+- [x] S1-02：创建 `apps/admin`、`apps/platform`、`apps/api`、`apps/storybook` 的可运行入口。
+- [x] S1-03：创建 `packages/ui`、`admin`、`mocks`、`contracts`、`api-client`、`database`、`permissions`、`i18n` 的最小包边界；不一次实现所有预想组件。
+- [x] S1-04：预留 `apps/worker` 的规划位置；未启用异步任务时，不要求它运行或部署。
+- [x] S1-05：设置依赖边界检查：前端不能依赖 database/API server；contracts 不能依赖 Drizzle；公共 UI 不绑定 Projects 等具体业务模块。
+- [x] S1-06：接入 frozen-lockfile 安装、lint、typecheck、最小 unit test、build。后续阶段逐步增加对应门禁。
+- [x] S1-07：建立 `.env.example`，区分公开前端配置、API runtime 配置和迁移凭据；API 接入 requestId 与结构化日志最小入口。
 
 **建议脚本名，需在仓库实现后才可执行：** `dev`、`lint`、`typecheck`、`test:unit`、`build`、`build:storybook`。脚本名称不是原文既有接口。
 

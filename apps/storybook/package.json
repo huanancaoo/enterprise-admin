@@ -1,0 +1,36 @@
+{
+  "name": "storybook",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "storybook dev -p 6006 --ci --no-open",
+    "build": "storybook build --output-dir dist --disable-telemetry",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@workspace/ui": "workspace:*",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@storybook/react-vite": "10.6.0",
+    "storybook": "10.6.0",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@types/node": "26.5.1",
+    "vite": "8.3.0",
+    "typescript": "6.0.3",
+    "@workspace/eslint-config": "workspace:*",
+    "@workspace/typescript-config": "workspace:*",
+    "eslint": "10.10.0",
+    "@tailwindcss/vite": "4.3.3",
+    "@storybook/addon-vitest": "10.6.0",
+    "@storybook/addon-a11y": "10.6.0",
+    "@vitest/browser-playwright": "4.1.11",
+    "playwright": "1.63.0",
+    "vitest": "4.1.11"
+  }
+}

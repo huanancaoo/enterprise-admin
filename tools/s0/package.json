@@ -6,7 +6,7 @@
     "verify": "node scripts/verify.mjs",
     "schema:auth": "auth generate --config backend/auth-cli.ts --output backend/auth-schema.ts --yes",
     "schema:sql": "drizzle-kit generate --config drizzle.config.ts",
-    "test:backend": "tsc -p tsconfig.backend.json && node --test dist/backend/compatibility.test.js",
+    "test:backend": "tsc --noEmit -p tsconfig.backend.json && vitest run --config vitest.backend.config.mjs",
     "test:stories": "vitest run --config vitest.config.ts",
     "build:stories": "storybook build --config-dir .storybook --output-dir .artifacts/storybook --disable-telemetry",
     "typecheck": "tsc --noEmit -p tsconfig.json",

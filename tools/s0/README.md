@@ -45,3 +45,7 @@ pnpm --filter @workspace/s0 schema:sql
 ## 验收边界
 
 根目录 `pnpm verify` 执行全仓库检查和本工程。探针链路通过不替代 S2 的生产数据库分权、S3 的完整多租户攻击与并发测试、S4 的真实业务授权或 S7 的 Projects E2E。结论见 [S0 验收记录](../../docs/architecture/s0-validation.md)。
+
+## 测试运行器
+
+后端测试由 Vitest + SWC 执行，`tsc --noEmit` 独立检查类型；4 个串行测试共享临时容器，先完成认证/组织创建，再验证 UUID/RLS。Storybook 的 2 个语言交互 Story 继续使用 Vitest 浏览器模式。`pnpm verify` 与 CI 均包含这些探针。详见 [统一测试说明](../../docs/architecture/testing.md)。

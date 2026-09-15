@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { readFileSync, readdirSync } from "node:fs"
+import { readFileSync, readdirSync, existsSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -15,7 +15,10 @@ for (const directory of ["apps", "packages", "tools"]) {
   for (const entry of readdirSync(path.join(root, directory), {
     withFileTypes: true,
   })) {
-    if (entry.isDirectory())
+    if (
+      entry.isDirectory() &&
+      existsSync(path.join(root, directory, entry.name, "package.json"))
+    )
       manifests.push(`${directory}/${entry.name}/package.json`)
   }
 }

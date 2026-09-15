@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import type { OpenAPIObject } from '@nestjs/swagger';
@@ -27,6 +28,21 @@ describe('AppController (e2e)', () => {
       .expect(200)
       .expect('Content-Type', /text\/html/)
       .expect('Hello World!');
+  });
+
+  it('生成独立 requestId，不信任客户端传入值', async () => {
+    const first = await request(app.getHttpServer())
+      .get('/api/v1')
+      .set('X-Request-Id', 'client-value')
+      .expect(200);
+    const second = await request(app.getHttpServer())
+      .get('/missing')
+      .expect(404);
+    expect(first.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);
+    expect(second.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);
+    expect(first.headers['x-request-id']).not.toBe(
+      second.headers['x-request-id'],
+    );
   });
 
   it('/api/docs-json (GET)', () => {

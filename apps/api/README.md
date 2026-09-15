@@ -46,7 +46,7 @@ $ pnpm run start:prod
 
 ## Run tests
 
-NestJS 12 采用 ESM；测试脚本通过 Node `--experimental-vm-modules` 启用 Jest 的模块加载支持。直接调用 Jest 时也需要此参数。
+API 测试统一使用 Vitest 4.1.11。SWC 在测试转译时保留 NestJS 注入需要的装饰器元数据；生产构建仍由 Nest CLI/TypeScript 执行。HTTP 测试继续使用 Supertest；不再使用 Jest、ts-jest 或 `--experimental-vm-modules`。
 
 ```bash
 # unit tests

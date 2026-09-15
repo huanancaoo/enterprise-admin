@@ -519,7 +519,8 @@
           "spec": "30.0.0"
         }
       ],
-      "selected": "30.0.0"
+      "selected": null,
+      "selectionReason": "统一 Vitest 后移除；保留原始查询快照。"
     },
     {
       "name": "@types/node",
@@ -1080,7 +1081,8 @@
           "spec": "30.5.1"
         }
       ],
-      "selected": "30.5.1"
+      "selected": null,
+      "selectionReason": "统一 Vitest 后移除；保留原始查询快照。"
     },
     {
       "name": "lucide-react",
@@ -1597,7 +1599,8 @@
           "spec": "29.4.12"
         }
       ],
-      "selected": "29.4.12"
+      "selected": null,
+      "selectionReason": "统一 Vitest 后移除；保留原始查询快照。"
     },
     {
       "name": "ts-loader",
@@ -1832,6 +1835,46 @@
         }
       ],
       "selected": "4.6.5"
+    },
+    {
+      "name": "unplugin-swc",
+      "selected": "1.6.0",
+      "selectionReason": "Vitest 的 NestJS 测试转译插件，保留装饰器元数据。",
+      "selectedMetadata": {
+        "version": "1.6.0",
+        "peerDependencies": {
+          "@swc/core": "^1.2.108"
+        }
+      },
+      "selectionCheckedAt": "2026-09-15"
+    },
+    {
+      "name": "@swc/core",
+      "selected": "1.16.2",
+      "selectionReason": "复用现有锁文件版本，供 Vitest NestJS 转译使用。",
+      "selectedMetadata": {
+        "version": "1.16.2",
+        "engines": {
+          "node": ">=10"
+        },
+        "peerDependencies": {
+          "@swc/helpers": ">=0.5.17"
+        }
+      },
+      "selectionCheckedAt": "2026-09-15"
+    },
+    {
+      "name": "@vitest/coverage-v8",
+      "selected": "4.1.11",
+      "selectionReason": "与选定 Vitest 4.1.11 对齐，保留 API 覆盖率命令。",
+      "selectedMetadata": {
+        "version": "4.1.11",
+        "peerDependencies": {
+          "@vitest/browser": "4.1.11",
+          "vitest": "4.1.11"
+        }
+      },
+      "selectionCheckedAt": "2026-09-15"
     }
   ],
   "selectionPolicy": "优先最新稳定版本；以 peer 范围和完整验收共同确定兼容组合。latest 记录查询时最新版本，selected 记录最终采用版本。"

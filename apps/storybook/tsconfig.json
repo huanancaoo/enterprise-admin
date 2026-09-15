@@ -1,0 +1,4 @@
+{
+  "extends": "@workspace/typescript-config/react-library.json",
+  "include": [".storybook", "src", "vitest.config.ts"]
+}

@@ -3,8 +3,11 @@
   "display": "Vite Node",
   "extends": "./vite.json",
   "compilerOptions": {
-    "lib": ["ES2023"],
-    "types": ["node"],
-    "strict": false
+    "lib": [
+      "ES2023"
+    ],
+    "types": [
+      "node"
+    ]
   }
 }

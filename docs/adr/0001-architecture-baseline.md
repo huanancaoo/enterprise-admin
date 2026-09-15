@@ -61,13 +61,13 @@ S0 交付架构决策、精确版本及独立兼容性验证工程。归档文�
 
 - [versions.json](../architecture/versions.json)：Node 26.8.2、pnpm 12.4.1、PostgreSQL 18.6 与镜像摘要。
 - [dependency-audit.json](../architecture/dependency-audit.json)：`latest` 保留官方查询快照，`selected` 记录实际采用版本，`selectionReason` 说明差异；`usedBy.spec` 是升级前声明。
-- TypeScript 6.0.3 满足 Nest CLI、ts-jest、typescript-eslint 与 TypeDoc 的共同范围。TS 7.0.2 缺少它们使用的编译器 API，不纳入本次兼容组合。
+- TypeScript 6.0.3 满足 Nest CLI、typescript-eslint 与 TypeDoc 的共同范围。TS 7.0.2 缺少它们使用的编译器 API，不纳入本次兼容组合。
 - Storybook 10.6.0 配合 Vitest / browser-playwright 4.1.11 和 Vite 8.3.0，满足 peer 范围，浏览器交互、a11y 和静态构建通过。
-- NestJS 12 的 ESM 模块由 Jest 在 Node `--experimental-vm-modules` 下加载；所有 API 测试脚本统一带此参数，保留 ts-jest 和现有测试。
+- 测试运行器统一为 Vitest 4.1.11；NestJS 测试通过 SWC 保留装饰器元数据。移除 Jest、ts-jest 与 `--experimental-vm-modules` 测试入口；生产构建不变。见 [测试说明](../architecture/testing.md)。
 - 所有外部直接依赖固定精确版本，内部依赖保留 workspace 协议；传递依赖以 `pnpm-lock.yaml` 为准，安装使用 `--frozen-lockfile`。
 - pnpm 12 的 `engineStrict` / `saveExact` 放在 `pnpm-workspace.yaml`。近期发布包仅有精确版本年龄例外；构建脚本显式允许 esbuild，其余列出的脚本拒绝执行。
 
-根目录 `pnpm verify` 依次执行 peer 检查、类型检查、Lint、构建、API 单元测试、API E2E 和完整 S0 探针。所有命令都必须成功，具体覆盖见 [S0 验收记录](../architecture/s0-validation.md)。
+根目录 `pnpm verify` 依次执行 peer 检查、`verify:s1`（Lint、类型、边界/API 单元、HTTP、正式 Storybook 测试与构建）和完整 S0 探针。所有命令都必须成功，具体覆盖见 [S0 验收记录](../architecture/s0-validation.md)。
 
 ## 相关决策
 

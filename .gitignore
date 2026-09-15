@@ -31,3 +31,8 @@ dist-ssr
 
 # typescript
 *.tsbuildinfo
+
+!.env.example
+
+# Test reports
+coverage/
