@@ -46,6 +46,8 @@ $ pnpm run start:prod
 
 ## Run tests
 
+NestJS 12 采用 ESM；测试脚本通过 Node `--experimental-vm-modules` 启用 Jest 的模块加载支持。直接调用 Jest 时也需要此参数。
+
 ```bash
 # unit tests
 $ pnpm run test

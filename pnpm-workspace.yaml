@@ -1,7 +1,46 @@
 packages:
   - "apps/*"
   - "packages/*"
+  - "tools/s0"
 
 allowBuilds:
+  "@parcel/watcher": false
+  "@scarf/scarf": false
+  "@swc/core": false
+  cpu-features: false
   esbuild: true
   msw: false
+  protobufjs: false
+  ssh2: false
+  unrs-resolver: false
+
+minimumReleaseAgeExclude:
+  - "@better-auth/core@1.7.5"
+  - "@better-auth/drizzle-adapter@1.7.5"
+  - "@nestjs/cli@12.0.1"
+  - "@nestjs/common@12.0.2"
+  - "@nestjs/core@12.0.2"
+  - "@nestjs/platform-express@12.0.2"
+  - "@nestjs/schematics@12.0.2"
+  - "@nestjs/testing@12.0.2"
+  - "@turbo/darwin-64@2.10.13"
+  - "@turbo/darwin-arm64@2.10.13"
+  - "@turbo/gen@2.10.13"
+  - "@turbo/linux-64@2.10.13"
+  - "@turbo/linux-arm64@2.10.13"
+  - "@turbo/windows-64@2.10.13"
+  - "@turbo/windows-arm64@2.10.13"
+  - auth@1.7.5
+  - better-auth@1.7.5
+  - eslint-plugin-react-refresh@0.5.7
+  - lucide-react@1.46.0
+  - turbo@2.10.13
+  - "@better-auth/kysely-adapter@1.7.5"
+  - "@better-auth/memory-adapter@1.7.5"
+  - "@better-auth/mongo-adapter@1.7.5"
+  - "@better-auth/prisma-adapter@1.7.5"
+  - "@better-auth/telemetry@1.7.5"
+  - i18next-cli@1.73.3
+
+engineStrict: true
+saveExact: true

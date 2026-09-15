@@ -6,3 +6,13 @@ pnpm-lock.yaml
 .pnpm-store/
 apps/api/openapi/openapi.json
 packages/api-client/src/generated/
+
+# 原文归档与生成器输出保持原始字节，漂移由 S0 验证。
+docs/architecture/multi-tenant-foundation.md
+docs/architecture/implementation-plan.md
+tools/s0/backend/auth-schema.ts
+tools/s0/frontend/generated/
+tools/s0/generated/
+tools/s0/migrations/
+tools/s0/.artifacts/
+tools/s0/public/mockServiceWorker.js
