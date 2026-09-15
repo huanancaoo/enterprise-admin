@@ -18,7 +18,9 @@
 - `BETTER_AUTH_SECRET`：随机生成的至少 32 字符密钥。
 - `BETTER_AUTH_TRUSTED_ORIGINS`：逗号分隔的可信前端 Origin；本地为 `http://localhost:3200,http://localhost:3201`。
 
-配置文件不会自动加载。根目录 `pnpm dev` 会构建依赖后启动开发任务；单独执行 API 命令前先运行 `pnpm --filter @workspace/database build`。生产先执行 `pnpm build`，再运行 `pnpm --filter api start:prod`。
+本地开发将 `apps/api/.env.example` 复制为 `apps/api/.env` 并填写实际配置。API 的 `start`、`dev`、`start:debug` 使用 Nest CLI `--env-file .env`，在执行应用入口及认证配置校验前加载环境变量；已有进程环境变量优先。pnpm workspace 命令在 API 包目录执行，因此根目录 `pnpm dev` 与 `pnpm --filter api dev` 均读取 `apps/api/.env`。
+
+根目录 `pnpm dev` 会构建依赖后启动开发任务；单独执行 API 命令前先运行 `pnpm --filter @workspace/database build`。生产由部署环境注入变量，先执行 `pnpm build`，再运行 `pnpm --filter api start:prod`。
 
 ## 验证结果
 

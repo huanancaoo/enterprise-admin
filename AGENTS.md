@@ -36,7 +36,7 @@ pnpm dev
 单独启动使用 `pnpm --filter admin dev`、`pnpm --filter platform dev`、`pnpm --filter api dev` 或 `pnpm --filter storybook dev`。其他包命令先查对应 `package.json`，过滤名称使用其 `name` 字段。
 
 - 配置前端时查看对应应用的 `.env.example`；`VITE_` 变量会暴露给浏览器，只存公开配置。
-- 运行 API 时按 `apps/api/.env.example` 注入进程环境变量，API 不自动加载 `.env`。认证流程需要数据库与认证密钥，不能依据早期 S1 的无数据库说明验收当前流程。
+- 本地运行 API 前按 `apps/api/.env.example` 配置 `apps/api/.env`；`start`、`dev`、`start:debug` 通过 Nest CLI 加载它，已有进程环境变量优先。生产 `start:prod` 使用部署环境注入的变量。认证流程需要数据库与认证密钥，不能依据早期 S1 的无数据库说明验收当前流程。
 - 配置数据库、生成 Schema、执行迁移或修改租户 Repository 前，阅读 [数据库说明](packages/database/README.md)，遵守角色分权、迁移链和 TenantTx 约束。
 
 ## 修改约定
