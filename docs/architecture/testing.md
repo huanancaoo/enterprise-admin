@@ -6,7 +6,7 @@
 
 | 范围                | 执行入口（仓库根目录）                     | 环境与覆盖                                                        |
 | ------------------- | ------------------------------------------ | ----------------------------------------------------------------- |
-| 工程边界与 API 单元 | `pnpm test:unit`                           | Vitest Node；边界负例 1 个，Nest 注入/Controller 测试 1 个        |
+| 工程边界与 API 单元 | `pnpm test:unit`                           | Vitest Node；边界回归 5 个，Nest 注入/Controller 测试 1 个        |
 | API HTTP            | `pnpm test:api`                            | Vitest Node + Supertest；4 个接口、文档、requestId 测试           |
 | 正式组件            | `pnpm test:storybook`                      | Vitest 浏览器模式 + Storybook；Button 键盘焦点和 a11y，1 个 Story |
 | S0 后端兼容性       | `pnpm --filter @workspace/s0 test:backend` | Vitest Node + Testcontainers PostgreSQL；4 个串行测试             |

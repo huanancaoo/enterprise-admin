@@ -1,4 +1,5 @@
-import { readFileSync, readdirSync, existsSync } from "node:fs"
+import { readFileSync, readdirSync, realpathSync } from "node:fs"
+import { execFileSync } from "node:child_process"
 import { resolve, relative, dirname } from "node:path"
 import { fileURLToPath } from "node:url"
 import ts from "typescript"
@@ -54,33 +55,61 @@ const allowed = {
   "packages/mocks": ["packages/contracts"],
 }
 const configs = ["packages/eslint-config", "packages/typescript-config"]
-function* files(dir) {
+// 这些工程不受业务层依赖矩阵约束，但仍参与依赖目标识别。
+const exemptions = {
+  ".": "仓库级构建、生成与验证工具",
+  "packages/eslint-config": "共享 ESLint 配置",
+  "packages/typescript-config": "共享 TypeScript 配置",
+  "tools/s0": "跨技术栈的 S0 验证工程",
+}
+
+function discoverWorkspace(root) {
+  // 由 pnpm 解释 workspace glob、排除项及嵌套目录，不另维护包清单。
+  return JSON.parse(
+    execFileSync("pnpm", ["list", "--recursive", "--depth", "-1", "--json"], {
+      cwd: root,
+      encoding: "utf8",
+    })
+  ).map((pkg) => ({
+    name: pkg.name,
+    path: relative(root, pkg.path) || ".",
+  }))
+}
+
+function* files(dir, packageRoots) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (["node_modules", "dist", ".turbo", "coverage"].includes(entry.name))
       continue
     const path = resolve(dir, entry.name)
-    if (entry.isDirectory()) yield* files(path)
-    else if (/\.[cm]?[jt]sx?$/.test(path)) yield path
+    if (entry.isDirectory()) {
+      if (!packageRoots.has(path)) yield* files(path, packageRoots)
+    } else if (/\.[cm]?[jt]sx?$/.test(path)) yield path
   }
 }
 export function checkBoundaries(root) {
-  const packages = Object.keys(allowed)
-    .concat(configs)
-    .filter((path) => existsSync(resolve(root, path, "package.json")))
+  root = realpathSync(root)
+  const workspace = discoverWorkspace(root)
+  // 嵌套 workspace 的文件归最近的包所有，不能误归给父包。
+  const packages = workspace
+    .map((pkg) => pkg.path)
+    .sort((a, b) => b.length - a.length)
+  const packageRoots = new Set(packages.map((pkg) => resolve(root, pkg)))
   const names = new Map(
-    packages.map((path) => [
-      JSON.parse(readFileSync(resolve(root, path, "package.json"), "utf8"))
-        .name,
-      path,
-    ])
+    workspace.filter((pkg) => pkg.name).map((pkg) => [pkg.name, pkg.path])
   )
   const errors = []
+  for (const pkg of packages) {
+    if (!Object.hasOwn(allowed, pkg) && !Object.hasOwn(exemptions, pkg))
+      errors.push(
+        `${pkg}/package.json: workspace package has no dependency boundary policy`
+      )
+  }
   for (const owner of packages.filter((path) => path in allowed)) {
     function check(specifier, file, target) {
       target ??= [...names].find(
         ([name]) => specifier === name || specifier.startsWith(name + "/")
       )?.[1]
-      if (target === owner || configs.includes(target)) return
+      if (target === owner || target === "." || configs.includes(target)) return
       const serverDependency =
         /^(drizzle-orm|drizzle-kit|pg|@nestjs\/[^/]+)(\/|$)/.test(specifier)
       if (
@@ -114,7 +143,7 @@ export function checkBoundaries(root) {
           dirname(configPath)
         ).options
       : {}
-    for (const file of files(resolve(root, owner))) {
+    for (const file of files(resolve(root, owner), packageRoots)) {
       const source = ts.createSourceFile(
         file,
         readFileSync(file, "utf8"),
@@ -155,7 +184,15 @@ export function checkBoundaries(root) {
             : specifier.startsWith(".")
               ? relative(root, resolve(dirname(file), specifier))
               : ""
-          const target = packages.find((pkg) => path.startsWith(pkg + "/"))
+          const target =
+            path &&
+            !path.startsWith("../") &&
+            !path.split("/").includes("node_modules")
+              ? packages.find(
+                  (pkg) =>
+                    pkg === "." || path === pkg || path.startsWith(pkg + "/")
+                )
+              : undefined
           check(specifier, file, target)
         }
         ts.forEachChild(node, visit)
