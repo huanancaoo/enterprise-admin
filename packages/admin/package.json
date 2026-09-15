@@ -11,18 +11,24 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "eslint": "10.10.0",
-    "typescript": "6.0.3",
-    "@types/react": "19.3.0",
-    "@types/react-dom": "19.3.0"
+    "typescript": "6.0.3"
   },
   "dependencies": {
-    "@workspace/ui": "workspace:*",
     "@dnd-kit/core": "6.3.1",
     "@dnd-kit/sortable": "10.0.0",
     "@tanstack/react-table": "9.2.4",
+    "@tiptap/extension-file-handler": "3.30.3",
+    "@tiptap/extension-image": "3.30.3",
+    "@tiptap/extension-table": "3.30.3",
+    "@tiptap/pm": "3.30.3",
+    "@tiptap/react": "3.30.3",
+    "@tiptap/starter-kit": "3.30.3",
+    "@workspace/ui": "workspace:*",
     "cn": "0.3.0",
     "lucide-react": "1.46.0",
     "react": "19.3.0",

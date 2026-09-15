@@ -9,3 +9,8 @@ export {
   createDataTableRowControlsColumn,
   createDataTableSelectColumn,
 } from "./lib/data-table"
+export { RichTextEditor } from "./components/rich-text-editor"
+export type {
+  JSONContent,
+  RichTextEditorProps,
+} from "./components/rich-text-editor"
