@@ -11,13 +11,17 @@
     "api:openapi": "pnpm --filter api openapi",
     "api:generate": "orval",
     "verify:s0": "pnpm --filter @workspace/s0 verify",
-    "verify": "pnpm peers check && pnpm verify:s1 && pnpm verify:s0",
+    "verify": "pnpm peers check && pnpm verify:s1 && pnpm verify:s0 && pnpm verify:s2",
     "lint:boundaries": "node tools/boundaries/check.mjs",
     "test:unit": "vitest run --config vitest.config.mjs && pnpm --filter api test",
     "build:storybook": "turbo build --filter=storybook",
     "verify:s1": "pnpm lint && pnpm typecheck && pnpm test:unit && pnpm test:api && pnpm test:storybook && pnpm build",
     "test:api": "pnpm --filter api test:e2e",
-    "test:storybook": "pnpm --filter storybook test"
+    "test:storybook": "pnpm --filter storybook test",
+    "db:generate": "pnpm --filter @workspace/database db:generate",
+    "db:migrate": "pnpm --filter @workspace/database db:migrate",
+    "test:database": "pnpm --filter @workspace/database test:database",
+    "verify:s2": "pnpm --filter @workspace/database verify:s2"
   },
   "devDependencies": {
     "@workspace/typescript-config": "workspace:*",

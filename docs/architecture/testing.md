@@ -31,7 +31,8 @@ Linux CI 使用 `playwright install --with-deps chromium` 安装浏览器系统�
 
 - `verify:s1`：依赖边界检查、lint、typecheck、边界/API 单元、HTTP、正式 Storybook 测试、四应用构建。
 - `verify:s0`：依赖版本审计、原生 Standard Schema 编译探针、认证 Schema 漂移、后端数据库链、翻译正反向检查、S0 浏览器测试及构建。
-- `verify`：peer 检查 → `verify:s1` → `verify:s0`。CI 执行这一完整入口，任一步失败都停止。
+- `verify:s2`：认证 Schema 漂移与真实 PostgreSQL 分权/迁移/失败回滚测试。
+- `verify`：peer 检查 → `verify:s1` → `verify:s0` → `verify:s2`。CI 执行这一完整入口，任一步失败都停止。
 
 API watch/debug/coverage 入口保留，均改由 Vitest 执行。正式前端业务单元测试与完整浏览器业务 E2E 尚未建立；不创建空测试来伪造覆盖。
 
@@ -60,3 +61,7 @@ SDK 仍由 Orval 生成、由 TypeScript 编译并实际调用；因测试改为
 - 本机通过完整入口；尚未推送，远端 GitHub Actions 尚未验证。
 
 本次未增加登录、租户切换或 Projects 浏览器 E2E，也未更改生产业务行为。
+
+## S2 数据库验收
+
+S2 新增 1 个 Vitest 文件、5 个真实数据库测试，见 [S2 验收记录](s2-validation.md)。独立镜像与 Compose 持久化验证运行 `pnpm --filter @workspace/database test:compose`；使用随机项目名、随机密码和随机本机端口，结束只清理本次创建的资源。

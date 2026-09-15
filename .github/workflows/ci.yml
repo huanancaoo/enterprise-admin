@@ -16,3 +16,4 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter storybook exec playwright install --with-deps chromium
       - run: pnpm verify
+      - run: pnpm --filter @workspace/database test:compose

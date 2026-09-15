@@ -1,0 +1,11 @@
+services:
+  migrator:
+    build:
+      context: .
+      dockerfile: packages/database/Dockerfile
+    environment:
+      MIGRATION_DATABASE_URL: ${MIGRATION_DATABASE_URL:?Set MIGRATION_DATABASE_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"

@@ -4,16 +4,36 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./auth": "./src/auth.ts"
   },
   "scripts": {
     "lint": "eslint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "schema:auth": "auth generate --config auth.config.ts --output src/schema/auth.ts --yes",
+    "db:generate": "pnpm schema:auth && drizzle-kit generate",
+    "db:migrate": "node src/migrate.ts",
+    "schema:check": "node scripts/check-schema.mjs",
+    "test:database": "vitest run",
+    "verify:s2": "pnpm schema:check && pnpm test:database",
+    "test:compose": "node scripts/verify-compose.mjs"
   },
   "devDependencies": {
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "eslint": "10.10.0",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "@types/node": "26.5.1",
+    "@types/pg": "8.23.1",
+    "auth": "1.7.5",
+    "drizzle-kit": "0.31.10",
+    "testcontainers": "12.1.0",
+    "vitest": "4.1.11"
+  },
+  "dependencies": {
+    "@better-auth/drizzle-adapter": "1.7.5",
+    "better-auth": "1.7.5",
+    "drizzle-orm": "0.45.2",
+    "pg": "8.23.0"
   }
 }

@@ -27,7 +27,7 @@ S1 四个入口不依赖 PostgreSQL、Redis 或外部账号。API 的开发文�
 
 API 使用进程环境变量，示例见 `apps/api/.env.example`。例如 `PORT=3100 pnpm --filter api dev`。API 不自动读取 `.env` 文件。
 
-`packages/database/.env.example` 是 S2 迁移配置的独立位置；S1 尚不配置数据库 URL。后续 runtime 凭据只注入 API，迁移凭据只注入迁移任务，不能共享同一份环境文件。
+S2 已提供 PostgreSQL 本地服务、数据库分权与独立迁移镜像，操作见 [数据库说明](packages/database/README.md)。`infra/postgres/.env.example` 只供首次初始化，`packages/database/.env.example` 只供迁移；runtime 凭据只注入 API，不能共享同一份环境文件。当前 API 仍不连接数据库。
 
 ## 验证
 
@@ -40,7 +40,7 @@ pnpm verify:s1
 
 依赖检查同时扫描 package.json 和源码 import/export、动态 import、require、类型 import；限制前端到服务端、contracts 到 ORM、公共 UI 到业务应用的依赖，并检查相对路径与 TypeScript 解析到的别名。负例测试见 `tools/boundaries/check.test.mjs`。
 
-S0 的独立兼容性工程仍在 `tools/s0`，生产包不依赖它。完整 S0 复现需要 Docker 与浏览器，见 [S0 工程说明](tools/s0/README.md)。`pnpm verify` 是完整验证入口，包含 S1 和 S0 全部检查。测试分层与迁移结果见 [测试说明](docs/architecture/testing.md)。
+S0 的独立兼容性工程仍在 `tools/s0`，生产包不依赖它。完整 S0 复现需要 Docker 与浏览器，见 [S0 工程说明](tools/s0/README.md)。`pnpm verify` 是完整验证入口，包含 S1、S0 和 S2 全部检查。测试分层与迁移结果见 [测试说明](docs/architecture/testing.md)。
 
 ## 应用与包边界
 

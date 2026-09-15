@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:18.6-bookworm@sha256:1c59e2c3c818eaa0f0628f695b36e7c9e362d6b219b36a54a32df645cbd7e1af
+    environment:
+      POSTGRES_USER: bootstrap_admin
+      POSTGRES_DB: enterprise_admin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      APP_MIGRATOR_PASSWORD: ${APP_MIGRATOR_PASSWORD:?Set APP_MIGRATOR_PASSWORD}
+      APP_RUNTIME_PASSWORD: ${APP_RUNTIME_PASSWORD:?Set APP_RUNTIME_PASSWORD}
+      PLATFORM_RUNTIME_PASSWORD: ${PLATFORM_RUNTIME_PASSWORD:?Set PLATFORM_RUNTIME_PASSWORD}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./infra/postgres/bootstrap.sql:/docker-entrypoint-initdb.d/001-bootstrap.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bootstrap_admin -d enterprise_admin"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+volumes:
+  postgres_data:

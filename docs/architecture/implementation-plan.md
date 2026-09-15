@@ -73,14 +73,16 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 
 **依赖：** S1。
 
-- [ ] S2-01：创建 PostgreSQL 本地开发服务及持久化配置。
-- [ ] S2-02：编写首次 bootstrap SQL，创建 `bootstrap_admin`、`app_migrator`、`app_runtime` 对应的初始化/迁移/运行边界。
-- [ ] S2-03：确保 runtime 不是表 Owner，没有 SUPERUSER、BYPASSRLS 或 DDL 能力，只获得必要权限；不要把 bootstrap 凭据注入 API。
-- [ ] S2-04：在 `packages/database` 建立 Drizzle schema、pg pool、migration 目录与配置。
-- [ ] S2-05：按 Better Auth 配置生成认证 Schema，再通过 Drizzle Kit 生成 SQL；不得另建一条生产认证迁移链。
-- [ ] S2-06：建立 one-shot migrator 命令及独立运行配置/镜像。API、Worker 启动时不执行 migration 或 `drizzle-kit push`。
-- [ ] S2-07：明确新建表的 grants 流程，确保后续 migration 不会遗漏运行权限或扩大权限。
-- [ ] S2-08：建立空库迁移测试；重复运行 migrator 时不应重复应用已执行迁移。
+本地实施及验收已完成，见 [S2 验收记录](s2-validation.md)。远端 CI 尚未推送触发。
+
+- [x] S2-01：创建 PostgreSQL 本地开发服务及持久化配置。
+- [x] S2-02：编写首次 bootstrap SQL，创建 `bootstrap_admin`、`app_migrator`、`app_runtime` 对应的初始化/迁移/运行边界。
+- [x] S2-03：确保 runtime 不是表 Owner，没有 SUPERUSER、BYPASSRLS 或 DDL 能力，只获得必要权限；不要把 bootstrap 凭据注入 API。
+- [x] S2-04：在 `packages/database` 建立 Drizzle schema、pg pool、migration 目录与配置。
+- [x] S2-05：按 Better Auth 配置生成认证 Schema，再通过 Drizzle Kit 生成 SQL；不得另建一条生产认证迁移链。
+- [x] S2-06：建立 one-shot migrator 命令及独立运行配置/镜像。API、Worker 启动时不执行 migration 或 `drizzle-kit push`。
+- [x] S2-07：明确新建表的 grants 流程，确保后续 migration 不会遗漏运行权限或扩大权限。
+- [x] S2-08：建立空库迁移测试；重复运行 migrator 时不应重复应用已执行迁移。
 
 **实施细化：** 先区分身份/组织元数据、租户业务数据、平台数据的访问需求。原文的 `organization_id` RLS 示例针对租户业务表，不应不加区分地复制到所有认证表；身份验证和 Membership 读取需要在可信租户上下文建立前完成。
 
