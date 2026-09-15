@@ -1,2 +1,11 @@
-// 业务无关的后台组合组件，S6 按实际用例实现。
-export {}
+export { DataTable, DataTableColumnHeader } from "./components/data-table"
+export type { DataTableProps } from "./components/data-table"
+export { createDataTableColumnHelper } from "./hooks/use-data-table"
+export type {
+  DataTableColumnMeta,
+  DataTableFacetedFilterOption,
+} from "./hooks/use-data-table"
+export {
+  createDataTableRowControlsColumn,
+  createDataTableSelectColumn,
+} from "./lib/data-table"

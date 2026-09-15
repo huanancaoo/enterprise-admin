@@ -1,1 +1,1 @@
-import "@workspace/ui/globals.css"
+import "./preview.css"

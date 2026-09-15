@@ -16,20 +16,13 @@ import {
 } from "@workspace/ui/components/dropdown-menu"
 import {
   DataTable,
-  DataTableRowControls,
   DataTableColumnHeader,
-  DataTableContent,
-  DataTableFacetedFilter,
-  DataTablePagination,
-  DataTableSearch,
-  DataTableSelectAllCheckbox,
-  DataTableSelectRowCheckbox,
-  DataTableToolbar,
-  DataTableViewOptions,
-} from "@workspace/ui/components/data-table"
+  createDataTableColumnHelper,
+  createDataTableRowControlsColumn,
+  createDataTableSelectColumn,
+} from "@workspace/admin"
 import { Label } from "@workspace/ui/components/label"
 import { Switch } from "@workspace/ui/components/switch"
-import { createDataTableColumnHelper } from "@workspace/ui/hooks/use-data-table"
 
 type MemberStatus = "active" | "invited" | "suspended"
 type MemberRole = "admin" | "editor" | "viewer"
@@ -118,30 +111,8 @@ const statusBadgeVariant = {
 const columnHelper = createDataTableColumnHelper<Member>()
 
 const columns = columnHelper.columns([
-  columnHelper.display({
-    id: "row-controls",
-    header: "",
-    cell: ({ row }) => <DataTableRowControls row={row} />,
-    size: 88,
-    enableResizing: false,
-    enableHiding: false,
-    meta: {
-      label: "Row controls",
-      configurable: false,
-      allowCellOverflow: true,
-    },
-  }),
-  columnHelper.display({
-    id: "select",
-    size: 48,
-    enableResizing: false,
-    meta: { label: "Selection", configurable: false },
-    header: ({ table }) => <DataTableSelectAllCheckbox table={table} />,
-    cell: ({ row }) => <DataTableSelectRowCheckbox row={row} />,
-    enableSorting: false,
-    enableHiding: false,
-    enableGlobalFilter: false,
-  }),
+  createDataTableRowControlsColumn<Member>(),
+  createDataTableSelectColumn<Member>(),
   columnHelper.accessor("name", {
     header: ({ header }) => (
       <DataTableColumnHeader header={header} title="Name" />
@@ -156,7 +127,6 @@ const columns = columnHelper.columns([
     meta: { label: "Email" },
   }),
   columnHelper.accessor("role", {
-    filterFn: "arrHas",
     header: ({ header }) => (
       <DataTableColumnHeader header={header} title="Role" />
     ),
@@ -165,10 +135,9 @@ const columns = columnHelper.columns([
         {getValue()}
       </Badge>
     ),
-    meta: { label: "Role" },
+    meta: { label: "Role", facetOptions: roleOptions },
   }),
   columnHelper.accessor("status", {
-    filterFn: "arrHas",
     header: ({ header }) => (
       <DataTableColumnHeader header={header} title="Status" />
     ),
@@ -180,7 +149,7 @@ const columns = columnHelper.columns([
         </Badge>
       )
     },
-    meta: { label: "Status" },
+    meta: { label: "Status", facetOptions: statusOptions },
   }),
   columnHelper.accessor("department", {
     header: ({ header }) => (
@@ -227,6 +196,7 @@ export function MembersTable() {
         data={memberData}
         getRowId={(row) => row.id}
         isLoading={isLoading}
+        searchPlaceholder="Search members..."
         getRowCanExpand={() => true}
         columnResizeMode="onChange"
         defaultColumn={{ size: 180, minSize: 48 }}
@@ -269,41 +239,23 @@ export function MembersTable() {
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-      >
-        <DataTableToolbar actions={<DataTableViewOptions />}>
-          <DataTableSearch placeholder="Search members..." />
-          <DataTableFacetedFilter
-            columnId="status"
-            title="Status"
-            options={statusOptions}
-          />
-          <DataTableFacetedFilter
-            columnId="role"
-            title="Role"
-            options={roleOptions}
-          />
-        </DataTableToolbar>
-        <DataTableContent<Member>
-          isLoading={isLoading}
-          renderExpandedRow={({ original: member }) => (
-            <dl className="grid gap-3 sm:grid-cols-3">
-              <div>
-                <dt className="text-muted-foreground">Email</dt>
-                <dd className="break-all">{member.email}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Department</dt>
-                <dd>{member.department}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Last active</dt>
-                <dd>{member.lastActive}</dd>
-              </div>
-            </dl>
-          )}
-        />
-        <DataTablePagination />
-      </DataTable>
+        renderExpandedRow={({ original: member }) => (
+          <dl className="grid gap-3 sm:grid-cols-3">
+            <div>
+              <dt className="text-muted-foreground">Email</dt>
+              <dd className="break-all">{member.email}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Department</dt>
+              <dd>{member.department}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Last active</dt>
+              <dd>{member.lastActive}</dd>
+            </div>
+          </dl>
+        )}
+      />
     </div>
   )
 }

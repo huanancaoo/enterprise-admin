@@ -1,3 +1,3 @@
-import { createBaseConfig } from "@workspace/eslint-config/base"
+import { createReactConfig } from "@workspace/eslint-config/react-internal"
 
-export default createBaseConfig(import.meta.dirname)
+export default createReactConfig(import.meta.dirname)

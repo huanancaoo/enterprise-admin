@@ -1,5 +1,6 @@
 "use client"
 
+import type { ComponentType } from "react"
 import {
   columnSizingFeature,
   columnResizingFeature,
@@ -28,10 +29,18 @@ import {
   tableFeatures,
 } from "@tanstack/react-table"
 
+export type DataTableFacetedFilterOption = {
+  label: string
+  value: string
+  icon?: ComponentType<{ className?: string }>
+}
+
 export type DataTableColumnMeta = {
   label?: string
   configurable?: boolean
   allowCellOverflow?: boolean
+  /** 标量字符串列的多选筛选；组件统一使用 value ∈ selectedValues 的匹配规则。 */
+  facetOptions?: readonly DataTableFacetedFilterOption[]
 }
 
 export const dataTableFeatures = tableFeatures({

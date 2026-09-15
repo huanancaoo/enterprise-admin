@@ -108,7 +108,8 @@ import {
   useDataTable,
   useDataTableContext,
   type DataTableFeatures,
-} from "@workspace/ui/hooks/use-data-table"
+  type DataTableFacetedFilterOption,
+} from "../hooks/use-data-table"
 
 type DataTableOptions<TData extends RowData> = Omit<
   TableOptions<DataTableFeatures, TData>,
@@ -117,7 +118,7 @@ type DataTableOptions<TData extends RowData> = Omit<
 
 export type DataTableProps<TData extends RowData> = DataTableOptions<TData> & {
   className?: string
-  children?: React.ReactNode
+  searchPlaceholder?: string
   isLoading?: boolean
   empty?: React.ReactNode
   renderExpandedRow?: (row: Row<DataTableFeatures, TData>) => React.ReactNode
@@ -128,8 +129,20 @@ export type DataTableProps<TData extends RowData> = DataTableOptions<TData> & {
 }
 
 const DEFAULT_PAGE_SIZE = 10
-const SelectionActionsContext = React.createContext<React.ReactNode>(null)
 const PAGE_SIZES = [10, 20, 30, 50, 100] as const
+
+function configureColumns<TData extends RowData>(
+  columns: DataTableOptions<TData>["columns"]
+): DataTableOptions<TData>["columns"] {
+  return columns.map((column) => ({
+    ...column,
+    // 分组列也从叶子列的选项生成筛选，调用方无需重复指定筛选算法。
+    ...("columns" in column && column.columns
+      ? { columns: configureColumns(column.columns) }
+      : {}),
+    ...(column.meta?.facetOptions ? { filterFn: "arrHas" as const } : {}),
+  }))
+}
 
 function getColumnLabel<TData extends RowData>(
   column: Column<DataTableFeatures, TData, unknown>
@@ -146,7 +159,7 @@ function getColumnLabel<TData extends RowData>(
 function DataTable<TData extends RowData>({
   columns,
   data,
-  children,
+  searchPlaceholder,
   className,
   isLoading,
   empty,
@@ -155,8 +168,12 @@ function DataTable<TData extends RowData>({
   renderExpandedRow,
   ...options
 }: DataTableProps<TData>) {
+  const configuredColumns = React.useMemo(
+    () => configureColumns(columns),
+    [columns]
+  )
   const table = useDataTable({
-    columns,
+    columns: configuredColumns,
     data,
     initialState: {
       pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE },
@@ -167,34 +184,39 @@ function DataTable<TData extends RowData>({
 
   return (
     <table.AppTable>
-      <SelectionActionsContext.Provider
-        value={
-          table.getFilteredSelectedRowModel().rows.length > 0 ? (
+      <div
+        data-slot="data-table"
+        className={cn("flex flex-col gap-4", className)}
+      >
+        <DataTableToolbar>
+          {table.getFilteredSelectedRowModel().rows.length > 0 ? (
             <DataTableSelectionActions<TData>
               renderActions={renderSelectionActions}
             />
-          ) : null
-        }
-      >
-        <div
-          data-slot="data-table"
-          className={cn("flex flex-col gap-4", className)}
-        >
-          {children ?? (
+          ) : (
             <>
-              <DataTableToolbar actions={<DataTableViewOptions />}>
-                <DataTableSearch />
-              </DataTableToolbar>
-              <DataTableContent
-                isLoading={isLoading}
-                empty={empty}
-                renderExpandedRow={renderExpandedRow}
-              />
-              <DataTablePagination />
+              <DataTableSearch placeholder={searchPlaceholder} />
+              {table
+                .getAllLeafColumns()
+                .map((column) =>
+                  column.columnDef.meta?.facetOptions ? (
+                    <DataTableFacetedFilter
+                      key={column.id}
+                      column={column}
+                      options={column.columnDef.meta.facetOptions}
+                    />
+                  ) : null
+                )}
             </>
           )}
-        </div>
-      </SelectionActionsContext.Provider>
+        </DataTableToolbar>
+        <DataTableContent
+          isLoading={isLoading}
+          empty={empty}
+          renderExpandedRow={renderExpandedRow}
+        />
+        <DataTablePagination />
+      </div>
     </table.AppTable>
   )
 }
@@ -202,10 +224,8 @@ function DataTable<TData extends RowData>({
 function DataTableToolbar({
   className,
   children,
-  actions,
   ...props
-}: React.ComponentProps<"div"> & { actions?: React.ReactNode }) {
-  const selectionActions = React.useContext(SelectionActionsContext)
+}: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="data-table-toolbar"
@@ -214,9 +234,9 @@ function DataTableToolbar({
     >
       {/* 与搜索框保持同高，切换为选择操作时不改变表格的垂直位置。 */}
       <div className="flex min-h-9 min-w-0 flex-1 flex-wrap items-center gap-2">
-        {selectionActions ?? children}
+        {children}
       </div>
-      {actions}
+      <DataTableViewOptions />
     </div>
   )
 }
@@ -239,6 +259,7 @@ function DataTableSearch({
       <InputGroupInput
         value={value}
         placeholder={placeholder}
+        aria-label={placeholder}
         onChange={(event) => table.setGlobalFilter(event.target.value)}
         {...props}
       />
@@ -246,36 +267,14 @@ function DataTableSearch({
   )
 }
 
-export type DataTableFacetedFilterOption = {
-  label: string
-  value: string
-  icon?: React.ComponentType<{ className?: string }>
-}
-
-function DataTableFacetedFilter({
-  columnId,
-  title,
+function DataTableFacetedFilter<TData extends RowData>({
+  column,
   options,
 }: {
-  columnId: string
-  title: string
-  options: DataTableFacetedFilterOption[]
+  column: Column<DataTableFeatures, TData, unknown>
+  options: readonly DataTableFacetedFilterOption[]
 }) {
-  const table = useDataTableContext()
-  const column = table.getColumn(columnId)
-
-  if (!column) {
-    throw new Error(
-      `DataTableFacetedFilter: column "${columnId}" does not exist`
-    )
-  }
-
-  // string[] filter values match scalar cells only through arrHas (value ∈ selected[]).
-  if (column.columnDef.filterFn !== "arrHas") {
-    throw new Error(
-      `DataTableFacetedFilter: column "${columnId}" must set filterFn: "arrHas"`
-    )
-  }
+  const title = getColumnLabel(column)
 
   const selectedValues = new Set(
     (column.getFilterValue() as string[] | undefined) ?? []
@@ -303,9 +302,16 @@ function DataTableFacetedFilter({
             </Badge>
           ))}
       </PopoverTrigger>
-      <PopoverContent className="w-56 gap-0 p-0" align="start">
+      <PopoverContent
+        className="w-56 gap-0 p-0"
+        align="start"
+        aria-label={`Filter ${title}`}
+      >
         <Command>
-          <CommandInput placeholder={title} />
+          <CommandInput
+            placeholder={title}
+            aria-label={`Search ${title} options`}
+          />
           <CommandList>
             <CommandEmpty>No results found.</CommandEmpty>
             <CommandGroup>
@@ -441,7 +447,11 @@ function DataTableViewOptions({ className }: { className?: string }) {
         <Settings2Icon data-icon="inline-start" />
         View
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-96 max-w-[calc(100vw-2rem)]">
+      <PopoverContent
+        align="end"
+        className="w-96 max-w-[calc(100vw-2rem)]"
+        aria-label="Column settings"
+      >
         <p className="text-sm font-medium">Columns</p>
         <DndContext
           sensors={sensors}
@@ -597,7 +607,11 @@ function DataTableContent<TData extends RowData>({
       data-slot="data-table-content"
       className="overflow-hidden rounded-2xl border"
     >
-      <Table className="table-fixed" style={{ width: table.getTotalSize() }}>
+      <Table
+        aria-busy={!!isLoading}
+        className="table-fixed"
+        style={{ width: table.getTotalSize() }}
+      >
         <colgroup>
           {visibleColumns.map((column) => (
             <col key={column.id} style={{ width: column.getSize() }} />
@@ -1062,12 +1076,6 @@ export {
   DataTable,
   DataTableRowControls,
   DataTableColumnHeader,
-  DataTableContent,
-  DataTableFacetedFilter,
-  DataTablePagination,
-  DataTableSearch,
-  DataTableToolbar,
-  DataTableViewOptions,
   DataTableSelectAllCheckbox,
   DataTableSelectRowCheckbox,
 }
