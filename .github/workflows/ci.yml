@@ -16,4 +16,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter storybook exec playwright install --with-deps chromium
       - run: pnpm verify
+      - name: Check committed API artifacts
+        run: |
+          git diff --exit-code -- apps/api/openapi packages/api-client/src/generated
+          test -z "$(git ls-files --others --exclude-standard -- apps/api/openapi packages/api-client/src/generated)"
       - run: pnpm --filter @workspace/database test:compose

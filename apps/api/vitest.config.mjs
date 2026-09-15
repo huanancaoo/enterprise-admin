@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config';
-import { nestPlugin } from '../../tools/testing/nest-plugin.mjs';
+import { nestPlugin } from '../../tests/setup/nest-plugin.mjs';
 
 export default defineConfig({
   plugins: [nestPlugin()],

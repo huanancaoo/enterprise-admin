@@ -14,6 +14,7 @@ import type { Request, Response } from 'express';
 import type { TenantContext } from '@workspace/database/tenant';
 import type { PermissionRequest } from './authorization.service';
 import { TenantContextService } from './tenant-context.service';
+import type { RequestLanguage } from './request-language';
 
 const tenantPermissions = Symbol('tenantPermissions');
 const trustedContext = Symbol('trustedTenantContext');
@@ -51,13 +52,12 @@ export class TenantGuard implements CanActivate {
       throw new InternalServerErrorException(
         'Request logging middleware is required',
       );
-    // 当前平台初始语言为 zh-CN；完整请求语言协商归属 S5，不从客户端推导授权事实。
     request[trustedContext] = await this.contexts.resolve(
       fromNodeHeaders(request.headers),
       organizationId,
       permissions,
       requestId,
-      'zh-CN',
+      response.locals.language as RequestLanguage,
     );
     return true;
   }

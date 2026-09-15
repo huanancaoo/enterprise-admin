@@ -33,14 +33,14 @@ S2 已提供 PostgreSQL 本地服务、数据库分权与独立迁移镜像，�
 
 ```sh
 pnpm --filter storybook exec playwright install chromium
-pnpm verify:s1
+pnpm verify
 ```
 
-所有测试运行器统一为 Vitest 4.1.11。`verify:s1` 顺序执行依赖边界与 lint、全工作区 typecheck、unit test、API HTTP 测试、正式 Storybook 交互/a11y 与四应用 build。GitHub Actions 执行 frozen-lockfile 安装、浏览器安装和 `pnpm verify`，额外覆盖完整 S0；需要可用 Docker。`pnpm build:storybook` 可单独构建组件工作台。
+所有测试运行器统一为 Vitest 4.1.11。`pnpm verify` 顺序执行 peer、依赖边界与 lint、typecheck、单元、API HTTP、Storybook、浏览器 E2E、数据库 Schema 漂移与数据库测试、生产构建及 API 生成物检查。GitHub Actions 使用相同入口；需要可用 Docker 与 Chromium。`pnpm build:storybook` 可单独构建组件工作台。
 
-依赖检查同时扫描 package.json 和源码 import/export、动态 import、require、类型 import；限制前端到服务端、contracts 到 ORM、公共 UI 到业务应用的依赖，并检查相对路径与 TypeScript 解析到的别名。负例测试见 `tools/boundaries/check.test.mjs`。
+依赖检查同时扫描 package.json 和源码 import/export、动态 import、require、类型 import；限制前端到服务端、contracts 到 ORM、公共 UI 到业务应用的依赖，并检查相对路径与 TypeScript 解析到的别名。负例测试见 `packages/eslint-config/boundaries/check.test.mjs`。
 
-S0 的独立兼容性工程仍在 `tools/s0`，生产包不依赖它。完整 S0 复现需要 Docker 与浏览器，见 [S0 工程说明](tools/s0/README.md)。`pnpm verify` 是完整验证入口，包含 S1、S0 和 S2 全部检查。测试分层与迁移结果见 [测试说明](docs/architecture/testing.md)。
+测试按正式工程职责归入应用、包及根目录 `tests`；具体分层见 [测试说明](docs/architecture/testing.md)。
 
 ## 应用与包边界
 

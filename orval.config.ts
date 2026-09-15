@@ -12,14 +12,32 @@ export default defineConfig({
       schemas: "./packages/api-client/src/generated/models",
       client: "react-query",
       httpClient: "fetch",
+      headers: true,
+      formatter: "prettier",
       clean: true,
       packageJson: "./packages/api-client/package.json",
       override: {
+        operations: {
+          listProjects: {
+            query: {
+              queryOptions: {
+                path: "./packages/api-client/src/query/projects.ts",
+                name: "projectListOptions",
+                useHooks: false,
+              },
+              queryKey: {
+                path: "./packages/api-client/src/query/projects.ts",
+                name: "listProjectsKey",
+              },
+            },
+          },
+        },
         query: {
           version: 5,
         },
         fetch: {
           includeHttpResponseReturnType: true,
+          forceSuccessResponse: true,
         },
         mutator: {
           path: "./packages/api-client/src/http/client.ts",

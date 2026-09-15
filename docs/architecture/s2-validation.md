@@ -19,7 +19,7 @@
 | ------------------------------------------------ | ------------------------------------------------------------------------------------------ |
 | `pnpm install --frozen-lockfile`                 | 联网按锁文件安装通过；离线缓存不完整，不能宣称离线安装通过                                 |
 | `pnpm verify`                                    | 全部通过，覆盖 peer、依赖边界、lint、typecheck、单元/API/Storybook、四应用构建、S0 和 S2   |
-| `pnpm verify:s2`                                 | 生成 Schema 无漂移，真实 PostgreSQL 的 5 个测试全部通过                                    |
+| `pnpm db:check && pnpm test:database`            | 生成 Schema 无漂移，真实 PostgreSQL 的 5 个测试全部通过                                    |
 | 独立 Dockerfile 构建                             | Node 26.8.2 / pnpm 12.4.1，固定锁文件安装，非 root 执行入口                                |
 | `pnpm --filter @workspace/database test:compose` | 全新卷迁移、容器删除重建后的数据持久化、重复迁移、错误身份非零退出全部通过；临时资源已清理 |
 | `git diff --check`                               | 通过                                                                                       |

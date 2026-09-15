@@ -125,7 +125,10 @@ describe(suiteName, { concurrent: false }, () => {
         "SELECT * FROM drizzle.__drizzle_migrations ORDER BY id"
       )
     ).rows
-    assert.equal(before.length, 6)
+    const journal = JSON.parse(
+      await readFile("migrations/meta/_journal.json", "utf8")
+    ) as { entries: unknown[] }
+    assert.equal(before.length, journal.entries.length)
     await runMigration()
     assert.deepEqual(
       (

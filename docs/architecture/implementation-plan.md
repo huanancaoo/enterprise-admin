@@ -143,18 +143,20 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 
 **依赖：** S4。先用一个 Projects List 操作证明生成链，再逐项扩展。
 
-- [ ] S5-01：在 `packages/contracts` 定义 ListQuery、Create、Update、Response、分页结果与统一错误 Schema。
-- [ ] S5-02：按 S0 的验证结果接入 Zod 校验与 OpenAPI 生成；额外 Adapter 只在验证确有需要时引入。
-- [ ] S5-03：固定 REST 路径规则与稳定 operationId。`/api/auth/*` 由 Better Auth Client 使用，`/api/v1/*` 由生成业务客户端使用。
-- [ ] S5-04：配置 OpenAPI → Orval → `packages/api-client`，前端不手写另一套业务 DTO，不导入数据库 Schema 当 API 类型。
-- [ ] S5-05：统一 HTTP 客户端对凭据、Accept-Language 和结构化错误的处理。
-- [ ] S5-06：建立 Query Key Factory，并让生成客户端的使用方式服从该策略；所有租户资源 key 包含 organizationId。
-- [ ] S5-07：响应真的随权限范围或 locale 改变时才加入对应 key 维度。规则适用于实际受影响的列表和详情，不只检查一个列表示例。
-- [ ] S5-08：后端语言协商采用“受支持的 Accept-Language → user.preferredLocale → organization.defaultLocale → platformDefaultLocale”。每个请求使用固定 translator，不切换服务器全局语言。
-- [ ] S5-09：错误逻辑依赖 code，不依赖 message；本地化响应正确提供 Content-Language，需要共享缓存时按文档处理 Vary。
-- [ ] S5-10：CI 重生成 OpenAPI/Orval 并检查工作区无漂移。
+当前已交付列表、语言协商及生成链，见 [S5 实施与验证记录](s5-validation.md)。S5-01 的 Update 字段范围待确认，阶段尚未整体完成。
 
-**验收：** 一个字段从 Contract 修改后能反映到 OpenAPI、生成客户端和前端类型检查；非法请求被拒绝；API 错误具有 code/message/requestId/locale；两个语言不同的并发请求不会串语言。
+- [ ] S5-01：在 `packages/contracts` 定义语言无关的 ListQuery、Create、Update、Response、分页结果与统一错误 Schema；具体翻译文案与翻译运行时留在 `packages/i18n`，响应可包含 locale 字段。
+- [x] S5-02：按 S0 的验证结果接入 Zod 校验与 OpenAPI 生成；额外 Adapter 只在验证确有需要时引入。
+- [x] S5-03：固定 REST 路径规则与稳定 operationId。`/api/auth/*` 由 Better Auth Client 使用，`/api/v1/*` 由生成业务客户端使用。
+- [x] S5-04：配置 OpenAPI → Orval → `packages/api-client`，生成业务 API SDK 与 TanStack Query hooks，并遵循 S5-06 的 Query Key 策略；前端不手写另一套业务 DTO，不导入数据库 Schema 当 API 类型。
+- [x] S5-05：统一 HTTP 客户端对凭据、Accept-Language 和结构化错误的处理。
+- [x] S5-06：建立 Query Key Factory，并让生成客户端的使用方式服从该策略；所有租户资源 key 包含 organizationId。
+- [x] S5-07：响应真的随权限范围或 locale 改变时才加入对应 key 维度。规则适用于实际受影响的列表和详情，不只检查一个列表示例。
+- [x] S5-08：后端语言协商采用“受支持的 Accept-Language → user.preferredLocale → organization.defaultLocale → platformDefaultLocale”。每个请求使用固定 translator，不切换服务器全局语言。
+- [x] S5-09：错误逻辑依赖 code，不依赖 message；本地化响应正确提供 Content-Language，需要共享缓存时按文档处理 Vary。
+- [x] S5-10：CI 重生成 OpenAPI/Orval 并检查工作区无漂移。
+
+**验收：** 一个字段从 Contract 修改后能反映到 OpenAPI、生成客户端和前端类型检查；非法请求被拒绝；API 错误具有 code/message/requestId/locale；两个语言不同的并发请求不会串语言。单元测试覆盖 Query Key 的租户与实际表示维度、Locale 协商规则；HTTP 测试覆盖 Contract、AuthZ 与稳定 Error Code；生成的 Query hooks 实际使用统一 Query Key Factory。
 
 **原文依据：** 总体架构与职责边界；后端、认证、API 与多租户数据库边界。
 

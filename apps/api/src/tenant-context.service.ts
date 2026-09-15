@@ -4,6 +4,9 @@ import {
   Injectable,
 } from '@nestjs/common';
 import type { TenantContext } from '@workspace/database/tenant';
+import { OrganizationIdSchema } from '@workspace/contracts';
+import { resolveLocale } from '@workspace/i18n';
+import type { RequestLanguage } from './request-language';
 import { IdentityService } from './identity.service';
 import {
   AuthorizationService,
@@ -22,20 +25,25 @@ export class TenantContextService {
     organizationId: string,
     permissions: PermissionRequest,
     requestId: string,
-    locale: TenantContext['locale'],
+    language: RequestLanguage,
   ): Promise<TenantContext> {
-    if (
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-        organizationId,
-      )
-    )
-      throw new BadRequestException('organizationId must be a UUID v4');
+    if (!OrganizationIdSchema.safeParse(organizationId).success)
+      throw new BadRequestException();
     const actor = await this.identity.requireIdentity(headers);
+    language.locale = resolveLocale({
+      acceptLanguage: headers.get('accept-language'),
+      preferredLocale: actor.preferredLocale,
+    });
     const membership = await this.identity.requireOrganizationMembership(
       headers,
       organizationId,
       actor,
     );
+    language.locale = resolveLocale({
+      acceptLanguage: headers.get('accept-language'),
+      preferredLocale: actor.preferredLocale,
+      defaultLocale: membership.defaultLocale,
+    });
     if (!membership.enabled) throw new ForbiddenException();
     await this.authorization.requirePermission(
       headers,
@@ -48,7 +56,7 @@ export class TenantContextService {
       userId: actor.userId,
       membershipId: membership.membershipId,
       requestId,
-      locale,
+      locale: language.locale,
     });
   }
 }

@@ -21,6 +21,7 @@ export const user = pgTable("user", {
     .defaultNow()
     .$onUpdate(() => /* @__PURE__ */ new Date())
     .notNull(),
+  preferredLocale: text("preferred_locale", { enum: ["zh-CN", "en-US", "ar"] }),
 });
 
 export const session = pgTable(
@@ -101,6 +102,9 @@ export const organization = pgTable("organization", {
   logo: text("logo"),
   createdAt: timestamp("created_at").notNull(),
   metadata: text("metadata"),
+  defaultLocale: text("default_locale", { enum: ["zh-CN", "en-US", "ar"] })
+    .default("zh-CN")
+    .notNull(),
   enabled: boolean("enabled").default(true).notNull(),
 });
 

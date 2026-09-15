@@ -6,7 +6,7 @@
 
 ## 依据与适用范围
 
-用户指定实施 [计划 S0](../architecture/implementation-plan.md)。[研究原文](../architecture/multi-tenant-foundation.md)逐字归档，保留原始引用标记；这些标记依赖原研究会话，并非本仓库可解析的证据链接。可复核的依赖说明与实测结果见 [S0 验收记录](../architecture/s0-validation.md)。
+用户指定实施 [计划 S0](../architecture/implementation-plan.md)。[研究原文](../architecture/multi-tenant-foundation.md)逐字归档，保留原始引用标记；这些标记依赖原研究会话，并非本仓库可解析的证据链接。
 
 S0 交付架构决策、精确版本及独立兼容性验证工程。归档文档中的“下一步任务”、S1–S11 和参考代码不自动成为本次实施范围。涉及业务规则，以本次用户确认和 ADR 为准。
 
@@ -34,7 +34,7 @@ S0 交付架构决策、精确版本及独立兼容性验证工程。归档文�
 
 `StandardSchemaValidationPipe` 配合 `@Body({ schema })`、`@Param(name, { schema })` 和 `@Query({ schema })` 校验输入；响应使用 `@ApiCreatedResponse({ standardSchema })`。Swagger 自动转换同一份 Zod Schema，Orval 生成客户端。已移除 `nestjs-zod`，没有第二份字段定义。
 
-[原生能力探针](../../tools/s0/fixtures/native-standard-schema.ts.txt)必须编译成功。真实 HTTP、OpenAPI 字段约束、生成 SDK 的编译及请求也必须通过。
+真实 HTTP、OpenAPI 字段约束、生成 SDK 的编译及请求通过正式 API、契约和客户端测试验证。
 
 ### 包与数据边界
 
@@ -43,7 +43,6 @@ S0 交付架构决策、精确版本及独立兼容性验证工程。归档文�
 - `packages/database` 持有 Drizzle Schema、Pool 和迁移；租户业务 Repository 只接收 TenantTx。
 - `packages/permissions` 持有固定 Permission Statement；Better Auth Organization 持有组织角色及成员关系。
 - `packages/mocks`、`packages/i18n` 分别持有共享 Mock 与 Git 翻译目录；租户内容译文存数据库。
-- `tools/s0` 是独立开发验证工程，生产应用不依赖它。其探针端点、测试账号和临时数据库不进入生产 API。
 
 以上是后续阶段的目标边界，不表示 S1 的所有应用与包现已建立。
 
@@ -60,14 +59,13 @@ S0 交付架构决策、精确版本及独立兼容性验证工程。归档文�
 依赖选择以兼容及完整验收通过为目标，不要求每个包都采用 latest。
 
 - [versions.json](../architecture/versions.json)：Node 26.8.2、pnpm 12.4.1、PostgreSQL 18.6 与镜像摘要。
-- [dependency-audit.json](../architecture/dependency-audit.json)：`latest` 保留官方查询快照，`selected` 记录实际采用版本，`selectionReason` 说明差异；`usedBy.spec` 是升级前声明。
 - TypeScript 6.0.3 满足 Nest CLI、typescript-eslint 与 TypeDoc 的共同范围。TS 7.0.2 缺少它们使用的编译器 API，不纳入本次兼容组合。
 - Storybook 10.6.0 配合 Vitest / browser-playwright 4.1.11 和 Vite 8.3.0，满足 peer 范围，浏览器交互、a11y 和静态构建通过。
 - 测试运行器统一为 Vitest 4.1.11；NestJS 测试通过 SWC 保留装饰器元数据。移除 Jest、ts-jest 与 `--experimental-vm-modules` 测试入口；生产构建不变。见 [测试说明](../architecture/testing.md)。
 - 所有外部直接依赖固定精确版本，内部依赖保留 workspace 协议；传递依赖以 `pnpm-lock.yaml` 为准，安装使用 `--frozen-lockfile`。
 - pnpm 12 的 `engineStrict` / `saveExact` 放在 `pnpm-workspace.yaml`。近期发布包仅有精确版本年龄例外；构建脚本显式允许 esbuild，其余列出的脚本拒绝执行。
 
-根目录 `pnpm verify` 依次执行 peer 检查、`verify:s1`（Lint、类型、边界/API 单元、HTTP、正式 Storybook 测试与构建）和完整 S0 探针。所有命令都必须成功，具体覆盖见 [S0 验收记录](../architecture/s0-validation.md)。
+根目录 `pnpm verify` 执行 peer、Lint、类型、单元、HTTP、Storybook、浏览器 E2E、数据库 Schema 与隔离测试、生产构建及 API 生成物检查。所有命令都必须成功，具体覆盖见 [测试说明](../architecture/testing.md)。
 
 ## 相关决策
 

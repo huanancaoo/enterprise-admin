@@ -11,6 +11,7 @@ import { AuthorizationService } from './authorization.service';
 import { TenantContextService } from './tenant-context.service';
 import { TenantGuard } from './tenant.guard';
 import { ProjectPolicy } from './project.policy';
+import { ProjectsController } from './projects.controller';
 
 export async function createApplication(
   config: AuthConfig,
@@ -21,6 +22,7 @@ export async function createApplication(
     const app = await NestFactory.create<NestExpressApplication>(
       {
         module: AppModule,
+        controllers: [ProjectsController],
         providers: [
           { provide: AuthRuntime, useValue: runtime },
           IdentityService,

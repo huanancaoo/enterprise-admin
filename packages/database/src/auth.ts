@@ -31,6 +31,14 @@ export function createAuth(
     trustedOrigins,
     database: drizzleAdapter(drizzle(pool), { provider: "pg", schema }),
     emailAndPassword: { enabled: true },
+    user: {
+      additionalFields: {
+        preferredLocale: {
+          type: ["zh-CN", "en-US", "ar"],
+          required: false,
+        },
+      },
+    },
     session: {
       additionalFields: {
         // activeOrganizationId 是工作区偏好，但仍引用同一个 UUID 组织标识。
@@ -57,6 +65,12 @@ export function createAuth(
         schema: {
           organization: {
             additionalFields: {
+              defaultLocale: {
+                type: ["zh-CN", "en-US", "ar"],
+                required: true,
+                defaultValue: "zh-CN",
+                input: false,
+              },
               // 组织默认可用，启停只由平台管理，不能通过组织客户端修改。
               enabled: {
                 type: "boolean",

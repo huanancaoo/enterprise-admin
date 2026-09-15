@@ -24,16 +24,16 @@
 
 2026-09-15，使用独立临时 PostgreSQL 容器和随机测试凭据：
 
-| 检查                                          | 结果                                                                             |
-| --------------------------------------------- | -------------------------------------------------------------------------------- |
-| API E2E                                       | 8/8 通过，其中新增认证链路 4 项                                                  |
-| Better Auth Client → HTTP → runtime 数据库    | 注册、登录、Cookie 会话读取、Organization 列表、登出通过                         |
-| HTTP 安全与路由                               | 非可信 Origin 返回 403；旧 Cookie 会话失效；错误密码返回 401；认证与业务路径分离 |
-| 连接释放                                      | 应用关闭后 runtime Pool 已结束                                                   |
-| `pnpm --filter @workspace/database verify:s2` | Schema 重生成无漂移；数据库分权与 S3 隔离共 13/13 通过                           |
-| `pnpm test:unit`                              | 根目录 6/6、API 1/1 通过                                                         |
-| `pnpm lint`、`pnpm typecheck`、`pnpm build`   | 通过                                                                             |
-| 编译产物加载                                  | Node 能直接加载 `apps/api/dist/create-application.js` 及其认证依赖               |
+| 检查                                        | 结果                                                                             |
+| ------------------------------------------- | -------------------------------------------------------------------------------- |
+| API E2E                                     | 8/8 通过，其中新增认证链路 4 项                                                  |
+| Better Auth Client → HTTP → runtime 数据库  | 注册、登录、Cookie 会话读取、Organization 列表、登出通过                         |
+| HTTP 安全与路由                             | 非可信 Origin 返回 403；旧 Cookie 会话失效；错误密码返回 401；认证与业务路径分离 |
+| 连接释放                                    | 应用关闭后 runtime Pool 已结束                                                   |
+| `pnpm db:check && pnpm test:database`       | Schema 重生成无漂移；数据库分权与 S3 隔离共 13/13 通过                           |
+| `pnpm test:unit`                            | 根目录 6/6、API 1/1 通过                                                         |
+| `pnpm lint`、`pnpm typecheck`、`pnpm build` | 通过                                                                             |
+| 编译产物加载                                | Node 能直接加载 `apps/api/dist/create-application.js` 及其认证依赖               |
 
 Better Auth 1.7.5 在测试环境默认跳过 Origin 校验；共享配置显式保留 Origin 和 CSRF 检查，避免测试环境与生产 HTTP 安全语义不同。测试中的 Cookie jar 仅补充 Node 不具备的浏览器 Cookie 传输能力；没有替换认证服务或数据库。
 

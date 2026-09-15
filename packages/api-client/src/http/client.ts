@@ -1,3 +1,5 @@
+import { ApiErrorSchema, type ApiError } from "@workspace/contracts"
+
 export type ApiClientConfig = {
   baseUrl: string
   getHeaders?: () => HeadersInit | Promise<HeadersInit>
@@ -16,12 +18,14 @@ export type ApiClientRequestOptions = RequestInit & {
 export class ApiClientError extends Error {
   constructor(
     readonly status: number,
-    readonly body: string
+    readonly body: ApiError
   ) {
-    super(`API request failed with ${status}`)
+    super(body.message)
     this.name = "ApiClientError"
   }
 }
+
+export type ErrorType<T> = ApiClientError & { readonly body: T & ApiError }
 
 export async function apiClient<T>(
   requestPath: string,
@@ -51,10 +55,17 @@ export async function apiClient<T>(
     headers.set(key, value)
   })
 
-  const response = await fetch(url, { ...requestInit, headers })
+  const response = await fetch(url, {
+    credentials: "include",
+    ...requestInit,
+    headers,
+  })
 
   if (!response.ok) {
-    throw new ApiClientError(response.status, await response.text())
+    throw new ApiClientError(
+      response.status,
+      ApiErrorSchema.parse(await response.json())
+    )
   }
 
   // Orval fetch 默认 T = { data, status, headers }，不能只返回解析后的 body。

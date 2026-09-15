@@ -9,7 +9,7 @@
 - 补齐 admin、mocks、contracts、database、permissions、i18n 最小包，与已有 ui、api-client 形成八个包边界。新包不提供尚未实现的业务接口。
 - Worker 仅预留规划目录。
 - 包依赖白名单同时检查 package.json 与源码；覆盖包名、相对路径、TypeScript 解析、动态 import、require 和类型 import。
-- GitHub Actions 配置 frozen-lockfile 安装与 `pnpm verify:s1`。API lint 改为只检查，不在 CI 中自动修复源码。
+- GitHub Actions 配置 frozen-lockfile 安装与 `pnpm verify`。API lint 改为只检查，不在 CI 中自动修复源码。
 - 环境示例按前端公开配置、API runtime 与迁移任务分开。S1 无数据库凭据；API 读取进程变量，不自动加载 `.env`。
 - API 使用 Nest ConsoleLogger 输出 JSON，记录 requestId、method、path、statusCode、durationMs。requestId 由服务端生成并放入响应 Header 与 `res.locals`；不信任外部 Header，不记录查询串、Body 或认证 Header。
 
@@ -28,7 +28,7 @@
 | `pnpm dev`           | 四应用同时启动，API 3000 / admin 3200 / platform 3201 / Storybook 6006      |
 | 浏览器               | admin Members 表格、platform 标题、Storybook UI/Button/Default 按钮实际渲染 |
 | 请求日志             | 真实 HTTP 响应的 X-Request-Id 与 JSON 请求完成日志一致                      |
-| 干净源码副本         | 无依赖和构建缓存执行安装、`pnpm verify:s1` 全部通过                         |
+| 干净源码副本         | 无依赖和构建缓存执行安装、`pnpm verify` 全部通过                            |
 
 负例在临时目录构造前端直接导入数据库、相对路径导入、动态导入、类型导入、manifest 依赖，以及 contracts 导入 Drizzle；每种违规均被拒绝。合法的前端到 UI 依赖通过。另在干净副本的真实 admin 源码目录加入数据库导入，运行边界命令返回退出码 1；验证后移除该临时负例文件。
 

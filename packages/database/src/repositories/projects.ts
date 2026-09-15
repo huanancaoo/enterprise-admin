@@ -1,10 +1,90 @@
-import { and, eq } from "drizzle-orm"
+import { and, eq, sql } from "drizzle-orm"
 import type { TenantTx } from "../tenant.ts"
 import { projects, projectTranslations } from "../schema/projects.ts"
 
 type Locale = typeof projectTranslations.$inferInsert.locale
 
+export type ProjectListInput = {
+  page: number
+  pageSize: number
+  status?: "draft" | "active" | "archived"
+  name?: string
+  sortBy: "createdAt" | "updatedAt"
+  sortOrder: "asc" | "desc"
+}
+type LocalizedProject = typeof projects.$inferSelect & {
+  resolvedLocale: Locale
+  name: string
+  description: string | null
+}
+
 export const projectRepository = {
+  async listPage(tx: TenantTx, input: ProjectListInput) {
+    const name = input.name?.trim()
+    const pattern = name ? `%${name.replace(/[\\%_]/g, "\\$&")}%` : undefined
+    const orderColumn =
+      input.sortBy === "updatedAt" ? sql`"updatedAt"` : sql`"createdAt"`
+    const orderDirection = input.sortOrder === "asc" ? sql`ASC` : sql`DESC`
+    // 译文按整条记录选择，不能用 COALESCE(description) 混入基础语言描述。
+    // 同一 SQL 同时取得 total 和当前页，越界页仍保留 total。
+    const result = await tx.execute<
+      Omit<LocalizedProject, "createdAt" | "updatedAt"> & {
+        createdAt: string
+        updatedAt: string
+        total: number
+        missing: number
+      }
+    >(sql`
+      WITH localized AS (
+        SELECT p.id, p.organization_id AS "organizationId", p.status,
+          p.content_locale AS "contentLocale", p.created_at AS "createdAt", p.updated_at AS "updatedAt",
+          CASE WHEN wanted.project_id IS NOT NULL THEN wanted.locale ELSE base.locale END AS "resolvedLocale",
+          CASE WHEN wanted.project_id IS NOT NULL THEN wanted.name ELSE base.name END AS name,
+          CASE WHEN wanted.project_id IS NOT NULL THEN wanted.description ELSE base.description END AS description,
+          base.project_id IS NULL AS missing_base
+        FROM projects p
+        LEFT JOIN project_translations base ON base.organization_id = ${tx.context.organizationId}
+          AND base.project_id = p.id AND base.locale = p.content_locale
+        LEFT JOIN project_translations wanted ON wanted.organization_id = ${tx.context.organizationId}
+          AND wanted.project_id = p.id AND wanted.locale = ${tx.context.locale}
+        WHERE p.organization_id = ${tx.context.organizationId}
+          ${input.status ? sql`AND p.status = ${input.status}` : sql``}
+      ), filtered AS (
+        SELECT * FROM localized ${pattern ? sql`WHERE name ILIKE ${pattern}` : sql``}
+      )
+      SELECT totals.total, integrity.missing, page.*
+      FROM (SELECT count(*)::int AS total FROM filtered) totals
+      CROSS JOIN (SELECT count(*)::int AS missing FROM localized WHERE missing_base) integrity
+      LEFT JOIN (
+        SELECT * FROM filtered ORDER BY ${orderColumn} ${orderDirection}, id ASC
+        LIMIT ${input.pageSize} OFFSET ${(input.page - 1) * input.pageSize}
+      ) page ON true
+      ORDER BY page.${orderColumn} ${orderDirection}, page.id ASC
+    `)
+    const first = result.rows[0]!
+    // 基础译文是数据不变量；缺失时不能悄悄丢弃项目或显示空名称。
+    if (first.missing > 0)
+      throw new Error("Project base translation is missing")
+    const items: LocalizedProject[] = result.rows
+      .filter((row) => row.id !== null)
+      .map((row) => ({
+        id: row.id,
+        organizationId: row.organizationId,
+        status: row.status,
+        contentLocale: row.contentLocale,
+        resolvedLocale: row.resolvedLocale,
+        name: row.name,
+        description: row.description,
+        createdAt: new Date(row.createdAt),
+        updatedAt: new Date(row.updatedAt),
+      }))
+    return {
+      items,
+      total: first.total,
+      page: input.page,
+      pageSize: input.pageSize,
+    }
+  },
   async findForUpdate(tx: TenantTx, projectId: string) {
     const [project] = await tx
       .select()

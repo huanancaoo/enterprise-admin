@@ -243,6 +243,7 @@ describe(
       expect(await identity.requireIdentity(ownerHeaders)).toEqual({
         userId: session.user.id,
         sessionId: session.session.id,
+        preferredLocale: null,
       });
       expect(await identity.getIdentity(new Headers())).toBeNull();
       await expect(
@@ -429,7 +430,7 @@ describe(
             a.id,
             { project: ['create'] },
             'test-setup-a',
-            'zh-CN',
+            { locale: 'zh-CN' },
           );
         const contextB = await app!
           .get<TenantContextService>(TenantContextService)
@@ -438,7 +439,7 @@ describe(
             b.id,
             { project: ['create'] },
             'test-setup-b',
-            'zh-CN',
+            { locale: 'zh-CN' },
           );
         const run = createTenantRunner(runtime.pool);
         const seed = (context: TenantContext) =>

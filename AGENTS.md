@@ -22,7 +22,7 @@
 - `apps/admin` / `apps/platform`：租户后台与平台后台；`apps/api`：HTTP 服务；`apps/storybook`：公共组件工作台。
 - `packages/ui` 放通用 UI，`packages/admin` 放业务无关后台组件；具体业务留在应用内。
 - `packages/contracts` 定义 HTTP Schema，`packages/api-client` 承载客户端；数据库能力位于仅供服务端使用的 `packages/database`。
-- 修改跨包依赖时运行 `pnpm lint:boundaries`。边界规则以 `tools/boundaries/check.mjs` 为准。
+- 修改跨包依赖时运行 `pnpm lint:boundaries`。边界规则以 `packages/eslint-config/boundaries/check.mjs` 为准。
 
 ## 安装与开发
 
