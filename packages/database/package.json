@@ -5,7 +5,9 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./auth": "./src/auth.ts"
+    "./auth": "./src/auth.ts",
+    "./tenant": "./src/tenant.ts",
+    "./repositories/projects": "./src/repositories/projects.ts"
   },
   "scripts": {
     "lint": "eslint",
@@ -16,7 +18,9 @@
     "schema:check": "node scripts/check-schema.mjs",
     "test:database": "vitest run",
     "verify:s2": "pnpm schema:check && pnpm test:database",
-    "test:compose": "node scripts/verify-compose.mjs"
+    "test:compose": "node scripts/verify-compose.mjs",
+    "test:isolation": "vitest run test/isolation.test.ts",
+    "verify:s3": "pnpm test:isolation"
   },
   "devDependencies": {
     "@workspace/eslint-config": "workspace:*",

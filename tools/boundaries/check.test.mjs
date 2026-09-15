@@ -185,3 +185,39 @@ test("嵌套 workspace 使用自身包边界，不被父包的合法依赖掩盖
     )
   })
 })
+
+test("租户 Repository 禁止导入 Pool、db 工厂和租户事务运行入口", () => {
+  withWorkspace(["packages/*"], ({ root, write, pkg }) => {
+    pkg("packages/database", "@workspace/database")
+    write(
+      "packages/database/src/tenant.ts",
+      "export type TenantTx = {}; export function createTenantRunner() {}"
+    )
+    write(
+      "packages/database/src/schema/projects.ts",
+      "export const projects = {}"
+    )
+    const file = "packages/database/src/repositories/projects.ts"
+    write(
+      file,
+      'import type { TenantTx } from "../tenant.ts"; import { projects } from "../schema/projects.ts"; import { eq } from "drizzle-orm"'
+    )
+    assert.deepEqual(checkBoundaries(root), [])
+    for (const source of [
+      'import { Pool } from "pg"',
+      'import { drizzle } from "drizzle-orm/node-postgres"',
+      'import { createDatabase } from "../index.ts"',
+      'import { createTenantRunner } from "../tenant.ts"',
+      'import("../index.ts")',
+      'export * from "../index.ts"',
+    ]) {
+      write(file, source)
+      assert.ok(
+        checkBoundaries(root).some((error) =>
+          error.includes("TenantTx repository boundary")
+        ),
+        source
+      )
+    }
+  })
+})

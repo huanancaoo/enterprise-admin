@@ -21,7 +21,9 @@
     "db:generate": "pnpm --filter @workspace/database db:generate",
     "db:migrate": "pnpm --filter @workspace/database db:migrate",
     "test:database": "pnpm --filter @workspace/database test:database",
-    "verify:s2": "pnpm --filter @workspace/database verify:s2"
+    "verify:s2": "pnpm --filter @workspace/database verify:s2",
+    "test:isolation": "pnpm --filter @workspace/database test:isolation",
+    "verify:s3": "pnpm lint:boundaries && pnpm --filter @workspace/database typecheck && pnpm --filter @workspace/database lint && pnpm test:database"
   },
   "devDependencies": {
     "@workspace/typescript-config": "workspace:*",

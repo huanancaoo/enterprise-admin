@@ -94,13 +94,15 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 
 **依赖：** S2。这个阶段先用测试构造上下文证明数据库隔离，不必等待完整登录 UI。
 
-- [ ] S3-01：建立包含 `organizationId`、`userId`、`membershipId`、`requestId`、`locale` 的 TenantContext。
-- [ ] S3-02：实现 `runInTenant(context, work)`：开启事务，使用 transaction-local `set_config`，将同一事务对象交给 Repository。
-- [ ] S3-03：建立 TenantTx 类型与数据访问约束，租户 Repository 不能退回全局 db/pool 执行业务查询。
-- [ ] S3-04：建立 `projects`、`project_translations` 的最小 Schema。两表均具有 `organization_id`；译文采用 `(organization_id, project_id, locale)` 唯一约束，并建立匹配组织的复合外键。
-- [ ] S3-05：对租户业务表启用 RLS，配置 `USING`、`WITH CHECK`，使用 S0 确定的组织 ID 类型。
-- [ ] S3-06：Repository 继续显式加入 organization scope，不把 RLS 当成省略业务过滤的理由。
-- [ ] S3-07：在真实 PostgreSQL Testcontainers 中创建 org-A/org-B，使用实际 `app_runtime` 凭据执行隔离测试。
+本地实施及隔离验收已完成，见 [S3 验收记录](s3-validation.md)。远端 CI 尚未推送触发。
+
+- [x] S3-01：建立包含 `organizationId`、`userId`、`membershipId`、`requestId`、`locale` 的 TenantContext。
+- [x] S3-02：实现 `runInTenant(context, work)`：开启事务，使用 transaction-local `set_config`，将同一事务对象交给 Repository。
+- [x] S3-03：建立 TenantTx 类型与数据访问约束，租户 Repository 不能退回全局 db/pool 执行业务查询。
+- [x] S3-04：建立 `projects`、`project_translations` 的最小 Schema。两表均具有 `organization_id`；译文采用 `(organization_id, project_id, locale)` 唯一约束，并建立匹配组织的复合外键。
+- [x] S3-05：对租户业务表启用 RLS，配置 `USING`、`WITH CHECK`，使用 S0 确定的组织 ID 类型。
+- [x] S3-06：Repository 继续显式加入 organization scope，不把 RLS 当成省略业务过滤的理由。
+- [x] S3-07：在真实 PostgreSQL Testcontainers 中创建 org-A/org-B，使用实际 `app_runtime` 凭据执行隔离测试。
 
 **最低隔离用例：**
 

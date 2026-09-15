@@ -15,6 +15,20 @@
       "when": 1789445086298,
       "tag": "0001_auth-grants",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789445938910,
+      "tag": "0002_projects",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789445947311,
+      "tag": "0003_tenant-rls",
+      "breakpoints": true
     }
   ]
 }

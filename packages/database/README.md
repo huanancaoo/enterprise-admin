@@ -1,4 +1,4 @@
-# Database（S2）
+# Database（S2–S3）
 
 `@workspace/database` 仅供服务端使用。认证配置采用 [Better Auth Drizzle 生成链](https://better-auth.com/docs/adapters/drizzle)，版本沿用 S0；认证 Schema 不手改。`tools/s0/migrations` 只用于独立兼容性探针，部署只执行本包的 `migrations`。
 
@@ -21,7 +21,7 @@ pnpm db:generate
 
 先由固定版本 Better Auth CLI 读取 `auth.config.ts` / `src/auth.ts` 生成认证 Schema，再由 Drizzle Kit 生成 SQL 和快照。此命令不读取数据库凭据、不连接数据库。
 
-新增表时必须审查所属身份域、租户业务域或平台域，并在同一发布的 migration 中加入明确表名、角色和必要操作的 GRANT。不要使用 `ON ALL TABLES` 或默认自动授权；新增表默认没有 runtime 权限。UUID 主键不需要序列授权；将来若使用序列，按具体序列授予必要权限。业务表的 RLS / TenantTx 属于 S3，不把组织隔离策略复制到登录前需要访问的认证表。
+新增表时必须审查所属身份域、租户业务域或平台域，并在同一发布的 migration 中加入明确表名、角色和必要操作的 GRANT。不要使用 `ON ALL TABLES` 或默认自动授权；新增表默认没有 runtime 权限。UUID 主键不需要序列授权；将来若使用序列，按具体序列授予必要权限。租户业务表必须同时建立 RLS 和 TenantTx 访问路径；不把组织隔离策略复制到登录前需要访问的认证表。
 
 结构迁移生成后，需要新增授权或其他手写 SQL 时运行：
 
@@ -63,7 +63,7 @@ API / Worker 启动脚本不运行迁移。运行账号、平台账号、迁移�
 | ------------------ | --------------------------------------------------------------------------------------------------------- |
 | `bootstrap_admin`  | PostgreSQL 镜像初始化角色，拥有数据库；只用于首次初始化/运维                                              |
 | `app_migrator`     | 非超级用户，可建 schema、持有应用表和迁移 ledger；无创建数据库/角色或 BYPASSRLS 权限                      |
-| `app_runtime`      | 非 Owner；认证八表 SELECT/INSERT/UPDATE/DELETE；无 DDL、TEMP、TRUNCATE、迁移 ledger 或角色切换权限        |
+| `app_runtime`      | 非 Owner；认证八表及 RLS 约束下的 Projects 两表 SELECT/INSERT/UPDATE/DELETE；无 DDL、TEMP、TRUNCATE、迁移 ledger 或角色切换权限        |
 | `platform_runtime` | 非 Owner；只读 user 公开身份列、organization 运营列和 member 关系列；无 account/session/verification 权限 |
 
 平台授权、组织状态字段、平台设置和审计表尚未实现（S4/S8）。新增时按 ADR-0003 明确授权；平台数据库账号本身不等同于 HTTP 请求已经获得平台授权。
@@ -79,3 +79,17 @@ pnpm verify:s2
 先检查 Better Auth Schema 生成漂移，再在新的 Testcontainers PostgreSQL 中执行真实 bootstrap、两次 one-shot migration、Owner/权限断言、runtime 认证/组织操作、平台列权限、新表默认无授权、失败迁移回滚及非零退出。测试使用随机密码、随机映射端口，不读取开发数据库 URL；结束后销毁测试容器。
 
 独立镜像与 Compose 持久化复现：`pnpm --filter @workspace/database test:compose`。它构建镜像，使用随机项目名与端口，验证容器删除重建后的数据保留及 migrator 非零退出，最终删除本次测试创建的容器、卷和镜像。
+
+## 租户事务与 Repository（S3）
+
+组合入口从 `@workspace/database/tenant` 导入 `createTenantRunner(pool)`，得到 `runInTenant(context, work)`。context 必须包含 organizationId、userId、membershipId、requestId、locale；S4 的认证与授权层负责验证其可信性。本阶段仅测试构造上下文，没有向 HTTP 暴露构造接口。
+
+`runInTenant` 冻结上下文副本，在同一 Drizzle 事务内执行 transaction-local `set_config`，再将 TenantTx 交给 work；成功提交，抛错回滚。回调必须等待所有查询完成，不能保存事务供回调结束后使用。它不负责登录、成员资格或组织权限验证。
+
+`@workspace/database/repositories/projects` 提供 S3 的最小创建、读取、译文读取和删除操作。所有读取和删除显式限定组织，插入的 organizationId 取自事务上下文；创建时同时写基础译文，失败一起回滚。完整业务筛选、分页、授权、审计与 HTTP 接口按 S4–S7 实施。
+
+TenantTx 品牌阻止普通 db/Pool 作为 Repository 参数；`pnpm lint:boundaries` 约束 `src/repositories/` 只依赖 Schema、Drizzle 查询表达式和 TenantTx 类型，不能导入全局连接或事务工厂。新增租户 Repository 放在这个目录内。
+
+迁移 `0002_projects.sql` 建立两张租户表、组织复合外键及译文唯一约束；`0003_tenant-rls.sql` 对两表 ENABLE/FORCE RLS，按 UUID 上下文设置 USING/WITH CHECK，仅授权 app_runtime CRUD。platform_runtime 没有业务表权限。
+
+运行 `pnpm verify:s3` 检查边界、类型、lint 与完整数据库测试；`pnpm test:isolation` 单独复现隔离测试。根 `pnpm verify` 和现有 CI 通过 `test:database` 自动覆盖 S3，无需重复运行同一套数据库测试。

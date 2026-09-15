@@ -1,9 +1,18 @@
 import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
 import { randomBytes } from "node:crypto"
 import { execFileSync, spawnSync } from "node:child_process"
 import { fileURLToPath } from "node:url"
 
 const cwd = fileURLToPath(new URL("../../../", import.meta.url))
+const migrationCount = String(
+  JSON.parse(
+    readFileSync(
+      new URL("../migrations/meta/_journal.json", import.meta.url),
+      "utf8"
+    )
+  ).entries.length
+)
 const project = `enterprise-s2-${randomBytes(6).toString("hex")}`
 const env = {
   ...process.env,
@@ -50,7 +59,10 @@ try {
   run("build", "migrator")
   run("up", "-d", "--wait", "postgres")
   run("run", "--rm", "migrator")
-  assert.equal(query("SELECT count(*) FROM drizzle.__drizzle_migrations"), "2")
+  assert.equal(
+    query("SELECT count(*) FROM drizzle.__drizzle_migrations"),
+    migrationCount
+  )
   query(
     "INSERT INTO public.organization (id,name,slug,created_at) VALUES (gen_random_uuid(),'Persistence probe','s2-persistence',now())"
   )
@@ -64,7 +76,10 @@ try {
     "1"
   )
   run("run", "--rm", "migrator")
-  assert.equal(query("SELECT count(*) FROM drizzle.__drizzle_migrations"), "2")
+  assert.equal(
+    query("SELECT count(*) FROM drizzle.__drizzle_migrations"),
+    migrationCount
+  )
   const failed = spawnSync("docker", [...args, "run", "--rm", "migrator"], {
     cwd,
     env: {

@@ -193,6 +193,23 @@ export function checkBoundaries(root) {
                     pkg === "." || path === pkg || path.startsWith(pkg + "/")
                 )
               : undefined
+          // 租户 Repository 的连接只能由 TenantTx 参数传入，禁止导入连接工厂或其他执行入口。
+          if (
+            relative(root, file).startsWith(
+              "packages/database/src/repositories/"
+            ) &&
+            !(
+              specifier === "drizzle-orm" ||
+              path.startsWith("packages/database/src/schema/") ||
+              (path === "packages/database/src/tenant.ts" &&
+                ((ts.isImportDeclaration(node) &&
+                  node.importClause?.isTypeOnly) ||
+                  ts.isImportTypeNode(node)))
+            )
+          )
+            errors.push(
+              `${relative(root, file)}: ${specifier} violates TenantTx repository boundary`
+            )
           check(specifier, file, target)
         }
         ts.forEachChild(node, visit)

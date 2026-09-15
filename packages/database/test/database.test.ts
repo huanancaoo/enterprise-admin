@@ -30,6 +30,8 @@ const tables = [
   "member",
   "organization",
   "organization_role",
+  "project_translations",
+  "projects",
   "session",
   "user",
   "verification",
@@ -121,7 +123,7 @@ describe.sequential("S2: bootstrap → one-shot migration → runtime", () => {
         "SELECT * FROM drizzle.__drizzle_migrations ORDER BY id"
       )
     ).rows
-    assert.equal(before.length, 2)
+    assert.equal(before.length, 4)
     await runMigration()
     assert.deepEqual(
       (
@@ -300,7 +302,7 @@ describe.sequential("S2: bootstrap → one-shot migration → runtime", () => {
     const journalPath = join(temp, "migrations/meta/_journal.json")
     const journal = JSON.parse(await readFile(journalPath, "utf8"))
     journal.entries.push({
-      idx: 2,
+      idx: journal.entries.length,
       version: "7",
       when: journal.entries.at(-1).when + 1,
       tag: "0002_failure",
