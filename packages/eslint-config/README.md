@@ -1,5 +1,7 @@
 # `@workspace/eslint-config`
 
+所有 TypeScript 预设启用类型感知的 `@typescript-eslint/no-deprecated: error`，阻止调用声明为 `@deprecated` 的 API。文件须纳入所属包的 TSConfig；不要通过关闭规则绕过弃用检查。
+
 工作区内 TypeScript 与 Vite React 的 ESLint flat config。使用 ESLint 10、TypeScript 6。
 
 ## 使用方式

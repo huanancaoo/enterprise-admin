@@ -46,7 +46,7 @@ API 测试显式从 Vitest 导入测试函数；共享 Nest TypeScript/ESLint �
 
 ## S0 生命周期
 
-S0 后端通过 `describe.sequential` 保留步骤顺序：UUID 用例依赖认证用例创建的组织。容器和应用在 `beforeAll` 初始化，`afterAll` 按 HTTP → runtime pool → owner pool → container 清理；初始化失败时也释放已取得的资源。测试和 hook 超时各为 180 秒。
+S0 后端通过 `describe(..., { concurrent: false }, ...)` 保留步骤顺序：UUID 用例依赖认证用例创建的组织。容器和应用在 `beforeAll` 初始化，`afterAll` 按 HTTP → runtime pool → owner pool → container 清理；初始化失败时也释放已取得的资源。测试和 hook 超时各为 180 秒。
 
 SDK 仍由 Orval 生成、由 TypeScript 编译并实际调用；因测试改为从源码执行，产物导入路径同步改为源码目录相对路径。
 
@@ -65,3 +65,7 @@ SDK 仍由 Orval 生成、由 TypeScript 编译并实际调用；因测试改为
 ## S2 数据库验收
 
 S2 新增 1 个 Vitest 文件、5 个真实数据库测试，见 [S2 验收记录](s2-validation.md)。独立镜像与 Compose 持久化验证运行 `pnpm --filter @workspace/database test:compose`；使用随机项目名、随机密码和随机本机端口，结束只清理本次创建的资源。
+
+## S4-02 浏览器流程
+
+完整浏览器测试按架构约定放在 `tests/e2e`，运行 `pnpm test:e2e`，已纳入 `verify:s1`。认证、组织、账号切换、网络失败与验收边界见 [S4-02 验收记录](s4-02-validation.md)。

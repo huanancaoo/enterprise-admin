@@ -10,8 +10,9 @@ export function createBaseConfig(tsconfigRootDir) {
       files: ["**/*.{ts,tsx}"],
       extends: [js.configs.recommended, tseslint.configs.recommended],
       languageOptions: {
-        parserOptions: { tsconfigRootDir },
+        parserOptions: { projectService: true, tsconfigRootDir },
       },
+      rules: { "@typescript-eslint/no-deprecated": "error" },
     },
   ])
 }

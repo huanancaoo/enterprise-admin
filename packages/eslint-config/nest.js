@@ -26,6 +26,7 @@ export function createNestConfig(tsconfigRootDir) {
         },
       },
       rules: {
+        "@typescript-eslint/no-deprecated": "error",
         "@typescript-eslint/no-explicit-any": "off",
         "@typescript-eslint/no-floating-promises": "warn",
         "@typescript-eslint/no-unsafe-argument": "warn",

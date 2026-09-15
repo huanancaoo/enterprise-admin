@@ -15,7 +15,8 @@
     "@workspace/ui": "workspace:*",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "better-auth": "1.7.5"
+    "@workspace/admin": "workspace:*",
+    "@tanstack/react-router": "1.170.36"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.3",

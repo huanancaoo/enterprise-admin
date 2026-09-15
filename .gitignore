@@ -36,6 +36,7 @@ dist-ssr
 
 # Test reports
 coverage/
+test-results/
 
 # Local clones of upstream source used for implementation reference
 .reference/

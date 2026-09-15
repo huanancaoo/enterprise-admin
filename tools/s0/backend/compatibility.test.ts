@@ -16,8 +16,9 @@ import * as schema from "./auth-schema.js"
 import { createAuth } from "./auth.js"
 import { startProbe } from "./probe.js"
 
-describe.sequential(
+describe(
   "S0: PostgreSQL → Drizzle → Better Auth/Organization → NestJS → Zod → OpenAPI → Orval",
+  { concurrent: false },
   () => {
     let container: StartedTestContainer | undefined
     let owner: Pool | undefined

@@ -37,7 +37,9 @@ const tables = [
   "verification",
 ]
 
-describe.sequential("S2: bootstrap → one-shot migration → runtime", () => {
+const suiteName = "S2: bootstrap → one-shot migration → runtime"
+
+describe(suiteName, { concurrent: false }, () => {
   let container: StartedTestContainer | undefined
   let owner: Pool
   let migrator: Pool

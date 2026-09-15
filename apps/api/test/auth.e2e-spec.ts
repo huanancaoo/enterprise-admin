@@ -15,8 +15,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApplication } from '../src/create-application';
 import { AuthRuntime } from '../src/auth-runtime';
 
-describe.sequential(
+describe(
   'S4-01: Better Auth Client → Nest Express → runtime PostgreSQL',
+  { concurrent: false },
   () => {
     let container: StartedTestContainer | undefined;
     let app: NestExpressApplication | undefined;
