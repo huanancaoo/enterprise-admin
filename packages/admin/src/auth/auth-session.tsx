@@ -3,8 +3,15 @@ import { useForm } from "@tanstack/react-form"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { Navigate, useLocation } from "@tanstack/react-router"
 import { Button } from "@workspace/ui/components/button"
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@workspace/ui/components/field"
 import { Input } from "@workspace/ui/components/input"
-import { Label } from "@workspace/ui/components/label"
+import * as z from "zod"
 import type { WorkspaceAuthClient } from "./client"
 import { useAuthAction } from "./use-auth-action"
 
@@ -15,6 +22,23 @@ type AuthSessionProps = {
   authenticatedPath: string
   children: ReactNode
 }
+
+const signInSchema = z.object({
+  name: z.string(),
+  email: z.email("请输入有效的邮箱地址。"),
+  password: z
+    .string()
+    .min(1, "请输入密码。")
+    .max(128, "密码不能超过 128 个字符。"),
+})
+
+const signUpSchema = signInSchema.extend({
+  name: z.string().trim().min(1, "请输入姓名。"),
+  password: z
+    .string()
+    .min(8, "密码至少需要 8 个字符。")
+    .max(128, "密码不能超过 128 个字符。"),
+})
 
 export function AuthSession({
   client,
@@ -135,6 +159,9 @@ function CredentialsForm({
 }) {
   const form = useForm({
     defaultValues: { name: "", email: "", password: "" },
+    validators: {
+      onSubmit: signUp ? signUpSchema : signInSchema,
+    },
     onSubmit: async ({ value }) => {
       const credentials = {
         email: value.email.trim(),
@@ -157,75 +184,96 @@ function CredentialsForm({
       className="space-y-4"
       aria-busy={action.pending}
     >
-      <fieldset disabled={action.pending} className="space-y-4">
-        {signUp && (
-          <div className="space-y-2">
-            <Label htmlFor="auth-name">姓名</Label>
-            <form.Field name="name">
-              {(field) => (
-                <Input
-                  id="auth-name"
-                  name={field.name}
-                  value={field.state.value}
-                  onChange={(event) => field.handleChange(event.target.value)}
-                  onBlur={field.handleBlur}
-                  autoComplete="name"
-                  required
-                  pattern=".*\S.*"
-                />
-              )}
-            </form.Field>
-          </div>
-        )}
-        <div className="space-y-2">
-          <Label htmlFor="auth-email">邮箱</Label>
-          <form.Field name="email">
-            {(field) => (
-              <Input
-                id="auth-email"
-                name={field.name}
-                value={field.state.value}
-                onChange={(event) => field.handleChange(event.target.value)}
-                onBlur={field.handleBlur}
-                type="email"
-                autoComplete="email"
-                required
-              />
-            )}
-          </form.Field>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="auth-password">密码</Label>
-          <form.Field name="password">
-            {(field) => (
-              <Input
-                id="auth-password"
-                name={field.name}
-                value={field.state.value}
-                onChange={(event) => field.handleChange(event.target.value)}
-                onBlur={field.handleBlur}
-                type="password"
-                autoComplete={signUp ? "new-password" : "current-password"}
-                minLength={signUp ? 8 : undefined}
-                maxLength={128}
-                required
-              />
-            )}
-          </form.Field>
+      <fieldset disabled={action.pending}>
+        <FieldGroup>
           {signUp && (
-            <p className="text-xs text-muted-foreground">
-              密码需为 8–128 个字符。
+            <form.Field name="name">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid
+                return (
+                  <Field data-invalid={isInvalid}>
+                    <FieldLabel htmlFor="auth-name">姓名</FieldLabel>
+                    <Input
+                      id="auth-name"
+                      name={field.name}
+                      value={field.state.value}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      onBlur={field.handleBlur}
+                      autoComplete="name"
+                      aria-invalid={isInvalid}
+                      required
+                    />
+                    {isInvalid && (
+                      <FieldError errors={field.state.meta.errors} />
+                    )}
+                  </Field>
+                )
+              }}
+            </form.Field>
+          )}
+          <form.Field name="email">
+            {(field) => {
+              const isInvalid =
+                field.state.meta.isTouched && !field.state.meta.isValid
+              return (
+                <Field data-invalid={isInvalid}>
+                  <FieldLabel htmlFor="auth-email">邮箱</FieldLabel>
+                  <Input
+                    id="auth-email"
+                    name={field.name}
+                    value={field.state.value}
+                    onChange={(event) => field.handleChange(event.target.value)}
+                    onBlur={field.handleBlur}
+                    type="email"
+                    autoComplete="email"
+                    aria-invalid={isInvalid}
+                    required
+                  />
+                  {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                </Field>
+              )
+            }}
+          </form.Field>
+          <form.Field name="password">
+            {(field) => {
+              const isInvalid =
+                field.state.meta.isTouched && !field.state.meta.isValid
+              return (
+                <Field data-invalid={isInvalid}>
+                  <FieldLabel htmlFor="auth-password">密码</FieldLabel>
+                  <Input
+                    id="auth-password"
+                    name={field.name}
+                    value={field.state.value}
+                    onChange={(event) => field.handleChange(event.target.value)}
+                    onBlur={field.handleBlur}
+                    type="password"
+                    autoComplete={signUp ? "new-password" : "current-password"}
+                    minLength={signUp ? 8 : undefined}
+                    maxLength={128}
+                    aria-invalid={isInvalid}
+                    required
+                  />
+                  {signUp && (
+                    <FieldDescription>密码需为 8–128 个字符。</FieldDescription>
+                  )}
+                  {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                </Field>
+              )
+            }}
+          </form.Field>
+          {action.error && (
+            <p role="alert" className="text-sm text-destructive">
+              {action.error}
             </p>
           )}
-        </div>
-        {action.error && (
-          <p role="alert" className="text-sm text-destructive">
-            {action.error}
-          </p>
-        )}
-        <Button type="submit" className="w-full">
-          {action.pending ? "提交中…" : signUp ? "注册" : "登录"}
-        </Button>
+          <Button type="submit" className="w-full">
+            {action.pending ? "提交中…" : signUp ? "注册" : "登录"}
+          </Button>
+        </FieldGroup>
       </fieldset>
     </form>
   )

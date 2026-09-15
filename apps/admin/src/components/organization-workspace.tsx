@@ -1,10 +1,17 @@
+import { authClient } from "@/lib/auth-client"
 import { useForm } from "@tanstack/react-form"
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useAuthAction } from "@workspace/admin/auth"
 import { Button } from "@workspace/ui/components/button"
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@workspace/ui/components/field"
 import { Input } from "@workspace/ui/components/input"
-import { Label } from "@workspace/ui/components/label"
-import { authClient } from "@/lib/auth-client"
+import * as z from "zod"
 
 // QueryClient 由 AuthSession 按账号隔离；此 Key 仅持有当前账号的组织事实。
 const workspaceQuery = queryOptions({
@@ -21,12 +28,20 @@ const workspaceQuery = queryOptions({
   retry: false,
 })
 
+const createOrganizationSchema = z.object({
+  name: z.string().trim().min(1, "请输入组织名称。"),
+  slug: z.string().trim().min(1, "请输入组织标识。"),
+})
+
 export function OrganizationWorkspace() {
   const workspace = useQuery(workspaceQuery)
   const queryClient = useQueryClient()
   const action = useAuthAction()
   const form = useForm({
     defaultValues: { name: "", slug: "" },
+    validators: {
+      onSubmit: createOrganizationSchema,
+    },
     onSubmit: async ({ value, formApi }) => {
       if (
         await action.run(() =>
@@ -75,7 +90,7 @@ export function OrganizationWorkspace() {
       {/* 活跃组织只记录工作区偏好；此处不据此开放任何租户业务操作。 */}
       {active && (
         <section className="space-y-2 rounded-xl border bg-muted/30 p-5">
-          <h1 className="text-xl font-semibold break-words">
+          <h1 className="text-xl font-semibold wrap-break-word">
             当前组织：{active.name}
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -99,7 +114,9 @@ export function OrganizationWorkspace() {
                 className="flex min-w-0 items-center justify-between gap-4 rounded-xl border p-4"
               >
                 <div className="min-w-0">
-                  <p className="font-medium break-words">{organization.name}</p>
+                  <p className="font-medium wrap-break-word">
+                    {organization.name}
+                  </p>
                   <p className="text-sm break-all text-muted-foreground">
                     {organization.slug}
                   </p>
@@ -136,49 +153,69 @@ export function OrganizationWorkspace() {
           }}
           aria-busy={pending}
         >
-          <fieldset disabled={pending} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="organization-name">组织名称</Label>
+          <fieldset disabled={pending}>
+            <FieldGroup>
               <form.Field name="name">
-                {(field) => (
-                  <Input
-                    id="organization-name"
-                    name={field.name}
-                    value={field.state.value}
-                    onChange={(event) => field.handleChange(event.target.value)}
-                    onBlur={field.handleBlur}
-                    required
-                    pattern=".*\S.*"
-                  />
-                )}
+                {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid
+                  return (
+                    <Field data-invalid={isInvalid}>
+                      <FieldLabel htmlFor="organization-name">
+                        组织名称
+                      </FieldLabel>
+                      <Input
+                        id="organization-name"
+                        name={field.name}
+                        value={field.state.value}
+                        onChange={(event) =>
+                          field.handleChange(event.target.value)
+                        }
+                        onBlur={field.handleBlur}
+                        aria-invalid={isInvalid}
+                        required
+                      />
+                      {isInvalid && (
+                        <FieldError errors={field.state.meta.errors} />
+                      )}
+                    </Field>
+                  )
+                }}
               </form.Field>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="organization-slug">组织标识</Label>
               <form.Field name="slug">
-                {(field) => (
-                  <Input
-                    id="organization-slug"
-                    name={field.name}
-                    value={field.state.value}
-                    onChange={(event) => field.handleChange(event.target.value)}
-                    onBlur={field.handleBlur}
-                    required
-                    pattern=".*\S.*"
-                    aria-describedby="organization-slug-help"
-                  />
-                )}
+                {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid
+                  return (
+                    <Field data-invalid={isInvalid}>
+                      <FieldLabel htmlFor="organization-slug">
+                        组织标识
+                      </FieldLabel>
+                      <Input
+                        id="organization-slug"
+                        name={field.name}
+                        value={field.state.value}
+                        onChange={(event) =>
+                          field.handleChange(event.target.value)
+                        }
+                        onBlur={field.handleBlur}
+                        aria-invalid={isInvalid}
+                        required
+                      />
+                      <FieldDescription>
+                        用于区分组织，必须唯一，例如 my-team。
+                      </FieldDescription>
+                      {isInvalid && (
+                        <FieldError errors={field.state.meta.errors} />
+                      )}
+                    </Field>
+                  )
+                }}
               </form.Field>
-              <p
-                id="organization-slug-help"
-                className="text-xs text-muted-foreground"
-              >
-                用于区分组织，必须唯一，例如 my-team。
-              </p>
-            </div>
-            <Button type="submit">
-              {action.pending ? "提交中…" : "创建组织"}
-            </Button>
+              <Button type="submit">
+                {action.pending ? "提交中…" : "创建组织"}
+              </Button>
+            </FieldGroup>
           </fieldset>
         </form>
       </section>
