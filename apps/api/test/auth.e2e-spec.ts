@@ -14,6 +14,67 @@ import {
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApplication } from '../src/create-application';
 import { AuthRuntime } from '../src/auth-runtime';
+import { IdentityService } from '../src/identity.service';
+import { AuthorizationService } from '../src/authorization.service';
+import {
+  Controller,
+  Get,
+  ForbiddenException,
+  UnauthorizedException,
+  Delete,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+} from '@nestjs/common';
+import { Test } from '@nestjs/testing';
+import { createDatabase } from '@workspace/database';
+import {
+  createTenantRunner,
+  type TenantContext,
+} from '@workspace/database/tenant';
+import { TenantContextService } from '../src/tenant-context.service';
+import { CurrentTenant, RequireTenant, TenantGuard } from '../src/tenant.guard';
+import { configureApp } from '../src/configure-app';
+import { ProjectPolicy } from '../src/project.policy';
+import { projectRepository } from '@workspace/database/repositories/projects';
+
+// 探针只在测试模块注册，不向正式应用增加业务或调试端点。
+@Controller('organizations/:organizationId/probe')
+class TenantProbeController {
+  enteredMutations = 0;
+  constructor(
+    private readonly runtime: AuthRuntime,
+    private readonly policy: ProjectPolicy,
+  ) {}
+
+  @Delete(':projectId')
+  @HttpCode(204)
+  @RequireTenant({ project: ['delete'] })
+  async remove(
+    @CurrentTenant() context: TenantContext,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+  ) {
+    this.enteredMutations++;
+    await createTenantRunner(this.runtime.pool)(context, async (tx) => {
+      await this.policy.requireForMutation(tx, projectId);
+      await projectRepository.delete(tx, projectId);
+    });
+  }
+
+  @Get()
+  @RequireTenant({ project: ['read'] })
+  async read(@CurrentTenant() context: TenantContext) {
+    return createTenantRunner(this.runtime.pool)(context, async (tx) => {
+      const result = await tx.execute(
+        "SELECT current_setting('app.organization_id') AS organization_id",
+      );
+      return {
+        ...context,
+        databaseOrganizationId: result.rows[0].organization_id,
+      };
+    });
+  }
+}
 
 describe(
   'S4-01: Better Auth Client → Nest Express → runtime PostgreSQL',
@@ -21,6 +82,7 @@ describe(
   () => {
     let container: StartedTestContainer | undefined;
     let app: NestExpressApplication | undefined;
+    let platformDatabase: ReturnType<typeof createDatabase> | undefined;
     let baseURL: string;
     let cookie = '';
     let revokedCookie: string;
@@ -93,6 +155,7 @@ describe(
           },
         },
       );
+      platformDatabase = createDatabase(url('platform_runtime', passwords[3]));
       app = await createApplication(
         {
           databaseURL: url('app_runtime', passwords[2]),
@@ -112,6 +175,7 @@ describe(
         await app?.close();
         if (app) expect(app.get(AuthRuntime).pool.ended).toBe(true);
       } finally {
+        await platformDatabase?.pool.end();
         await container?.stop();
       }
     }, 60_000);
@@ -170,12 +234,390 @@ describe(
       );
     });
 
+    it('S4-03：身份投影与目标组织授权使用真实会话、成员和动态角色', async () => {
+      const identity = app!.get(IdentityService);
+      const authorization = app!.get(AuthorizationService);
+      const ownerCookie = cookie;
+      const ownerHeaders = new Headers({ cookie });
+      const session = (await client.getSession()).data!;
+      expect(await identity.requireIdentity(ownerHeaders)).toEqual({
+        userId: session.user.id,
+        sessionId: session.session.id,
+      });
+      expect(await identity.getIdentity(new Headers())).toBeNull();
+      await expect(
+        identity.requireIdentity(new Headers()),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+      const organization = await client.organization.create({
+        name: 'Adapter A',
+        slug: 'adapter-a',
+      });
+      expect(organization.error).toBeNull();
+      const organizationId = organization.data!.id;
+      await expect(
+        authorization.requirePermission(ownerHeaders, organizationId, {
+          project: ['create'],
+        }),
+      ).resolves.toBeUndefined();
+      await expect(
+        authorization.requirePermission(new Headers(), organizationId, {
+          project: ['read'],
+        }),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(
+        (
+          await client.organization.createRole({
+            organizationId,
+            role: 'reader',
+            permission: { project: ['read'] },
+          })
+        ).error,
+      ).toBeNull();
+
+      cookie = '';
+      try {
+        const other = await client.signUp.email({
+          email: 'adapter-member@example.test',
+          password: randomBytes(24).toString('hex'),
+          name: 'Adapter member',
+        });
+        expect(other.error).toBeNull();
+        const otherOrganization = await client.organization.create({
+          name: 'Adapter B',
+          slug: 'adapter-b',
+        });
+        expect(otherOrganization.error).toBeNull();
+        const otherHeaders = new Headers({ cookie });
+        // 当前工作区是 B，也不能借此获得 A 的权限。
+        await expect(
+          authorization.requirePermission(otherHeaders, organizationId, {
+            project: ['read'],
+          }),
+        ).rejects.toBeInstanceOf(ForbiddenException);
+        const member = await app!.get(AuthRuntime).auth.api.addMember({
+          body: {
+            organizationId,
+            userId: other.data!.user.id,
+            role: 'member',
+          },
+        });
+        cookie = ownerCookie;
+        expect(
+          (
+            await client.organization.updateMemberRole({
+              organizationId,
+              memberId: member.id,
+              role: 'reader',
+            })
+          ).error,
+        ).toBeNull();
+        await expect(
+          authorization.requirePermission(otherHeaders, organizationId, {
+            project: ['read'],
+          }),
+        ).resolves.toBeUndefined();
+        await expect(
+          authorization.requirePermission(otherHeaders, organizationId, {
+            project: ['create'],
+          }),
+        ).rejects.toBeInstanceOf(ForbiddenException);
+        cookie = ownerCookie;
+        expect(
+          (
+            await client.organization.updateRole({
+              organizationId,
+              roleName: 'reader',
+              data: { permission: { project: ['read', 'create'] } },
+            })
+          ).error,
+        ).toBeNull();
+        await expect(
+          authorization.requirePermission(otherHeaders, organizationId, {
+            project: ['create'],
+          }),
+        ).resolves.toBeUndefined();
+      } finally {
+        cookie = ownerCookie;
+      }
+    });
+
+    it('S4-04：真实 HTTP 授权后建立目标组织上下文并进入 RLS 事务', async () => {
+      const runtime = app!.get(AuthRuntime);
+      const fixture = await Test.createTestingModule({
+        controllers: [TenantProbeController],
+        providers: [
+          TenantGuard,
+          TenantContextService,
+          ProjectPolicy,
+          { provide: AuthRuntime, useValue: { pool: runtime.pool } },
+          {
+            provide: IdentityService,
+            useValue: app!.get<IdentityService>(IdentityService),
+          },
+          {
+            provide: AuthorizationService,
+            useValue: app!.get<AuthorizationService>(AuthorizationService),
+          },
+        ],
+      }).compile();
+      // 不让测试模块关闭正式应用持有的同一个数据库池。
+      const probe = fixture.createNestApplication<NestExpressApplication>({
+        logger: false,
+      });
+      configureApp(probe);
+      await probe.listen(0, '127.0.0.1');
+      const probeURL = await probe.getUrl();
+      const ownerCookie = cookie;
+      const remove = (
+        organizationId: string,
+        projectId: string,
+        sessionCookie = cookie,
+      ) =>
+        fetch(
+          `${probeURL}/api/v1/organizations/${organizationId}/probe/${projectId}`,
+          { method: 'DELETE', headers: { cookie: sessionCookie } },
+        );
+      const get = (id: string, sessionCookie = cookie) =>
+        fetch(
+          `${probeURL}/api/v1/organizations/${id}/probe?userId=forged&membershipId=forged`,
+          {
+            headers: {
+              cookie: sessionCookie,
+              'x-request-id': 'forged',
+              'x-organization-id': 'forged',
+            },
+          },
+        );
+      try {
+        const a = (
+          await client.organization.create({
+            name: 'Context A',
+            slug: 'context-a',
+          })
+        ).data!;
+        const b = (
+          await client.organization.create({
+            name: 'Context B',
+            slug: 'context-b',
+          })
+        ).data!;
+        expect((await get(a.id, '')).status).toBe(401);
+        expect((await get('invalid')).status).toBe(400);
+        const responses = await Promise.all([
+          get(a.id),
+          get(b.id),
+          get(a.id),
+          get(b.id),
+        ]);
+        for (const [index, response] of responses.entries()) {
+          expect(response.status).toBe(200);
+          const body = (await response.json()) as TenantContext & {
+            databaseOrganizationId: string;
+          };
+          const target = index % 2 === 0 ? a.id : b.id;
+          expect(body.organizationId).toBe(target);
+          expect(body.databaseOrganizationId).toBe(target);
+          expect(body.requestId).toBe(response.headers.get('x-request-id'));
+          expect(body.requestId).not.toBe('forged');
+          expect(body.membershipId).not.toBe('forged');
+          expect(body.userId).toBe((await client.getSession()).data!.user.id);
+        }
+        const contextA = await app!
+          .get<TenantContextService>(TenantContextService)
+          .resolve(
+            new Headers({ cookie }),
+            a.id,
+            { project: ['create'] },
+            'test-setup-a',
+            'zh-CN',
+          );
+        const contextB = await app!
+          .get<TenantContextService>(TenantContextService)
+          .resolve(
+            new Headers({ cookie }),
+            b.id,
+            { project: ['create'] },
+            'test-setup-b',
+            'zh-CN',
+          );
+        const run = createTenantRunner(runtime.pool);
+        const seed = (context: TenantContext) =>
+          run(context, (tx) =>
+            projectRepository.create(tx, {
+              name: 'S4 resource',
+              description: null,
+              contentLocale: 'zh-CN',
+            }),
+          );
+        const resourceA = await seed(contextA);
+        const resourceB = await seed(contextB);
+        const intact = async () => {
+          expect(
+            (await run(contextA, (tx) => projectRepository.list(tx))).some(
+              (item) => item.id === resourceA.id,
+            ),
+          ).toBe(true);
+          expect(
+            (await run(contextB, (tx) => projectRepository.list(tx))).some(
+              (item) => item.id === resourceB.id,
+            ),
+          ).toBe(true);
+        };
+        const deniedMutation = async (
+          expected: number,
+          sessionCookie: string,
+        ) => {
+          const entered = probe.get<TenantProbeController>(
+            TenantProbeController,
+          ).enteredMutations;
+          expect((await remove(a.id, resourceA.id, sessionCookie)).status).toBe(
+            expected,
+          );
+          expect(
+            probe.get<TenantProbeController>(TenantProbeController)
+              .enteredMutations,
+          ).toBe(entered);
+          await intact();
+        };
+        await deniedMutation(401, '');
+        expect((await remove(a.id, resourceB.id)).status).toBe(404);
+        await intact();
+        const disposable = await seed(contextA);
+        expect((await remove(a.id, disposable.id)).status).toBe(204);
+        expect(
+          (await run(contextA, (tx) => projectRepository.list(tx))).some(
+            (item) => item.id === disposable.id,
+          ),
+        ).toBe(false);
+        await expect(
+          runtime.pool.query(
+            'UPDATE organization SET enabled = false WHERE id = $1',
+            [a.id],
+          ),
+        ).rejects.toThrow(/permission denied/);
+        await platformDatabase!.pool.query(
+          'UPDATE organization SET enabled = false WHERE id = $1',
+          [a.id],
+        );
+        expect((await get(a.id)).status).toBe(403);
+        await deniedMutation(403, ownerCookie);
+        expect((await get(b.id)).status).toBe(200);
+        await platformDatabase!.pool.query(
+          'UPDATE organization SET enabled = true WHERE id = $1',
+          [a.id],
+        );
+        expect((await get(a.id)).status).toBe(200);
+
+        cookie = '';
+        const outsider = (
+          await client.signUp.email({
+            email: 'context-outsider@example.test',
+            password: randomBytes(24).toString('hex'),
+            name: 'Outsider',
+          })
+        ).data!;
+        const outsiderCookie = cookie;
+        expect((await get(a.id)).status).toBe(403);
+        await deniedMutation(403, outsiderCookie);
+        const membership = await runtime.auth.api.addMember({
+          body: {
+            organizationId: a.id,
+            userId: outsider.user.id,
+            role: 'member',
+          },
+        });
+        expect((await get(a.id)).status).toBe(200);
+        cookie = ownerCookie;
+        expect(
+          (
+            await client.organization.updateMemberRole({
+              organizationId: a.id,
+              memberId: membership.id,
+              role: 'admin',
+            })
+          ).error,
+        ).toBeNull();
+        const authorizedResource = await seed(contextA);
+        expect(
+          (await remove(a.id, authorizedResource.id, outsiderCookie)).status,
+        ).toBe(204);
+        expect(
+          (
+            await client.organization.createRole({
+              organizationId: a.id,
+              role: 'creator-only',
+              permission: { project: ['create'] },
+            })
+          ).error,
+        ).toBeNull();
+        expect(
+          (
+            await client.organization.updateMemberRole({
+              organizationId: a.id,
+              memberId: membership.id,
+              role: 'creator-only',
+            })
+          ).error,
+        ).toBeNull();
+        expect((await get(a.id, outsiderCookie)).status).toBe(403);
+        await deniedMutation(403, outsiderCookie);
+        // 恢复动作权限后再撤销成员，证明拒绝来自成员撤销而非原角色限制。
+        expect(
+          (
+            await client.organization.updateMemberRole({
+              organizationId: a.id,
+              memberId: membership.id,
+              role: 'admin',
+            })
+          ).error,
+        ).toBeNull();
+        expect(
+          (
+            await client.organization.removeMember({
+              organizationId: a.id,
+              memberIdOrEmail: membership.id,
+            })
+          ).error,
+        ).toBeNull();
+        expect((await get(a.id, outsiderCookie)).status).toBe(403);
+        await deniedMutation(403, outsiderCookie);
+        await runtime.auth.api.addMember({
+          body: {
+            organizationId: a.id,
+            userId: outsider.user.id,
+            role: 'admin',
+          },
+        });
+        cookie = outsiderCookie;
+        expect((await client.signOut()).error).toBeNull();
+        expect((await get(a.id, outsiderCookie)).status).toBe(401);
+        await deniedMutation(401, outsiderCookie);
+      } finally {
+        cookie = ownerCookie;
+        await probe.close();
+      }
+    });
+
     it('客户端登出后旧 Cookie 无法恢复会话，错误密码不签发会话', async () => {
       expect((await client.signOut()).error).toBeNull();
       const response = await fetch(`${baseURL}/api/auth/get-session`, {
         headers: { cookie: revokedCookie },
       });
       expect(await response.json()).toBeNull();
+      expect(
+        await app!
+          .get(IdentityService)
+          .getIdentity(new Headers({ cookie: revokedCookie })),
+      ).toBeNull();
+      await expect(
+        app!
+          .get(AuthorizationService)
+          .requirePermission(
+            new Headers({ cookie: revokedCookie }),
+            '00000000-0000-4000-8000-000000000001',
+            { project: ['read'] },
+          ),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
       expect(
         (
           await client.signIn.email({

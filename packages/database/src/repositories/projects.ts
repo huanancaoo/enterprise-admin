@@ -5,6 +5,19 @@ import { projects, projectTranslations } from "../schema/projects.ts"
 type Locale = typeof projectTranslations.$inferInsert.locale
 
 export const projectRepository = {
+  async findForUpdate(tx: TenantTx, projectId: string) {
+    const [project] = await tx
+      .select()
+      .from(projects)
+      .where(
+        and(
+          eq(projects.organizationId, tx.context.organizationId),
+          eq(projects.id, projectId)
+        )
+      )
+      .for("update")
+    return project
+  },
   list(tx: TenantTx) {
     return tx
       .select()

@@ -101,6 +101,7 @@ export const organization = pgTable("organization", {
   logo: text("logo"),
   createdAt: timestamp("created_at").notNull(),
   metadata: text("metadata"),
+  enabled: boolean("enabled").default(true).notNull(),
 });
 
 export const organizationRole = pgTable(

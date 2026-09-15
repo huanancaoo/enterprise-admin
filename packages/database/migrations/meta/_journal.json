@@ -29,6 +29,20 @@
       "when": 1789445947311,
       "tag": "0003_tenant-rls",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789461309880,
+      "tag": "0004_awesome_gwen_stacy",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789461369562,
+      "tag": "0005_organization-status-grants",
+      "breakpoints": true
     }
   ]
 }

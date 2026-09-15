@@ -6,6 +6,11 @@ import { AppModule } from './app.module';
 import { AuthRuntime, type AuthConfig } from './auth-runtime';
 import { configureApp } from './configure-app';
 import { setupSwagger } from './openapi/setup-swagger';
+import { IdentityService } from './identity.service';
+import { AuthorizationService } from './authorization.service';
+import { TenantContextService } from './tenant-context.service';
+import { TenantGuard } from './tenant.guard';
+import { ProjectPolicy } from './project.policy';
 
 export async function createApplication(
   config: AuthConfig,
@@ -16,7 +21,21 @@ export async function createApplication(
     const app = await NestFactory.create<NestExpressApplication>(
       {
         module: AppModule,
-        providers: [{ provide: AuthRuntime, useValue: runtime }],
+        providers: [
+          { provide: AuthRuntime, useValue: runtime },
+          IdentityService,
+          AuthorizationService,
+          TenantContextService,
+          TenantGuard,
+          ProjectPolicy,
+        ],
+        exports: [
+          IdentityService,
+          AuthorizationService,
+          TenantContextService,
+          TenantGuard,
+          ProjectPolicy,
+        ],
       },
       { ...options, bodyParser: false, abortOnError: false },
     );

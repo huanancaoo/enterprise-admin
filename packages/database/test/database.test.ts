@@ -125,7 +125,7 @@ describe(suiteName, { concurrent: false }, () => {
         "SELECT * FROM drizzle.__drizzle_migrations ORDER BY id"
       )
     ).rows
-    assert.equal(before.length, 4)
+    assert.equal(before.length, 6)
     await runMigration()
     assert.deepEqual(
       (
@@ -191,7 +191,7 @@ describe(suiteName, { concurrent: false }, () => {
     })
     for (const table of tables) {
       const { rows } = await runtime.query(
-        "SELECT has_table_privilege(current_user, $1, 'SELECT') AND has_table_privilege(current_user, $1, 'INSERT') AND has_table_privilege(current_user, $1, 'UPDATE') AND has_table_privilege(current_user, $1, 'DELETE') AS allowed",
+        "SELECT has_table_privilege(current_user, $1, 'SELECT') AND has_table_privilege(current_user, $1, 'INSERT') AND has_any_column_privilege(current_user, $1, 'UPDATE') AND has_table_privilege(current_user, $1, 'DELETE') AS allowed",
         [`public."${table}"`]
       )
       assert.equal(rows[0].allowed, true, table)

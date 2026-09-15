@@ -59,14 +59,14 @@ API / Worker 启动脚本不运行迁移。运行账号、平台账号、迁移�
 
 ## 角色和访问范围
 
-| 角色               | 权限                                                                                                      |
-| ------------------ | --------------------------------------------------------------------------------------------------------- |
-| `bootstrap_admin`  | PostgreSQL 镜像初始化角色，拥有数据库；只用于首次初始化/运维                                              |
-| `app_migrator`     | 非超级用户，可建 schema、持有应用表和迁移 ledger；无创建数据库/角色或 BYPASSRLS 权限                      |
-| `app_runtime`      | 非 Owner；认证八表及 RLS 约束下的 Projects 两表 SELECT/INSERT/UPDATE/DELETE；无 DDL、TEMP、TRUNCATE、迁移 ledger 或角色切换权限        |
-| `platform_runtime` | 非 Owner；只读 user 公开身份列、organization 运营列和 member 关系列；无 account/session/verification 权限 |
+| 角色               | 权限                                                                                                                            |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| `bootstrap_admin`  | PostgreSQL 镜像初始化角色，拥有数据库；只用于首次初始化/运维                                                                    |
+| `app_migrator`     | 非超级用户，可建 schema、持有应用表和迁移 ledger；无创建数据库/角色或 BYPASSRLS 权限                                            |
+| `app_runtime`      | 非 Owner；认证八表及 RLS 约束下的 Projects 两表 SELECT/INSERT/UPDATE/DELETE；无 DDL、TEMP、TRUNCATE、迁移 ledger 或角色切换权限 |
+| `platform_runtime` | 非 Owner；只读 user 公开身份列、organization 运营列和 member 关系列；无 account/session/verification 权限                       |
 
-平台授权、组织状态字段、平台设置和审计表尚未实现（S4/S8）。新增时按 ADR-0003 明确授权；平台数据库账号本身不等同于 HTTP 请求已经获得平台授权。
+S4-04 已增加组织 `enabled` 字段：现有及新建组织默认 true，客户端不能设置。`app_runtime` 对 organization 的 UPDATE 仅限原有资料列，不能修改 enabled；`platform_runtime` 可 SELECT/UPDATE enabled。平台授权、启停 HTTP 操作、平台设置和审计仍属于 S8；平台数据库账号本身不等同于 HTTP 请求已经获得平台授权。
 
 服务端通过 `createDatabase(runtimeUrl)` 获取 `pool` 和类型化 `db`，调用者在退出时执行 `pool.end()`。包不会自动连接或读取迁移变量。`createAuth(pool, baseURL, secret)` 提供与生成器相同的认证配置；真实 HTTP 接入和密钥注入在 S4 完成。
 
@@ -82,7 +82,7 @@ pnpm verify:s2
 
 ## 租户事务与 Repository（S3）
 
-组合入口从 `@workspace/database/tenant` 导入 `createTenantRunner(pool)`，得到 `runInTenant(context, work)`。context 必须包含 organizationId、userId、membershipId、requestId、locale；S4 的认证与授权层负责验证其可信性。本阶段仅测试构造上下文，没有向 HTTP 暴露构造接口。
+组合入口从 `@workspace/database/tenant` 导入 `createTenantRunner(pool)`，得到 `runInTenant(context, work)`。context 必须包含 organizationId、userId、membershipId、requestId、locale。S4-04 的 `TenantGuard` / `TenantContextService` 按目标组织验证身份、成员、组织状态和权限后生成上下文，业务处理器通过 `CurrentTenant` 获取；请求体不能直接构造可信上下文。S3 数据库测试仍使用内部测试上下文。
 
 `runInTenant` 冻结上下文副本，在同一 Drizzle 事务内执行 transaction-local `set_config`，再将 TenantTx 交给 work；成功提交，抛错回滚。回调必须等待所有查询完成，不能保存事务供回调结束后使用。它不负责登录、成员资格或组织权限验证。
 

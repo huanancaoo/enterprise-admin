@@ -11,10 +11,11 @@ import {
 import { drizzle } from "drizzle-orm/node-postgres"
 import type { Pool } from "pg"
 import * as schema from "./schema/auth.ts"
+import { permissionStatements, projectActions } from "@workspace/permissions"
 
 const ac = createAccessControl({
   ...defaultStatements,
-  project: ["read", "create", "update", "delete", "export", "translate"],
+  ...permissionStatements,
 })
 
 export function createAuth(
@@ -53,29 +54,28 @@ export function createAuth(
     },
     plugins: [
       organization({
+        schema: {
+          organization: {
+            additionalFields: {
+              // 组织默认可用，启停只由平台管理，不能通过组织客户端修改。
+              enabled: {
+                type: "boolean",
+                required: true,
+                defaultValue: true,
+                input: false,
+              },
+            },
+          },
+        },
         ac,
         roles: {
           owner: ac.newRole({
             ...ownerAc.statements,
-            project: [
-              "read",
-              "create",
-              "update",
-              "delete",
-              "export",
-              "translate",
-            ],
+            project: [...projectActions],
           }),
           admin: ac.newRole({
             ...adminAc.statements,
-            project: [
-              "read",
-              "create",
-              "update",
-              "delete",
-              "export",
-              "translate",
-            ],
+            project: [...projectActions],
           }),
           member: ac.newRole({ ...memberAc.statements, project: ["read"] }),
         },

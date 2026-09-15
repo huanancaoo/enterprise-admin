@@ -49,7 +49,7 @@ const allowed = {
   ],
   "packages/contracts": [],
   "packages/api-client": ["packages/contracts"],
-  "packages/database": [],
+  "packages/database": ["packages/permissions"],
   "packages/permissions": [],
   "packages/i18n": [],
   "packages/mocks": ["packages/contracts"],

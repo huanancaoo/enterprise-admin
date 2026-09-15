@@ -127,11 +127,11 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 
 - [x] S4-01：接入 NestJS Express 与 Better Auth，前端认证操作使用 Better Auth Client。验证见 [S4-01 验证记录](s4-01-validation.md)。
 - [x] S4-02：实现登录、登出、会话恢复、组织创建/选择所需最小流程；成员邀请需要的 SMTP 通道按实际流程接入，不强制引入队列。验证及邀请边界见 [S4-02 验证记录](s4-02-validation.md)。
-- [ ] S4-03：用项目自己的 IdentityService、AuthorizationService 隔离 Better Auth 的业务调用，Organization/Member/Invitation/Role 不重复建模。
-- [ ] S4-04：按请求目标 `organizationId` 验证 Session、Membership、组织状态和组织权限，再建立可信 TenantContext。
-- [ ] S4-05：在 `packages/permissions` 定义文档要求的 `project:read/create/update/delete/export/translate`；声明 export 权限不等于本阶段必须实现导出。
-- [ ] S4-06：将组织动作权限检查放在进入业务操作前；将需要读取实际资源才能判断的 Data Scope 放在事务内、修改前执行 Domain Policy。
-- [ ] S4-07：测试登出、Membership 撤销、角色变更、组织停用后，后续受保护请求被正确拒绝。
+- [x] S4-03：用项目自己的 IdentityService、AuthorizationService 隔离 Better Auth 的业务调用，Organization/Member/Invitation/Role 不重复建模。验证及业务授权边界见 [S4-03 验证记录](s4-03-validation.md)。
+- [x] S4-04：按请求目标 `organizationId` 验证 Session、Membership、组织状态和组织权限，再建立可信 TenantContext。验证及边界见 [S4-04 验证记录](s4-04-validation.md)。
+- [x] S4-05：在 `packages/permissions` 定义文档要求的 `project:read/create/update/delete/export/translate`；声明 export 权限不等于本阶段必须实现导出。
+- [x] S4-06：将组织动作权限检查放在进入业务操作前；将需要读取实际资源才能判断的 Data Scope 放在事务内、修改前执行 Domain Policy。
+- [x] S4-07：测试登出、Membership 撤销、角色变更、组织停用后，后续受保护请求被正确拒绝。剩余任务实现与阶段验收见 [S4 验收记录](s4-validation.md)。
 
 **安全边界：** active organization 只是工作区偏好。客户端路径、Header、Body 或当前 UI 选中的组织都不是授权证明。租户管理员不是平台管理员。PermissionGate 只控制展示，不能替代 API 授权。
 
