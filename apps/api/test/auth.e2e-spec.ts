@@ -32,6 +32,7 @@ import {
   createTenantRunner,
   type TenantContext,
 } from '@workspace/database/tenant';
+import { RequestLanguage } from '../src/request-language';
 import { TenantContextService } from '../src/tenant-context.service';
 import { CurrentTenant, RequireTenant, TenantGuard } from '../src/tenant.guard';
 import { configureApp } from '../src/configure-app';
@@ -430,7 +431,7 @@ describe(
             a.id,
             { project: ['create'] },
             'test-setup-a',
-            { locale: 'zh-CN' },
+            new RequestLanguage(null),
           );
         const contextB = await app!
           .get<TenantContextService>(TenantContextService)
@@ -439,7 +440,7 @@ describe(
             b.id,
             { project: ['create'] },
             'test-setup-b',
-            { locale: 'zh-CN' },
+            new RequestLanguage(null),
           );
         const run = createTenantRunner(runtime.pool);
         const seed = (context: TenantContext) =>

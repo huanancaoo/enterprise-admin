@@ -25,7 +25,9 @@ describe('AppController (e2e)', () => {
   it('/api/v1 (GET)', () => {
     return request(app.getHttpServer())
       .get('/api/v1')
+      .set('Accept-Language', 'ar')
       .expect(200)
+      .expect('Content-Language', 'ar')
       .expect('Content-Type', /text\/html/)
       .expect('Hello World!');
   });

@@ -14,7 +14,7 @@ import type { Request, Response } from 'express';
 import type { TenantContext } from '@workspace/database/tenant';
 import type { PermissionRequest } from './authorization.service';
 import { TenantContextService } from './tenant-context.service';
-import type { RequestLanguage } from './request-language';
+import { getRequestLanguage } from './request-language';
 
 const tenantPermissions = Symbol('tenantPermissions');
 const trustedContext = Symbol('trustedTenantContext');
@@ -57,7 +57,7 @@ export class TenantGuard implements CanActivate {
       organizationId,
       permissions,
       requestId,
-      response.locals.language as RequestLanguage,
+      getRequestLanguage(response),
     );
     return true;
   }

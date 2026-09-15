@@ -2,7 +2,10 @@ import {
   StandardSchemaValidationPipe,
   type INestApplication,
 } from '@nestjs/common';
-import { requestLanguage } from './request-language';
+import {
+  requestLanguage,
+  RequestLanguageInterceptor,
+} from './request-language';
 import { ApiErrorFilter } from './api-error.filter';
 
 import { requestLogging } from './request-logging';
@@ -13,5 +16,6 @@ export function configureApp(app: INestApplication): void {
   app.use(requestLanguage);
   app.useGlobalPipes(new StandardSchemaValidationPipe());
   app.useGlobalFilters(new ApiErrorFilter());
+  app.useGlobalInterceptors(new RequestLanguageInterceptor());
   app.setGlobalPrefix('api/v1');
 }

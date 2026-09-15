@@ -8,7 +8,7 @@ import {
 import type { Response } from 'express';
 import type { ApiError, ApiErrorCode } from '@workspace/contracts';
 import { getTranslator } from '@workspace/i18n';
-import type { RequestLanguage } from './request-language';
+import { getRequestLanguage } from './request-language';
 
 @Catch()
 export class ApiErrorFilter implements ExceptionFilter {
@@ -24,7 +24,7 @@ export class ApiErrorFilter implements ExceptionFilter {
       404: 'NOT_FOUND',
     };
     const code = codes[status] ?? 'INTERNAL_ERROR';
-    const { locale } = response.locals.language as RequestLanguage;
+    const locale = getRequestLanguage(response).writeTo(response);
     const requestId = response.locals.requestId as string;
     if (status >= 500)
       this.logger.error({ event: 'api.request.failed', requestId, error });
@@ -34,7 +34,6 @@ export class ApiErrorFilter implements ExceptionFilter {
       requestId,
       locale,
     };
-    response.setHeader('Content-Language', locale);
     response.status(status).json(body);
   }
 }

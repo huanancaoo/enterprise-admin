@@ -1,6 +1,5 @@
-import { Controller, Get, Param, Query, Res } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import type { Response } from 'express';
 import {
   ApiErrorSchema,
   OrganizationIdSchema,
@@ -41,12 +40,10 @@ export class ProjectsController {
     _organizationId: string,
     @Query({ schema: ProjectListQuerySchema }) query: ProjectListQuery,
     @CurrentTenant() context: TenantContext,
-    @Res({ passthrough: true }) response: Response,
   ): Promise<ProjectPage> {
     const page = await createTenantRunner(this.runtime.pool)(context, (tx) =>
       projectRepository.listPage(tx, query),
     );
-    response.setHeader('Content-Language', context.locale);
     return {
       ...page,
       items: page.items.map((item) => ({

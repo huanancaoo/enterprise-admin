@@ -11,6 +11,7 @@ const require = createRequire(import.meta.url)
 const {
   createApplication,
 } = require("../../apps/api/dist/create-application.js")
+const { RequestLanguage } = require("../../apps/api/dist/request-language.js")
 const { AuthRuntime } = require("../../apps/api/dist/auth-runtime.js")
 const {
   TenantContextService,
@@ -131,14 +132,14 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
       orgA.id,
       { project: ["create"] },
       "seed-a",
-      { locale: "zh-CN" }
+      new RequestLanguage(null)
     )
     contextB = await service.resolve(
       headers,
       orgB.id,
       { project: ["create"] },
       "seed-b",
-      { locale: "zh-CN" }
+      new RequestLanguage(null)
     )
     const run = createTenantRunner(runtime.pool)
     await run(contextA, async (tx) => {
@@ -363,6 +364,100 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
       expect(error.requestId).toBe(response.headers.get("x-request-id"))
       expect(error.locale).toBe(response.headers.get("content-language"))
     }
+  })
+  it("授权失败只使用已验证阶段的语言，成功与错误响应共用语言输出", async () => {
+    const response = await fetch(`${baseURL}/api/auth/sign-up/email`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin },
+      body: JSON.stringify({
+        email: "language-stages@example.test",
+        password: randomBytes(24).toString("hex"),
+        name: "Language stages",
+      }),
+    })
+    expect(response.status).toBe(200)
+    const actor = await response.json()
+    const actorCookie = response.headers
+      .getSetCookie()
+      .map((item) => item.split(";")[0])
+      .join("; ")
+    const ownerHeaders = new Headers({ cookie })
+    const organization = await runtime.auth.api.createOrganization({
+      headers: ownerHeaders,
+      body: { name: "Language stages", slug: "language-stages" },
+    })
+    await runtime.pool.query(
+      "UPDATE organization SET default_locale = $1 WHERE id = $2",
+      ["ar", organization.id]
+    )
+    const expectError = async (result, status, locale) => {
+      expect(result.status).toBe(status)
+      expect(result.headers.get("content-language")).toBe(locale)
+      expect(ApiErrorSchema.parse(await result.json()).locale).toBe(locale)
+    }
+    // 非成员不能通过语言响应观察到目标组织的 ar 默认值。
+    await expectError(await query(organization.id, "", "", ""), 401, "zh-CN")
+    await expectError(
+      await query(organization.id, "", actorCookie, ""),
+      403,
+      "zh-CN"
+    )
+    await runtime.pool.query(
+      'UPDATE "user" SET preferred_locale = $1 WHERE id = $2',
+      ["en-US", actor.user.id]
+    )
+    await expectError(
+      await query(organization.id, "", actorCookie, ""),
+      403,
+      "en-US"
+    )
+    // UUID 在身份验证前拒绝，此时还不能采用用户偏好。
+    await expectError(await query("invalid", "", actorCookie, ""), 400, "zh-CN")
+    await runtime.auth.api.createOrgRole({
+      headers: ownerHeaders,
+      body: {
+        organizationId: organization.id,
+        role: "translator",
+        permission: { project: ["translate"] },
+      },
+    })
+    await runtime.auth.api.addMember({
+      body: {
+        organizationId: organization.id,
+        userId: actor.user.id,
+        role: "translator",
+      },
+    })
+    await runtime.pool.query(
+      'UPDATE "user" SET preferred_locale = NULL WHERE id = $1',
+      [actor.user.id]
+    )
+    await expectError(
+      await query(organization.id, "", actorCookie, ""),
+      403,
+      "ar"
+    )
+    await expectError(
+      await query(organization.id, "", actorCookie, "en-US"),
+      403,
+      "en-US"
+    )
+    await runtime.auth.api.updateOrgRole({
+      headers: ownerHeaders,
+      body: {
+        organizationId: organization.id,
+        roleName: "translator",
+        data: { permission: { project: ["read"] } },
+      },
+    })
+    const success = await query(organization.id, "", actorCookie, "")
+    expect(success.status).toBe(200)
+    expect(success.headers.get("content-language")).toBe("ar")
+    await expectError(
+      await query(organization.id, "?pageSize=101", actorCookie, ""),
+      400,
+      "ar"
+    )
   })
   it("基础译文缺失返回500，不悄悄隐藏项目", async () => {
     await createTenantRunner(runtime.pool)(contextA, (tx) =>
