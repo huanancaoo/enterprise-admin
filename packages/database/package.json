@@ -4,10 +4,22 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./auth": "./src/auth.ts",
-    "./tenant": "./src/tenant.ts",
-    "./repositories/projects": "./src/repositories/projects.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./auth": {
+      "types": "./dist/auth.d.ts",
+      "default": "./dist/auth.js"
+    },
+    "./tenant": {
+      "types": "./dist/tenant.d.ts",
+      "default": "./dist/tenant.js"
+    },
+    "./repositories/projects": {
+      "types": "./dist/repositories/projects.d.ts",
+      "default": "./dist/repositories/projects.js"
+    }
   },
   "scripts": {
     "lint": "eslint",
@@ -20,7 +32,8 @@
     "verify:s2": "pnpm schema:check && pnpm test:database",
     "test:compose": "node scripts/verify-compose.mjs",
     "test:isolation": "vitest run test/isolation.test.ts",
-    "verify:s3": "pnpm test:isolation"
+    "verify:s3": "pnpm test:isolation",
+    "build": "tsc -p tsconfig.build.json"
   },
   "devDependencies": {
     "@workspace/eslint-config": "workspace:*",

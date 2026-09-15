@@ -16,7 +16,7 @@
     "test:unit": "vitest run --config vitest.config.mjs && pnpm --filter api test",
     "build:storybook": "turbo build --filter=storybook",
     "verify:s1": "pnpm lint && pnpm typecheck && pnpm test:unit && pnpm test:api && pnpm test:storybook && pnpm build",
-    "test:api": "pnpm --filter api test:e2e",
+    "test:api": "pnpm --filter @workspace/database build && pnpm --filter api test:e2e",
     "test:storybook": "pnpm --filter storybook test",
     "db:generate": "pnpm --filter @workspace/database db:generate",
     "db:migrate": "pnpm --filter @workspace/database db:migrate",

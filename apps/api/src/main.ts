@@ -1,15 +1,11 @@
 import { ConsoleLogger } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import { configureApp } from './configure-app';
-import { setupSwagger } from './openapi/setup-swagger';
+import { readAuthConfig } from './auth-runtime';
+import { createApplication } from './create-application';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
+  const app = await createApplication(readAuthConfig(process.env), {
     logger: new ConsoleLogger({ json: true }),
   });
-  configureApp(app);
-  setupSwagger(app);
   await app.listen(process.env.PORT ?? 3000);
 }
 void bootstrap();

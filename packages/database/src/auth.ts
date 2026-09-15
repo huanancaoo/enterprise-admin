@@ -17,11 +17,17 @@ const ac = createAccessControl({
   project: ["read", "create", "update", "delete", "export", "translate"],
 })
 
-export function createAuth(pool: Pool, baseURL: string, secret: string) {
+export function createAuth(
+  pool: Pool,
+  baseURL: string,
+  secret: string,
+  trustedOrigins: string[] = []
+) {
   return betterAuth({
     baseURL,
     basePath: "/api/auth",
     secret,
+    trustedOrigins,
     database: drizzleAdapter(drizzle(pool), { provider: "pg", schema }),
     emailAndPassword: { enabled: true },
     session: {
@@ -39,7 +45,12 @@ export function createAuth(pool: Pool, baseURL: string, secret: string) {
         },
       },
     },
-    advanced: { database: { generateId: "uuid" } },
+    advanced: {
+      database: { generateId: "uuid" },
+      // Better Auth 在 test 环境默认跳过 Origin 校验；保持各环境的 HTTP 安全语义一致。
+      disableOriginCheck: false,
+      disableCSRFCheck: false,
+    },
     plugins: [
       organization({
         ac,
