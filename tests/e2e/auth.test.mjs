@@ -215,7 +215,37 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await expectUI(
       page.getByRole("heading", { name: "当前组织：乙组织", exact: true })
     ).toBeVisible()
+    let releaseRefresh
+    const refreshGate = new Promise((resolve) => {
+      releaseRefresh = resolve
+    })
+    await page.route(
+      "**/api/auth/organization/get-full-organization",
+      async (route) => {
+        await refreshGate
+        await route.continue()
+      }
+    )
+    const refreshStarted = page.waitForRequest(
+      "**/api/auth/organization/get-full-organization"
+    )
     await page.getByRole("button", { name: "选择 甲组织", exact: true }).click()
+    await refreshStarted
+    try {
+      await expectUI(
+        page.getByRole("button", { name: "选择 甲组织", exact: true })
+      ).toBeDisabled()
+      await expectUI(
+        page.getByLabel("组织名称", { exact: true })
+      ).toBeDisabled()
+      await expectUI(
+        page.getByRole("button", { name: "提交中…", exact: true })
+      ).toBeDisabled()
+    } finally {
+      releaseRefresh()
+    }
+    // 等待已拦截请求处理完再解除路由，避免与尚在执行的 continue 竞争。
+    await page.unrouteAll({ behavior: "wait" })
     await expectUI(
       page.getByRole("heading", { name: "当前组织：甲组织", exact: true })
     ).toBeVisible()
@@ -245,6 +275,52 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await expectUI(
       page.getByRole("button", { name: "选择 重复组织", exact: true })
     ).toHaveCount(0)
+    await expectUI(page.getByLabel("组织名称", { exact: true })).toHaveValue(
+      "重复组织"
+    )
+    await expectUI(page.getByLabel("组织标识", { exact: true })).toHaveValue(
+      "organization-a"
+    )
+  })
+
+  it("创建成功后的读回失败只重试读取，恢复后清空已提交草稿", async () => {
+    await page.goto(frontends[0].resolvedUrls.local[0] + "app/")
+    await registerAccount(page, {
+      name: "刷新测试",
+      email: "workspace-refresh@example.test",
+      password: credentials.password,
+    })
+    await expectUI(
+      page.getByText("你还没有加入任何组织。", { exact: true })
+    ).toBeVisible()
+    await page.route("**/api/auth/organization/list", (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({
+          code: "TEST_READ_FAILURE",
+          message: "组织读取失败",
+        }),
+      })
+    )
+    await page.getByLabel("组织名称", { exact: true }).fill("已创建组织")
+    await page.getByLabel("组织标识", { exact: true }).fill("refresh-created")
+    await page.getByRole("button", { name: "创建组织", exact: true }).click()
+    await expectUI(page.getByRole("alert")).toHaveText("组织读取失败")
+    await expectUI(
+      page.getByRole("button", { name: "创建组织", exact: true })
+    ).toHaveCount(0)
+    await page.unroute("**/api/auth/organization/list")
+    await page.getByRole("button", { name: "重试", exact: true }).click()
+    await expectUI(
+      page.getByRole("heading", { name: "当前组织：已创建组织", exact: true })
+    ).toBeVisible()
+    await expectUI(page.getByLabel("组织名称", { exact: true })).toHaveValue("")
+    await expectUI(page.getByLabel("组织标识", { exact: true })).toHaveValue("")
+    await page.reload()
+    await expectUI(
+      page.getByRole("heading", { name: "当前组织：已创建组织", exact: true })
+    ).toBeVisible()
   })
 
   it("Platform 使用已有账号登录、恢复会话和登出，不将登录当作平台授权", async () => {

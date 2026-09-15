@@ -1,7 +1,5 @@
-import { authClient } from "@/lib/auth-client"
+import { useOrganizationWorkspace } from "@/hooks/use-organization-workspace"
 import { useForm } from "@tanstack/react-form"
-import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useAuthAction } from "@workspace/admin/auth"
 import { Button } from "@workspace/ui/components/button"
 import {
   Field,
@@ -13,60 +11,23 @@ import {
 import { Input } from "@workspace/ui/components/input"
 import * as z from "zod"
 
-// QueryClient 由 AuthSession 按账号隔离；此 Key 仅持有当前账号的组织事实。
-const workspaceQuery = queryOptions({
-  queryKey: ["identity", "organization-workspace"],
-  queryFn: async () => {
-    const [organizations, active] = await Promise.all([
-      authClient.organization.list(),
-      authClient.organization.getFullOrganization(),
-    ])
-    if (organizations.error) throw new Error(organizations.error.message)
-    if (active.error) throw new Error(active.error.message)
-    return { organizations: organizations.data, active: active.data }
-  },
-  retry: false,
-})
-
 const createOrganizationSchema = z.object({
   name: z.string().trim().min(1, "请输入组织名称。"),
   slug: z.string().trim().min(1, "请输入组织标识。"),
 })
 
 export function OrganizationWorkspace() {
-  const workspace = useQuery(workspaceQuery)
-  const queryClient = useQueryClient()
-  const action = useAuthAction()
+  const { workspace, pending, error, createOrganization, selectOrganization } =
+    useOrganizationWorkspace()
   const form = useForm({
     defaultValues: { name: "", slug: "" },
     validators: {
       onSubmit: createOrganizationSchema,
     },
     onSubmit: async ({ value, formApi }) => {
-      if (
-        await action.run(() =>
-          authClient.organization.create({
-            name: value.name.trim(),
-            slug: value.slug.trim(),
-            keepCurrentActiveOrganization: false,
-          })
-        )
-      ) {
-        formApi.reset()
-        await queryClient.invalidateQueries(workspaceQuery)
-      }
+      if (await createOrganization(value)) formApi.reset()
     },
   })
-
-  async function selectOrganization(organizationId: string) {
-    if (
-      await action.run(() =>
-        authClient.organization.setActive({ organizationId })
-      )
-    ) {
-      await queryClient.invalidateQueries(workspaceQuery)
-    }
-  }
 
   if (workspace.isPending) return <p role="status">正在加载组织…</p>
   if (workspace.isError) {
@@ -83,7 +44,6 @@ export function OrganizationWorkspace() {
     )
   }
   const { organizations, active } = workspace.data
-  const pending = action.pending || workspace.isFetching
 
   return (
     <div className="space-y-8">
@@ -134,9 +94,9 @@ export function OrganizationWorkspace() {
           </ul>
         )}
       </section>
-      {action.error && (
+      {error && (
         <p role="alert" className="text-sm text-destructive">
-          {action.error}
+          {error}
         </p>
       )}
       <section
@@ -212,9 +172,7 @@ export function OrganizationWorkspace() {
                   )
                 }}
               </form.Field>
-              <Button type="submit">
-                {action.pending ? "提交中…" : "创建组织"}
-              </Button>
+              <Button type="submit">{pending ? "提交中…" : "创建组织"}</Button>
             </FieldGroup>
           </fieldset>
         </form>
