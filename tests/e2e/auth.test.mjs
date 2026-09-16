@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process"
 import { randomBytes } from "node:crypto"
 import { mkdir, readFile } from "node:fs/promises"
+import { createRequire } from "node:module"
 import { resolve } from "node:path"
 import { promisify } from "node:util"
 import { chromium } from "playwright"
@@ -16,7 +17,19 @@ import {
   expect,
   it,
 } from "vitest"
-import { createApplication } from "../../apps/api/dist/create-application.js"
+import { createTenantRunner } from "../../packages/database/dist/tenant.js"
+import { projectRepository } from "../../packages/database/dist/repositories/projects.js"
+import { projects } from "../../packages/database/dist/schema/projects.js"
+
+const require = createRequire(import.meta.url)
+const {
+  createApplication,
+} = require("../../apps/api/dist/create-application.js")
+const { AuthRuntime } = require("../../apps/api/dist/auth-runtime.js")
+const { RequestLanguage } = require("../../apps/api/dist/request-language.js")
+const {
+  TenantContextService,
+} = require("../../apps/api/dist/tenant-context.service.js")
 
 async function registerAccount(page, account) {
   await page.getByRole("button", { name: "创建账号", exact: true }).click()
@@ -29,10 +42,13 @@ async function registerAccount(page, account) {
 describe("S4-02：真实浏览器认证与组织流程", () => {
   let container
   let app
+  let runtime
+  let tenantContexts
   let browser
   let context
   let page
   let pageErrors
+  const originalAdminApiProxyTarget = process.env.ADMIN_API_PROXY_TARGET
   const frontends = []
   const credentials = {
     email: "s4-02@example.test",
@@ -88,7 +104,11 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
       },
       { logger: false }
     )
+    runtime = app.get(AuthRuntime)
+    tenantContexts = app.get(TenantContextService)
     await app.listen(0, "127.0.0.1")
+    const apiOrigin = await app.getUrl()
+    process.env.ADMIN_API_PROXY_TARGET = apiOrigin
     for (const name of ["admin", "platform"]) {
       const server = await createServer({
         root: resolve(`apps/${name}`),
@@ -96,7 +116,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
         server: {
           host: "127.0.0.1",
           port: 0,
-          proxy: { "/api/auth": await app.getUrl() },
+          ...(name === "platform" ? { proxy: { "/api/auth": apiOrigin } } : {}),
         },
       })
       frontends.push(server)
@@ -145,11 +165,45 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
         try {
           await app?.close()
         } finally {
+          if (originalAdminApiProxyTarget === undefined) {
+            delete process.env.ADMIN_API_PROXY_TARGET
+          } else {
+            process.env.ADMIN_API_PROXY_TARGET = originalAdminApiProxyTarget
+          }
           await container?.stop()
         }
       }
     }
   })
+
+  async function seedProjectsOutsideFirstPage(headers, organizationId) {
+    const tenant = await tenantContexts.resolve(
+      headers,
+      organizationId,
+      { project: ["create"] },
+      "e2e-project-list-seed",
+      new RequestLanguage(null)
+    )
+    await createTenantRunner(runtime.pool)(tenant, async (tx) => {
+      await projectRepository.create(tx, {
+        name: "页外目标项目",
+        description: null,
+        contentLocale: "zh-CN",
+      })
+      // 此临时库尚无其他项目；将唯一目标固定为旧记录，才能证明搜索不是只查当前 20 行。
+      await tx.update(projects).set({
+        createdAt: new Date("2026-01-01T00:00:00Z"),
+        updatedAt: new Date("2026-01-01T00:00:00Z"),
+      })
+      for (let index = 1; index <= 25; index += 1) {
+        await projectRepository.create(tx, {
+          name: `填充项目 ${index}`,
+          description: null,
+          contentLocale: "zh-CN",
+        })
+      }
+    })
+  }
 
   it("切换语言保留 URL 和表单草稿，同步 HTML 方向", async () => {
     await page.goto(frontends[0].resolvedUrls.local[0] + "login")
@@ -190,6 +244,66 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
       .click()
     await expectUI(page.locator("html")).toHaveAttribute("dir", "ltr")
     expect(page.url()).toBe(originalURL)
+  })
+
+  describe("S7：项目列表", () => {
+    it("通过内置搜索命中当前页外的真实组织数据，并可由 URL 恢复", async () => {
+      await page.goto(frontends[0].resolvedUrls.local[0] + "app/")
+      await registerAccount(page, {
+        name: "项目列表用户",
+        email: "projects-list-browser@example.test",
+        password: credentials.password,
+      })
+      await page.getByLabel("组织名称", { exact: true }).fill("项目列表组织")
+      await page.getByLabel("组织标识", { exact: true }).fill("projects-list")
+      await page.getByRole("button", { name: "创建组织", exact: true }).click()
+      await expectUI(
+        page.getByRole("heading", {
+          name: "当前组织：项目列表组织",
+          exact: true,
+        })
+      ).toBeVisible()
+      await page.getByRole("link", { name: "查看项目", exact: true }).click()
+      await expectUI(page).toHaveURL(/\/app\/projects\/[0-9a-f-]+(?:\?.*)?$/)
+      const organizationId = new URL(page.url()).pathname.split("/").at(-1)
+      expect(organizationId).toBeTruthy()
+      const cookie = (await context.cookies())
+        .map(({ name, value }) => `${name}=${value}`)
+        .join("; ")
+      await seedProjectsOutsideFirstPage(
+        new Headers({ cookie }),
+        String(organizationId)
+      )
+      await page.reload()
+      await expectUI(
+        page.getByText("填充项目", { exact: false }).first()
+      ).toBeVisible()
+      await expectUI(
+        page.getByText("页外目标项目", { exact: true })
+      ).toHaveCount(0)
+      const targetRequest = page.waitForRequest((request) => {
+        const url = new URL(request.url())
+        return (
+          url.pathname === `/api/v1/organizations/${organizationId}/projects` &&
+          url.searchParams.get("name") === "页外目标项目"
+        )
+      })
+      await page
+        .getByRole("textbox", { name: "搜索项目名称", exact: true })
+        .fill("页外目标项目")
+      await targetRequest
+      await expectUI(
+        page.getByText("页外目标项目", { exact: true })
+      ).toBeVisible()
+      const filteredURL = new URL(page.url())
+      expect(filteredURL.searchParams.get("name")).toBe("页外目标项目")
+      expect(filteredURL.searchParams.get("page")).toBe("1")
+      expect(filteredURL.searchParams.get("pageSize")).toBe("20")
+      await page.reload()
+      await expectUI(
+        page.getByText("页外目标项目", { exact: true })
+      ).toBeVisible()
+    })
   })
 
   it("注册后刷新恢复会话，登出后刷新仍需登录，错误密码可纠正重试", async () => {

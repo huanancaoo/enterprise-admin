@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@workspace/api-client": "workspace:*",
+    "@workspace/contracts": "workspace:*",
     "@workspace/ui": "workspace:*",
     "lucide-react": "1.46.0",
     "react": "19.3.0",
@@ -33,6 +34,8 @@
     "@vitejs/plugin-react": "6.1.1",
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
+    "@workspace/mocks": "workspace:*",
+    "@storybook/react-vite": "10.6.0",
     "eslint": "10.10.0",
     "typescript": "6.0.3",
     "vite": "8.3.0"

@@ -1,6 +1,5 @@
 {
   "active": "Active",
-  "allStatuses": "All statuses",
   "archived": "Archived",
   "create": "Create project",
   "createdAt": "Created at",
@@ -8,7 +7,9 @@
   "emptyDescription": "Create the first project and it will appear here.",
   "emptyTitle": "No projects yet",
   "name": "Project name",
+  "open": "View projects",
   "searchPlaceholder": "Search by project name",
   "status": "Status",
-  "title": "Projects"
+  "title": "Projects",
+  "updatedAt": "Updated at"
 }

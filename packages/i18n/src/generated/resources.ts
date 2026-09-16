@@ -131,7 +131,6 @@ export default interface Resources {
   },
   "projects": {
     "active": "活跃",
-    "allStatuses": "全部状态",
     "archived": "已归档",
     "create": "创建项目",
     "createdAt": "创建时间",
@@ -139,9 +138,11 @@ export default interface Resources {
     "emptyDescription": "创建第一个项目后，它会出现在这里。",
     "emptyTitle": "还没有项目",
     "name": "项目名称",
+    "open": "查看项目",
     "searchPlaceholder": "搜索项目名称",
     "status": "状态",
-    "title": "项目"
+    "title": "项目",
+    "updatedAt": "更新时间"
   },
   "validation": {
     "email": "请输入有效的邮箱地址。",

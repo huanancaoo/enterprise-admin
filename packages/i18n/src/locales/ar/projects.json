@@ -1,6 +1,5 @@
 {
   "active": "نشط",
-  "allStatuses": "جميع الحالات",
   "archived": "مؤرشف",
   "create": "إنشاء مشروع",
   "createdAt": "تاريخ الإنشاء",
@@ -8,7 +7,9 @@
   "emptyDescription": "أنشئ المشروع الأول وسيظهر هنا.",
   "emptyTitle": "لا توجد مشاريع بعد",
   "name": "اسم المشروع",
+  "open": "عرض المشاريع",
   "searchPlaceholder": "البحث باسم المشروع",
   "status": "الحالة",
-  "title": "المشاريع"
+  "title": "المشاريع",
+  "updatedAt": "تاريخ التحديث"
 }

@@ -16,12 +16,14 @@ export type ApiClientRequestOptions = RequestInit & {
 }
 
 export class ApiClientError extends Error {
-  constructor(
-    readonly status: number,
-    readonly body: ApiError
-  ) {
+  readonly status: number
+  readonly body: ApiError
+
+  constructor(status: number, body: ApiError) {
     super(body.message)
     this.name = "ApiClientError"
+    this.status = status
+    this.body = body
   }
 }
 

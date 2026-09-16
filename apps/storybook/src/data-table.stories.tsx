@@ -39,6 +39,24 @@ const columns = helper.columns([
   }),
 ])
 
+const singleStatusColumns = helper.columns([
+  helper.accessor("name", {
+    header: "Name",
+    meta: { label: "Name" },
+  }),
+  helper.accessor("status", {
+    header: "Status",
+    meta: {
+      label: "Status",
+      facetMode: "single",
+      facetOptions: [
+        { label: "Active", value: "active" },
+        { label: "Invited", value: "invited" },
+      ],
+    },
+  }),
+])
+
 function TableExample() {
   const [loading, setLoading] = useState(false)
   const [selectedIds, setSelectedIds] = useState("")
@@ -170,6 +188,28 @@ export const FilteringAndSelection: Story = {
   },
 }
 
+export const SingleStatusFilter: Story = {
+  render: () => <DataTable columns={singleStatusColumns} data={records} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const screen = within(canvasElement.ownerDocument.body)
+    await userEvent.click(canvas.getByRole("button", { name: "Status" }))
+    await userEvent.click(await screen.findByRole("option", { name: /Active/ }))
+    await expect(
+      canvas.getByRole("button", { name: "Status Active" })
+    ).toBeVisible()
+    await userEvent.click(
+      await screen.findByRole("option", { name: /Invited/ })
+    )
+    await expect(
+      canvas.getByRole("button", { name: "Status Invited" })
+    ).toBeVisible()
+    await expect(
+      canvas.queryByRole("button", { name: "Status Active Invited" })
+    ).not.toBeInTheDocument()
+  },
+}
+
 export const ColumnSettings: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
@@ -198,7 +238,7 @@ export const ColumnSettings: Story = {
     await expect(
       canvas.getByRole("columnheader", { name: /Status/ })
     ).toHaveStyle({ position: "relative" })
-    await userEvent.keyboard("{Escape}")
+    await userEvent.click(canvas.getByRole("button", { name: "View" }))
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
     )

@@ -19,6 +19,7 @@ import {
   createSortedRowModel,
   createTableHook,
   filterFn_arrHas,
+  filterFn_equalsString,
   filterFn_includesString,
   globalFilteringFeature,
   metaHelper,
@@ -39,7 +40,8 @@ export type DataTableColumnMeta = {
   label?: string
   configurable?: boolean
   allowCellOverflow?: boolean
-  /** 标量字符串列的多选筛选；组件统一使用 value ∈ selectedValues 的匹配规则。 */
+  /** 筛选值是单个标量还是多选集合，决定筛选组件与本地筛选函数的语义。 */
+  facetMode?: "single" | "multiple"
   facetOptions?: readonly DataTableFacetedFilterOption[]
 }
 
@@ -57,6 +59,7 @@ export const dataTableFeatures = tableFeatures({
   filterFns: {
     includesString: filterFn_includesString,
     arrHas: filterFn_arrHas,
+    equalsString: filterFn_equalsString,
   },
   columnFacetingFeature,
   facetedRowModel: createFacetedRowModel(),

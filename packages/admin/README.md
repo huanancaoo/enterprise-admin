@@ -6,7 +6,7 @@
 
 从 `@workspace/admin` 导入 `DataTable`、`DataTableColumnHeader` 和列定义 helper。
 
-- `createDataTableColumnHelper<T>()` 定义业务字段；列的 `meta.facetOptions` 同时声明多选筛选选项与标量字符串的匹配语义。筛选器按列定义顺序显示，无需另配 `filterFn` 或列 ID。
+- `createDataTableColumnHelper<T>()` 定义业务字段；列的 `meta.facetOptions` 声明筛选选项。`meta.facetMode` 省略时为 `"multiple"`，以 `string[]` 和 `arrHas` 匹配；设为 `"single"` 时以标量字符串和 `equalsString` 匹配。筛选器按列定义顺序显示，无需另配 `filterFn` 或列 ID。
 - `createDataTableSelectColumn<T>()`、`createDataTableRowControlsColumn<T>()` 创建固定尺寸、不可隐藏的选择列与行控制列。
 - `DataTable` 统一组装搜索、筛选、选择操作栏、列设置、表格与分页。通过 `isLoading`、`empty`、`renderExpandedRow` 和 `renderSelectionActions` 传入内容，不暴露这些内部组件的组合方式。
 - 批量操作接收当前筛选结果中跨页选中的行，与选择计数一致。具体业务操作由调用方实现。
@@ -24,6 +24,6 @@
 
 应用先用 `@workspace/i18n/react` 的 `UiI18nProvider` 提供实例，再用 `AdminDirectionProvider` 同步 Base UI 的方向。只使用语言和工作区控件时，从 `@workspace/admin/workspace` 导入，避免加载表格与编辑器模块。此 Provider 不建立第二份 locale 状态。
 
-DataTable 自带文案使用翻译目录。列标题、业务状态与选项由调用方翻译；名称等租户内容直接来自 API。`showSearch={false}` 用于已有外部筛选表单的页面，防止出现无请求绑定的第二个搜索框；请求使用 `manualFiltering/manualSorting/manualPagination` 和受控分页。列宽拖拽及键盘调整遵循当前文字方向。
+DataTable 自带文案使用翻译目录。列标题、业务状态与选项由调用方翻译；名称等租户内容直接来自 API。没有名称搜索能力的页面使用 `showSearch={false}`；使用内置搜索时，调用方将受控状态连接到 URL 与请求，不能额外添加平行的筛选栏。请求使用 `manualFiltering/manualSorting/manualPagination` 和受控分页。列宽拖拽及键盘调整遵循当前文字方向。
 
-Projects 列表示例在 `apps/storybook/src/projects-example.tsx`，通过生成客户端调用共享 MSW。ResourceCreate/Edit/Show 随 S7 的真实操作补齐，本阶段没有通用 Resource Engine。
+Projects 列表示例在 `apps/admin/src/components/projects-list.stories.tsx`，由公共 Storybook 加载；它以 Router 包装生产 `ProjectsList` 并通过生成客户端调用共享 MSW。ResourceCreate/Edit/Show 随 S7 的真实操作补齐，本阶段没有通用 Resource Engine。

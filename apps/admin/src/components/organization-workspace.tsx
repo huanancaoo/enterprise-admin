@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next"
 import type { TFunction } from "@workspace/i18n"
 import { useOrganizationWorkspace } from "@/hooks/use-organization-workspace"
 import { useForm } from "@tanstack/react-form"
+import { Link } from "@tanstack/react-router"
 import { Button } from "@workspace/ui/components/button"
 import {
   Field,
@@ -14,7 +15,7 @@ import { Input } from "@workspace/ui/components/input"
 import * as z from "zod"
 
 const createOrganizationSchema = (
-  t: TFunction<["organization", "common", "validation"]>
+  t: TFunction<["organization", "common", "validation", "projects"]>
 ) =>
   z.object({
     name: z.string().trim().min(1, t("validation:organizationName")),
@@ -22,7 +23,12 @@ const createOrganizationSchema = (
   })
 
 export function OrganizationWorkspace() {
-  const { t } = useTranslation(["organization", "common", "validation"])
+  const { t } = useTranslation([
+    "organization",
+    "common",
+    "validation",
+    "projects",
+  ])
   const { workspace, pending, error, createOrganization, selectOrganization } =
     useOrganizationWorkspace()
   const form = useForm({
@@ -63,6 +69,13 @@ export function OrganizationWorkspace() {
           <p className="text-sm text-muted-foreground">
             {t("organization:switchHint")}
           </p>
+          <Link
+            to="/app/projects/$organizationId"
+            params={{ organizationId: active.id }}
+            className="inline-flex text-sm font-medium underline underline-offset-4"
+          >
+            {t("projects:open")}
+          </Link>
         </section>
       )}
       <section className="space-y-4" aria-labelledby="organization-heading">

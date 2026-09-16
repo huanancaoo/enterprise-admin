@@ -7,7 +7,7 @@ export default defineConfig({
       "../../apps/admin/src/**/*.{ts,tsx}",
       "../../apps/platform/src/**/*.{ts,tsx}",
       "../admin/src/**/*.{ts,tsx}",
-      "../../apps/storybook/src/projects-example.tsx",
+      "../../apps/storybook/src/form-dialog-example.tsx",
     ],
     output: "src/locales/{{language}}/{{namespace}}.json",
     defaultNS: "common",

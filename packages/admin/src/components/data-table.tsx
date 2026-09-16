@@ -55,7 +55,6 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-  CommandSeparator,
 } from "@workspace/ui/components/command"
 import {
   DropdownMenu,
@@ -144,7 +143,14 @@ function configureColumns<TData extends RowData>(
     ...("columns" in column && column.columns
       ? { columns: configureColumns(column.columns) }
       : {}),
-    ...(column.meta?.facetOptions ? { filterFn: "arrHas" as const } : {}),
+    ...(column.meta?.facetOptions
+      ? {
+          filterFn:
+            column.meta.facetMode === "single"
+              ? ("equalsString" as const)
+              : ("arrHas" as const),
+        }
+      : {}),
   }))
 }
 
@@ -286,10 +292,12 @@ function DataTableFacetedFilter<TData extends RowData>({
 }) {
   const { t } = useTranslation("common")
   const title = getColumnLabel(column)
-
-  const selectedValues = new Set(
-    (column.getFilterValue() as string[] | undefined) ?? []
-  )
+  const facetMode = column.columnDef.meta?.facetMode ?? "multiple"
+  const filterValue = column.getFilterValue()
+  const selectedValues =
+    facetMode === "single"
+      ? new Set(typeof filterValue === "string" ? [filterValue] : [])
+      : new Set((filterValue as string[] | undefined) ?? [])
   const facets = column.getFacetedUniqueValues()
 
   return (
@@ -336,6 +344,12 @@ function DataTableFacetedFilter<TData extends RowData>({
                     key={option.value}
                     data-checked={isSelected}
                     onSelect={() => {
+                      if (facetMode === "single") {
+                        column.setFilterValue(
+                          isSelected ? undefined : option.value
+                        )
+                        return
+                      }
                       const next = new Set(selectedValues)
                       if (isSelected) {
                         next.delete(option.value)
@@ -350,7 +364,7 @@ function DataTableFacetedFilter<TData extends RowData>({
                     {Icon ? <Icon /> : null}
                     <span className="flex-1">{option.label}</span>
                     {count != null ? (
-                      <span className="text-xs text-muted-foreground tabular-nums">
+                      <span className="text-xs text-foreground tabular-nums">
                         {count}
                       </span>
                     ) : null}
@@ -359,16 +373,11 @@ function DataTableFacetedFilter<TData extends RowData>({
               })}
             </CommandGroup>
             {selectedValues.size > 0 ? (
-              <>
-                <CommandSeparator />
-                <CommandGroup>
-                  <CommandItem
-                    onSelect={() => column.setFilterValue(undefined)}
-                  >
-                    {t("clearFilters")}
-                  </CommandItem>
-                </CommandGroup>
-              </>
+              <CommandGroup>
+                <CommandItem onSelect={() => column.setFilterValue(undefined)}>
+                  {t("clearFilters")}
+                </CommandItem>
+              </CommandGroup>
             ) : null}
           </CommandList>
         </Command>
