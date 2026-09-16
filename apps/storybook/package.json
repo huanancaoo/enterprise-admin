@@ -14,7 +14,15 @@
     "@workspace/ui": "workspace:*",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "@workspace/admin": "workspace:*"
+    "@workspace/admin": "workspace:*",
+    "@workspace/i18n": "workspace:*",
+    "@workspace/mocks": "workspace:*",
+    "@workspace/api-client": "workspace:*",
+    "@workspace/contracts": "workspace:*",
+    "@tanstack/react-query": "5.102.8",
+    "react-i18next": "17.0.14",
+    "@tanstack/react-form": "1.33.5",
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@storybook/react-vite": "10.6.0",
@@ -32,6 +40,13 @@
     "@storybook/addon-a11y": "10.6.0",
     "@vitest/browser-playwright": "4.1.11",
     "playwright": "1.63.0",
-    "vitest": "4.1.11"
+    "vitest": "4.1.11",
+    "msw-storybook-addon": "3.0.0",
+    "msw": "2.15.0"
+  },
+  "msw": {
+    "workerDirectory": [
+      "public"
+    ]
   }
 }

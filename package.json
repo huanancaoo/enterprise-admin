@@ -10,7 +10,7 @@
     "typecheck": "turbo typecheck",
     "api:openapi": "turbo build --filter=api && pnpm --filter api openapi",
     "api:generate": "orval",
-    "verify": "pnpm peers check && pnpm lint && pnpm typecheck && pnpm test:unit && pnpm test:api && pnpm test:storybook && pnpm test:e2e && pnpm db:check && pnpm test:database && pnpm build && pnpm api:check",
+    "verify": "pnpm peers check && pnpm lint && pnpm typecheck && pnpm i18n:check && pnpm test:unit && pnpm test:api && pnpm test:storybook && pnpm test:e2e && pnpm db:check && pnpm test:database && pnpm build && pnpm api:check",
     "lint:boundaries": "node packages/eslint-config/boundaries/check.mjs",
     "test:unit": "turbo build --filter=@workspace/contracts --filter=@workspace/i18n --filter=@workspace/database && vitest run --config vitest.config.mjs --project unit && pnpm --filter api test",
     "build:storybook": "turbo build --filter=storybook",
@@ -22,7 +22,8 @@
     "test:database": "pnpm --filter @workspace/database test:database",
     "test:isolation": "pnpm --filter @workspace/database test:isolation",
     "test:e2e": "turbo build --filter=api && vitest run --config vitest.config.e2e.mjs",
-    "api:check": "node packages/api-client/scripts/check-generated.mjs"
+    "api:check": "node packages/api-client/scripts/check-generated.mjs",
+    "i18n:check": "pnpm --filter @workspace/i18n check"
   },
   "devDependencies": {
     "@swc/core": "1.16.2",

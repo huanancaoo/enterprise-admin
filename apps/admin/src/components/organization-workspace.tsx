@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next"
+import type { TFunction } from "@workspace/i18n"
 import { useOrganizationWorkspace } from "@/hooks/use-organization-workspace"
 import { useForm } from "@tanstack/react-form"
 import { Button } from "@workspace/ui/components/button"
@@ -11,25 +13,30 @@ import {
 import { Input } from "@workspace/ui/components/input"
 import * as z from "zod"
 
-const createOrganizationSchema = z.object({
-  name: z.string().trim().min(1, "请输入组织名称。"),
-  slug: z.string().trim().min(1, "请输入组织标识。"),
-})
+const createOrganizationSchema = (
+  t: TFunction<["organization", "common", "validation"]>
+) =>
+  z.object({
+    name: z.string().trim().min(1, t("validation:organizationName")),
+    slug: z.string().trim().min(1, t("validation:organizationSlug")),
+  })
 
 export function OrganizationWorkspace() {
+  const { t } = useTranslation(["organization", "common", "validation"])
   const { workspace, pending, error, createOrganization, selectOrganization } =
     useOrganizationWorkspace()
   const form = useForm({
     defaultValues: { name: "", slug: "" },
     validators: {
-      onSubmit: createOrganizationSchema,
+      onSubmit: createOrganizationSchema(t),
     },
     onSubmit: async ({ value, formApi }) => {
       if (await createOrganization(value)) formApi.reset()
     },
   })
 
-  if (workspace.isPending) return <p role="status">正在加载组织…</p>
+  if (workspace.isPending)
+    return <p role="status">{t("organization:loading")}</p>
   if (workspace.isError) {
     return (
       <div className="space-y-4">
@@ -38,7 +45,7 @@ export function OrganizationWorkspace() {
           disabled={workspace.isFetching}
           onClick={() => void workspace.refetch()}
         >
-          重试
+          {t("common:retry")}
         </Button>
       </div>
     )
@@ -51,20 +58,20 @@ export function OrganizationWorkspace() {
       {active && (
         <section className="space-y-2 rounded-xl border bg-muted/30 p-5">
           <h1 className="text-xl font-semibold wrap-break-word">
-            当前组织：{active.name}
+            {t("organization:current", { name: active.name })}
           </h1>
           <p className="text-sm text-muted-foreground">
-            你可以在下方切换组织。
+            {t("organization:switchHint")}
           </p>
         </section>
       )}
       <section className="space-y-4" aria-labelledby="organization-heading">
         <h2 id="organization-heading" className="text-xl font-semibold">
-          选择组织
+          {t("organization:select")}
         </h2>
         {organizations.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            你还没有加入任何组织。
+            {t("organization:empty")}
           </p>
         ) : (
           <ul className="grid gap-3 sm:grid-cols-2">
@@ -83,11 +90,15 @@ export function OrganizationWorkspace() {
                 </div>
                 <Button
                   variant="outline"
-                  aria-label={`选择 ${organization.name}`}
+                  aria-label={t("organization:selectNamed", {
+                    name: organization.name,
+                  })}
                   disabled={pending || active?.id === organization.id}
                   onClick={() => void selectOrganization(organization.id)}
                 >
-                  {active?.id === organization.id ? "已选择" : "选择"}
+                  {active?.id === organization.id
+                    ? t("organization:selected")
+                    : t("organization:choose")}
                 </Button>
               </li>
             ))}
@@ -104,7 +115,7 @@ export function OrganizationWorkspace() {
         aria-labelledby="create-organization-heading"
       >
         <h2 id="create-organization-heading" className="text-xl font-semibold">
-          创建组织
+          {t("organization:create")}
         </h2>
         <form
           onSubmit={(event) => {
@@ -122,7 +133,7 @@ export function OrganizationWorkspace() {
                   return (
                     <Field data-invalid={isInvalid}>
                       <FieldLabel htmlFor="organization-name">
-                        组织名称
+                        {t("organization:name")}
                       </FieldLabel>
                       <Input
                         id="organization-name"
@@ -149,7 +160,7 @@ export function OrganizationWorkspace() {
                   return (
                     <Field data-invalid={isInvalid}>
                       <FieldLabel htmlFor="organization-slug">
-                        组织标识
+                        {t("organization:slug")}
                       </FieldLabel>
                       <Input
                         id="organization-slug"
@@ -163,7 +174,7 @@ export function OrganizationWorkspace() {
                         required
                       />
                       <FieldDescription>
-                        用于区分组织，必须唯一，例如 my-team。
+                        {t("organization:slugHint")}
                       </FieldDescription>
                       {isInvalid && (
                         <FieldError errors={field.state.meta.errors} />
@@ -172,7 +183,9 @@ export function OrganizationWorkspace() {
                   )
                 }}
               </form.Field>
-              <Button type="submit">{pending ? "提交中…" : "创建组织"}</Button>
+              <Button type="submit">
+                {pending ? t("common:submitting") : t("organization:create")}
+              </Button>
             </FieldGroup>
           </fieldset>
         </form>

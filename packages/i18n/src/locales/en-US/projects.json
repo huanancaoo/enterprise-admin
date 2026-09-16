@@ -1,0 +1,14 @@
+{
+  "active": "Active",
+  "allStatuses": "All statuses",
+  "archived": "Archived",
+  "create": "Create project",
+  "createdAt": "Created at",
+  "draft": "Draft",
+  "emptyDescription": "Create the first project and it will appear here.",
+  "emptyTitle": "No projects yet",
+  "name": "Project name",
+  "searchPlaceholder": "Search by project name",
+  "status": "Status",
+  "title": "Projects"
+}

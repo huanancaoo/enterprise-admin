@@ -1,2 +1,5 @@
 import { createReactConfig } from "@workspace/eslint-config/react-internal"
-export default createReactConfig(import.meta.dirname)
+export default [
+  ...createReactConfig(import.meta.dirname),
+  { ignores: ["public/mockServiceWorker.js"] },
+]

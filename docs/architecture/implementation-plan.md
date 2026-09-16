@@ -164,16 +164,18 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 
 **依赖：** S1；网络相关 Mock 随 S5 契约同步，最终在 S7 汇合。
 
-- [ ] S6-01：在 `packages/ui` 建立最小 primitives 与 token；优先 Button/Input/Select/Dialog/Table/Skeleton 等 Projects 会使用的组件。
-- [ ] S6-02：在 `packages/admin` 建立 AppShell、PageHeader、TenantSwitcher、LocaleSwitcher、PermissionGate、DataTable、FilterBar、Pagination、FormDialog、状态组件。
-- [ ] S6-03：ResourceList/Create/Edit/Show 等抽象随 Projects 实际用例补齐，不先构建一个高度通用、尚未验证的 Resource Engine。
-- [ ] S6-04：在 `apps/storybook` 接入公共组件、Vitest、interaction 与 a11y 检查。
-- [ ] S6-05：在 `packages/mocks` 统一 fixtures、handlers、scenarios，覆盖成功、空数据、403、500、慢网络等行为。
-- [ ] S6-06：在 `packages/i18n` 建立 `zh-CN/en-US/ar` 与文档规定的 namespaces；UI locale 由 i18next 持有，不加入后台 URL。
-- [ ] S6-07：语言切换同步 html.lang/html.dir；使用 logical properties；验证 Sidebar、Dialog、Popover、Table、分页和方向性图标。
-- [ ] S6-08：封装 Intl 格式化；语言、时区和货币保持独立，不由 organizationId 或 locale 推导同义属性。
-- [ ] S6-09：关键组件维护 Default/Loading/Empty/Error/PermissionDenied/LongText/RTL 七类 Story。
-- [ ] S6-10：接入翻译 lint、catalog 提取漂移、类型漂移和缺失翻译检查，并明确失败条件。
+本地实施与阶段验证已完成，见 [S6 验收记录](s6-validation.md)。ResourceList 与 FormDialog 通过 Projects 用例验证；Create/Edit/Show 的业务抽象随 S7 实际操作补齐。
+
+- [x] S6-01：在 `packages/ui` 建立最小 primitives 与 token；优先 Button/Input/Select/Dialog/Table/Skeleton 等 Projects 会使用的组件。
+- [x] S6-02：在 `packages/admin` 建立 AppShell、PageHeader、TenantSwitcher、LocaleSwitcher、PermissionGate、DataTable、FilterBar、Pagination、FormDialog、状态组件。
+- [x] S6-03：ResourceList/Create/Edit/Show 等抽象随 Projects 实际用例补齐，不先构建一个高度通用、尚未验证的 Resource Engine。
+- [x] S6-04：在 `apps/storybook` 接入公共组件、Vitest、interaction 与 a11y 检查。
+- [x] S6-05：在 `packages/mocks` 统一 fixtures、handlers、scenarios，覆盖成功、空数据、403、500、慢网络等行为。
+- [x] S6-06：在 `packages/i18n` 建立 `zh-CN/en-US/ar` 与文档规定的 namespaces；UI locale 由 i18next 持有，不加入后台 URL。
+- [x] S6-07：语言切换同步 html.lang/html.dir；使用 logical properties；验证 Sidebar、Dialog、Popover、Table、分页和方向性图标。
+- [x] S6-08：封装 Intl 格式化；语言、时区和货币保持独立，不由 organizationId 或 locale 推导同义属性。
+- [x] S6-09：关键组件维护 Default/Loading/Empty/Error/PermissionDenied/LongText/RTL 七类 Story。
+- [x] S6-10：接入翻译 lint、catalog 提取漂移、类型漂移和缺失翻译检查，并明确失败条件。
 
 **验收：** 不启动 API/PostgreSQL，Storybook 也能复现组件各状态；RTL 与长文本可用；页面公共文案没有绕过翻译体系；UI locale 与 Router state 没有重复事实来源。
 

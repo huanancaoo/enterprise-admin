@@ -1,6 +1,9 @@
 "use client"
 
 import * as React from "react"
+import { useTranslation } from "react-i18next"
+import { useUiLocale } from "@workspace/i18n/react"
+import { localeMeta, createFormatter } from "@workspace/i18n"
 import {
   DndContext,
   KeyboardSensor,
@@ -73,7 +76,7 @@ import {
 } from "@workspace/ui/components/input-group"
 import { Field, FieldLabel } from "@workspace/ui/components/field"
 import {
-  Pagination,
+  Pagination as PaginationPrimitive,
   PaginationContent,
   PaginationEllipsis,
   PaginationItem,
@@ -118,6 +121,7 @@ type DataTableOptions<TData extends RowData> = Omit<
 
 export type DataTableProps<TData extends RowData> = DataTableOptions<TData> & {
   className?: string
+  showSearch?: boolean
   searchPlaceholder?: string
   isLoading?: boolean
   empty?: React.ReactNode
@@ -160,6 +164,7 @@ function DataTable<TData extends RowData>({
   columns,
   data,
   searchPlaceholder,
+  showSearch = true,
   className,
   isLoading,
   empty,
@@ -168,6 +173,7 @@ function DataTable<TData extends RowData>({
   renderExpandedRow,
   ...options
 }: DataTableProps<TData>) {
+  const locale = useUiLocale()
   const configuredColumns = React.useMemo(
     () => configureColumns(columns),
     [columns]
@@ -180,6 +186,7 @@ function DataTable<TData extends RowData>({
       ...initialState,
     },
     ...options,
+    columnResizeDirection: localeMeta[locale].direction,
   })
 
   return (
@@ -195,7 +202,9 @@ function DataTable<TData extends RowData>({
             />
           ) : (
             <>
-              <DataTableSearch placeholder={searchPlaceholder} />
+              {showSearch && (
+                <DataTableSearch placeholder={searchPlaceholder} />
+              )}
               {table
                 .getAllLeafColumns()
                 .map((column) =>
@@ -243,11 +252,12 @@ function DataTableToolbar({
 
 function DataTableSearch({
   className,
-  placeholder = "Search...",
+  placeholder,
   ...props
 }: Omit<React.ComponentProps<"input">, "value" | "onChange"> & {
   placeholder?: string
 }) {
+  const { t } = useTranslation("common")
   const table = useDataTableContext()
   const value = (table.state.globalFilter as string | undefined) ?? ""
 
@@ -258,8 +268,8 @@ function DataTableSearch({
       </InputGroupAddon>
       <InputGroupInput
         value={value}
-        placeholder={placeholder}
-        aria-label={placeholder}
+        placeholder={placeholder ?? t("search")}
+        aria-label={placeholder ?? t("search")}
         onChange={(event) => table.setGlobalFilter(event.target.value)}
         {...props}
       />
@@ -274,6 +284,7 @@ function DataTableFacetedFilter<TData extends RowData>({
   column: Column<DataTableFeatures, TData, unknown>
   options: readonly DataTableFacetedFilterOption[]
 }) {
+  const { t } = useTranslation("common")
   const title = getColumnLabel(column)
 
   const selectedValues = new Set(
@@ -305,15 +316,15 @@ function DataTableFacetedFilter<TData extends RowData>({
       <PopoverContent
         className="w-56 gap-0 p-0"
         align="start"
-        aria-label={`Filter ${title}`}
+        aria-label={t("filterColumn", { title: title })}
       >
         <Command>
           <CommandInput
             placeholder={title}
-            aria-label={`Search ${title} options`}
+            aria-label={t("searchOptions", { title: title })}
           />
           <CommandList>
-            <CommandEmpty>No results found.</CommandEmpty>
+            <CommandEmpty>{t("emptyTitle")}</CommandEmpty>
             <CommandGroup>
               {options.map((option) => {
                 const isSelected = selectedValues.has(option.value)
@@ -354,7 +365,7 @@ function DataTableFacetedFilter<TData extends RowData>({
                   <CommandItem
                     onSelect={() => column.setFilterValue(undefined)}
                   >
-                    Clear filters
+                    {t("clearFilters")}
                   </CommandItem>
                 </CommandGroup>
               </>
@@ -367,6 +378,7 @@ function DataTableFacetedFilter<TData extends RowData>({
 }
 
 function DataTableViewOptions({ className }: { className?: string }) {
+  const { t } = useTranslation("common")
   const table = useDataTableContext()
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -424,17 +436,17 @@ function DataTableViewOptions({ className }: { className?: string }) {
   const columnGroups = [
     {
       id: "start",
-      label: "Pinned at start",
+      label: t("pinnedStart"),
       columns: columns.filter((column) => column.getIsPinned() === "start"),
     },
     {
       id: "center",
-      label: "Columns",
+      label: t("columns"),
       columns: columns.filter((column) => !column.getIsPinned()),
     },
     {
       id: "end",
-      label: "Pinned at end",
+      label: t("pinnedEnd"),
       columns: columns.filter((column) => column.getIsPinned() === "end"),
     },
   ].filter((group) => group.columns.length > 0)
@@ -445,14 +457,14 @@ function DataTableViewOptions({ className }: { className?: string }) {
         render={<Button variant="outline" size="sm" className={className} />}
       >
         <Settings2Icon data-icon="inline-start" />
-        View
+        {t("view")}
       </PopoverTrigger>
       <PopoverContent
         align="end"
         className="w-96 max-w-[calc(100vw-2rem)]"
-        aria-label="Column settings"
+        aria-label={t("columnSettings")}
       >
-        <p className="text-sm font-medium">Columns</p>
+        <p className="text-sm font-medium">{t("columns")}</p>
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -494,7 +506,7 @@ function DataTableViewOptions({ className }: { className?: string }) {
             }}
           >
             <RotateCcwIcon data-icon="inline-start" />
-            Reset columns
+            {t("resetColumns")}
           </Button>
         </div>
       </PopoverContent>
@@ -507,6 +519,7 @@ function DataTableColumnSettingsItem({
 }: {
   column: Column<DataTableFeatures, RowData, unknown>
 }) {
+  const { t } = useTranslation("common")
   const {
     attributes,
     listeners,
@@ -533,14 +546,14 @@ function DataTableColumnSettingsItem({
       <Button
         variant="ghost"
         size="icon-sm"
-        aria-label={`Drag to reorder ${getColumnLabel(column)}`}
+        aria-label={t("reorderColumn", { title: getColumnLabel(column) })}
         {...attributes}
         {...listeners}
       >
         <GripVerticalIcon />
       </Button>
       <Checkbox
-        aria-label={`Show ${getColumnLabel(column)}`}
+        aria-label={t("showColumn", { title: getColumnLabel(column) })}
         checked={column.getIsVisible()}
         disabled={!column.getCanHide()}
         onCheckedChange={(checked) => column.toggleVisibility(checked)}
@@ -549,7 +562,7 @@ function DataTableColumnSettingsItem({
         {getColumnLabel(column)}
       </span>
       <Select
-        items={{ none: "Unpinned", start: "Start", end: "End" }}
+        items={{ none: t("unpinned"), start: t("start"), end: t("end") }}
         value={column.getIsPinned() || "none"}
         disabled={!column.getCanPin()}
         onValueChange={(value) => {
@@ -557,13 +570,16 @@ function DataTableColumnSettingsItem({
             column.pin(value === "none" ? false : (value as "start" | "end"))
         }}
       >
-        <SelectTrigger size="sm" aria-label={`Pin ${getColumnLabel(column)}`}>
+        <SelectTrigger
+          size="sm"
+          aria-label={t("pinColumn", { title: getColumnLabel(column) })}
+        >
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="none">Unpinned</SelectItem>
-          <SelectItem value="start">Start</SelectItem>
-          <SelectItem value="end">End</SelectItem>
+          <SelectItem value="none">{t("unpinned")}</SelectItem>
+          <SelectItem value="start">{t("start")}</SelectItem>
+          <SelectItem value="end">{t("end")}</SelectItem>
         </SelectContent>
       </Select>
     </div>
@@ -592,6 +608,7 @@ function DataTableContent<TData extends RowData>({
   empty?: React.ReactNode
   renderExpandedRow?: DataTableProps<TData>["renderExpandedRow"]
 }) {
+  const { t } = useTranslation("common")
   const table = useDataTableContext<TData>()
   const rows = [
     ...table.getTopRows(),
@@ -647,7 +664,9 @@ function DataTableContent<TData extends RowData>({
                     {header.column.getCanResize() && !header.isPlaceholder ? (
                       <div
                         role="separator"
-                        aria-label={`Resize ${header.column.id}`}
+                        aria-label={t("resizeColumn", {
+                          title: getColumnLabel(header.column),
+                        })}
                         aria-orientation="vertical"
                         aria-valuenow={header.column.getSize()}
                         tabIndex={0}
@@ -661,7 +680,11 @@ function DataTableContent<TData extends RowData>({
                           )
                             return
                           event.preventDefault()
-                          const delta = event.key === "ArrowRight" ? 10 : -10
+                          const delta =
+                            (event.key === "ArrowRight" ? 10 : -10) *
+                            (table.options.columnResizeDirection === "rtl"
+                              ? -1
+                              : 1)
                           const {
                             minSize = 20,
                             maxSize = Number.MAX_SAFE_INTEGER,
@@ -746,9 +769,9 @@ function DataTableContent<TData extends RowData>({
                 {empty ?? (
                   <Empty>
                     <EmptyHeader>
-                      <EmptyTitle>No results</EmptyTitle>
+                      <EmptyTitle>{t("emptyTitle")}</EmptyTitle>
                       <EmptyDescription>
-                        No data matches the current filters.
+                        {t("emptyDescription")}
                       </EmptyDescription>
                     </EmptyHeader>
                   </Empty>
@@ -808,8 +831,10 @@ function DataTableSelectionActions<TData extends RowData>({
 }: {
   renderActions?: DataTableProps<TData>["renderSelectionActions"]
 }) {
+  const { t } = useTranslation("common")
   const table = useDataTableContext<TData>()
   // 只操作当前筛选结果中的选中行；翻页不会缩小批量操作的对象集合。
+  const locale = useUiLocale()
   const rows = table.getFilteredSelectedRowModel().rows
 
   if (rows.length === 0) return null
@@ -818,11 +843,13 @@ function DataTableSelectionActions<TData extends RowData>({
     <div
       data-slot="data-table-selection-actions"
       role="region"
-      aria-label="Selection actions"
+      aria-label={t("selectionActions")}
       className="flex flex-wrap items-center gap-2"
     >
       <span role="status" className="text-sm font-medium">
-        {rows.length} row(s) selected
+        {t("selectedRows", {
+          total: createFormatter(locale).number(rows.length),
+        })}
       </span>
       <Button
         variant="outline"
@@ -830,7 +857,7 @@ function DataTableSelectionActions<TData extends RowData>({
         onClick={() => table.resetRowSelection(true)}
       >
         <XIcon data-icon="inline-start" aria-hidden="true" />
-        Clear selection
+        {t("clearSelection")}
       </Button>
       {renderActions ? (
         <div className="flex flex-wrap items-center gap-2 border-s ps-2">
@@ -841,19 +868,42 @@ function DataTableSelectionActions<TData extends RowData>({
   )
 }
 
-function DataTablePagination({
+function DataTablePagination() {
+  const table = useDataTableContext()
+  return (
+    <Pagination
+      pageIndex={table.state.pagination.pageIndex}
+      pageSize={table.state.pagination.pageSize}
+      rowCount={table.getRowCount()}
+      pageCount={table.getPageCount()}
+      onPageChange={(index) => table.setPageIndex(index)}
+      onPageSizeChange={(size) => table.setPageSize(size)}
+    />
+  )
+}
+
+export function Pagination({
   pageSizes = PAGE_SIZES,
+  pageIndex,
+  pageSize,
+  rowCount,
+  pageCount,
+  onPageChange,
+  onPageSizeChange,
 }: {
   pageSizes?: readonly number[]
+  pageIndex: number
+  pageSize: number
+  rowCount: number
+  pageCount: number
+  onPageChange: (pageIndex: number) => void
+  onPageSizeChange: (pageSize: number) => void
 }) {
-  const table = useDataTableContext()
-  const pageIndex = table.state.pagination.pageIndex
-  const pageSize = table.state.pagination.pageSize
-  const pageCount = table.getPageCount()
-  const rowCount = table.getRowCount()
+  const { t } = useTranslation("common")
+  const format = createFormatter(useUiLocale())
   const pageSizeSelectId = React.useId()
   const pageSizeOptions = Object.fromEntries(
-    pageSizes.map((size) => [String(size), String(size)])
+    pageSizes.map((size) => [String(size), format.number(size)])
   )
   const paginationItems = getPaginationItems(pageIndex, pageCount)
 
@@ -862,22 +912,26 @@ function DataTablePagination({
       data-slot="data-table-pagination"
       className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
     >
-      <div className="text-sm text-muted-foreground">{rowCount} row(s)</div>
-      <div className="flex items-center gap-6 lg:gap-8">
-        <Field orientation="horizontal" className="w-fit">
-          <FieldLabel htmlFor={pageSizeSelectId}>Rows per page</FieldLabel>
+      <div className="text-sm text-muted-foreground">
+        {t("rows", { total: format.number(rowCount) })}
+      </div>
+      <div className="flex flex-wrap items-center gap-3 sm:gap-6 lg:gap-8">
+        <Field orientation="horizontal" className="w-fit shrink-0">
+          <FieldLabel htmlFor={pageSizeSelectId} className="whitespace-nowrap">
+            {t("rowsPerPage")}
+          </FieldLabel>
           <Select
             items={pageSizeOptions}
             value={String(pageSize)}
             onValueChange={(value) => {
-              if (value !== null) table.setPageSize(Number(value))
+              if (value !== null) onPageSizeChange(Number(value))
             }}
           >
             <SelectTrigger
               id={pageSizeSelectId}
               size="sm"
               className="w-20"
-              aria-label="Rows per page"
+              aria-label={t("rowsPerPage")}
             >
               <SelectValue />
             </SelectTrigger>
@@ -885,23 +939,27 @@ function DataTablePagination({
               <SelectGroup>
                 {pageSizes.map((size) => (
                   <SelectItem key={size} value={String(size)}>
-                    {size}
+                    {format.number(size)}
                   </SelectItem>
                 ))}
               </SelectGroup>
             </SelectContent>
           </Select>
         </Field>
-        <Pagination className="mx-0 w-auto">
+        <PaginationPrimitive
+          aria-label={t("pagination")}
+          className="mx-0 w-auto"
+        >
           <PaginationContent>
             <PaginationItem>
               <PaginationPrevious
+                aria-label={t("previous")}
                 href="#"
                 text=""
-                disabled={!table.getCanPreviousPage()}
+                disabled={pageIndex <= 0}
                 onClick={(event) => {
                   event.preventDefault()
-                  table.previousPage()
+                  onPageChange(pageIndex - 1)
                 }}
               />
             </PaginationItem>
@@ -917,27 +975,28 @@ function DataTablePagination({
                     isActive={item === pageIndex}
                     onClick={(event) => {
                       event.preventDefault()
-                      table.setPageIndex(item)
+                      onPageChange(item)
                     }}
                   >
-                    {item + 1}
+                    {format.number(item + 1)}
                   </PaginationLink>
                 </PaginationItem>
               )
             )}
             <PaginationItem>
               <PaginationNext
+                aria-label={t("next")}
                 href="#"
                 text=""
-                disabled={!table.getCanNextPage()}
+                disabled={pageIndex >= pageCount - 1}
                 onClick={(event) => {
                   event.preventDefault()
-                  table.nextPage()
+                  onPageChange(pageIndex + 1)
                 }}
               />
             </PaginationItem>
           </PaginationContent>
-        </Pagination>
+        </PaginationPrimitive>
       </div>
     </div>
   )
@@ -975,18 +1034,19 @@ function DataTableRowControls<TData extends RowData>({
 }: {
   row: Row<DataTableFeatures, TData>
 }) {
+  const { t } = useTranslation("common")
   return (
     <div className="flex items-center gap-1">
       {row.getCanExpand() ? (
         <Button
           size="icon-sm"
           variant="ghost"
-          aria-label={row.getIsExpanded() ? "Collapse row" : "Expand row"}
+          aria-label={row.getIsExpanded() ? t("collapseRow") : t("expandRow")}
           aria-expanded={row.getIsExpanded()}
           onClick={() => row.toggleExpanded()}
         >
           <ChevronRightIcon
-            className={row.getIsExpanded() ? "rotate-90" : undefined}
+            className={row.getIsExpanded() ? "rotate-90" : "rtl:rotate-180"}
           />
         </Button>
       ) : null}
@@ -994,7 +1054,7 @@ function DataTableRowControls<TData extends RowData>({
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
-              <Button size="icon-sm" variant="ghost" aria-label="Pin row" />
+              <Button size="icon-sm" variant="ghost" aria-label={t("pinRow")} />
             }
           >
             <Settings2Icon />
@@ -1002,18 +1062,18 @@ function DataTableRowControls<TData extends RowData>({
           <DropdownMenuContent>
             <DropdownMenuItem onClick={() => row.pin("top")}>
               <ArrowUpToLineIcon />
-              Pin to top
+              {t("pinTop")}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => row.pin("bottom")}>
               <ArrowDownToLineIcon />
-              Pin to bottom
+              {t("pinBottom")}
             </DropdownMenuItem>
             <DropdownMenuItem
               disabled={!row.getIsPinned()}
               onClick={() => row.pin(false)}
             >
               <PinOffIcon />
-              Unpin row
+              {t("unpinRow")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -1027,6 +1087,7 @@ function DataTableSelectAllCheckbox<TData extends RowData>({
 }: {
   table: TanStackTable<DataTableFeatures, TData>
 }) {
+  const { t } = useTranslation("common")
   return (
     <Subscribe source={table.atoms.rowSelection}>
       {() => {
@@ -1037,7 +1098,7 @@ function DataTableSelectAllCheckbox<TData extends RowData>({
           <Checkbox
             checked={allSelected}
             indeterminate={someSelected && !allSelected}
-            aria-label="Select all"
+            aria-label={t("selectAll")}
             onCheckedChange={(_checked, details) => {
               table.getToggleAllPageRowsSelectedHandler()(details.event)
             }}
@@ -1053,6 +1114,7 @@ function DataTableSelectRowCheckbox<TData extends RowData>({
 }: {
   row: Row<DataTableFeatures, TData>
 }) {
+  const { t } = useTranslation("common")
   return (
     <Subscribe
       source={row.table.atoms.rowSelection}
@@ -1062,7 +1124,7 @@ function DataTableSelectRowCheckbox<TData extends RowData>({
         <Checkbox
           checked={!!selected}
           disabled={!row.getCanSelect()}
-          aria-label="Select row"
+          aria-label={t("selectRow")}
           onCheckedChange={(_checked, details) => {
             row.getToggleSelectedHandler()(details.event)
           }}

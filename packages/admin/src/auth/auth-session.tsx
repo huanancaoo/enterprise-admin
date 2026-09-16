@@ -1,3 +1,6 @@
+import { useTranslation } from "react-i18next"
+import { LocaleSwitcher } from "../components/workspace"
+import type { TFunction } from "@workspace/i18n"
 import { useState, type ReactNode } from "react"
 import { useForm } from "@tanstack/react-form"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
@@ -23,22 +26,28 @@ type AuthSessionProps = {
   children: ReactNode
 }
 
-const signInSchema = z.object({
-  name: z.string(),
-  email: z.email("请输入有效的邮箱地址。"),
-  password: z
-    .string()
-    .min(1, "请输入密码。")
-    .max(128, "密码不能超过 128 个字符。"),
-})
+function createCredentialsSchemas(
+  t: TFunction<["auth", "common", "validation"]>
+) {
+  const signInSchema = z.object({
+    name: z.string(),
+    email: z.email(t("validation:email")),
+    password: z
+      .string()
+      .min(1, t("validation:passwordRequired"))
+      .max(128, t("validation:passwordMax")),
+  })
 
-const signUpSchema = signInSchema.extend({
-  name: z.string().trim().min(1, "请输入姓名。"),
-  password: z
-    .string()
-    .min(8, "密码至少需要 8 个字符。")
-    .max(128, "密码不能超过 128 个字符。"),
-})
+  const signUpSchema = signInSchema.extend({
+    name: z.string().trim().min(1, t("validation:nameRequired")),
+    password: z
+      .string()
+      .min(8, t("validation:passwordMin"))
+      .max(128, t("validation:passwordMax")),
+  })
+
+  return { signInSchema, signUpSchema }
+}
 
 export function AuthSession({
   client,
@@ -47,13 +56,14 @@ export function AuthSession({
   authenticatedPath,
   children,
 }: AuthSessionProps) {
+  const { t } = useTranslation(["auth", "common", "validation"])
   const session = client.useSession()
   const pathname = useLocation({ select: (location) => location.pathname })
 
   if (session.isPending) {
     return (
       <main className="p-8" role="status">
-        正在恢复会话…
+        {t("auth:restoring")}
       </main>
     )
   }
@@ -61,8 +71,10 @@ export function AuthSession({
     return (
       <main className="mx-auto max-w-md space-y-4 p-8">
         <h1 className="text-xl font-semibold">{title}</h1>
-        <p role="alert">无法恢复会话，请重试。</p>
-        <Button onClick={() => void session.refetch()}>重试</Button>
+        <p role="alert">{t("auth:restoreFailed")}</p>
+        <Button onClick={() => void session.refetch()}>
+          {t("common:retry")}
+        </Button>
       </main>
     )
   }
@@ -85,7 +97,10 @@ export function AuthSession({
               {session.data.user.email}
             </p>
           </div>
-          <SignOut client={client} />
+          <div className="flex flex-wrap items-center gap-3">
+            <LocaleSwitcher />
+            <SignOut client={client} />
+          </div>
         </header>
         {/* 用户变化时卸载组织页面，避免将前一个用户的表单状态带入新会话。 */}
         <section key={session.data.user.id}>{children}</section>
@@ -107,21 +122,23 @@ function AuthEntry({
   title,
   allowSignUp,
 }: Pick<AuthSessionProps, "client" | "title" | "allowSignUp">) {
+  const { t } = useTranslation(["auth", "common", "validation"])
   const [signUp, setSignUp] = useState(false)
   // 请求状态由入口持有，模式切换不能卸载提交锁并启动竞争会话的第二个请求。
   const action = useAuthAction()
   return (
     <main className="flex min-h-svh items-center justify-center bg-muted/30 p-6">
       <section className="w-full max-w-sm space-y-6 rounded-2xl border bg-card p-6 shadow-sm sm:p-8">
+        <div className="flex justify-end">
+          <LocaleSwitcher align="end" />
+        </div>
         <header className="space-y-2">
           <p className="text-sm text-muted-foreground">{title}</p>
           <h1 className="text-2xl font-semibold">
-            {signUp ? "创建账号" : "登录"}
+            {signUp ? t("auth:signUp") : t("auth:signIn")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {signUp
-              ? "创建账号后，选择或创建你的组织。"
-              : "使用邮箱和密码登录你的账号。"}
+            {signUp ? t("auth:signUpDescription") : t("auth:signInDescription")}
           </p>
         </header>
         <CredentialsForm
@@ -140,7 +157,7 @@ function AuthEntry({
               setSignUp(!signUp)
             }}
           >
-            {signUp ? "已有账号，去登录" : "创建账号"}
+            {signUp ? t("auth:existingAccount") : t("auth:signUp")}
           </Button>
         )}
       </section>
@@ -157,6 +174,8 @@ function CredentialsForm({
   signUp: boolean
   action: ReturnType<typeof useAuthAction>
 }) {
+  const { t } = useTranslation(["auth", "common", "validation"])
+  const { signInSchema, signUpSchema } = createCredentialsSchemas(t)
   const form = useForm({
     defaultValues: { name: "", email: "", password: "" },
     validators: {
@@ -193,7 +212,9 @@ function CredentialsForm({
                   field.state.meta.isTouched && !field.state.meta.isValid
                 return (
                   <Field data-invalid={isInvalid}>
-                    <FieldLabel htmlFor="auth-name">姓名</FieldLabel>
+                    <FieldLabel htmlFor="auth-name">
+                      {t("auth:name")}
+                    </FieldLabel>
                     <Input
                       id="auth-name"
                       name={field.name}
@@ -220,7 +241,9 @@ function CredentialsForm({
                 field.state.meta.isTouched && !field.state.meta.isValid
               return (
                 <Field data-invalid={isInvalid}>
-                  <FieldLabel htmlFor="auth-email">邮箱</FieldLabel>
+                  <FieldLabel htmlFor="auth-email">
+                    {t("auth:email")}
+                  </FieldLabel>
                   <Input
                     id="auth-email"
                     name={field.name}
@@ -243,7 +266,9 @@ function CredentialsForm({
                 field.state.meta.isTouched && !field.state.meta.isValid
               return (
                 <Field data-invalid={isInvalid}>
-                  <FieldLabel htmlFor="auth-password">密码</FieldLabel>
+                  <FieldLabel htmlFor="auth-password">
+                    {t("auth:password")}
+                  </FieldLabel>
                   <Input
                     id="auth-password"
                     name={field.name}
@@ -258,7 +283,9 @@ function CredentialsForm({
                     required
                   />
                   {signUp && (
-                    <FieldDescription>密码需为 8–128 个字符。</FieldDescription>
+                    <FieldDescription>
+                      {t("auth:passwordHint")}
+                    </FieldDescription>
                   )}
                   {isInvalid && <FieldError errors={field.state.meta.errors} />}
                 </Field>
@@ -271,7 +298,11 @@ function CredentialsForm({
             </p>
           )}
           <Button type="submit" className="w-full">
-            {action.pending ? "提交中…" : signUp ? "注册" : "登录"}
+            {action.pending
+              ? t("common:submitting")
+              : signUp
+                ? t("auth:register")
+                : t("auth:signIn")}
           </Button>
         </FieldGroup>
       </fieldset>
@@ -280,6 +311,7 @@ function CredentialsForm({
 }
 
 function SignOut({ client }: { client: WorkspaceAuthClient }) {
+  const { t } = useTranslation(["auth", "common", "validation"])
   const action = useAuthAction()
   return (
     <div className="space-y-2">
@@ -288,7 +320,7 @@ function SignOut({ client }: { client: WorkspaceAuthClient }) {
         disabled={action.pending}
         onClick={() => void action.run(() => client.signOut())}
       >
-        {action.pending ? "正在退出…" : "退出登录"}
+        {action.pending ? t("auth:signingOut") : t("auth:signOut")}
       </Button>
       {action.error && (
         <p role="alert" className="text-sm text-destructive">

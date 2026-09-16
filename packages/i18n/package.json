@@ -7,20 +7,26 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    }
+    },
+    "./react": "./src/react.tsx"
   },
   "scripts": {
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "build": "tsc -p tsconfig.build.json"
+    "build": "tsc -p tsconfig.build.json",
+    "check": "i18next-cli lint && i18next-cli extract --ci --dry-run && i18next-cli types --ci && i18next-cli status && node scripts/check-catalogs.mjs"
   },
   "devDependencies": {
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "eslint": "10.10.0",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "@types/react": "19.3.0",
+    "i18next-cli": "1.73.3"
   },
   "dependencies": {
-    "i18next": "26.4.2"
+    "i18next": "26.4.2",
+    "react": "19.3.0",
+    "react-i18next": "17.0.14"
   }
 }

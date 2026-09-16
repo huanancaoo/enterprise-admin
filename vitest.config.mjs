@@ -10,6 +10,7 @@ export default defineConfig({
           include: [
             "packages/eslint-config/boundaries/**/*.test.mjs",
             "tests/unit/**/*.test.ts",
+            "packages/mocks/tests/**/*.test.ts",
           ],
         },
       },

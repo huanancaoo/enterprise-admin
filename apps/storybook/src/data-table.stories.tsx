@@ -75,6 +75,7 @@ function TableExample() {
 }
 
 const meta = {
+  globals: { locale: "en-US" },
   title: "Admin/DataTable",
   component: TableExample,
   parameters: { a11y: { test: "error" } },
@@ -126,19 +127,17 @@ export const FilteringAndSelection: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Status" }))
     await userEvent.click(await screen.findByRole("option", { name: /Active/ }))
     await userEvent.keyboard("{Escape}")
-    await expect(canvas.getByText("13 row(s)")).toBeVisible()
+    await expect(canvas.getByText("13 rows")).toBeVisible()
     await expect(canvas.queryByText("Record 02")).not.toBeInTheDocument()
     await userEvent.click(
       canvas.getAllByRole("checkbox", { name: "Select row" })[0]!
     )
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Go to next page" })
-    )
+    await userEvent.click(canvas.getByRole("button", { name: "Next page" }))
     await expect(canvas.getByText("Record 21")).toBeVisible()
     await userEvent.click(
       canvas.getAllByRole("checkbox", { name: "Select row" })[0]!
     )
-    await expect(canvas.getByText("2 row(s) selected")).toBeVisible()
+    await expect(canvas.getByText("2 rows selected")).toBeVisible()
     await userEvent.click(canvas.getByRole("button", { name: "Apply action" }))
     await expect(canvas.getByLabelText("Action result")).toHaveTextContent(
       "1,21"
@@ -154,7 +153,7 @@ export const FilteringAndSelection: Story = {
       await screen.findByRole("option", { name: /Invited/ })
     )
     await userEvent.keyboard("{Escape}")
-    await expect(canvas.getByText("26 row(s)")).toBeVisible()
+    await expect(canvas.getByText("26 rows")).toBeVisible()
     await userEvent.click(
       canvas.getByRole("button", { name: /Status Active Invited/ })
     )
@@ -239,9 +238,7 @@ export const ControlledPagination: Story = {
   render: () => <ControlledTable />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Go to next page" })
-    )
+    await userEvent.click(canvas.getByRole("button", { name: "Next page" }))
     await waitFor(() =>
       expect(canvas.getByLabelText("Current page")).toHaveTextContent("2")
     )
@@ -254,9 +251,7 @@ export const ControlledPagination: Story = {
     await expect(
       canvas.getAllByRole("checkbox", { name: "Select row" })
     ).toHaveLength(6)
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Go to previous page" })
-    )
+    await userEvent.click(canvas.getByRole("button", { name: "Previous page" }))
     await expect(canvas.getByLabelText("Current page")).toHaveTextContent("2")
     await expect(canvas.getByText("Record 11")).toBeVisible()
   },

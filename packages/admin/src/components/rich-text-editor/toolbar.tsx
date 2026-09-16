@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useTranslation } from "react-i18next"
 import { useTiptap, useTiptapState } from "@tiptap/react"
 import { cn } from "cn"
 import {
@@ -175,6 +176,7 @@ function ToolbarIconButton({
 }
 
 export function Toolbar({ density, onUploadImage }: ToolbarProps) {
+  const { t } = useTranslation("common")
   const { editor } = useTiptap()
   const fileInputRef = React.useRef<HTMLInputElement>(null)
   const [linkOpen, setLinkOpen] = React.useState(false)
@@ -220,7 +222,7 @@ export function Toolbar({ density, onUploadImage }: ToolbarProps) {
     <TooltipProvider>
       <div
         role="toolbar"
-        aria-label="Formatting"
+        aria-label={t("formatting")}
         data-slot="rich-text-editor-toolbar"
         className={cn(
           "flex flex-wrap items-center border-b border-input",
@@ -233,7 +235,7 @@ export function Toolbar({ density, onUploadImage }: ToolbarProps) {
       >
         <ToolbarGroup>
           <ToolbarToggle
-            label="Bold"
+            label={t("bold")}
             size={toggleSize}
             className={toggleClassName}
             pressed={state.bold}
@@ -242,7 +244,7 @@ export function Toolbar({ density, onUploadImage }: ToolbarProps) {
             <BoldIcon />
           </ToolbarToggle>
           <ToolbarToggle
-            label="Italic"
+            label={t("italic")}
             size={toggleSize}
             className={toggleClassName}
             pressed={state.italic}
@@ -251,7 +253,7 @@ export function Toolbar({ density, onUploadImage }: ToolbarProps) {
             <ItalicIcon />
           </ToolbarToggle>
           <ToolbarToggle
-            label="Strikethrough"
+            label={t("strikethrough")}
             size={toggleSize}
             className={toggleClassName}
             pressed={state.strike}
@@ -284,14 +286,14 @@ export function Toolbar({ density, onUploadImage }: ToolbarProps) {
                   <ToggleGroupItem
                     type="button"
                     value="1"
-                    aria-label="Heading 1"
+                    aria-label={t("heading1")}
                     className={toggleClassName}
                   >
                     <Heading1Icon />
                   </ToggleGroupItem>
                 }
               />
-              <TooltipContent>Heading 1</TooltipContent>
+              <TooltipContent>{t("heading1")}</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger
@@ -299,14 +301,14 @@ export function Toolbar({ density, onUploadImage }: ToolbarProps) {
                   <ToggleGroupItem
                     type="button"
                     value="2"
-                    aria-label="Heading 2"
+                    aria-label={t("heading2")}
                     className={toggleClassName}
                   >
                     <Heading2Icon />
                   </ToggleGroupItem>
                 }
               />
-              <TooltipContent>Heading 2</TooltipContent>
+              <TooltipContent>{t("heading2")}</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger
@@ -314,21 +316,21 @@ export function Toolbar({ density, onUploadImage }: ToolbarProps) {
                   <ToggleGroupItem
                     type="button"
                     value="3"
-                    aria-label="Heading 3"
+                    aria-label={t("heading3")}
                     className={toggleClassName}
                   >
                     <Heading3Icon />
                   </ToggleGroupItem>
                 }
               />
-              <TooltipContent>Heading 3</TooltipContent>
+              <TooltipContent>{t("heading3")}</TooltipContent>
             </Tooltip>
           </ToggleGroup>
         </ToolbarGroup>
         <ToolbarSeparator />
         <ToolbarGroup>
           <ToolbarToggle
-            label="Bullet list"
+            label={t("bulletList")}
             size={toggleSize}
             className={toggleClassName}
             pressed={state.bulletList}
@@ -339,7 +341,7 @@ export function Toolbar({ density, onUploadImage }: ToolbarProps) {
             <ListIcon />
           </ToolbarToggle>
           <ToolbarToggle
-            label="Ordered list"
+            label={t("orderedList")}
             size={toggleSize}
             className={toggleClassName}
             pressed={state.orderedList}
@@ -353,7 +355,7 @@ export function Toolbar({ density, onUploadImage }: ToolbarProps) {
         <ToolbarSeparator />
         <ToolbarGroup>
           <ToolbarToggle
-            label="Blockquote"
+            label={t("blockquote")}
             size={toggleSize}
             className={toggleClassName}
             pressed={state.blockquote}
@@ -364,7 +366,7 @@ export function Toolbar({ density, onUploadImage }: ToolbarProps) {
             <QuoteIcon />
           </ToolbarToggle>
           <ToolbarToggle
-            label="Inline code"
+            label={t("inlineCode")}
             size={toggleSize}
             className={toggleClassName}
             pressed={state.code}
@@ -373,7 +375,7 @@ export function Toolbar({ density, onUploadImage }: ToolbarProps) {
             <CodeIcon />
           </ToolbarToggle>
           <ToolbarToggle
-            label="Code block"
+            label={t("codeBlock")}
             size={toggleSize}
             className={toggleClassName}
             pressed={state.codeBlock}
@@ -404,7 +406,7 @@ export function Toolbar({ density, onUploadImage }: ToolbarProps) {
                         type="button"
                         size={toggleSize}
                         pressed={state.link}
-                        aria-label="Link"
+                        aria-label={t("link")}
                         className={toggleClassName}
                         onPressedChange={() => {
                           // pressed 只反映文档里是否已有 link，打开弹层不能改 mark
@@ -416,16 +418,17 @@ export function Toolbar({ density, onUploadImage }: ToolbarProps) {
                   />
                 }
               />
-              <TooltipContent>Link</TooltipContent>
+              <TooltipContent>{t("link")}</TooltipContent>
             </Tooltip>
             <PopoverContent align="start" className="w-72">
               <PopoverHeader>
-                <PopoverTitle>Link</PopoverTitle>
+                <PopoverTitle>{t("link")}</PopoverTitle>
               </PopoverHeader>
               <Input
                 autoFocus
                 value={href}
                 placeholder="https://"
+                aria-label={t("link")}
                 onFocus={(event) => event.currentTarget.select()}
                 onChange={(event) => setHref(event.target.value)}
                 onKeyDown={(event) => {
@@ -446,16 +449,16 @@ export function Toolbar({ density, onUploadImage }: ToolbarProps) {
                     setLinkOpen(false)
                   }}
                 >
-                  Remove
+                  {t("removeLink")}
                 </Button>
                 <Button type="button" size="sm" onClick={applyLink}>
-                  Apply
+                  {t("applyLink")}
                 </Button>
               </div>
             </PopoverContent>
           </Popover>
           <ToolbarIconButton
-            label="Image"
+            label={t("image")}
             size={buttonSize}
             onClick={() => fileInputRef.current?.click()}
           >
@@ -478,7 +481,7 @@ export function Toolbar({ density, onUploadImage }: ToolbarProps) {
         <ToolbarSeparator />
         <ToolbarGroup>
           <ToolbarIconButton
-            label="Insert table"
+            label={t("insertTable")}
             size={buttonSize}
             onClick={() =>
               editor
@@ -493,35 +496,35 @@ export function Toolbar({ density, onUploadImage }: ToolbarProps) {
           {state.table ? (
             <>
               <ToolbarIconButton
-                label="Add column"
+                label={t("addColumn")}
                 size={buttonSize}
                 onClick={() => editor.chain().focus().addColumnAfter().run()}
               >
                 <BetweenVerticalStartIcon />
               </ToolbarIconButton>
               <ToolbarIconButton
-                label="Add row"
+                label={t("addRow")}
                 size={buttonSize}
                 onClick={() => editor.chain().focus().addRowAfter().run()}
               >
                 <BetweenHorizontalStartIcon />
               </ToolbarIconButton>
               <ToolbarIconButton
-                label="Delete column"
+                label={t("deleteColumn")}
                 size={buttonSize}
                 onClick={() => editor.chain().focus().deleteColumn().run()}
               >
                 <TableColumnsSplitIcon />
               </ToolbarIconButton>
               <ToolbarIconButton
-                label="Delete row"
+                label={t("deleteRow")}
                 size={buttonSize}
                 onClick={() => editor.chain().focus().deleteRow().run()}
               >
                 <TableRowsSplitIcon />
               </ToolbarIconButton>
               <ToolbarIconButton
-                label="Delete table"
+                label={t("deleteTable")}
                 size={buttonSize}
                 onClick={() => editor.chain().focus().deleteTable().run()}
               >

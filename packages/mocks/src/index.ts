@@ -1,2 +1,4 @@
-// 共享 fixtures、handlers 与 scenarios，S6 接入。
-export {}
+export { organizations, projectFixtures } from "./fixtures/projects"
+export { createProjectsHandler } from "./handlers/projects"
+export type { ProjectsScenario } from "./handlers/projects"
+export { projectScenarios } from "./scenarios/projects"

@@ -70,3 +70,10 @@ S2 新增 1 个 Vitest 文件、5 个真实数据库测试，见 [S2 验收记�
 - `tests/setup/nest-plugin.mjs`：API 测试使用的 Nest 转译配置。
 - `packages/eslint-config/boundaries`：工作区依赖边界规则与负例测试，由 `pnpm lint:boundaries` 和 `pnpm test:unit` 执行。
 - `packages/api-client/scripts/check-generated.mjs`：OpenAPI 与客户端生成一致性校验，由仓库根目录的 `pnpm api:check` 执行。
+
+## S6 UI 与翻译门禁
+
+- `pnpm test:storybook` 覆盖公共 DataTable、RichTextEditor、Projects/MSW 列表与 FormDialog；新增组合组件的交互、RTL、长文本和 a11y 为失败门禁。
+- `pnpm test:unit` 包含 `packages/mocks/tests` 的请求契约验证和 `tests/unit/i18n-ui.test.ts` 的语言实例、格式化及资源检查。
+- `pnpm test:e2e` 增加真实 SPA 切语言不改 URL、不清除草稿及 html 方向验证。
+- `pnpm i18n:check` 已加入 `verify`；每个命令的失败条件与验收数量见 [S6 验收记录](s6-validation.md)。

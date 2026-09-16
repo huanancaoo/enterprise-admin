@@ -1,7 +1,9 @@
 {
   "extends": "@workspace/typescript-config/base.json",
   "compilerOptions": {
-    "noEmit": true
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "jsx": "react-jsx"
   },
-  "include": ["src"]
+  "include": ["src", "i18next.config.ts"]
 }

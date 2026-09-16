@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./auth": "./src/auth/index.ts"
+    "./auth": "./src/auth/index.ts",
+    "./workspace": "./src/components/workspace.tsx"
   },
   "scripts": {
     "lint": "eslint",
@@ -38,6 +39,8 @@
     "@tanstack/react-form": "1.33.5",
     "@tanstack/react-query": "5.102.8",
     "@tanstack/react-router": "1.170.36",
-    "zod": "4.6.5"
+    "zod": "4.6.5",
+    "@workspace/i18n": "workspace:*",
+    "react-i18next": "17.0.14"
   }
 }

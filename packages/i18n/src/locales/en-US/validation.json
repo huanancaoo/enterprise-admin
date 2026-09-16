@@ -1,0 +1,10 @@
+{
+  "email": "Enter a valid email address.",
+  "nameRequired": "Enter your name.",
+  "organizationName": "Enter the organization name.",
+  "organizationSlug": "Enter the organization identifier.",
+  "passwordMax": "Use at most 128 characters.",
+  "passwordMin": "Use at least 8 characters.",
+  "passwordRequired": "Enter your password.",
+  "projectName": "Enter the project name."
+}

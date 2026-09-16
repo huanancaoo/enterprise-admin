@@ -1,0 +1,14 @@
+{
+  "active": "活跃",
+  "allStatuses": "全部状态",
+  "archived": "已归档",
+  "create": "创建项目",
+  "createdAt": "创建时间",
+  "draft": "草稿",
+  "emptyDescription": "创建第一个项目后，它会出现在这里。",
+  "emptyTitle": "还没有项目",
+  "name": "项目名称",
+  "searchPlaceholder": "搜索项目名称",
+  "status": "状态",
+  "title": "项目"
+}

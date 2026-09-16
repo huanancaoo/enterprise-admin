@@ -1,0 +1,10 @@
+{
+  "email": "أدخل عنوان بريد إلكتروني صالحًا.",
+  "nameRequired": "أدخل اسمك.",
+  "organizationName": "أدخل اسم المؤسسة.",
+  "organizationSlug": "أدخل معرّف المؤسسة.",
+  "passwordMax": "استخدم 128 حرفًا كحد أقصى.",
+  "passwordMin": "استخدم 8 أحرف على الأقل.",
+  "passwordRequired": "أدخل كلمة المرور.",
+  "projectName": "أدخل اسم المشروع."
+}

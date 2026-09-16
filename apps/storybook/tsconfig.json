@@ -1,5 +1,10 @@
 {
   "extends": "@workspace/typescript-config/react-library.json",
   "compilerOptions": { "types": ["vite/client"] },
-  "include": [".storybook/**/*.ts", "src", "vitest.config.ts"]
+  "include": [
+    ".storybook/**/*.ts",
+    ".storybook/**/*.tsx",
+    "src",
+    "vitest.config.ts"
+  ]
 }

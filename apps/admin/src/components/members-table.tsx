@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next"
+import type { TFunction } from "@workspace/i18n"
 import * as React from "react"
 import {
   CircleAlertIcon,
@@ -90,82 +92,110 @@ const members: Member[] = Array.from({ length: 57 }, (_, index) => {
   }
 })
 
-const statusOptions = [
-  { label: "Active", value: "active", icon: CircleCheckIcon },
-  { label: "Invited", value: "invited", icon: CircleDashedIcon },
-  { label: "Suspended", value: "suspended", icon: CircleAlertIcon },
-]
-
-const roleOptions = [
-  { label: "Admin", value: "admin" },
-  { label: "Editor", value: "editor" },
-  { label: "Viewer", value: "viewer" },
-]
-
-const statusBadgeVariant = {
-  active: "default",
-  invited: "secondary",
-  suspended: "destructive",
-} as const
-
-const columnHelper = createDataTableColumnHelper<Member>()
-
-const columns = columnHelper.columns([
-  createDataTableRowControlsColumn<Member>(),
-  createDataTableSelectColumn<Member>(),
-  columnHelper.accessor("name", {
-    header: ({ header }) => (
-      <DataTableColumnHeader header={header} title="Name" />
-    ),
-    meta: { label: "Name" },
-  }),
-  columnHelper.accessor("email", {
-    size: 260,
-    header: ({ header }) => (
-      <DataTableColumnHeader header={header} title="Email" />
-    ),
-    meta: { label: "Email" },
-  }),
-  columnHelper.accessor("role", {
-    header: ({ header }) => (
-      <DataTableColumnHeader header={header} title="Role" />
-    ),
-    cell: ({ getValue }) => (
-      <Badge variant="outline" className="capitalize">
-        {getValue()}
-      </Badge>
-    ),
-    meta: { label: "Role", facetOptions: roleOptions },
-  }),
-  columnHelper.accessor("status", {
-    header: ({ header }) => (
-      <DataTableColumnHeader header={header} title="Status" />
-    ),
-    cell: ({ getValue }) => {
-      const status = getValue()
-      return (
-        <Badge variant={statusBadgeVariant[status]} className="capitalize">
-          {status}
-        </Badge>
-      )
+function createColumns(t: TFunction<["organization", "common", "auth"]>) {
+  const statusOptions = [
+    {
+      label: t("organization:memberStatus_active"),
+      value: "active",
+      icon: CircleCheckIcon,
     },
-    meta: { label: "Status", facetOptions: statusOptions },
-  }),
-  columnHelper.accessor("department", {
-    header: ({ header }) => (
-      <DataTableColumnHeader header={header} title="Department" />
-    ),
-    meta: { label: "Department" },
-  }),
-  columnHelper.accessor("lastActive", {
-    header: ({ header }) => (
-      <DataTableColumnHeader header={header} title="Last active" />
-    ),
-    meta: { label: "Last active" },
-  }),
-])
+    {
+      label: t("organization:memberStatus_invited"),
+      value: "invited",
+      icon: CircleDashedIcon,
+    },
+    {
+      label: t("organization:memberStatus_suspended"),
+      value: "suspended",
+      icon: CircleAlertIcon,
+    },
+  ]
+
+  const roleOptions = [
+    { label: t("organization:role_admin"), value: "admin" },
+    { label: t("organization:role_editor"), value: "editor" },
+    { label: t("organization:role_viewer"), value: "viewer" },
+  ]
+
+  const statusBadgeVariant = {
+    active: "default",
+    invited: "secondary",
+    suspended: "destructive",
+  } as const
+
+  const columnHelper = createDataTableColumnHelper<Member>()
+
+  return columnHelper.columns([
+    createDataTableRowControlsColumn<Member>(),
+    createDataTableSelectColumn<Member>(),
+    columnHelper.accessor("name", {
+      header: ({ header }) => (
+        <DataTableColumnHeader header={header} title={t("auth:name")} />
+      ),
+      meta: { label: t("auth:name") },
+    }),
+    columnHelper.accessor("email", {
+      size: 260,
+      header: ({ header }) => (
+        <DataTableColumnHeader header={header} title={t("auth:email")} />
+      ),
+      meta: { label: t("auth:email") },
+    }),
+    columnHelper.accessor("role", {
+      header: ({ header }) => (
+        <DataTableColumnHeader header={header} title={t("organization:role")} />
+      ),
+      cell: ({ getValue }) => (
+        <Badge variant="outline" className="capitalize">
+          {t(`organization:role_${getValue()}`)}
+        </Badge>
+      ),
+      meta: { label: t("organization:role"), facetOptions: roleOptions },
+    }),
+    columnHelper.accessor("status", {
+      header: ({ header }) => (
+        <DataTableColumnHeader
+          header={header}
+          title={t("organization:memberStatus")}
+        />
+      ),
+      cell: ({ getValue }) => {
+        const status = getValue()
+        return (
+          <Badge variant={statusBadgeVariant[status]} className="capitalize">
+            {t(`organization:memberStatus_${status}`)}
+          </Badge>
+        )
+      },
+      meta: {
+        label: t("organization:memberStatus"),
+        facetOptions: statusOptions,
+      },
+    }),
+    columnHelper.accessor("department", {
+      header: ({ header }) => (
+        <DataTableColumnHeader
+          header={header}
+          title={t("organization:department")}
+        />
+      ),
+      meta: { label: t("organization:department") },
+    }),
+    columnHelper.accessor("lastActive", {
+      header: ({ header }) => (
+        <DataTableColumnHeader
+          header={header}
+          title={t("organization:lastActive")}
+        />
+      ),
+      meta: { label: t("organization:lastActive") },
+    }),
+  ])
+}
 
 export function MembersTable() {
+  const { t } = useTranslation(["organization", "common", "auth"])
+  const columns = React.useMemo(() => createColumns(t), [t])
   const [isLoading, setIsLoading] = React.useState(false)
   const [memberData, setMemberData] = React.useState(members)
 
@@ -189,14 +219,14 @@ export function MembersTable() {
           onCheckedChange={setIsLoading}
           size="sm"
         />
-        Loading
+        {t("common:loading")}
       </Label>
       <DataTable
         columns={columns}
         data={memberData}
         getRowId={(row) => row.id}
         isLoading={isLoading}
-        searchPlaceholder="Search members..."
+        searchPlaceholder={t("organization:searchMembers")}
         getRowCanExpand={() => true}
         columnResizeMode="onChange"
         defaultColumn={{ size: 180, minSize: 48 }}
@@ -210,7 +240,7 @@ export function MembersTable() {
                 <Button variant="outline" size="sm" disabled={isLoading} />
               }
             >
-              Bulk actions
+              {t("organization:bulkActions")}
               <ChevronDownIcon data-icon="inline-end" aria-hidden="true" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
@@ -223,7 +253,7 @@ export function MembersTable() {
                 }
               >
                 <CircleCheckIcon data-icon="inline-start" aria-hidden="true" />
-                Activate
+                {t("organization:activate")}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() =>
@@ -234,7 +264,7 @@ export function MembersTable() {
                 }
               >
                 <CircleAlertIcon data-icon="inline-start" aria-hidden="true" />
-                Suspend
+                {t("organization:suspend")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -242,15 +272,19 @@ export function MembersTable() {
         renderExpandedRow={({ original: member }) => (
           <dl className="grid gap-3 sm:grid-cols-3">
             <div>
-              <dt className="text-muted-foreground">Email</dt>
+              <dt className="text-muted-foreground">{t("auth:email")}</dt>
               <dd className="break-all">{member.email}</dd>
             </div>
             <div>
-              <dt className="text-muted-foreground">Department</dt>
+              <dt className="text-muted-foreground">
+                {t("organization:department")}
+              </dt>
               <dd>{member.department}</dd>
             </div>
             <div>
-              <dt className="text-muted-foreground">Last active</dt>
+              <dt className="text-muted-foreground">
+                {t("organization:lastActive")}
+              </dt>
               <dd>{member.lastActive}</dd>
             </div>
           </dl>

@@ -1,10 +1,7 @@
 import { useState } from "react"
 import type { Meta, StoryObj } from "@storybook/react-vite"
 import { expect, within } from "storybook/test"
-import {
-  RichTextEditor,
-  type JSONContent,
-} from "@workspace/admin"
+import { RichTextEditor, type JSONContent } from "@workspace/admin"
 import { DirectionProvider } from "@workspace/ui/components/direction"
 
 const sample: JSONContent = {
@@ -85,6 +82,7 @@ function EditorExample({
 }
 
 const meta = {
+  globals: { locale: "en-US" },
   title: "Admin/RichTextEditor",
   component: EditorExample,
   parameters: { a11y: { test: "error" } },

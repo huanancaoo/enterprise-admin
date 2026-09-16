@@ -1,0 +1,7 @@
+{
+  "FORBIDDEN": "الوصول غير مسموح",
+  "INTERNAL_ERROR": "خطأ داخلي في الخادم",
+  "NOT_FOUND": "المورد غير موجود",
+  "UNAUTHENTICATED": "يرجى تسجيل الدخول",
+  "VALIDATION_ERROR": "معلمات الطلب غير صالحة"
+}

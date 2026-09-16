@@ -1,13 +1,15 @@
+import { useTranslation } from "react-i18next"
 import { useMutation } from "@tanstack/react-query"
 
 export function useAuthAction() {
+  const { t } = useTranslation("common")
   const mutation = useMutation({
     mutationFn: async (
       action: () => Promise<{ error: { message?: string } | null }>
     ) => {
       const result = await action()
       if (result.error)
-        throw new Error(result.error.message || "操作未成功，请重试。")
+        throw new Error(result.error.message || t("operationFailed"))
     },
     retry: false,
   })

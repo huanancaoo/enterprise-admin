@@ -1,0 +1,7 @@
+{
+  "FORBIDDEN": "Access denied",
+  "INTERNAL_ERROR": "Internal server error",
+  "NOT_FOUND": "Resource not found",
+  "UNAUTHENTICATED": "Authentication required",
+  "VALIDATION_ERROR": "Invalid request parameters"
+}

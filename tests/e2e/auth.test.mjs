@@ -151,6 +151,47 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     }
   })
 
+  it("切换语言保留 URL 和表单草稿，同步 HTML 方向", async () => {
+    await page.goto(frontends[0].resolvedUrls.local[0] + "login")
+    await page.getByRole("heading", { name: "登录", exact: true }).waitFor()
+    const originalURL = page.url()
+    await page
+      .getByLabel("邮箱", { exact: true })
+      .fill("locale-draft@example.test")
+    await page.getByRole("button", { name: "语言" }).click()
+    await page
+      .getByRole("menuitemradio", { name: "English", exact: true })
+      .click()
+    await expectUI(
+      page.getByRole("heading", { name: "Sign in", exact: true })
+    ).toBeVisible()
+    await expectUI(page.getByLabel("Email", { exact: true })).toHaveValue(
+      "locale-draft@example.test"
+    )
+    expect(page.url()).toBe(originalURL)
+    await expectUI(page.locator("html")).toHaveAttribute("lang", "en-US")
+    await page.getByRole("button", { name: "Language" }).click()
+    await page
+      .getByRole("menuitemradio", { name: "العربية", exact: true })
+      .click()
+    await expectUI(page.locator("html")).toHaveAttribute("dir", "rtl")
+    await expectUI(
+      page.getByLabel("البريد الإلكتروني", { exact: true })
+    ).toHaveValue("locale-draft@example.test")
+    expect(page.url()).toBe(originalURL)
+    await mkdir("test-results/s6", { recursive: true })
+    await page.screenshot({
+      path: "test-results/s6/login-rtl.png",
+      fullPage: true,
+    })
+    await page.getByRole("button", { name: "اللغة" }).click()
+    await page
+      .getByRole("menuitemradio", { name: "简体中文", exact: true })
+      .click()
+    await expectUI(page.locator("html")).toHaveAttribute("dir", "ltr")
+    expect(page.url()).toBe(originalURL)
+  })
+
   it("注册后刷新恢复会话，登出后刷新仍需登录，错误密码可纠正重试", async () => {
     await page.goto(frontends[0].resolvedUrls.local[0] + "app/")
     await registerAccount(page, { ...credentials, name: "S4 用户" })

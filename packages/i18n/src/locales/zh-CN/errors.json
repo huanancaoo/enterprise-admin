@@ -1,0 +1,7 @@
+{
+  "FORBIDDEN": "无权访问此资源",
+  "INTERNAL_ERROR": "服务器内部错误",
+  "NOT_FOUND": "资源不存在",
+  "UNAUTHENTICATED": "请先登录",
+  "VALIDATION_ERROR": "请求参数无效"
+}

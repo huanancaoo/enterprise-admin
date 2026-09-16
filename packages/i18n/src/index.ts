@@ -1,4 +1,6 @@
+import "./generated/i18next.js"
 import { createInstance } from "i18next"
+import { resources } from "./resources.js"
 
 export const supportedLocales = ["zh-CN", "en-US", "ar"] as const
 export type SupportedLocale = (typeof supportedLocales)[number]
@@ -39,41 +41,21 @@ export function resolveLocale(input: {
   )
 }
 
-const zh = {
-  VALIDATION_ERROR: "请求参数无效",
-  UNAUTHENTICATED: "请先登录",
-  FORBIDDEN: "无权访问此资源",
-  NOT_FOUND: "资源不存在",
-  INTERNAL_ERROR: "服务器内部错误",
-}
-const en: Record<keyof typeof zh, string> = {
-  VALIDATION_ERROR: "Invalid request parameters",
-  UNAUTHENTICATED: "Authentication required",
-  FORBIDDEN: "Access denied",
-  NOT_FOUND: "Resource not found",
-  INTERNAL_ERROR: "Internal server error",
-}
-const ar: Record<keyof typeof zh, string> = {
-  VALIDATION_ERROR: "معلمات الطلب غير صالحة",
-  UNAUTHENTICATED: "يرجى تسجيل الدخول",
-  FORBIDDEN: "الوصول غير مسموح",
-  NOT_FOUND: "المورد غير موجود",
-  INTERNAL_ERROR: "خطأ داخلي في الخادم",
-}
 const instance = createInstance()
-// 静态内置资源同步初始化；请求只取固定 translator，不改变共享实例语言。
+// 服务端只取固定 translator；浏览器实例独立创建，不改变并发请求的语言。
 void instance.init({
   initAsync: false,
   lng: platformDefaultLocale,
   fallbackLng: false,
-  resources: {
-    "zh-CN": { errors: zh },
-    "en-US": { errors: en },
-    ar: { errors: ar },
-  },
+  resources,
   defaultNS: "errors",
   interpolation: { escapeValue: false },
 })
 export function getTranslator(locale: SupportedLocale) {
   return instance.getFixedT(locale, "errors")
 }
+export { resources } from "./resources.js"
+export { createUiI18n, localeMeta, syncDocumentLanguage } from "./config.js"
+export { createFormatter } from "./format.js"
+
+export type { TFunction } from "i18next"

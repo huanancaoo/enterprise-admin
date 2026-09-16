@@ -16,7 +16,9 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "@workspace/admin": "workspace:*",
-    "@tanstack/react-router": "1.170.36"
+    "@tanstack/react-router": "1.170.36",
+    "@workspace/i18n": "workspace:*",
+    "react-i18next": "17.0.14"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.3",
