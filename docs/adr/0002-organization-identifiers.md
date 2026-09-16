@@ -1,39 +1,20 @@
-# ADR-0002：统一 UUID 组织标识
+---
+status: accepted
+date: 2026-09-15
+---
 
-- 状态：已接受
-- 日期：2026-09-15
-- 对应任务：S0-05
+# ADR-0002：统一使用 UUID 组织标识
 
-## 决策
+认证模型、业务外键和租户隔离必须表达同一个组织，混用标识类型会使约束与授权链出现分叉。组织 ID 统一为 UUID v4，统一命名为 organizationId，数据库使用 uuid，HTTP 与 TypeScript 使用经 UUID Schema 校验的字符串。不引入同义 tenantId、带前缀 ID、ULID 或混合类型。
 
-组织 ID 使用 UUID v4。数据库存 PostgreSQL `uuid`，HTTP/TypeScript 表达为 UUID 字符串，Contract 使用 `z.uuid()`。项目统一称 `organizationId`，不再引入同义 tenantId，也不使用带前缀 ID、ULID 或混合 ID 类型。
+## 决策及影响
 
-Better Auth 设置 `advanced.database.generateId: 'uuid'`。认证 Schema 由同版 `auth@1.7.5` CLI 生成；认证主键、成员/邀请/角色中的组织外键均生成 UUID。
+Better Auth 配置 UUID 生成策略，认证 Schema 由同版认证 CLI 生成；组织主键及成员、邀请、角色的组织外键均使用 uuid。Session 的 activeOrganizationId 显式配置为组织引用、不可由客户端直接输入，生成可空 uuid 外键，删除组织时置空；不手工修改生成 Schema 来修正默认 text 类型。
 
-Better Auth 默认将 Session 的 `activeOrganizationId` 生成为 text。为避免组织标识存储类型分叉，在 `session.additionalFields.activeOrganizationId` 配置 `references: { model: 'organization', field: 'id', onDelete: 'set null' }`，并指定 `input: false`。实测 CLI 生成 UUID 外键，删除组织会清空这个可选工作区偏好。修改发生在认证配置，不手工修改生成 Schema。
+activeOrganizationId 只表示工作区偏好，不是访问凭据。每次业务请求仍验证目标组织、Session、Membership、组织状态和动作权限。
 
-`activeOrganizationId` 始终只是工作区偏好。每次业务请求仍须验证目标组织、Session、Membership、组织状态及权限。
+Projects 的 organizationId 是非空组织外键；项目译文同时携带非空 organizationId，并与 projectId 组成引用 Projects 的复合外键，防止译文归属与项目归属不一致。TenantContext、URL 和 JSON 采用同一 UUID 字符串约束。
 
-## 全链路约束
+PostgreSQL 事务上下文以文本保存组织标识，RLS 的 USING 与 WITH CHECK 都先将未设置或已清空的上下文归为 NULL，再转为 uuid 与行的 organizationId 比较。事务结束后自定义设置可能变为空字符串，因此需将空字符串视为无租户上下文；无效的非空 UUID 不能被转换成默认组织，HTTP 边界应拒绝非法标识。
 
-| 位置                                                | 固定表达                                              |
-| --------------------------------------------------- | ----------------------------------------------------- |
-| organization.id                                     | uuid 主键                                             |
-| member/invitation/organization_role.organization_id | uuid 外键                                             |
-| session.active_organization_id                      | 可空 uuid 外键                                        |
-| projects.organization_id                            | 非空 uuid 外键，引用 organization.id                  |
-| project_translations.organization_id                | 非空 uuid；与 project_id 形成引用 projects 的复合外键 |
-| TenantContext / URL / JSON                          | string，入口必须经 UUID Schema 校验                   |
-| PostgreSQL 上下文                                   | set_config 保存 UUID 文本，比较时显式转换为 uuid      |
-
-S3 的 RLS `USING` 与 `WITH CHECK` 使用同一个表达式：
-
-```sql
-organization_id = NULLIF(current_setting('app.organization_id', true), '')::uuid
-```
-
-PostgreSQL 自定义设置在事务结束后可能返回空字符串。`NULLIF` 将“未设置/已清空上下文”统一表达为 NULL，使条件不成立；它不会把无效的非空 ID 转换成默认租户。非法 UUID 在 HTTP 边界拒绝。
-
-## 验证
-
-S0 已用生成迁移初始化 PostgreSQL，并经真实 HTTP 完成创建组织与切换工作区；检查五个认证组织引用列均为 UUID，再以非 Owner 角色验证 UUID 业务外键与 RLS cast。完整 A/B 租户并发、撤权、回滚等隔离用例仍是 S3 的独立验收要求。
+该决定统一了类型与引用约束，但不能单独证明隔离完整；并发、撤权、回滚及运行角色的隔离证据见 [S3 验收记录](../architecture/s3-validation.md)。

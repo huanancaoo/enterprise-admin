@@ -1,64 +1,64 @@
-# ADR-0004：Projects 参考领域业务基线
+---
+status: accepted
+date: 2026-09-15
+updated: 2026-09-16
+---
 
-- 状态：已接受
-- 日期：2026-09-15
-- 对应任务：S0-07
-- 业务范围：用户已明确确认
+# ADR-0004：以 Projects 固定参考领域的业务边界
 
-## 状态与权限
+Projects 需要成为新增领域可复用的完整范本，因此状态、内容语言、权限、查询和审计必须具有一致的业务含义。采用组织级权限、独立于语言的内容编辑授权、项目固定的基准内容语言，以及与业务同事务提交的审计。这样语言显示不改变成员的编辑资格，页面、API 和数据库也能依据同一规则验收。
 
-状态固定为 `draft`、`active`、`archived`，创建默认为 `draft`。在具有 `project:update` 权限时，三个状态可相互转换；写入同一状态不构成额外转换。归档项目仍可读取、编辑、翻译、恢复和删除，不附加“归档即只读”语义。
+## 决策及影响
 
-首版项目权限作用于整个组织：`project:read/create/update/delete/export/translate`，不增加“仅负责人可编辑”等未确认的数据范围。`export` 只是权限声明，不要求 S7 实现导出功能。
+### 状态与编辑权限
 
-## 查询与分页
+状态为 draft、active、archived，创建默认 draft；持有 project:update 可在三者间转换，重复写入相同状态不构成额外转换。归档后仍可按权限读取、编辑、翻译、恢复和删除，不赋予归档只读含义。
 
-列表路径是 `/api/v1/organizations/:organizationId/projects`，详情在其后追加 `/:projectId`。目标组织来自经授权的路径；Create/Update Body 不允许覆盖 organizationId。
+权限 project:read/create/update/delete/export/translate 作用于整个组织，不增加仅负责人可编辑等数据范围；export 只声明权限，不要求 S7 实现导出。
 
-| 字段      | 约定                                                                                                         |
-| --------- | ------------------------------------------------------------------------------------------------------------ |
-| page      | 从 1 开始的整数，默认 1                                                                                      |
-| pageSize  | 1–100 的整数，默认 20                                                                                        |
-| status    | 可选单个状态；未提供时返回三个状态                                                                           |
-| name      | 可选名称子串，去掉首尾空白；空串不施加名称条件；按解析后的显示名称执行大小写不敏感匹配，`%`/`_` 视为普通字符 |
-| sortBy    | `createdAt` 或 `updatedAt`，默认 `createdAt`                                                                 |
-| sortOrder | `asc` 或 `desc`，默认 `desc`                                                                                 |
+| 操作                                               | 所需权限                                          |
+| -------------------------------------------------- | ------------------------------------------------- |
+| 创建项目及首份内容                                 | project:create                                    |
+| 修改状态                                           | project:update                                    |
+| 新增或修改任意受支持语言的名称、描述，包括基础译文 | project:update 或 project:translate，具备任一即可 |
 
-时间相同时按 `id ASC` 排序，确保相同数据集的分页顺序确定。列表返回：
+项目更新权限允许完整维护状态和各语言内容，不额外要求翻译权限；项目翻译权限是较窄的内容维护授权，不能写入状态。授权按实际修改的字段判断，所有入口遵循相同规则，界面语言、内容语言及 contentLocale 均不改变授权要求；同时修改状态与内容必须有 project:update，越权请求整体失败，不产生部分写入。
 
-```ts
-type ProjectPage = {
-  items: ProjectResponse[]
-  page: number
-  pageSize: number
-  total: number
-}
-```
+这一权限边界于 2026-09-16 经用户确认，取代 S7 规格先前按“基础语言使用 update、其他语言使用 translate”的解释，并解决 S5 的 Update 字段范围未决项。其原因是编辑资格应表达成员职责，而不取决于哪种语言最先创建；实施时须同步契约、授权、界面和测试。
 
-`total` 为当前组织与筛选条件下的总数；越界页返回空 items，保留真实 total，不自动改写页码。首版采用 offset 分页，不声称并发新增/删除时页面快照不变。时间以 UTC ISO 8601 字符串返回；展示格式由 Intl 决定。
+### 内容语言与显示
 
-## 删除
+支持 zh-CN、en-US、ar。平台初始默认语言为 zh-CN，组织 defaultLocale 初始化为平台默认值，之后可通过设置流程修改；术语定义见 [Projects 领域上下文](../../CONTEXT.md)。界面语言控制按钮、提示与日期等本地化展示，编辑时明确选择内容语言，切换界面语言不改变草稿的目标语言。
 
-DELETE 成功返回 204，硬删除 Project 及其所有译文。审计事件保留，资源 ID 为历史事实，不使用会随资源删除而级联删除的外键。不存在或不属于当前租户的资源返回 404；当前组织内没有删除权限则返回 403。首版不引入软删除、回收站或自动归档替代删除。
+项目创建时固定 contentLocale，显式指定时须为支持语言，未指定时使用组织 defaultLocale；创建同时保存该语言的名称和描述，首版不允许修改 contentLocale。组织默认语言后续变化不迁移已有项目；固定的 contentLocale 让内容显示基准保持稳定，不赋予基础译文特殊编辑权限。
 
-## 内容语言与译文解析
+名称与描述保存在 project_translations；名称 trim 后非空，描述可为 null。基础译文在项目存续时必须存在，所有译文写入都遵守组织范围、复合外键与 RLS。
 
-支持的语言为 `zh-CN`、`en-US`、`ar`。平台初始默认语言是 `zh-CN`；组织的 defaultLocale 初始化为平台默认值，用户可在后续设置流程中修改。
+请求语言依次由受支持的 Accept-Language、用户 preferredLocale、组织 defaultLocale、平台默认语言确定。有请求语言译文时选择该整条译文，否则选择 contentLocale 对应的整条基础译文；不逐字段混合语言，已有译文的 null 描述保持 null。基础译文缺失属于数据完整性错误，不用空名称、翻译键或机器翻译结果代替。
 
-每个 Project 创建时固定 `contentLocale`：Create 未指定时读取组织 defaultLocale；明确指定时须为受支持语言。创建必须同时保存该语言的名称和描述；contentLocale 在首版不可修改。之后组织默认语言变化不迁移已有项目内容语言。
+响应包含 contentLocale 和实际选用语言 resolvedLocale。Content-Language 表示协商出的响应语言，单条内容的实际语言以 resolvedLocale 为准；列表与详情 Query Key 同时包含 organizationId 和请求 locale。首版没有按用户区分的数据范围，不增加 userScope。
 
-名称与描述存于 `project_translations`。每条译文保存非空名称和可空描述（null 表示没有描述）；名称去掉首尾空白后不能为空。基础译文必须随 Project 一同创建，并在 Project 存续时始终存在。所有写入同时遵守组织范围、复合外键与 RLS。
+### 查询与资源归属
 
-响应按以下确定规则选取**整条译文**：
+列表地址为 `/api/v1/organizations/:organizationId/projects`，详情追加 `/:projectId`。组织归属来自经授权的路径，创建和更新请求体不能覆盖 organizationId。
 
-1. 先按原架构的语言协商顺序确定请求 locale：受支持的 Accept-Language → user.preferredLocale → organization.defaultLocale → platformDefaultLocale。
-2. 若有该 locale 的译文，使用它。
-3. 若没有，使用该 Project 的 contentLocale 译文。
+| 查询字段  | 约定                                                                           |
+| --------- | ------------------------------------------------------------------------------ |
+| page      | 从 1 开始的整数，默认 1                                                        |
+| pageSize  | 1–100 的整数，默认 20                                                          |
+| status    | 可选单个状态；省略时包含全部三种状态                                           |
+| name      | trim 后对显示名称作大小写不敏感的子串匹配；空串不筛选，`%`、`_` 按普通字符处理 |
+| sortBy    | createdAt 或 updatedAt，默认 createdAt                                         |
+| sortOrder | asc 或 desc，默认 desc                                                         |
 
-不逐字段混合不同语言；已有译文的 null 描述保持 null。基础译文缺失是数据完整性错误，不显示空名称、key 或机器翻译结果。响应包含 `contentLocale` 和实际使用的 `resolvedLocale`。
+名称筛选使用与显示相同的译文解析规则，让用户能够搜索所见名称。时间相同时按 id ASC 排序，确保同一数据集分页顺序确定；采用 offset 分页，不承诺并发新增或删除时保持页面快照。
 
-列表名称筛选对相同解析规则得出的名称执行，保证用户能以当前显示名称搜索。列表与详情表示都会随请求 locale 变化，所以两者 Query Key 都包含 organizationId 和请求 locale；当前首版没有按用户区别的数据范围，不增加 userScope 维度。Content-Language 表示本次协商出的响应语言，单条内容的实际语言以 resolvedLocale 为准。
+列表返回 items、page、pageSize、total，total 是当前组织及筛选条件下的总数。越界页返回空 items 和真实 total，不自动改写页码；时间以 UTC ISO 8601 字符串返回，由 Intl 格式化展示。
 
-## 一致性与后续验收
+### 删除与审计
 
-Project 创建/修改/删除、译文变更与对应审计事实同一事务提交；API、数据库、SDK 和页面共同采用本 ADR。S7 覆盖状态互转、默认分页、筛选与稳定次序、硬删除译文但保留审计、组织默认语言变化后的既有内容，以及指定语言无译文时的解析结果。
+删除采用硬删除，成功返回 204，同时删除项目全部译文；不存在或不属于当前租户的资源返回 404，当前组织内缺少删除权限返回 403。不引入软删除、回收站或自动归档替代删除。
+
+项目创建、修改、删除及译文变更均与对应审计事实在同一事务提交，审计失败则业务变更回滚。删除项目后仍保留审计，资源 ID 作为历史事实保存，不设置随资源删除而级联清除审计的外键。
+
+这些决定要求 S7 覆盖状态互转、查询默认值及稳定次序、硬删除与审计保留、组织默认语言变化、译文解析，以及 update/translate 对各语言一致的权限矩阵。验收必须包含仅有 update、仅有 translate、两者均无，以及越权混合更新不产生部分写入；实施顺序见 [实施计划](../architecture/implementation-plan.md)的 S7。
