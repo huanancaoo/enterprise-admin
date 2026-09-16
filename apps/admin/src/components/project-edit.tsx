@@ -10,6 +10,7 @@ import {
 } from "@workspace/api-client"
 import {
   ProjectStatusSchema,
+  SupportedLocaleSchema,
   type ProjectResponse,
   type SupportedLocale,
 } from "@workspace/contracts"
@@ -131,6 +132,7 @@ export function ProjectEditForm({
   const schema = editSchema(initial, t("validation:projectName"))
   const form = useForm({
     defaultValues: {
+      targetLocale,
       status: project.status,
       name: initial.name,
       description: initial.description ?? "",
@@ -156,7 +158,7 @@ export function ProjectEditForm({
             ...(translationChanged
               ? {
                   translation: {
-                    locale: targetLocale,
+                    locale: value.targetLocale,
                     name: value.name.trim(),
                     description,
                   },
@@ -196,57 +198,79 @@ export function ProjectEditForm({
         >
           <FieldGroup>
             <LocaleSwitcher variant="select" className="w-full" />
-            <Field>
-              <FieldLabel htmlFor="project-edit-content-locale">
-                {t("projects:targetLocale")}
-              </FieldLabel>
-              <Select
-                value={targetLocale}
-                onValueChange={(value) =>
-                  onTargetLocaleChange(value as SupportedLocale)
-                }
-              >
-                <SelectTrigger id="project-edit-content-locale">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {contentLocales.map((locale) => (
-                    <SelectItem key={locale} value={locale}>
-                      {localeMeta[locale].label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
+            <form.Field name="targetLocale">
+              {(field) => {
+                const invalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid
+                return (
+                  <Field data-invalid={invalid}>
+                    <FieldLabel htmlFor="project-edit-content-locale">
+                      {t("projects:targetLocale")}
+                    </FieldLabel>
+                    <Select
+                      value={field.state.value}
+                      onValueChange={(value) => {
+                        const locale = SupportedLocaleSchema.parse(value)
+                        field.handleChange(locale)
+                        onTargetLocaleChange(locale)
+                      }}
+                    >
+                      <SelectTrigger
+                        id="project-edit-content-locale"
+                        aria-invalid={invalid}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {contentLocales.map((locale) => (
+                          <SelectItem key={locale} value={locale}>
+                            {localeMeta[locale].label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {invalid && <FieldError errors={field.state.meta.errors} />}
+                  </Field>
+                )
+              }}
+            </form.Field>
             <form.Field name="status">
-              {(field) => (
-                <Field>
-                  <FieldLabel htmlFor="project-edit-status">
-                    {t("projects:status")}
-                  </FieldLabel>
-                  <Select
-                    value={field.state.value}
-                    onValueChange={(value) =>
-                      field.handleChange(ProjectStatusSchema.parse(value))
-                    }
-                  >
-                    <SelectTrigger id="project-edit-status">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="draft">
-                        {t("projects:draft")}
-                      </SelectItem>
-                      <SelectItem value="active">
-                        {t("projects:active")}
-                      </SelectItem>
-                      <SelectItem value="archived">
-                        {t("projects:archived")}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </Field>
-              )}
+              {(field) => {
+                const invalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid
+                return (
+                  <Field data-invalid={invalid}>
+                    <FieldLabel htmlFor="project-edit-status">
+                      {t("projects:status")}
+                    </FieldLabel>
+                    <Select
+                      value={field.state.value}
+                      onValueChange={(value) =>
+                        field.handleChange(ProjectStatusSchema.parse(value))
+                      }
+                    >
+                      <SelectTrigger
+                        id="project-edit-status"
+                        aria-invalid={invalid}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="draft">
+                          {t("projects:draft")}
+                        </SelectItem>
+                        <SelectItem value="active">
+                          {t("projects:active")}
+                        </SelectItem>
+                        <SelectItem value="archived">
+                          {t("projects:archived")}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {invalid && <FieldError errors={field.state.meta.errors} />}
+                  </Field>
+                )
+              }}
             </form.Field>
             <form.Field name="name">
               {(field) => {
@@ -301,6 +325,7 @@ function editSchema(
 ) {
   return z
     .object({
+      targetLocale: SupportedLocaleSchema,
       status: ProjectStatusSchema,
       name: z.string(),
       description: z.string(),

@@ -1,4 +1,7 @@
-import { ProjectListQuerySchema } from "@workspace/contracts"
+import {
+  ProjectListQuerySchema,
+  type SupportedLocale,
+} from "@workspace/contracts"
 import type {
   GetProjectHeaders,
   ListProjectsHeaders,
@@ -30,7 +33,11 @@ export const projectKeys = {
       projectId,
       requestLanguage,
     ] as const,
-  translation: (organizationId: string, projectId: string, locale: string) =>
+  translation: (
+    organizationId: string,
+    projectId: string,
+    locale: SupportedLocale
+  ) =>
     [
       ...projectKeys.all(organizationId),
       "translation",

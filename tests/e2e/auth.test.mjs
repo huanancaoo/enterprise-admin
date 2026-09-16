@@ -475,27 +475,32 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await dialog.getByLabel("状态", { exact: true }).click()
     await page.getByRole("option", { name: "活跃", exact: true }).click()
     await dialog.getByLabel("语言", { exact: true }).click()
-    await page.getByRole("option", { name: "English", exact: true }).click()
-    await expectUI(
-      dialog.getByLabel("Content language to edit", { exact: true })
-    ).toHaveText(/en-US/)
-    await expectUI(
-      dialog.getByLabel("Project name", { exact: true })
-    ).toHaveValue("English draft")
+    await page.getByRole("option", { name: "العربية", exact: true }).click()
+    await expectUI(page.locator("html")).toHaveAttribute("dir", "rtl")
+    // 目标内容语言与界面语言分离；这里必须切到不同语言，才能证明界面刷新没有篡改英文草稿。
+    await expectUI(dialog.locator("#project-edit-content-locale")).toHaveText(
+      /en-US/
+    )
+    await expectUI(dialog.locator("#project-edit-name")).toHaveValue(
+      "English draft"
+    )
+    await dialog.getByLabel("اللغة", { exact: true }).click()
+    await page.getByRole("option", { name: "简体中文", exact: true }).click()
+    await expectUI(page.locator("html")).toHaveAttribute("dir", "ltr")
     await page.route("**/api/v1/organizations/*/projects/*", async (route) => {
       if (route.request().method() === "PATCH") await route.abort()
       else await route.continue()
     })
     await dialog
-      .getByRole("button", { name: "Save project", exact: true })
+      .getByRole("button", { name: "保存项目", exact: true })
       .click()
     await expectUI(dialog.getByRole("alert")).toBeVisible()
     await expectUI(
-      dialog.getByLabel("Project name", { exact: true })
+      dialog.getByLabel("项目名称", { exact: true })
     ).toHaveValue("English draft")
     await page.unroute("**/api/v1/organizations/*/projects/*")
     await dialog
-      .getByRole("button", { name: "Save project", exact: true })
+      .getByRole("button", { name: "保存项目", exact: true })
       .click()
     await expectUI(dialog).toHaveCount(0)
     await expectUI(page.getByText(/^(活跃|Active)$/)).toBeVisible()
@@ -504,13 +509,11 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await page
       .getByRole("button", { name: /^(编辑项目|Edit project)$/ })
       .click()
-    await dialog
-      .getByLabel(/^(编辑内容语言|Content language to edit)$/)
-      .click()
+    await dialog.getByLabel(/^(编辑内容语言|Content language to edit)$/).click()
     await page.getByRole("option", { name: "English", exact: true }).click()
-    await expectUI(
-      dialog.getByLabel(/^(项目名称|Project name)$/)
-    ).toHaveValue("English draft")
+    await expectUI(dialog.getByLabel(/^(项目名称|Project name)$/)).toHaveValue(
+      "English draft"
+    )
     await mkdir("test-results/s7", { recursive: true })
     await page.screenshot({
       path: `test-results/s7/project-edit-${project.id}.png`,
