@@ -17,6 +17,9 @@ import {
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from "@workspace/ui/components/dropdown-menu"
 import { Button } from "@workspace/ui/components/button"
 import { GlobeIcon, ChevronDownIcon } from "lucide-react"
@@ -32,7 +35,7 @@ export function AdminDirectionProvider({ children }: { children: ReactNode }) {
 }
 
 export type LocaleSwitcherProps = {
-  variant?: "dropdown" | "icon" | "select"
+  variant?: "dropdown" | "icon" | "select" | "submenu"
   align?: "start" | "end" | "center"
   className?: string
 }
@@ -45,6 +48,31 @@ export function LocaleSwitcher({
   const { t, i18n } = useTranslation("common")
   const locale = useUiLocale()
   const id = useId()
+
+  if (variant === "submenu") {
+    return (
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger className={className}>
+          <GlobeIcon aria-hidden="true" />
+          <span>{t("language")}</span>
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent>
+          <DropdownMenuRadioGroup
+            value={locale}
+            onValueChange={(value) => {
+              if (value) void i18n.changeLanguage(value)
+            }}
+          >
+            {supportedLocales.map((value) => (
+              <DropdownMenuRadioItem key={value} value={value} closeOnClick>
+                {localeMeta[value].label}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
+    )
+  }
 
   if (variant === "select") {
     return (

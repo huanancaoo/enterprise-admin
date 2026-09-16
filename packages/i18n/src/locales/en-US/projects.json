@@ -7,6 +7,7 @@
   "createdAt": "Created at",
   "createDescription": "Create a draft project and save its content.",
   "description": "Description",
+  "detail": "Project details",
   "draft": "Draft",
   "emptyDescription": "Create the first project and it will appear here.",
   "emptyTitle": "No projects yet",

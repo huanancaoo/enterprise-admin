@@ -11,12 +11,11 @@ import {
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
 import {
-  AppShell,
   DataTable,
   DataTableColumnHeader,
   ResourceList,
-  TenantSwitcher,
   createDataTableColumnHelper,
+  type DataTableStatus,
 } from "@workspace/admin"
 import { Badge } from "@workspace/ui/components/badge"
 import {
@@ -37,26 +36,18 @@ const statusBadgeVariant = {
 
 type ProjectsListProps = {
   organizationId: string
-  organizations: readonly { id: string; name: string }[]
-  organizationPending: boolean
-  onOrganizationSelect: (organizationId: string) => Promise<boolean>
   search: ProjectListQuery
   onSearchChange: (
     updater: (current: ProjectListQuery) => ProjectListQuery
   ) => void
-  onOrganizationChange: (organizationId: string) => void
 }
 
 export function ProjectsList({
   organizationId,
-  organizations,
-  organizationPending,
-  onOrganizationSelect,
   search,
   onSearchChange,
-  onOrganizationChange,
 }: ProjectsListProps) {
-  const { t } = useTranslation(["projects", "common"])
+  const { t } = useTranslation(["projects", "common", "organization"])
   const locale = useUiLocale()
   const query = useQuery(getProjectsListOptions(organizationId, search, locale))
   const columns = useMemo(
@@ -128,139 +119,116 @@ export function ProjectsList({
     : []
   const sorting = [{ id: search.sortBy, desc: search.sortOrder === "desc" }]
   const page = query.data?.data
-  const hasFilters = Boolean(search.name) || search.status !== undefined
-  const listStatus = query.isPending
-    ? "loading"
-    : query.isError
-      ? query.error instanceof ApiClientError &&
-        query.error.body.code === "FORBIDDEN"
-        ? "denied"
-        : "error"
-      : "ready"
+  const tableStatus: DataTableStatus =
+    query.isError &&
+    query.error instanceof ApiClientError &&
+    query.error.body.code === "FORBIDDEN"
+      ? "forbidden"
+      : query.isPending
+        ? "loading"
+        : query.isFetching
+          ? "refreshing"
+          : query.isError
+            ? "error"
+            : "ready"
 
   return (
-    <AppShell
+    <ResourceList
       title={t("projects:title")}
-      navigation={
-        <Link
-          to="/app/projects/$organizationId"
-          params={{ organizationId }}
-          search={search}
-          className="block rounded-lg bg-muted p-3 font-medium wrap-anywhere"
-        >
-          {t("projects:title")}
-        </Link>
-      }
-      workspace={
-        <TenantSwitcher
-          organizations={organizations}
-          organizationId={organizationId}
-          disabled={organizationPending}
-          onSelect={(nextOrganizationId) => {
-            void (async () => {
-              if (await onOrganizationSelect(nextOrganizationId)) {
-                onOrganizationChange(nextOrganizationId)
-              }
-            })()
-          }}
-        />
+      status="ready"
+      actions={
+        <ProjectCreate key={organizationId} organizationId={organizationId} />
       }
     >
-      <ResourceList
-        title={t("projects:title")}
-        status={listStatus}
+      <DataTable
+        key={organizationId}
+        columns={columns}
+        data={page?.items ?? []}
+        getRowId={(row) => row.id}
+        rowCount={page?.total ?? 0}
+        status={tableStatus}
         onRetry={() => void query.refetch()}
-        actions={
-          <ProjectCreate key={organizationId} organizationId={organizationId} />
+        onResetFilters={() =>
+          onSearchChange((current) => ({
+            ...current,
+            page: 1,
+            name: undefined,
+            status: undefined,
+          }))
         }
-      >
-        {(listStatus === "loading" || listStatus === "ready") && (
-          <DataTable
-            columns={columns}
-            data={page?.items ?? []}
-            getRowId={(row) => row.id}
-            rowCount={page?.total ?? 0}
-            isLoading={query.isPending}
-            manualPagination
-            manualFiltering
-            manualSorting
-            enableMultiSort={false}
-            searchPlaceholder={t("projects:searchPlaceholder")}
-            state={{
-              globalFilter: search.name ?? "",
-              columnFilters,
-              pagination: {
-                pageIndex: search.page - 1,
-                pageSize: search.pageSize,
-              },
-              sorting,
-            }}
-            onGlobalFilterChange={(updater) => {
-              const value =
-                typeof updater === "function"
-                  ? updater(search.name ?? "")
-                  : updater
-              const name = typeof value === "string" ? value.trim() : ""
-              onSearchChange((current) => ({
-                ...current,
-                page: 1,
-                name: name || undefined,
-              }))
-            }}
-            onColumnFiltersChange={(updater) => {
-              const next =
-                typeof updater === "function" ? updater(columnFilters) : updater
-              const value = next.find((filter) => filter.id === "status")?.value
-              onSearchChange((current) => ({
-                ...current,
-                page: 1,
-                status:
-                  value === undefined
-                    ? undefined
-                    : ProjectStatusSchema.parse(value),
-              }))
-            }}
-            onPaginationChange={(updater) => {
-              const previous = {
-                pageIndex: search.page - 1,
-                pageSize: search.pageSize,
-              }
-              const next =
-                typeof updater === "function" ? updater(previous) : updater
-              onSearchChange((current) => ({
-                ...current,
-                page:
-                  next.pageSize === current.pageSize ? next.pageIndex + 1 : 1,
-                pageSize: next.pageSize,
-              }))
-            }}
-            onSortingChange={(updater) => {
-              const next =
-                typeof updater === "function" ? updater(sorting) : updater
-              const sort = next[0]
-              onSearchChange((current) => ({
-                ...current,
-                page: 1,
-                sortBy: sort?.id === "updatedAt" ? "updatedAt" : "createdAt",
-                sortOrder:
-                  sort?.id === undefined ? "desc" : sort.desc ? "desc" : "asc",
-              }))
-            }}
-            empty={
-              hasFilters ? undefined : (
-                <Empty>
-                  <EmptyHeader>
-                    <EmptyTitle>{t("projects:emptyTitle")}</EmptyTitle>
-                    <EmptyDescription>
-                      {t("projects:emptyDescription")}
-                    </EmptyDescription>
-                  </EmptyHeader>
-                </Empty>
-              )
-            }
-          />
-        )}
-      </ResourceList>
-    </AppShell>
+        manualPagination
+        manualFiltering
+        manualSorting
+        enableMultiSort={false}
+        searchPlaceholder={t("projects:searchPlaceholder")}
+        state={{
+          globalFilter: search.name ?? "",
+          columnFilters,
+          pagination: {
+            pageIndex: search.page - 1,
+            pageSize: search.pageSize,
+          },
+          sorting,
+        }}
+        onGlobalFilterChange={(updater) => {
+          const value =
+            typeof updater === "function" ? updater(search.name ?? "") : updater
+          const name = typeof value === "string" ? value.trim() : ""
+          onSearchChange((current) => ({
+            ...current,
+            page: 1,
+            name: name || undefined,
+          }))
+        }}
+        onColumnFiltersChange={(updater) => {
+          const next =
+            typeof updater === "function" ? updater(columnFilters) : updater
+          const value = next.find((filter) => filter.id === "status")?.value
+          onSearchChange((current) => ({
+            ...current,
+            page: 1,
+            status:
+              value === undefined
+                ? undefined
+                : ProjectStatusSchema.parse(value),
+          }))
+        }}
+        onPaginationChange={(updater) => {
+          const previous = {
+            pageIndex: search.page - 1,
+            pageSize: search.pageSize,
+          }
+          const next =
+            typeof updater === "function" ? updater(previous) : updater
+          onSearchChange((current) => ({
+            ...current,
+            page: next.pageSize === current.pageSize ? next.pageIndex + 1 : 1,
+            pageSize: next.pageSize,
+          }))
+        }}
+        onSortingChange={(updater) => {
+          const next =
+            typeof updater === "function" ? updater(sorting) : updater
+          const sort = next[0]
+          onSearchChange((current) => ({
+            ...current,
+            page: 1,
+            sortBy: sort?.id === "updatedAt" ? "updatedAt" : "createdAt",
+            sortOrder:
+              sort?.id === undefined ? "desc" : sort.desc ? "desc" : "asc",
+          }))
+        }}
+        empty={
+          <Empty>
+            <EmptyHeader>
+              <EmptyTitle>{t("projects:emptyTitle")}</EmptyTitle>
+              <EmptyDescription>
+                {t("projects:emptyDescription")}
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        }
+      />
+    </ResourceList>
   )
 }

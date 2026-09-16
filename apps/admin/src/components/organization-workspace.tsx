@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next"
 import type { TFunction } from "@workspace/i18n"
-import { useOrganizationWorkspace } from "@/hooks/use-organization-workspace"
+import { useAdminWorkspace } from "@/hooks/admin-workspace-context"
 import { useForm } from "@tanstack/react-form"
 import { Link } from "@tanstack/react-router"
 import { Button } from "@workspace/ui/components/button"
@@ -29,8 +29,7 @@ export function OrganizationWorkspace() {
     "validation",
     "projects",
   ])
-  const { workspace, pending, error, createOrganization, selectOrganization } =
-    useOrganizationWorkspace()
+  const { workspace, pending, createOrganization } = useAdminWorkspace()
   const form = useForm({
     defaultValues: { name: "", slug: "" },
     validators: {
@@ -41,6 +40,7 @@ export function OrganizationWorkspace() {
     },
   })
 
+  const active = workspace.data?.active
   if (workspace.isPending)
     return <p role="status">{t("organization:loading")}</p>
   if (workspace.isError) {
@@ -56,7 +56,6 @@ export function OrganizationWorkspace() {
       </div>
     )
   }
-  const { organizations, active } = workspace.data
 
   return (
     <div className="space-y-8">
@@ -66,9 +65,6 @@ export function OrganizationWorkspace() {
           <h1 className="text-xl font-semibold wrap-break-word">
             {t("organization:current", { name: active.name })}
           </h1>
-          <p className="text-sm text-muted-foreground">
-            {t("organization:switchHint")}
-          </p>
           <Link
             to="/app/projects/$organizationId"
             params={{ organizationId: active.id }}
@@ -78,53 +74,8 @@ export function OrganizationWorkspace() {
           </Link>
         </section>
       )}
-      <section className="space-y-4" aria-labelledby="organization-heading">
-        <h2 id="organization-heading" className="text-xl font-semibold">
-          {t("organization:select")}
-        </h2>
-        {organizations.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            {t("organization:empty")}
-          </p>
-        ) : (
-          <ul className="grid gap-3 sm:grid-cols-2">
-            {organizations.map((organization) => (
-              <li
-                key={organization.id}
-                className="flex min-w-0 items-center justify-between gap-4 rounded-xl border p-4"
-              >
-                <div className="min-w-0">
-                  <p className="font-medium wrap-break-word">
-                    {organization.name}
-                  </p>
-                  <p className="text-sm break-all text-muted-foreground">
-                    {organization.slug}
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  aria-label={t("organization:selectNamed", {
-                    name: organization.name,
-                  })}
-                  disabled={pending || active?.id === organization.id}
-                  onClick={() => void selectOrganization(organization.id)}
-                >
-                  {active?.id === organization.id
-                    ? t("organization:selected")
-                    : t("organization:choose")}
-                </Button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      )}
       <section
-        className="max-w-md space-y-4 border-t pt-6"
+        className="max-w-md space-y-4"
         aria-labelledby="create-organization-heading"
       >
         <h2 id="create-organization-heading" className="text-xl font-semibold">

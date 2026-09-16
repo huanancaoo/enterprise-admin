@@ -7,6 +7,7 @@
   "createdAt": "创建时间",
   "createDescription": "创建草稿项目并保存内容。",
   "description": "描述",
+  "detail": "项目详情",
   "draft": "草稿",
   "emptyDescription": "创建第一个项目后，它会出现在这里。",
   "emptyTitle": "还没有项目",

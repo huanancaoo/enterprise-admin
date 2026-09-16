@@ -24,16 +24,7 @@ function ProjectDetailStoryRoute() {
     organizationId: string
     projectId: string
   }
-  return (
-    <ProjectDetail
-      organizationId={organizationId}
-      projectId={projectId}
-      organizations={organizations}
-      organizationPending={false}
-      onOrganizationSelect={async () => true}
-      onOrganizationChange={() => undefined}
-    />
-  )
+  return <ProjectDetail organizationId={organizationId} projectId={projectId} />
 }
 
 function createDetailRouter() {

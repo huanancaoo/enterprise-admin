@@ -7,6 +7,7 @@
   "createdAt": "تاريخ الإنشاء",
   "createDescription": "أنشئ مشروعًا مسودة واحفظ محتواه.",
   "description": "الوصف",
+  "detail": "تفاصيل المشروع",
   "draft": "مسودة",
   "emptyDescription": "أنشئ المشروع الأول وسيظهر هنا.",
   "emptyTitle": "لا توجد مشاريع بعد",

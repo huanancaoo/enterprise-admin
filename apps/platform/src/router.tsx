@@ -4,18 +4,22 @@ import {
   createRouter,
   redirect,
 } from "@tanstack/react-router"
-import { App } from "./App"
+import { App, PlatformHome, PlatformLayout } from "./App"
 
-const rootRoute = createRootRoute()
+const rootRoute = createRootRoute({ component: App })
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/login",
-  component: App,
 })
 const platformRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/platform/",
-  component: App,
+  path: "/platform",
+  component: PlatformLayout,
+})
+const platformIndexRoute = createRoute({
+  getParentRoute: () => platformRoute,
+  path: "/",
+  component: PlatformHome,
 })
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -26,5 +30,9 @@ const indexRoute = createRoute({
 })
 
 export const router = createRouter({
-  routeTree: rootRoute.addChildren([indexRoute, loginRoute, platformRoute]),
+  routeTree: rootRoute.addChildren([
+    indexRoute,
+    loginRoute,
+    platformRoute.addChildren([platformIndexRoute]),
+  ]),
 })

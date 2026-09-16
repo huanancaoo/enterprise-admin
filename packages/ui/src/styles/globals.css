@@ -5,8 +5,9 @@
 @import "@fontsource-variable/outfit";
 
 @custom-variant dark (&:is(.dark *));
-@source "../../../apps/**/*.{ts,tsx}";
-@source "../../../components/**/*.{ts,tsx}";
+/* 共享后台组件不在应用目录内，必须显式纳入各应用的样式生成。 */
+@source "../../../../apps/**/*.{ts,tsx}";
+@source "../../../admin/src/**/*.{ts,tsx}";
 @source "../**/*.{ts,tsx}";
 
 :root {

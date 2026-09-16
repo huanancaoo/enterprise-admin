@@ -1,3 +1,4 @@
+import { expect, userEvent, waitFor, within } from "storybook/test"
 import type { Meta, StoryObj } from "@storybook/react-vite"
 import {
   createMemoryHistory,
@@ -29,20 +30,10 @@ function ProjectsStoryRoute() {
   return (
     <ProjectsList
       organizationId={organizationId}
-      organizations={organizations}
-      organizationPending={false}
-      onOrganizationSelect={async () => true}
       search={search}
       onSearchChange={(updater) =>
         void navigate({
           search: (current: ProjectListQuery) => updater(current),
-        })
-      }
-      onOrganizationChange={(nextOrganizationId) =>
-        void navigate({
-          to: projectsPath,
-          params: { organizationId: nextOrganizationId },
-          search: (current: ProjectListQuery) => ({ ...current, page: 1 }),
         })
       }
     />
@@ -114,4 +105,39 @@ export const RTL: Story = {
 
 export const SlowNetwork: Story = {
   parameters: { msw: { handlers: projectScenarios.slow } },
+}
+
+export const SearchAndFilter: Story = {
+  globals: { locale: "en-US" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const screen = within(canvasElement.ownerDocument.body)
+    await waitFor(() =>
+      expect(canvas.getByRole("table")).toHaveAttribute("aria-busy", "false")
+    )
+    const input = canvas.getByRole("textbox")
+    await userEvent.type(input, "Office space 1-26")
+    await expect(input).toHaveValue("Office space 1-26")
+    await expect(canvas.getByText("26 rows")).toBeVisible()
+    await userEvent.keyboard("{Enter}")
+    await waitFor(() => expect(canvas.getByText("1 rows")).toBeVisible())
+    await expect(
+      canvas.getByRole("link", { name: "Office space 1-26" })
+    ).toBeVisible()
+    await userEvent.click(canvas.getByRole("button", { name: "Status" }))
+    await userEvent.click(await screen.findByRole("option", { name: "Draft" }))
+    await userEvent.keyboard("{Escape}")
+    await waitFor(() => expect(canvas.getByText("No results")).toBeVisible())
+    await userEvent.click(
+      within(canvas.getByRole("table")).getByRole("button", {
+        name: "Clear filters",
+      })
+    )
+    await waitFor(() => expect(canvas.getByText("26 rows")).toBeVisible())
+    await expect(canvas.getByRole("textbox")).toHaveValue("")
+    await expect(canvas.getByRole("button", { name: "Status" })).toBeVisible()
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    )
+  },
 }

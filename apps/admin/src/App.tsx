@@ -1,10 +1,9 @@
 import { useTranslation } from "react-i18next"
-import type { ReactNode } from "react"
+import { Outlet } from "@tanstack/react-router"
 import { AuthSession } from "@workspace/admin/auth"
 import { authClient } from "@/lib/auth-client"
-import { OrganizationWorkspace } from "@/components/organization-workspace"
 
-export function App({ children }: { children?: ReactNode }) {
+export function App() {
   const { t } = useTranslation(["organization", "auth"])
   return (
     <AuthSession
@@ -13,7 +12,7 @@ export function App({ children }: { children?: ReactNode }) {
       authenticatedPath="/app/select-organization"
       allowSignUp
     >
-      {children ?? <OrganizationWorkspace />}
+      <Outlet />
     </AuthSession>
   )
 }

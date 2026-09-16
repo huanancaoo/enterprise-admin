@@ -1,5 +1,6 @@
-import { useId, useState, type ReactNode } from "react"
+import { useId, type ReactNode } from "react"
 import { useTranslation } from "react-i18next"
+import { AppSidebar, type AppSidebarProps } from "./app-sidebar"
 import { Button } from "@workspace/ui/components/button"
 import {
   Dialog,
@@ -9,7 +10,13 @@ import {
   DialogDescription,
 } from "@workspace/ui/components/dialog"
 import { Skeleton } from "@workspace/ui/components/skeleton"
-import { MenuIcon } from "lucide-react"
+import { Separator } from "@workspace/ui/components/separator"
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@workspace/ui/components/sidebar"
+import { TooltipProvider } from "@workspace/ui/components/tooltip"
 
 export function PageHeader({
   title,
@@ -35,65 +42,41 @@ export function PageHeader({
   )
 }
 
-export function AppShell({
-  title,
-  navigation,
-  workspace,
-  actions,
-  children,
-}: {
-  title: string
-  navigation: ReactNode
-  workspace?: ReactNode
+export interface AppShellProps {
+  sidebar: AppSidebarProps
+  breadcrumb: ReactNode
   actions?: ReactNode
   children: ReactNode
-}) {
-  const { t } = useTranslation("common")
-  const [open, setOpen] = useState(false)
+}
+
+export function AppShell({
+  sidebar,
+  breadcrumb,
+  actions,
+  children,
+}: AppShellProps) {
   return (
-    <div className="flex min-h-svh min-w-0 bg-background text-foreground">
-      <aside
-        className="hidden w-64 shrink-0 space-y-6 border-e p-5 md:block"
-        aria-label={t("navigation")}
-      >
-        <p className="font-semibold wrap-anywhere">{title}</p>
-        {workspace}
-        <nav aria-label={t("navigation")}>{navigation}</nav>
-      </aside>
-      <div className="min-w-0 flex-1">
-        <header className="flex flex-wrap items-center gap-4 border-b p-4">
-          <Button
-            variant="outline"
-            size="icon"
-            className="md:hidden"
-            aria-label={t("openNavigation")}
-            onClick={() => setOpen(true)}
-          >
-            <MenuIcon />
-          </Button>
-          <p className="min-w-0 flex-1 font-medium wrap-anywhere md:hidden">
-            {title}
-          </p>
-          {actions && <div className="ms-auto">{actions}</div>}
-        </header>
-        <main className="min-w-0 space-y-6 p-4 md:p-8">{children}</main>
-      </div>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent showCloseButton={false}>
-          <DialogHeader>
-            <DialogTitle>{title}</DialogTitle>
-            <DialogDescription>{t("navigation")}</DialogDescription>
-          </DialogHeader>
-          {workspace}
-          <nav aria-label={t("navigation")} onClick={() => setOpen(false)}>
-            {navigation}
-          </nav>
-          <Button variant="outline" onClick={() => setOpen(false)}>
-            {t("close")}
-          </Button>
-        </DialogContent>
-      </Dialog>
-    </div>
+    <TooltipProvider>
+      <SidebarProvider>
+        <AppSidebar {...sidebar} />
+        <SidebarInset>
+          <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+            <div className="flex items-center gap-2 px-4">
+              <SidebarTrigger className="-ms-1" />
+              <Separator
+                orientation="vertical"
+                className="me-2 data-vertical:h-4 data-vertical:self-auto"
+              />
+              {breadcrumb}
+            </div>
+            {actions && <div className="ms-auto pe-4">{actions}</div>}
+          </header>
+          <div className="flex min-w-0 flex-1 flex-col gap-4 p-4 pt-0">
+            {children}
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
+    </TooltipProvider>
   )
 }
 

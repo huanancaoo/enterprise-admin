@@ -225,7 +225,7 @@ export function MembersTable() {
         columns={columns}
         data={memberData}
         getRowId={(row) => row.id}
-        isLoading={isLoading}
+        status={isLoading ? "loading" : "ready"}
         searchPlaceholder={t("organization:searchMembers")}
         getRowCanExpand={() => true}
         columnResizeMode="onChange"

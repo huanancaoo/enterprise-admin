@@ -5,12 +5,10 @@ import { ApiClientError, getProjectDetailOptions } from "@workspace/api-client"
 import { createFormatter, localeMeta } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
 import {
-  AppShell,
   ErrorState,
   LoadingState,
   PageHeader,
   PermissionDeniedState,
-  TenantSwitcher,
 } from "@workspace/admin"
 import { Badge } from "@workspace/ui/components/badge"
 import { buttonVariants } from "@workspace/ui/components/button"
@@ -25,21 +23,13 @@ const statusBadgeVariant = {
 type ProjectDetailProps = {
   organizationId: string
   projectId: string
-  organizations: readonly { id: string; name: string }[]
-  organizationPending: boolean
-  onOrganizationSelect: (organizationId: string) => Promise<boolean>
-  onOrganizationChange: (organizationId: string) => void
 }
 
 export function ProjectDetail({
   organizationId,
   projectId,
-  organizations,
-  organizationPending,
-  onOrganizationSelect,
-  onOrganizationChange,
 }: ProjectDetailProps) {
-  const { t } = useTranslation(["projects", "common"])
+  const { t } = useTranslation(["projects", "common", "organization"])
   const locale = useUiLocale()
   const query = useQuery(
     getProjectDetailOptions(organizationId, projectId, locale)
@@ -49,33 +39,7 @@ export function ProjectDetail({
     query.error instanceof ApiClientError ? query.error.body.code : undefined
 
   return (
-    <AppShell
-      title={t("projects:title")}
-      navigation={
-        <Link
-          to="/app/projects/$organizationId"
-          params={{ organizationId }}
-          search={{}}
-          className="block rounded-lg bg-muted p-3 font-medium wrap-anywhere"
-        >
-          {t("projects:title")}
-        </Link>
-      }
-      workspace={
-        <TenantSwitcher
-          organizations={organizations}
-          organizationId={organizationId}
-          disabled={organizationPending}
-          onSelect={(nextOrganizationId) => {
-            void (async () => {
-              if (await onOrganizationSelect(nextOrganizationId)) {
-                onOrganizationChange(nextOrganizationId)
-              }
-            })()
-          }}
-        />
-      }
-    >
+    <>
       {query.isPending && <LoadingState />}
       {query.isError && errorCode === "FORBIDDEN" && <PermissionDeniedState />}
       {query.isError && errorCode === "NOT_FOUND" && (
@@ -153,7 +117,7 @@ export function ProjectDetail({
           </Card>
         </section>
       )}
-    </AppShell>
+    </>
   )
 }
 

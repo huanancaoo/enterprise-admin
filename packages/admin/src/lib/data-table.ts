@@ -4,10 +4,10 @@ import { createElement } from "react"
 import type { RowData } from "@tanstack/react-table"
 
 import {
-  DataTableRowControls,
   DataTableSelectAllCheckbox,
   DataTableSelectRowCheckbox,
-} from "../components/data-table"
+} from "../components/data-table/selection"
+import { DataTableRowControls } from "../components/data-table/row-controls"
 import { createDataTableColumnHelper } from "../hooks/use-data-table"
 
 export function createDataTableSelectColumn<TData extends RowData>() {

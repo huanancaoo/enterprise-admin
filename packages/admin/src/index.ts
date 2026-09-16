@@ -1,9 +1,6 @@
-export {
-  DataTable,
-  DataTableColumnHeader,
-  Pagination,
-} from "./components/data-table"
-export type { DataTableProps } from "./components/data-table"
+export { DataTable, DataTableColumnHeader } from "./components/data-table"
+export { Pagination } from "./components/pagination"
+export type { DataTableProps, DataTableStatus } from "./components/data-table"
 export { createDataTableColumnHelper } from "./hooks/use-data-table"
 export type {
   DataTableColumnMeta,
@@ -25,6 +22,15 @@ export {
   PermissionGate,
 } from "./components/workspace"
 export type { LocaleSwitcherProps } from "./components/workspace"
+export { AppSidebar } from "./components/app-sidebar"
+export type { AppShellProps } from "./components/page"
+export type { AppSidebarProps } from "./components/app-sidebar"
+export { NavMain } from "./components/nav-main"
+export type { NavMainItem, NavMainProps } from "./components/nav-main"
+export { NavUser } from "./components/nav-user"
+export type { NavUserProps, SidebarUser } from "./components/nav-user"
+export { TeamSwitcher } from "./components/team-switcher"
+export type { SidebarTeam, TeamSwitcherProps } from "./components/team-switcher"
 export {
   AppShell,
   PageHeader,

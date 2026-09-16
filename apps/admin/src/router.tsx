@@ -8,17 +8,18 @@ import { ProjectListQuerySchema } from "@workspace/contracts"
 import { App } from "./App"
 import { ProjectsRoute } from "./components/projects-route"
 import { ProjectDetailRoute } from "./components/project-detail-route"
+import { AdminLayout } from "./components/admin-layout"
+import { OrganizationWorkspace } from "./components/organization-workspace"
 
-const rootRoute = createRootRoute()
+const rootRoute = createRootRoute({ component: App })
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/login",
-  component: App,
 })
 const organizationRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/app/select-organization",
-  component: App,
+  getParentRoute: () => appRoute,
+  path: "/select-organization",
+  component: OrganizationWorkspace,
 })
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -30,29 +31,36 @@ const indexRoute = createRoute({
 const appRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/app",
+  component: AdminLayout,
+})
+const appIndexRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/",
   beforeLoad: () => {
     throw redirect({ to: "/app/select-organization" })
   },
 })
 const projectsRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/app/projects/$organizationId",
+  getParentRoute: () => appRoute,
+  path: "/projects/$organizationId",
   validateSearch: ProjectListQuerySchema,
   component: ProjectsRoute,
 })
 const projectDetailRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/app/projects/$organizationId/$projectId",
+  getParentRoute: () => appRoute,
+  path: "/projects/$organizationId/$projectId",
   component: ProjectDetailRoute,
 })
 
 export const router = createRouter({
   routeTree: rootRoute.addChildren([
     indexRoute,
-    appRoute,
     loginRoute,
-    organizationRoute,
-    projectsRoute,
-    projectDetailRoute,
+    appRoute.addChildren([
+      appIndexRoute,
+      organizationRoute,
+      projectsRoute,
+      projectDetailRoute,
+    ]),
   ]),
 })

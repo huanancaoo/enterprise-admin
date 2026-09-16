@@ -1,11 +1,9 @@
 {
   "activate": "激活",
   "bulkActions": "批量操作",
-  "choose": "选择",
   "create": "创建组织",
   "current": "当前组织：{{name}}",
   "department": "部门",
-  "empty": "你还没有加入任何组织。",
   "lastActive": "最近活跃",
   "loading": "正在加载组织…",
   "management": "组织管理",
@@ -20,10 +18,7 @@
   "role_viewer": "查看者",
   "searchMembers": "搜索成员…",
   "select": "选择组织",
-  "selected": "已选择",
-  "selectNamed": "选择 {{name}}",
   "slug": "组织标识",
   "slugHint": "用于区分组织，必须唯一，例如 my-team。",
-  "suspend": "暂停",
-  "switchHint": "你可以在下方切换组织。"
+  "suspend": "暂停"
 }

@@ -15,6 +15,10 @@ import {
 } from "@workspace/ui/components/field"
 import { Input } from "@workspace/ui/components/input"
 import * as z from "zod"
+import {
+  AuthenticatedSessionContext,
+  type AuthenticatedSession,
+} from "./authenticated-session"
 import type { WorkspaceAuthClient } from "./client"
 import { useAuthAction } from "./use-auth-action"
 
@@ -89,23 +93,35 @@ export function AuthSession({
   if (pathname === "/login") return <Navigate to={authenticatedPath} replace />
   return (
     <SessionQueryProvider key={session.data.user.id}>
-      <main className="mx-auto flex min-h-svh w-full max-w-4xl flex-col gap-8 p-6 sm:p-10">
-        <header className="flex flex-wrap items-center justify-between gap-4 border-b pb-6">
-          <div className="min-w-0 space-y-1">
-            <p className="font-semibold">{title}</p>
-            <p className="text-sm break-all text-muted-foreground">
-              {session.data.user.email}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <LocaleSwitcher />
-            <SignOut client={client} />
-          </div>
-        </header>
+      <AuthenticatedSessionProvider client={client} user={session.data.user}>
         {/* 用户变化时卸载组织页面，避免将前一个用户的表单状态带入新会话。 */}
         <section key={session.data.user.id}>{children}</section>
-      </main>
+      </AuthenticatedSessionProvider>
     </SessionQueryProvider>
+  )
+}
+
+function AuthenticatedSessionProvider({
+  client,
+  user,
+  children,
+}: {
+  client: WorkspaceAuthClient
+  user: AuthenticatedSession["user"]
+  children: ReactNode
+}) {
+  const action = useAuthAction()
+  return (
+    <AuthenticatedSessionContext.Provider
+      value={{
+        user,
+        signingOut: action.pending,
+        signOutError: action.error,
+        signOut: () => void action.run(() => client.signOut()),
+      }}
+    >
+      {children}
+    </AuthenticatedSessionContext.Provider>
   )
 }
 
@@ -307,26 +323,5 @@ function CredentialsForm({
         </FieldGroup>
       </fieldset>
     </form>
-  )
-}
-
-function SignOut({ client }: { client: WorkspaceAuthClient }) {
-  const { t } = useTranslation(["auth", "common", "validation"])
-  const action = useAuthAction()
-  return (
-    <div className="space-y-2">
-      <Button
-        variant="outline"
-        disabled={action.pending}
-        onClick={() => void action.run(() => client.signOut())}
-      >
-        {action.pending ? t("auth:signingOut") : t("auth:signOut")}
-      </Button>
-      {action.error && (
-        <p role="alert" className="text-sm text-destructive">
-          {action.error}
-        </p>
-      )}
-    </div>
   )
 }

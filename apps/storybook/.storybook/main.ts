@@ -1,5 +1,6 @@
 import type { StorybookConfig } from "@storybook/react-vite"
 import tailwindcss from "@tailwindcss/vite"
+import { fileURLToPath } from "node:url"
 
 const config: StorybookConfig = {
   staticDirs: ["../public"],
@@ -8,7 +9,17 @@ const config: StorybookConfig = {
   addons: ["@storybook/addon-vitest", "@storybook/addon-a11y"],
   core: { disableTelemetry: true },
   async viteFinal(config) {
-    return { ...config, plugins: [...(config.plugins ?? []), tailwindcss()] }
+    return {
+      ...config,
+      resolve: {
+        ...config.resolve,
+        alias: {
+          ...config.resolve?.alias,
+          "@": fileURLToPath(new URL("../../admin/src", import.meta.url)),
+        },
+      },
+      plugins: [...(config.plugins ?? []), tailwindcss()],
+    }
   },
 }
 export default config

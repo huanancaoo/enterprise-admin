@@ -1,11 +1,9 @@
 {
   "activate": "تفعيل",
   "bulkActions": "إجراءات مجمعة",
-  "choose": "اختيار",
   "create": "إنشاء مؤسسة",
   "current": "المؤسسة الحالية: {{name}}",
   "department": "القسم",
-  "empty": "لم تنضم إلى أي مؤسسة بعد.",
   "lastActive": "آخر نشاط",
   "loading": "جارٍ تحميل المؤسسات…",
   "management": "إدارة المؤسسات",
@@ -20,10 +18,7 @@
   "role_viewer": "مشاهد",
   "searchMembers": "بحث عن الأعضاء…",
   "select": "اختيار المؤسسة",
-  "selected": "محدد",
-  "selectNamed": "اختيار {{name}}",
   "slug": "معرّف المؤسسة",
   "slugHint": "معرّف فريد، مثل my-team.",
-  "suspend": "تعليق",
-  "switchHint": "يمكنك تبديل المؤسسات أدناه."
+  "suspend": "تعليق"
 }
