@@ -105,9 +105,17 @@ export function checkBoundaries(root) {
   }
   for (const owner of packages.filter((path) => path in allowed)) {
     function check(specifier, file, target) {
-      target ??= [...names].find(
-        ([name]) => specifier === name || specifier.startsWith(name + "/")
-      )?.[1]
+      target ??= [...names].find(([name]) => {
+        if (specifier !== name && !specifier.startsWith(name + "/"))
+          return false
+        // 同名 npm 包（如 storybook）不是本地应用；显式版本依赖以解析路径为准。
+        const version =
+          manifest.dependencies?.[name] ??
+          manifest.devDependencies?.[name] ??
+          manifest.peerDependencies?.[name] ??
+          manifest.optionalDependencies?.[name]
+        return version === undefined || /^(workspace|file|link):/.test(version)
+      })?.[1]
       if (target === owner || target === "." || configs.includes(target)) return
       const serverDependency =
         /^(drizzle-orm|drizzle-kit|pg|@nestjs\/[^/]+)(\/|$)/.test(specifier)

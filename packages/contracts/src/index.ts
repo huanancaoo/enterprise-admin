@@ -16,7 +16,6 @@ export type ProjectListQuery = z.infer<typeof ProjectListQuerySchema>
 export const CreateProjectSchema = z.strictObject({
   name: z.string().trim().min(1),
   description: z.string().nullable(),
-  status: ProjectStatusSchema.default("draft"),
   contentLocale: SupportedLocaleSchema.optional(),
 })
 export type CreateProject = z.infer<typeof CreateProjectSchema>

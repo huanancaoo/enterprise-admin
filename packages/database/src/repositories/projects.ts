@@ -1,5 +1,6 @@
 import { and, eq, sql } from "drizzle-orm"
 import type { TenantTx } from "../tenant.ts"
+import { organization } from "../schema/auth.ts"
 import { projects, projectTranslations } from "../schema/projects.ts"
 
 type Locale = typeof projectTranslations.$inferInsert.locale
@@ -19,6 +20,14 @@ type LocalizedProject = typeof projects.$inferSelect & {
 }
 
 export const projectRepository = {
+  async defaultLocale(tx: TenantTx) {
+    const [row] = await tx
+      .select({ locale: organization.defaultLocale })
+      .from(organization)
+      .where(eq(organization.id, tx.context.organizationId))
+    if (!row) throw new Error("Authorized organization is missing")
+    return row.locale
+  },
   async listPage(tx: TenantTx, input: ProjectListInput) {
     const name = input.name?.trim()
     const pattern = name ? `%${name.replace(/[\\%_]/g, "\\$&")}%` : undefined

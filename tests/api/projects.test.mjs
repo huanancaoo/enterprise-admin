@@ -16,6 +16,8 @@ const { AuthRuntime } = require("../../apps/api/dist/auth-runtime.js")
 const {
   TenantContextService,
 } = require("../../apps/api/dist/tenant-context.service.js")
+import { auditEvents } from "../../packages/database/dist/schema/audit.js"
+import { createDatabase } from "../../packages/database/dist/index.js"
 import { createTenantRunner } from "../../packages/database/dist/tenant.js"
 import { projectRepository } from "../../packages/database/dist/repositories/projects.js"
 import {
@@ -28,6 +30,7 @@ import {
 } from "../../packages/contracts/src/index.ts"
 import {
   listProjects,
+  createProject,
   configureApiClient,
   getProjectsListOptions,
 } from "../../packages/api-client/src/index.ts"
@@ -43,7 +46,8 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
     orgA,
     orgB,
     source,
-    translated
+    translated,
+    migrator
   const origin = "http://localhost:3200"
   const query = (id, suffix = "", session = cookie, locale = "en-US") =>
     fetch(`${baseURL}/api/v1/organizations/${id}/projects${suffix}`, {
@@ -91,6 +95,7 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
         },
       }
     )
+    migrator = createDatabase(url("app_migrator", passwords[1])).pool
     app = await createApplication(
       {
         databaseURL: url("app_runtime", passwords[2]),
@@ -177,6 +182,7 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
   afterAll(async () => {
     try {
       await app?.close()
+      await migrator?.end()
     } finally {
       await container?.stop()
     }
@@ -458,6 +464,158 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
       400,
       "ar"
     )
+  })
+  it("创建项目保存基础译文，并可从正式列表读回", async () => {
+    const response = await createProject(
+      orgB.id,
+      {
+        name: "  Created project  ",
+        description: null,
+        contentLocale: "en-US",
+      },
+      { "Accept-Language": "ar" }
+    )
+    expect(response.status).toBe(201)
+    const created = response.data
+    expect(created).toMatchObject({
+      organizationId: orgB.id,
+      name: "Created project",
+      description: null,
+      status: "draft",
+      contentLocale: "en-US",
+      resolvedLocale: "en-US",
+    })
+    const page = await listProjects(
+      orgB.id,
+      { name: "Created project" },
+      { "Accept-Language": "ar" }
+    )
+    expect(page.data.items).toEqual([created])
+  })
+  it("创建审计使用可信身份，组织默认语言独立于请求语言，删除保留审计", async () => {
+    await runtime.pool.query(
+      "UPDATE organization SET default_locale = 'ar' WHERE id = $1",
+      [orgB.id]
+    )
+    const response = await createProject(
+      orgB.id,
+      { name: "Arabic base", description: null },
+      { "Accept-Language": "en-US" }
+    )
+    expect(response.data).toMatchObject({
+      contentLocale: "ar",
+      resolvedLocale: "ar",
+      status: "draft",
+    })
+    const readAudit = (context) =>
+      createTenantRunner(runtime.pool)(context, (tx) =>
+        tx.select().from(auditEvents)
+      )
+    const records = await readAudit(contextB)
+    const event = records.find((row) => row.resourceId === response.data.id)
+    expect(event).toMatchObject({
+      eventCode: "project.created",
+      actorId: contextB.userId,
+      organizationId: orgB.id,
+      requestId: response.headers.get("x-request-id"),
+      fields: { contentLocale: "ar", status: "draft" },
+    })
+    expect(event.occurredAt).toBeInstanceOf(Date)
+    expect(await readAudit(contextA)).toEqual([])
+    await expect(
+      createTenantRunner(runtime.pool)(contextA, (tx) =>
+        tx.insert(auditEvents).values({ ...event, id: undefined })
+      )
+    ).rejects.toThrow()
+    await expect(
+      createTenantRunner(runtime.pool)(contextB, (tx) => tx.delete(auditEvents))
+    ).rejects.toThrow()
+    await expect(
+      createTenantRunner(runtime.pool)(contextB, (tx) =>
+        tx.update(auditEvents).set({ eventCode: "changed" })
+      )
+    ).rejects.toThrow()
+    await createTenantRunner(runtime.pool)(contextB, (tx) =>
+      projectRepository.delete(tx, response.data.id)
+    )
+    expect(
+      (await readAudit(contextB)).find((row) => row.id === event.id)
+    ).toEqual(event)
+  })
+  it("审计失败时项目和基础译文一起回滚", async () => {
+    const counts = () =>
+      createTenantRunner(runtime.pool)(contextB, async (tx) => ({
+        projects: (await tx.select().from(projects)).length,
+        translations: (await tx.select().from(projectTranslations)).length,
+        audits: (await tx.select().from(auditEvents)).length,
+      }))
+    const before = await counts()
+    // 在临时库撤销审计写权限，验证真实存储失败，而不是 mock 事务调用顺序。
+    await migrator.query("REVOKE INSERT ON audit_events FROM app_runtime")
+    try {
+      await expect(
+        createProject(
+          orgB.id,
+          { name: "Must rollback", description: null },
+          { "Accept-Language": "en-US" }
+        )
+      ).rejects.toMatchObject({ body: { code: "INTERNAL_ERROR" } })
+      expect(await counts()).toEqual(before)
+    } finally {
+      await migrator.query("GRANT INSERT ON audit_events TO app_runtime")
+    }
+  })
+  it("创建拒绝无会话、非成员、缺少 create 权限以及伪造归属，且不写入", async () => {
+    const post = (body, session = cookie) =>
+      fetch(`${baseURL}/api/v1/organizations/${orgB.id}/projects`, {
+        method: "POST",
+        headers: { cookie: session, "content-type": "application/json" },
+        body: JSON.stringify(body),
+      })
+    const valid = { name: "Denied create", description: null }
+    const before = (
+      await listProjects(orgB.id, undefined, { "Accept-Language": "en-US" })
+    ).data.total
+    expect((await post(valid, "")).status).toBe(401)
+    for (const body of [
+      { ...valid, organizationId: orgA.id },
+      { ...valid, actorId: contextA.userId },
+      { ...valid, name: "   " },
+      { ...valid, contentLocale: "fr" },
+      { ...valid, status: "active" },
+    ])
+      expect((await post(body)).status).toBe(400)
+    const signup = await fetch(`${baseURL}/api/auth/sign-up/email`, {
+      method: "POST",
+      headers: { origin, "content-type": "application/json" },
+      body: JSON.stringify({
+        name: "Read only",
+        email: "create-denied@example.test",
+        password: randomBytes(24).toString("hex"),
+      }),
+    })
+    const actor = await signup.json()
+    const session = signup.headers
+      .getSetCookie()
+      .map((item) => item.split(";")[0])
+      .join("; ")
+    expect((await post(valid, session)).status).toBe(403)
+    await runtime.auth.api.createOrgRole({
+      headers: new Headers({ cookie }),
+      body: {
+        organizationId: orgB.id,
+        role: "reader",
+        permission: { project: ["read"] },
+      },
+    })
+    await runtime.auth.api.addMember({
+      body: { organizationId: orgB.id, userId: actor.user.id, role: "reader" },
+    })
+    expect((await post(valid, session)).status).toBe(403)
+    expect(
+      (await listProjects(orgB.id, undefined, { "Accept-Language": "en-US" }))
+        .data.total
+    ).toBe(before)
   })
   it("基础译文缺失返回500，不悄悄隐藏项目", async () => {
     await createTenantRunner(runtime.pool)(contextA, (tx) =>

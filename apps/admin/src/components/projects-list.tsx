@@ -26,6 +26,8 @@ import {
   EmptyTitle,
 } from "@workspace/ui/components/empty"
 
+import { ProjectCreate } from "./project-create"
+
 const columnsHelper = createDataTableColumnHelper<ProjectResponse>()
 const statusBadgeVariant = {
   draft: "secondary",
@@ -159,6 +161,9 @@ export function ProjectsList({
         title={t("projects:title")}
         status={listStatus}
         onRetry={() => void query.refetch()}
+        actions={
+          <ProjectCreate key={organizationId} organizationId={organizationId} />
+        }
       >
         {(listStatus === "loading" || listStatus === "ready") && (
           <DataTable

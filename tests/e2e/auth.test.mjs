@@ -306,6 +306,72 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     })
   })
 
+  it("正式创建失败保留草稿，切语言保留内容，成功列表读回且刷新持久化", async () => {
+    await page.goto(frontends[0].resolvedUrls.local[0] + "app/")
+    await registerAccount(page, {
+      name: "项目创建用户",
+      email: "project-create-browser@example.test",
+      password: credentials.password,
+    })
+    await page.getByLabel("组织名称", { exact: true }).fill("项目创建组织")
+    await page.getByLabel("组织标识", { exact: true }).fill("project-create")
+    await page.getByRole("button", { name: "创建组织", exact: true }).click()
+    await page.getByRole("link", { name: "查看项目", exact: true }).click()
+    await page.getByRole("button", { name: "创建项目", exact: true }).click()
+    const dialog = page.getByRole("dialog")
+    await dialog.getByLabel("项目名称", { exact: true }).fill("浏览器创建项目")
+    await dialog.getByLabel("描述", { exact: true }).fill("真实持久化")
+    await page.route("**/api/v1/organizations/*/projects", async (route) => {
+      if (route.request().method() === "POST") await route.abort()
+      else await route.continue()
+    })
+    await dialog.getByRole("button", { name: "创建项目", exact: true }).click()
+    await expectUI(dialog.getByRole("alert")).toBeVisible()
+    await expectUI(dialog.getByLabel("项目名称", { exact: true })).toHaveValue(
+      "浏览器创建项目"
+    )
+    await page.unroute("**/api/v1/organizations/*/projects")
+    await page.keyboard.press("Escape")
+    const originalURL = page.url()
+    await page.getByRole("button", { name: "语言", exact: true }).click()
+    await page
+      .getByRole("menuitemradio", { name: "English", exact: true })
+      .click()
+    expect(page.url()).toBe(originalURL)
+    await page
+      .getByRole("button", { name: "Create project", exact: true })
+      .click()
+    await expectUI(
+      dialog.getByLabel("Project name", { exact: true })
+    ).toHaveValue("浏览器创建项目")
+    await expectUI(
+      dialog.getByLabel("Description", { exact: true })
+    ).toHaveValue("真实持久化")
+    await dialog
+      .getByRole("button", { name: "Create project", exact: true })
+      .click()
+    await expectUI(dialog).toHaveCount(0)
+    await expectUI(
+      page.getByText("浏览器创建项目", { exact: true })
+    ).toBeVisible()
+    await page
+      .getByRole("button", { name: "Create project", exact: true })
+      .click()
+    await expectUI(
+      dialog.getByLabel("Project name", { exact: true })
+    ).toHaveValue("")
+    await page.keyboard.press("Escape")
+    await page.reload()
+    await expectUI(
+      page.getByText("浏览器创建项目", { exact: true })
+    ).toBeVisible()
+    await mkdir("test-results/s7", { recursive: true })
+    await page.screenshot({
+      path: "test-results/s7/project-create.png",
+      fullPage: true,
+    })
+  })
+
   it("注册后刷新恢复会话，登出后刷新仍需登录，错误密码可纠正重试", async () => {
     await page.goto(frontends[0].resolvedUrls.local[0] + "app/")
     await registerAccount(page, { ...credentials, name: "S4 用户" })

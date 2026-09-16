@@ -12,31 +12,32 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tanstack/react-form": "1.33.5",
+    "@tanstack/react-query": "5.102.8",
+    "@tanstack/react-router": "1.170.36",
+    "@workspace/admin": "workspace:*",
     "@workspace/api-client": "workspace:*",
     "@workspace/contracts": "workspace:*",
+    "@workspace/i18n": "workspace:*",
     "@workspace/ui": "workspace:*",
     "lucide-react": "1.46.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "@workspace/admin": "workspace:*",
-    "@tanstack/react-router": "1.170.36",
-    "@tanstack/react-form": "1.33.5",
-    "@tanstack/react-query": "5.102.8",
-    "zod": "4.6.5",
-    "@workspace/i18n": "workspace:*",
-    "react-i18next": "17.0.14"
+    "react-i18next": "17.0.14",
+    "zod": "4.6.5"
   },
   "devDependencies": {
+    "@storybook/react-vite": "10.6.0",
     "@tailwindcss/vite": "4.3.3",
     "@types/node": "26.5.1",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.1",
     "@workspace/eslint-config": "workspace:*",
-    "@workspace/typescript-config": "workspace:*",
     "@workspace/mocks": "workspace:*",
-    "@storybook/react-vite": "10.6.0",
+    "@workspace/typescript-config": "workspace:*",
     "eslint": "10.10.0",
+    "storybook": "10.6.0",
     "typescript": "6.0.3",
     "vite": "8.3.0"
   }

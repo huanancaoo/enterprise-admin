@@ -4,20 +4,30 @@
  * Enterprise Foundation API
  * OpenAPI spec version: 0.1.0
  */
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery } from "@tanstack/react-query"
 import type {
   DataTag,
   DefinedInitialDataOptions,
   DefinedUseQueryResult,
+  MutationFunction,
   QueryClient,
   QueryFunction,
   QueryKey,
   UndefinedInitialDataOptions,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from "@tanstack/react-query"
 
 import type {
+  CreateProject201,
+  CreateProject400,
+  CreateProject401,
+  CreateProject403,
+  CreateProject500,
+  CreateProjectBody,
+  CreateProjectHeaders,
   ListProjects200,
   ListProjects400,
   ListProjects401,
@@ -52,6 +62,168 @@ const withQueryKey = <T extends object, K>(
   return result
 }
 
+export type createProjectResponse201 = {
+  data: CreateProject201
+  status: 201
+}
+
+export type createProjectResponse400 = {
+  data: CreateProject400
+  status: 400
+}
+
+export type createProjectResponse401 = {
+  data: CreateProject401
+  status: 401
+}
+
+export type createProjectResponse403 = {
+  data: CreateProject403
+  status: 403
+}
+
+export type createProjectResponse500 = {
+  data: CreateProject500
+  status: 500
+}
+
+export type createProjectResponseSuccess = createProjectResponse201 & {
+  headers: Headers
+}
+export type createProjectResponseError = (
+  | createProjectResponse400
+  | createProjectResponse401
+  | createProjectResponse403
+  | createProjectResponse500
+) & {
+  headers: Headers
+}
+
+export const getCreateProjectUrl = (organizationId: string) => {
+  return `/api/v1/organizations/${organizationId}/projects`
+}
+
+export const createProject = async (
+  organizationId: string,
+  createProjectBody: CreateProjectBody,
+  headers?: CreateProjectHeaders,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<createProjectResponseSuccess> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {}
+    if (h instanceof Headers) return Object.fromEntries(h.entries())
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string]
+        )
+      )
+    }
+    const headers: Record<string, string | readonly string[]> = {}
+    for (const [name, value] of Object.entries<
+      string | readonly string[] | undefined
+    >(h)) {
+      if (value !== undefined) headers[name] = value
+    }
+    return headers
+  }
+  return apiClient<createProjectResponseSuccess>(
+    getCreateProjectUrl(organizationId),
+    {
+      ...options,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...headers,
+        ...getHeaders(options?.headers),
+      },
+      body: JSON.stringify(createProjectBody),
+    }
+  )
+}
+
+export const getCreateProjectMutationKey = () => ["createProject"] as const
+
+export const getCreateProjectMutationOptions = <
+  TError = ErrorType<
+    CreateProject400 | CreateProject401 | CreateProject403 | CreateProject500
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createProject>>,
+    TError,
+    CreateProjectMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createProject>>,
+  TError,
+  CreateProjectMutationVariables,
+  TContext
+> => {
+  const mutationKey = getCreateProjectMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createProject>>,
+    CreateProjectMutationVariables
+  > = (props) => {
+    const { organizationId, data, headers } = props ?? {}
+
+    return createProject(organizationId, data, headers, requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type CreateProjectMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createProject>>
+>
+export type CreateProjectMutationBody = CreateProjectBody
+export type CreateProjectMutationError = ErrorType<
+  CreateProject400 | CreateProject401 | CreateProject403 | CreateProject500
+>
+export type CreateProjectMutationVariables = {
+  organizationId: string
+  data: CreateProjectBody
+  headers?: CreateProjectHeaders
+}
+
+export const useCreateProject = <
+  TError = ErrorType<
+    CreateProject400 | CreateProject401 | CreateProject403 | CreateProject500
+  >,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createProject>>,
+      TError,
+      CreateProjectMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof createProject>>,
+  TError,
+  CreateProjectMutationVariables,
+  TContext
+> => {
+  return useMutation(getCreateProjectMutationOptions(options), queryClient)
+}
 export type listProjectsResponse200 = {
   data: ListProjects200
   status: 200

@@ -32,11 +32,12 @@ describe("API contracts", () => {
   it("创建不能覆盖租户归属，名称去空白且必须存在", () => {
     expect(
       CreateProjectSchema.parse({ name: "  项目  ", description: null })
-    ).toEqual({ name: "项目", description: null, status: "draft" })
+    ).toEqual({ name: "项目", description: null })
     for (const input of [
       { name: " ", description: null },
       { name: "项目", description: null, organizationId: "other" },
       { name: "项目", description: null, contentLocale: "fr" },
+      { name: "项目", description: null, status: "active" },
     ]) {
       expect(CreateProjectSchema.safeParse(input).success).toBe(false)
     }

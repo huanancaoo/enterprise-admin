@@ -194,3 +194,33 @@ test("租户 Repository 禁止导入 Pool、db 工厂和租户事务运行入口
     }
   })
 })
+
+test("区分同名 npm 工具和 workspace 应用，仍拒绝应用间源码依赖", () => {
+  withWorkspace(["apps/*"], ({ root, write, pkg }) => {
+    pkg("apps/admin", "admin", { devDependencies: { storybook: "10.6.0" } })
+    pkg("apps/storybook", "storybook")
+    write("apps/admin/src/index.ts", 'import "storybook/test"')
+    assert.deepEqual(checkBoundaries(root), [])
+    write("apps/admin/src/index.ts", 'import "../../storybook/src/index"')
+    assert.equal(checkBoundaries(root).length, 1)
+    write("apps/admin/src/index.ts", 'import "storybook/test"')
+    pkg("apps/admin", "admin", {
+      devDependencies: { storybook: "workspace:*" },
+    })
+    assert.equal(checkBoundaries(root).length, 1)
+  })
+})
+
+test("本地 file/link 依赖不能以显式版本名绕过边界", () => {
+  withWorkspace(["apps/*", "packages/*"], ({ root, pkg }) => {
+    pkg("packages/database", "@workspace/database")
+    for (const protocol of ["file", "link"]) {
+      pkg("apps/admin", "admin", {
+        dependencies: {
+          "@workspace/database": `${protocol}:../../packages/database`,
+        },
+      })
+      assert.equal(checkBoundaries(root).length, 1)
+    }
+  })
+})

@@ -19,6 +19,10 @@
     "./repositories/projects": {
       "types": "./dist/repositories/projects.d.ts",
       "default": "./dist/repositories/projects.js"
+    },
+    "./repositories/audit": {
+      "types": "./dist/repositories/audit.d.ts",
+      "default": "./dist/repositories/audit.js"
     }
   },
   "scripts": {

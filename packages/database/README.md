@@ -59,12 +59,12 @@ API / Worker 启动脚本不运行迁移。运行账号、平台账号、迁移�
 
 ## 角色和访问范围
 
-| 角色               | 权限                                                                                                                            |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
-| `bootstrap_admin`  | PostgreSQL 镜像初始化角色，拥有数据库；只用于首次初始化/运维                                                                    |
-| `app_migrator`     | 非超级用户，可建 schema、持有应用表和迁移 ledger；无创建数据库/角色或 BYPASSRLS 权限                                            |
-| `app_runtime`      | 非 Owner；认证八表及 RLS 约束下的 Projects 两表 SELECT/INSERT/UPDATE/DELETE；无 DDL、TEMP、TRUNCATE、迁移 ledger 或角色切换权限 |
-| `platform_runtime` | 非 Owner；只读 user 公开身份列、organization 运营列和 member 关系列；无 account/session/verification 权限                       |
+| 角色               | 权限                                                                                                                                                           |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bootstrap_admin`  | PostgreSQL 镜像初始化角色，拥有数据库；只用于首次初始化/运维                                                                                                   |
+| `app_migrator`     | 非超级用户，可建 schema、持有应用表和迁移 ledger；无创建数据库/角色或 BYPASSRLS 权限                                                                           |
+| `app_runtime`      | 非 Owner；认证八表及 RLS 约束下的 Projects 两表 SELECT/INSERT/UPDATE/DELETE；audit_events 仅 SELECT/INSERT；无 DDL、TEMP、TRUNCATE、迁移 ledger 或角色切换权限 |
+| `platform_runtime` | 非 Owner；只读 user 公开身份列、organization 运营列和 member 关系列；无 account/session/verification 权限                                                      |
 
 S4-04 已增加组织 `enabled` 字段：现有及新建组织默认 true，客户端不能设置。`app_runtime` 对 organization 的 UPDATE 仅限原有资料列，不能修改 enabled；`platform_runtime` 可 SELECT/UPDATE enabled。平台授权、启停 HTTP 操作、平台设置和审计仍属于 S8；平台数据库账号本身不等同于 HTTP 请求已经获得平台授权。
 
@@ -100,3 +100,9 @@ TenantTx 品牌阻止普通 db/Pool 作为 Repository 参数；`pnpm lint:bounda
 迁移 0006/0007 增加 user.preferred_locale（可空）与 organization.default_locale（默认 zh-CN），并限制支持语言。app_runtime 获得 default_locale 列的 UPDATE 权限，不能修改 enabled。迁移仍只由 one-shot migrator 执行。
 
 `projectRepository.listPage(tx, query)` 在 TenantTx 内按请求 locale 解析整条译文，执行分页、筛选与稳定排序，同时返回 total。基础译文缺失视为数据完整性错误。详见 [S5 实施与验证记录](../../docs/architecture/s5-validation.md)。
+
+## Projects 创建审计
+
+迁移 0008/0009 建立 `audit_events` 及 ENABLE/FORCE RLS，只授予 `app_runtime` SELECT/INSERT。审计 Repository 接收 `TenantTx`，actorId、organizationId 和 requestId 来自可信事务上下文；资源 ID 和身份 ID 作为历史事实保存，不引用会级联删除的业务外键。
+
+正式创建接口将 Project、基础译文与 `project.created` 放入同一事务，审计写入失败全部回滚。未显式指定 contentLocale 时，在事务内读取组织 defaultLocale，不使用请求界面语言。

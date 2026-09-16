@@ -144,7 +144,7 @@ describe(suiteName, { concurrent: false }, () => {
           "SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename"
         )
       ).rows.map((row) => row.tablename),
-      tables
+      [...tables, "audit_events"].sort()
     )
   })
 
@@ -190,6 +190,17 @@ describe(suiteName, { concurrent: false }, () => {
         )
     }
     await assert.rejects(runtime.query("SET ROLE platform_runtime"), {
+      code: "42501",
+    })
+    assert.deepEqual(
+      (
+        await runtime.query(
+          "SELECT has_table_privilege(current_user, 'audit_events', 'SELECT') AS read, has_table_privilege(current_user, 'audit_events', 'INSERT') AS append, has_table_privilege(current_user, 'audit_events', 'UPDATE') AS update, has_table_privilege(current_user, 'audit_events', 'DELETE') AS delete"
+        )
+      ).rows[0],
+      { read: true, append: true, update: false, delete: false }
+    )
+    await assert.rejects(platform.query("SELECT * FROM audit_events"), {
       code: "42501",
     })
     for (const table of tables) {
