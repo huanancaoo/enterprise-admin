@@ -185,7 +185,15 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 
 **依赖：** S5、S6；复用 S3 的 Schema、Repository 和安全基础。
 
+本地实施及全链路业务验收已完成，见 [S7 验收记录](s7-validation.md)。
+
 不要先完成所有后端接口，再一次性补前端。每个操作都推进到 Contract、SDK、页面和测试。
+
+- [x] S7-01 列表：List Query、Repository scope、分页/排序/筛选、OpenAPI 与 Orval 客户端、Router Search → Query → Table；刷新保留筛选，切租户隔离视图。
+- [x] S7-02 创建：Create、组织动作权限、租户事务、`project.created` 审计事件、TanStack Form + Zod → Mutation；成功失效列表并 reset，失败保留草稿，组织归属不可篡改。
+- [x] S7-03 详情与更新：Get/Patch、Domain Policy、`project.updated` 审计、详情呈现与编辑表单；仅授权资源可修改，草稿不被静默覆盖。
+- [x] S7-04 多语言内容：ProjectTranslations、`project:translate` 权限、tenant scope、`project.translation.updated` 审计、内容多语言编辑器；多语言整条解析，Arabic RTL 适配。
+- [x] S7-05 删除：Delete、Policy、事务、级联删除译文、保留审计日志、`ConfirmDangerAction` 确认交互；删除后列表即时更新，原详情 URL 返回 404。
 
 | 子步骤 | 后端与契约 | 前端 | 主要验收 |
 |---|---|---|---|

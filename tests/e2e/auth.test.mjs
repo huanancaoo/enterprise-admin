@@ -24,6 +24,7 @@ import {
   projectTranslations,
 } from "../../packages/database/dist/schema/projects.js"
 import { auditEvents } from "../../packages/database/dist/schema/audit.js"
+import { eq } from "../../packages/database/node_modules/drizzle-orm/index.js"
 
 const require = createRequire(import.meta.url)
 const {
@@ -634,6 +635,298 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await expectUI(
       page.getByRole("heading", { name: "未找到项目", exact: true })
     ).toBeVisible()
+  })
+
+  it("S7：完整业务流程 Login → Org → Create → Edit → DataTable Filter/Sort/Pagination → Delete 并验证审计与持久化", async () => {
+    // 1. 真实登录与创建组织
+    await page.goto(frontends[0].resolvedUrls.local[0] + "app/")
+    await registerAccount(page, {
+      name: "全流程用户",
+      email: "project-full-flow@example.test",
+      password: credentials.password,
+    })
+    await page.getByLabel("组织名称", { exact: true }).fill("全流程验收组织")
+    await page.getByLabel("组织标识", { exact: true }).fill("full-flow-org")
+    await page.getByRole("button", { name: "创建组织", exact: true }).click()
+    await expectUI(
+      page.getByRole("heading", {
+        name: "当前组织：全流程验收组织",
+        exact: true,
+      })
+    ).toBeVisible()
+    await page.getByRole("link", { name: "查看项目", exact: true }).click()
+    await expectUI(page).toHaveURL(/\/app\/projects\/[0-9a-f-]+(?:\?.*)?$/)
+    const organizationId = new URL(page.url()).pathname.split("/").at(-1)
+    expect(organizationId).toBeTruthy()
+
+    // 2. 预置数据（10 个草稿、10 个活跃、4 个已归档），构造多状态且跨页（>20 条）的数据集
+    const cookie = (await context.cookies())
+      .map(({ name, value }) => `${name}=${value}`)
+      .join("; ")
+    const tenant = await tenantContexts.resolve(
+      new Headers({ cookie }),
+      String(organizationId),
+      { project: ["create", "update", "delete"] },
+      "e2e-full-workflow-seed",
+      new RequestLanguage(null)
+    )
+    await createTenantRunner(runtime.pool)(tenant, async (tx) => {
+      for (let i = 1; i <= 24; i += 1) {
+        const status = i <= 10 ? "draft" : i <= 20 ? "active" : "archived"
+        const p = await projectRepository.create(tx, {
+          name: `批量项目 ${String(i).padStart(2, "0")}`,
+          description: `批量描述 ${i}`,
+          contentLocale: "zh-CN",
+        })
+        if (status !== "draft") {
+          await projectRepository.updateStatus(tx, p.id, status)
+        }
+        const fakeDate = new Date(Date.UTC(2026, 0, i, 10, 0, 0))
+        await tx
+          .update(projects)
+          .set({ createdAt: fakeDate, updatedAt: fakeDate })
+          .where(eq(projects.id, p.id))
+      }
+    })
+
+    await page.reload()
+    await expectUI(page.getByText("共 24 条")).toBeVisible()
+
+    // 3. 真实弹窗创建主项目，验证列表实时展示与总数累加
+    await page.getByRole("button", { name: "创建项目", exact: true }).click()
+    const createDialog = page.getByRole("dialog")
+    await createDialog
+      .getByLabel("项目名称", { exact: true })
+      .fill("全流程核心项目")
+    await createDialog
+      .getByLabel("描述", { exact: true })
+      .fill("核心项目初始草稿描述")
+    await createDialog
+      .getByRole("button", { name: "创建项目", exact: true })
+      .click()
+    await expectUI(createDialog).toHaveCount(0)
+    await expectUI(
+      page.getByText("全流程核心项目", { exact: true })
+    ).toBeVisible()
+    await expectUI(page.getByText("共 25 条")).toBeVisible()
+
+    // 4. 进入详情，编辑状态为“活跃”并补充英文译文，验证 RTL 切换下草稿保持与最终持久化
+    await page
+      .getByRole("link", { name: "全流程核心项目", exact: true })
+      .click()
+    await expectUI(page).toHaveURL(
+      new RegExp(`/app/projects/${organizationId}/[0-9a-f-]+$`)
+    )
+    const projectId = new URL(page.url()).pathname.split("/").at(-1)
+    expect(projectId).toBeTruthy()
+
+    await expectUI(
+      page.getByRole("heading", { name: "全流程核心项目", exact: true })
+    ).toBeVisible()
+    await expectUI(
+      page.getByText("核心项目初始草稿描述", { exact: true })
+    ).toBeVisible()
+    await expectUI(page.getByText("草稿", { exact: true })).toBeVisible()
+
+    await page.getByRole("button", { name: "编辑项目", exact: true }).click()
+    const editDialog = page.getByRole("dialog")
+
+    // 维护英文译文（先选内容语言，再填写内容与调整状态）
+    await editDialog.getByLabel("编辑内容语言", { exact: true }).click()
+    await page.getByRole("option", { name: "English", exact: true }).click()
+    await editDialog
+      .getByLabel("项目名称", { exact: true })
+      .fill("Core Workflow Project")
+    await editDialog
+      .getByLabel("描述", { exact: true })
+      .fill("Core project English description")
+
+    // 修改状态为“活跃”
+    await editDialog.getByLabel("状态", { exact: true }).click()
+    await page.getByRole("option", { name: "活跃", exact: true }).click()
+
+    // 验证切换界面语言为阿拉伯文（RTL）时保留英文草稿
+    await editDialog.getByLabel("语言", { exact: true }).click()
+    await page.getByRole("option", { name: "العربية", exact: true }).click()
+    await expectUI(page.locator("html")).toHaveAttribute("dir", "rtl")
+    await expectUI(
+      editDialog.locator("#project-edit-content-locale")
+    ).toHaveText(/en-US/)
+    await expectUI(editDialog.locator("#project-edit-name")).toHaveValue(
+      "Core Workflow Project"
+    )
+
+    // 切回简体中文界面提交
+    await editDialog.getByLabel("اللغة", { exact: true }).click()
+    await page.getByRole("option", { name: "简体中文", exact: true }).click()
+    await expectUI(page.locator("html")).toHaveAttribute("dir", "ltr")
+
+    await editDialog
+      .getByRole("button", { name: "保存项目", exact: true })
+      .click()
+    await expectUI(editDialog).toHaveCount(0)
+    await expectUI(page.getByText("活跃", { exact: true })).toBeVisible()
+
+    await page.reload()
+    await expectUI(page.getByText("活跃", { exact: true })).toBeVisible()
+
+    // 切换界面语言为 English，验证详情根据请求语言正确解析整条英文译文
+    await selectAdminLocale(page, "全流程用户", "语言", "English")
+    await expectUI(
+      page.getByRole("heading", {
+        name: "Core Workflow Project",
+        exact: true,
+      })
+    ).toBeVisible()
+    await expectUI(
+      page.getByText("Core project English description", { exact: true })
+    ).toBeVisible()
+
+    // 切回简体中文
+    await selectAdminLocale(page, "全流程用户", "Language", "简体中文")
+    await expectUI(
+      page.getByRole("heading", { name: "全流程核心项目", exact: true })
+    ).toBeVisible()
+
+    // 5. 返回列表，验证 DataTable 内置交互（状态筛选、名称搜索、时间排序、分页以及刷新保留）
+    await page.getByRole("link", { name: "返回项目列表", exact: true }).click()
+    await expectUI(page).toHaveURL(
+      new RegExp(`/app/projects/${organizationId}(?:\\?.*)?$`)
+    )
+
+    // 5a. 状态筛选：筛选“活跃”状态（10 个预置活跃 + 1 个主项目 = 11 条）
+    await page.getByRole("button", { name: /^状态/ }).click()
+    await page.getByRole("option", { name: "活跃" }).click()
+    await expectUI(page).toHaveURL(/status=active/)
+    await expectUI(
+      page.getByText("全流程核心项目", { exact: true })
+    ).toBeVisible()
+    await expectUI(page.getByText("共 11 条")).toBeVisible()
+
+    // 取消状态筛选，恢复全部 25 条
+    await page.getByRole("option", { name: "活跃" }).click()
+    await expectUI(page.getByText("共 25 条")).toBeVisible()
+    await page.keyboard.press("Escape")
+
+    // 5b. 名称搜索：命中核心项目，并同步 URL
+    await page
+      .getByRole("textbox", { name: "搜索项目名称", exact: true })
+      .fill("全流程核心项目")
+    await page.getByRole("button", { name: "搜索", exact: true }).click()
+    await expectUI(page).toHaveURL(/name=/)
+    await expectUI(
+      page.getByText("全流程核心项目", { exact: true })
+    ).toBeVisible()
+    await expectUI(page.getByText("共 1 条")).toBeVisible()
+
+    // 清空搜索恢复全部数据
+    await page
+      .getByRole("textbox", { name: "搜索项目名称", exact: true })
+      .fill("")
+    await page.getByRole("button", { name: "搜索", exact: true }).click()
+    await expectUI(page.getByText("共 25 条")).toBeVisible()
+
+    // 5c. 列头排序：点击“创建时间”切换排序
+    await page.getByRole("button", { name: "创建时间", exact: true }).click()
+    await expectUI(page).toHaveURL(/sortBy=createdAt/)
+
+    // 5d. 分页导航：点击第 2 页，验证 URL 更新为 page=2 且展示跨页剩余数据
+    await page.getByRole("button", { name: "2", exact: true }).click()
+    await expectUI(page).toHaveURL(/page=2/)
+    await expectUI(page.getByText("共 25 条")).toBeVisible()
+
+    // 5e. 刷新保留筛选/分页/排序条件
+    await page.reload()
+    await expectUI(page).toHaveURL(/page=2/)
+    await expectUI(page).toHaveURL(/sortBy=createdAt/)
+    await expectUI(page.getByText("共 25 条")).toBeVisible()
+
+    // 切回第 1 页
+    await page.getByRole("button", { name: "1", exact: true }).click()
+    await expectUI(page).toHaveURL(/page=1/)
+
+    // 再次点击“创建时间”切换排序回降序，确保主项目在第 1 页
+    await page.getByRole("button", { name: "创建时间", exact: true }).click()
+    await expectUI(page).toHaveURL(/sortOrder=desc/)
+    await expectUI(
+      page.getByRole("link", { name: "全流程核心项目", exact: true })
+    ).toBeVisible()
+
+    // 6. 进入详情并确认硬删除，验证列表同步移出、总数递减以及 404
+    await page
+      .getByRole("link", { name: "全流程核心项目", exact: true })
+      .click()
+    await expectUI(page).toHaveURL(
+      new RegExp(`/app/projects/${organizationId}/${projectId}$`)
+    )
+
+    await page.getByRole("button", { name: "删除项目", exact: true }).click()
+    const alertDialog = page.getByRole("alertdialog")
+    await alertDialog.getByRole("button", { name: "取消", exact: true }).click()
+    await expectUI(alertDialog).toHaveCount(0)
+    await expectUI(
+      page.getByRole("heading", { name: "全流程核心项目", exact: true })
+    ).toBeVisible()
+
+    await page.getByRole("button", { name: "删除项目", exact: true }).click()
+    await alertDialog
+      .getByRole("button", { name: "删除项目", exact: true })
+      .click()
+
+    await expectUI(page).toHaveURL(
+      new RegExp(`/app/projects/${organizationId}(?:\\?.*)?$`)
+    )
+    await expectUI(
+      page.getByRole("link", { name: "全流程核心项目", exact: true })
+    ).toHaveCount(0)
+    await expectUI(page.getByText("共 24 条")).toBeVisible()
+
+    // 直接访问详情返回 404
+    await page.goto(
+      `${frontends[0].resolvedUrls.local[0]}app/projects/${organizationId}/${projectId}`
+    )
+    await expectUI(
+      page.getByRole("heading", { name: "未找到项目", exact: true })
+    ).toBeVisible()
+
+    // 7. 数据库不变量与审计不可篡改性校验
+    const dbState = await createTenantRunner(runtime.pool)(
+      tenant,
+      async (tx) => ({
+        project: await projectRepository.find(tx, String(projectId)),
+        translations: await projectRepository.translations(
+          tx,
+          String(projectId)
+        ),
+        audits: await tx.select().from(auditEvents),
+      })
+    )
+    expect(dbState.project).toBeUndefined()
+    expect(dbState.translations).toEqual([])
+
+    const projectAudits = dbState.audits.filter(
+      (event) => event.resourceId === projectId
+    )
+    expect(
+      projectAudits.some((event) => event.eventCode === "project.created")
+    ).toBe(true)
+    expect(
+      projectAudits.some((event) => event.eventCode === "project.updated")
+    ).toBe(true)
+    expect(
+      projectAudits.some(
+        (event) => event.eventCode === "project.translation.updated"
+      )
+    ).toBe(true)
+    expect(
+      projectAudits.some((event) => event.eventCode === "project.deleted")
+    ).toBe(true)
+
+    await mkdir("test-results/s7", { recursive: true })
+    await page.screenshot({
+      path: "test-results/s7/workflow-success.png",
+      fullPage: true,
+    })
   })
 
   it("注册后刷新恢复会话，登出后刷新仍需登录，错误密码可纠正重试", async () => {
