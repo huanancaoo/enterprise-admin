@@ -1,0 +1,6 @@
+interface:
+  display_name: "前端交互决策"
+  short_description: "按业务语义选择交互载体、表单控件、布局与数据表格方案"
+
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "frontend-interaction-decisions": {
+      "source": "huanancaoo/skills",
+      "sourceType": "github",
+      "skillPath": "skills/frontend-interaction-decisions/SKILL.md",
+      "computedHash": "1a77baf616d6218bfb85917e3ccc6c7a4119214c72b15f63ceabe9c2a44970b5"
+    }
+  }
+}
