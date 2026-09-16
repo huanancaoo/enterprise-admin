@@ -9,6 +9,8 @@
   "description": "Description",
   "detail": "Project details",
   "draft": "Draft",
+  "edit": "Edit project",
+  "editDescription": "Select a content language, then edit its name, description, and status.",
   "emptyDescription": "Create the first project and it will appear here.",
   "emptyTitle": "No projects yet",
   "name": "Project name",
@@ -17,9 +19,13 @@
   "notFoundTitle": "Project not found",
   "open": "View projects",
   "organizationDefault": "Use organization default",
+  "refreshServerContent": "Refresh server content",
   "resolvedLocale": "Displayed content language",
+  "save": "Save project",
   "searchPlaceholder": "Search by project name",
   "status": "Status",
+  "targetLocale": "Content language to edit",
   "title": "Projects",
+  "translationLoadFailed": "The selected content language could not be loaded.",
   "updatedAt": "Updated at"
 }

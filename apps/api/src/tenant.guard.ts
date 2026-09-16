@@ -19,6 +19,8 @@ import { getRequestLanguage } from './request-language';
 const tenantPermissions = Symbol('tenantPermissions');
 const trustedContext = Symbol('trustedTenantContext');
 type TenantRequest = Request & { [trustedContext]?: TenantContext };
+type TenantPermissionRequirement =
+  PermissionRequest | { anyOf: readonly PermissionRequest[] };
 
 @Injectable()
 export class TenantGuard implements CanActivate {
@@ -28,15 +30,12 @@ export class TenantGuard implements CanActivate {
   ) {}
 
   async canActivate(execution: ExecutionContext): Promise<boolean> {
-    const permissions = this.reflector.getAllAndOverride<PermissionRequest>(
-      tenantPermissions,
-      [execution.getHandler(), execution.getClass()],
-    );
-    if (
-      !permissions ||
-      Object.keys(permissions).length === 0 ||
-      Object.values(permissions).some((actions) => actions.length === 0)
-    )
+    const requirement =
+      this.reflector.getAllAndOverride<TenantPermissionRequirement>(
+        tenantPermissions,
+        [execution.getHandler(), execution.getClass()],
+      );
+    if (!requirement || !validRequirement(requirement))
       throw new InternalServerErrorException(
         'Tenant permissions must be declared',
       );
@@ -52,13 +51,24 @@ export class TenantGuard implements CanActivate {
       throw new InternalServerErrorException(
         'Request logging middleware is required',
       );
-    request[trustedContext] = await this.contexts.resolve(
-      fromNodeHeaders(request.headers),
-      organizationId,
-      permissions,
-      requestId,
-      getRequestLanguage(response),
-    );
+    const headers = fromNodeHeaders(request.headers);
+    const language = getRequestLanguage(response);
+    request[trustedContext] =
+      'anyOf' in requirement
+        ? await this.contexts.resolveAny(
+            headers,
+            organizationId,
+            requirement.anyOf,
+            requestId,
+            language,
+          )
+        : await this.contexts.resolve(
+            headers,
+            organizationId,
+            requirement,
+            requestId,
+            language,
+          );
     return true;
   }
 }
@@ -67,6 +77,26 @@ export function RequireTenant(permissions: PermissionRequest) {
   return applyDecorators(
     SetMetadata(tenantPermissions, permissions),
     UseGuards(TenantGuard),
+  );
+}
+
+export function RequireTenantAny(...alternatives: PermissionRequest[]) {
+  return applyDecorators(
+    SetMetadata(tenantPermissions, { anyOf: alternatives }),
+    UseGuards(TenantGuard),
+  );
+}
+
+function validRequirement(requirement: TenantPermissionRequirement): boolean {
+  const alternatives =
+    'anyOf' in requirement ? requirement.anyOf : [requirement];
+  return (
+    alternatives.length > 0 &&
+    alternatives.every(
+      (permissions) =>
+        Object.keys(permissions).length > 0 &&
+        Object.values(permissions).every((actions) => actions.length > 0),
+    )
   );
 }
 

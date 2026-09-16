@@ -74,6 +74,35 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
         },
       }
     )
+  const queryTranslation = (
+    organizationId,
+    projectId,
+    locale,
+    session = cookie
+  ) =>
+    fetch(
+      `${baseURL}/api/v1/organizations/${organizationId}/projects/${projectId}/translations/${locale}`,
+      { headers: { cookie: session } }
+    )
+  const patchProject = (
+    organizationId,
+    projectId,
+    body,
+    session = cookie,
+    locale = "en-US"
+  ) =>
+    fetch(
+      `${baseURL}/api/v1/organizations/${organizationId}/projects/${projectId}`,
+      {
+        method: "PATCH",
+        headers: {
+          cookie: session,
+          "content-type": "application/json",
+          "accept-language": locale,
+        },
+        body: JSON.stringify(body),
+      }
+    )
   beforeAll(async () => {
     const versions = JSON.parse(
       await readFile("docs/architecture/versions.json", "utf8")
@@ -720,6 +749,248 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
       (await listProjects(orgB.id, undefined, { "Accept-Language": "en-US" }))
         .data.total
     ).toBe(before)
+  })
+  it("更新按实际字段授权，维护原始目标译文并与审计同事务提交", async () => {
+    const editable = await createTenantRunner(runtime.pool)(contextB, (tx) =>
+      projectRepository.create(tx, {
+        name: "更新前中文名称",
+        description: "更新前中文描述",
+        contentLocale: "zh-CN",
+      })
+    )
+    const ownerUpdate = await patchProject(
+      orgB.id,
+      editable.id,
+      {
+        status: "active",
+        translation: {
+          locale: "en-US",
+          name: "  Updated English name  ",
+          description: null,
+        },
+      },
+      cookie,
+      "en-US"
+    )
+    expect(ownerUpdate.status).toBe(200)
+    expect(await ownerUpdate.json()).toMatchObject({
+      id: editable.id,
+      organizationId: orgB.id,
+      status: "active",
+      contentLocale: "zh-CN",
+      resolvedLocale: "en-US",
+      name: "Updated English name",
+      description: null,
+    })
+    const english = await queryTranslation(orgB.id, editable.id, "en-US")
+    expect(english.status).toBe(200)
+    expect(await english.json()).toEqual({
+      locale: "en-US",
+      name: "Updated English name",
+      description: null,
+    })
+    const chinese = await queryTranslation(orgB.id, editable.id, "zh-CN")
+    expect(chinese.status).toBe(200)
+    expect(await chinese.json()).toEqual({
+      locale: "zh-CN",
+      name: "更新前中文名称",
+      description: "更新前中文描述",
+    })
+    const signup = await fetch(`${baseURL}/api/auth/sign-up/email`, {
+      method: "POST",
+      headers: { origin, "content-type": "application/json" },
+      body: JSON.stringify({
+        name: "Project translator",
+        email: "project-translator@example.test",
+        password: randomBytes(24).toString("hex"),
+      }),
+    })
+    expect(signup.status).toBe(200)
+    const translator = await signup.json()
+    const translatorCookie = signup.headers
+      .getSetCookie()
+      .map((item) => item.split(";")[0])
+      .join("; ")
+    await runtime.auth.api.createOrgRole({
+      headers: new Headers({ cookie }),
+      body: {
+        organizationId: orgB.id,
+        role: "project-translator",
+        permission: { project: ["translate"] },
+      },
+    })
+    await runtime.auth.api.addMember({
+      body: {
+        organizationId: orgB.id,
+        userId: translator.user.id,
+        role: "project-translator",
+      },
+    })
+    const translatorUpdate = await patchProject(
+      orgB.id,
+      editable.id,
+      { translation: { locale: "zh-CN", description: null } },
+      translatorCookie
+    )
+    expect(translatorUpdate.status).toBe(200)
+    const translatedChinese = await queryTranslation(
+      orgB.id,
+      editable.id,
+      "zh-CN",
+      translatorCookie
+    )
+    expect(await translatedChinese.json()).toEqual({
+      locale: "zh-CN",
+      name: "更新前中文名称",
+      description: null,
+    })
+    const forbiddenMixedUpdate = await patchProject(
+      orgB.id,
+      editable.id,
+      {
+        status: "archived",
+        translation: { locale: "ar", name: "اسم مشروع", description: null },
+      },
+      translatorCookie
+    )
+    expect(forbiddenMixedUpdate.status).toBe(403)
+    expect(await queryTranslation(orgB.id, editable.id, "ar")).toMatchObject({
+      status: 404,
+    })
+    expect(
+      (await getProject(orgB.id, editable.id, { "Accept-Language": "en-US" }))
+        .data.status
+    ).toBe("active")
+
+    const arabicUpdate = await patchProject(orgB.id, editable.id, {
+      translation: {
+        locale: "ar",
+        name: "مشروع محدّث",
+        description: "وصف عربي",
+      },
+    })
+    expect(arabicUpdate.status).toBe(200)
+    expect(await queryTranslation(orgB.id, editable.id, "ar")).toMatchObject({
+      status: 200,
+    })
+
+    const archivedUpdate = await patchProject(orgB.id, editable.id, {
+      status: "archived",
+    })
+    expect(archivedUpdate.status).toBe(200)
+    const archivedContentUpdate = await patchProject(orgB.id, editable.id, {
+      translation: { locale: "ar", description: "归档后仍可编辑" },
+    })
+    expect(archivedContentUpdate.status).toBe(200)
+    const sameStatusUpdate = await patchProject(orgB.id, editable.id, {
+      status: "archived",
+    })
+    expect(sameStatusUpdate.status).toBe(200)
+
+    await runtime.auth.api.updateOrgRole({
+      headers: new Headers({ cookie }),
+      body: {
+        organizationId: orgB.id,
+        roleName: "project-translator",
+        data: { permission: { project: ["read"] } },
+      },
+    })
+    expect(
+      (
+        await patchProject(
+          orgB.id,
+          editable.id,
+          { translation: { locale: "en-US", description: "Revoked" } },
+          translatorCookie
+        )
+      ).status
+    ).toBe(403)
+
+    for (const body of [
+      { contentLocale: "en-US" },
+      { organizationId: orgA.id },
+      { translation: { locale: "ar", name: "   " } },
+    ])
+      expect((await patchProject(orgB.id, editable.id, body)).status).toBe(400)
+    expect(
+      (
+        await patchProject(orgA.id, editable.id, {
+          translation: { locale: "ar", description: "cross org" },
+        })
+      ).status
+    ).toBe(404)
+
+    const records = await createTenantRunner(runtime.pool)(contextB, (tx) =>
+      tx.select().from(auditEvents)
+    )
+    expect(
+      records.filter((record) => record.resourceId === editable.id)
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          eventCode: "project.updated",
+          fields: { status: "active" },
+        }),
+        expect.objectContaining({
+          eventCode: "project.translation.updated",
+          fields: { locale: "en-US" },
+        }),
+        expect.objectContaining({
+          eventCode: "project.translation.updated",
+          fields: { locale: "zh-CN" },
+        }),
+        expect.objectContaining({
+          eventCode: "project.translation.updated",
+          fields: { locale: "ar" },
+        }),
+        expect.objectContaining({
+          eventCode: "project.updated",
+          fields: { status: "archived" },
+        }),
+      ])
+    )
+    expect(
+      records.filter(
+        (record) =>
+          record.resourceId === editable.id &&
+          record.eventCode === "project.updated" &&
+          record.fields.status === "archived"
+      )
+    ).toHaveLength(1)
+  })
+  it("审计写入失败时更新与译文写入一起回滚", async () => {
+    const editable = await createTenantRunner(runtime.pool)(contextB, (tx) =>
+      projectRepository.create(tx, {
+        name: "回滚项目",
+        description: "保留描述",
+        contentLocale: "zh-CN",
+      })
+    )
+    await migrator.query("REVOKE INSERT ON audit_events FROM app_runtime")
+    try {
+      expect(
+        (
+          await patchProject(orgB.id, editable.id, {
+            status: "archived",
+            translation: {
+              locale: "zh-CN",
+              name: "不应持久化",
+              description: null,
+            },
+          })
+        ).status
+      ).toBe(500)
+      const response = await getProject(orgB.id, editable.id, {
+        "Accept-Language": "zh-CN",
+      })
+      expect(response.data).toMatchObject({
+        status: "draft",
+        name: "回滚项目",
+        description: "保留描述",
+      })
+    } finally {
+      await migrator.query("GRANT INSERT ON audit_events TO app_runtime")
+    }
   })
   it("基础译文缺失返回500，不悄悄隐藏项目", async () => {
     await createTenantRunner(runtime.pool)(contextA, (tx) =>

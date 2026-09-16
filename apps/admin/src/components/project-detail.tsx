@@ -13,6 +13,7 @@ import {
 import { Badge } from "@workspace/ui/components/badge"
 import { buttonVariants } from "@workspace/ui/components/button"
 import { Card, CardContent } from "@workspace/ui/components/card"
+import { ProjectEdit } from "./project-edit"
 
 const statusBadgeVariant = {
   draft: "secondary",
@@ -70,14 +71,20 @@ export function ProjectDetail({
           <PageHeader
             title={project.name}
             actions={
-              <Link
-                to="/app/projects/$organizationId"
-                params={{ organizationId }}
-                search={{}}
-                className={buttonVariants({ variant: "outline" })}
-              >
-                {t("projects:backToProjects")}
-              </Link>
+              <div className="flex flex-wrap gap-2">
+                <ProjectEdit
+                  organizationId={organizationId}
+                  project={project}
+                />
+                <Link
+                  to="/app/projects/$organizationId"
+                  params={{ organizationId }}
+                  search={{}}
+                  className={buttonVariants({ variant: "outline" })}
+                >
+                  {t("projects:backToProjects")}
+                </Link>
+              </div>
             }
           />
           <Card>

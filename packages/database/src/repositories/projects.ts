@@ -132,6 +132,18 @@ export const projectRepository = {
       .for("update")
     return project
   },
+  async find(tx: TenantTx, projectId: string) {
+    const [project] = await tx
+      .select()
+      .from(projects)
+      .where(
+        and(
+          eq(projects.organizationId, tx.context.organizationId),
+          eq(projects.id, projectId)
+        )
+      )
+    return project
+  },
   list(tx: TenantTx) {
     return tx
       .select()
@@ -148,6 +160,70 @@ export const projectRepository = {
           eq(projectTranslations.projectId, projectId)
         )
       )
+  },
+  async findTranslation(tx: TenantTx, projectId: string, locale: Locale) {
+    const [translation] = await tx
+      .select()
+      .from(projectTranslations)
+      .where(
+        and(
+          eq(projectTranslations.organizationId, tx.context.organizationId),
+          eq(projectTranslations.projectId, projectId),
+          eq(projectTranslations.locale, locale)
+        )
+      )
+    return translation
+  },
+  updateStatus(
+    tx: TenantTx,
+    projectId: string,
+    status: typeof projects.$inferInsert.status
+  ) {
+    return tx
+      .update(projects)
+      .set({ status, updatedAt: new Date() })
+      .where(
+        and(
+          eq(projects.organizationId, tx.context.organizationId),
+          eq(projects.id, projectId)
+        )
+      )
+  },
+  touch(tx: TenantTx, projectId: string) {
+    return tx
+      .update(projects)
+      .set({ updatedAt: new Date() })
+      .where(
+        and(
+          eq(projects.organizationId, tx.context.organizationId),
+          eq(projects.id, projectId)
+        )
+      )
+  },
+  upsertTranslation(
+    tx: TenantTx,
+    input: {
+      projectId: string
+      locale: Locale
+      name: string
+      description: string | null
+    }
+  ) {
+    return tx
+      .insert(projectTranslations)
+      .values({
+        ...input,
+        name: input.name.trim(),
+        organizationId: tx.context.organizationId,
+      })
+      .onConflictDoUpdate({
+        target: [
+          projectTranslations.organizationId,
+          projectTranslations.projectId,
+          projectTranslations.locale,
+        ],
+        set: { name: input.name.trim(), description: input.description },
+      })
   },
   async create(
     tx: TenantTx,

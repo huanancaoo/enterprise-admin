@@ -30,6 +30,13 @@ export const projectKeys = {
       projectId,
       requestLanguage,
     ] as const,
+  translation: (organizationId: string, projectId: string, locale: string) =>
+    [
+      ...projectKeys.all(organizationId),
+      "translation",
+      projectId,
+      locale,
+    ] as const,
 }
 
 export function listProjectsKey(input: {

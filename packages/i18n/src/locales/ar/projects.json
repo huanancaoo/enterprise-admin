@@ -9,6 +9,8 @@
   "description": "الوصف",
   "detail": "تفاصيل المشروع",
   "draft": "مسودة",
+  "edit": "تحرير المشروع",
+  "editDescription": "اختر لغة المحتوى ثم حرّر الاسم والوصف والحالة.",
   "emptyDescription": "أنشئ المشروع الأول وسيظهر هنا.",
   "emptyTitle": "لا توجد مشاريع بعد",
   "name": "اسم المشروع",
@@ -17,9 +19,13 @@
   "notFoundTitle": "المشروع غير موجود",
   "open": "عرض المشاريع",
   "organizationDefault": "استخدام لغة المؤسسة الافتراضية",
+  "refreshServerContent": "حدّث محتوى الخادم",
   "resolvedLocale": "لغة المحتوى المعروض",
+  "save": "حفظ المشروع",
   "searchPlaceholder": "البحث باسم المشروع",
   "status": "الحالة",
+  "targetLocale": "لغة المحتوى المراد تحريرها",
   "title": "المشاريع",
+  "translationLoadFailed": "تعذر تحميل لغة المحتوى المحددة.",
   "updatedAt": "تاريخ التحديث"
 }

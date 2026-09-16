@@ -35,6 +35,11 @@ import type {
   GetProject404,
   GetProject500,
   GetProjectHeaders,
+  GetProjectTranslation200,
+  GetProjectTranslation401,
+  GetProjectTranslation403,
+  GetProjectTranslation404,
+  GetProjectTranslation500,
   ListProjects200,
   ListProjects400,
   ListProjects401,
@@ -42,6 +47,14 @@ import type {
   ListProjects500,
   ListProjectsHeaders,
   ListProjectsParams,
+  UpdateProject200,
+  UpdateProject400,
+  UpdateProject401,
+  UpdateProject403,
+  UpdateProject404,
+  UpdateProject500,
+  UpdateProjectBody,
+  UpdateProjectHeaders,
 } from "../../models"
 
 import { apiClient } from "../../../http/client"
@@ -746,6 +759,469 @@ export function useGetProject<
     organizationId,
     projectId,
     headers,
+    options
+  )
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+
+  return withQueryKey(query, queryOptions.queryKey)
+}
+
+export type updateProjectResponse200 = {
+  data: UpdateProject200
+  status: 200
+}
+
+export type updateProjectResponse400 = {
+  data: UpdateProject400
+  status: 400
+}
+
+export type updateProjectResponse401 = {
+  data: UpdateProject401
+  status: 401
+}
+
+export type updateProjectResponse403 = {
+  data: UpdateProject403
+  status: 403
+}
+
+export type updateProjectResponse404 = {
+  data: UpdateProject404
+  status: 404
+}
+
+export type updateProjectResponse500 = {
+  data: UpdateProject500
+  status: 500
+}
+
+export type updateProjectResponseSuccess = updateProjectResponse200 & {
+  headers: Headers
+}
+export type updateProjectResponseError = (
+  | updateProjectResponse400
+  | updateProjectResponse401
+  | updateProjectResponse403
+  | updateProjectResponse404
+  | updateProjectResponse500
+) & {
+  headers: Headers
+}
+
+export const getUpdateProjectUrl = (
+  organizationId: string,
+  projectId: string
+) => {
+  return `/api/v1/organizations/${organizationId}/projects/${projectId}`
+}
+
+export const updateProject = async (
+  organizationId: string,
+  projectId: string,
+  updateProjectBody: UpdateProjectBody,
+  headers?: UpdateProjectHeaders,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<updateProjectResponseSuccess> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {}
+    if (h instanceof Headers) return Object.fromEntries(h.entries())
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string]
+        )
+      )
+    }
+    const headers: Record<string, string | readonly string[]> = {}
+    for (const [name, value] of Object.entries<
+      string | readonly string[] | undefined
+    >(h)) {
+      if (value !== undefined) headers[name] = value
+    }
+    return headers
+  }
+  return apiClient<updateProjectResponseSuccess>(
+    getUpdateProjectUrl(organizationId, projectId),
+    {
+      ...options,
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...headers,
+        ...getHeaders(options?.headers),
+      },
+      body: JSON.stringify(updateProjectBody),
+    }
+  )
+}
+
+export const getUpdateProjectMutationKey = () => ["updateProject"] as const
+
+export const getUpdateProjectMutationOptions = <
+  TError = ErrorType<
+    | UpdateProject400
+    | UpdateProject401
+    | UpdateProject403
+    | UpdateProject404
+    | UpdateProject500
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateProject>>,
+    TError,
+    UpdateProjectMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateProject>>,
+  TError,
+  UpdateProjectMutationVariables,
+  TContext
+> => {
+  const mutationKey = getUpdateProjectMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateProject>>,
+    UpdateProjectMutationVariables
+  > = (props) => {
+    const { organizationId, projectId, data, headers } = props ?? {}
+
+    return updateProject(
+      organizationId,
+      projectId,
+      data,
+      headers,
+      requestOptions
+    )
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type UpdateProjectMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateProject>>
+>
+export type UpdateProjectMutationBody = UpdateProjectBody
+export type UpdateProjectMutationError = ErrorType<
+  | UpdateProject400
+  | UpdateProject401
+  | UpdateProject403
+  | UpdateProject404
+  | UpdateProject500
+>
+export type UpdateProjectMutationVariables = {
+  organizationId: string
+  projectId: string
+  data: UpdateProjectBody
+  headers?: UpdateProjectHeaders
+}
+
+export const useUpdateProject = <
+  TError = ErrorType<
+    | UpdateProject400
+    | UpdateProject401
+    | UpdateProject403
+    | UpdateProject404
+    | UpdateProject500
+  >,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateProject>>,
+      TError,
+      UpdateProjectMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateProject>>,
+  TError,
+  UpdateProjectMutationVariables,
+  TContext
+> => {
+  return useMutation(getUpdateProjectMutationOptions(options), queryClient)
+}
+export type getProjectTranslationResponse200 = {
+  data: GetProjectTranslation200
+  status: 200
+}
+
+export type getProjectTranslationResponse401 = {
+  data: GetProjectTranslation401
+  status: 401
+}
+
+export type getProjectTranslationResponse403 = {
+  data: GetProjectTranslation403
+  status: 403
+}
+
+export type getProjectTranslationResponse404 = {
+  data: GetProjectTranslation404
+  status: 404
+}
+
+export type getProjectTranslationResponse500 = {
+  data: GetProjectTranslation500
+  status: 500
+}
+
+export type getProjectTranslationResponseSuccess =
+  getProjectTranslationResponse200 & {
+    headers: Headers
+  }
+export type getProjectTranslationResponseError = (
+  | getProjectTranslationResponse401
+  | getProjectTranslationResponse403
+  | getProjectTranslationResponse404
+  | getProjectTranslationResponse500
+) & {
+  headers: Headers
+}
+
+export const getGetProjectTranslationUrl = (
+  organizationId: string,
+  projectId: string,
+  locale: "zh-CN" | "en-US" | "ar"
+) => {
+  return `/api/v1/organizations/${organizationId}/projects/${projectId}/translations/${locale}`
+}
+
+export const getProjectTranslation = async (
+  organizationId: string,
+  projectId: string,
+  locale: "zh-CN" | "en-US" | "ar",
+  options?: Parameters<typeof apiClient>[1]
+): Promise<getProjectTranslationResponseSuccess> => {
+  return apiClient<getProjectTranslationResponseSuccess>(
+    getGetProjectTranslationUrl(organizationId, projectId, locale),
+    {
+      ...options,
+      method: "GET",
+    }
+  )
+}
+
+export const getGetProjectTranslationQueryKey = (
+  organizationId: string,
+  projectId: string,
+  locale: "zh-CN" | "en-US" | "ar"
+) => {
+  return [
+    `/api/v1/organizations/${organizationId}/projects/${projectId}/translations/${locale}`,
+  ] as const
+}
+
+export const getGetProjectTranslationQueryOptions = <
+  TData = Awaited<ReturnType<typeof getProjectTranslation>>,
+  TError = ErrorType<
+    | GetProjectTranslation401
+    | GetProjectTranslation403
+    | GetProjectTranslation404
+    | GetProjectTranslation500
+  >,
+>(
+  organizationId: string,
+  projectId: string,
+  locale: "zh-CN" | "en-US" | "ar",
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getProjectTranslation>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetProjectTranslationQueryKey(organizationId, projectId, locale)
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getProjectTranslation>>
+  > = ({ signal }) =>
+    getProjectTranslation(organizationId, projectId, locale, {
+      signal,
+      ...requestOptions,
+    })
+
+  return {
+    queryKey,
+    queryFn,
+    enabled:
+      organizationId !== null &&
+      organizationId !== undefined &&
+      projectId !== null &&
+      projectId !== undefined &&
+      locale !== null &&
+      locale !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getProjectTranslation>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetProjectTranslationQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getProjectTranslation>>
+>
+export type GetProjectTranslationQueryError = ErrorType<
+  | GetProjectTranslation401
+  | GetProjectTranslation403
+  | GetProjectTranslation404
+  | GetProjectTranslation500
+>
+
+export function useGetProjectTranslation<
+  TData = Awaited<ReturnType<typeof getProjectTranslation>>,
+  TError = ErrorType<
+    | GetProjectTranslation401
+    | GetProjectTranslation403
+    | GetProjectTranslation404
+    | GetProjectTranslation500
+  >,
+>(
+  organizationId: string,
+  projectId: string,
+  locale: "zh-CN" | "en-US" | "ar",
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getProjectTranslation>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getProjectTranslation>>,
+          TError,
+          Awaited<ReturnType<typeof getProjectTranslation>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetProjectTranslation<
+  TData = Awaited<ReturnType<typeof getProjectTranslation>>,
+  TError = ErrorType<
+    | GetProjectTranslation401
+    | GetProjectTranslation403
+    | GetProjectTranslation404
+    | GetProjectTranslation500
+  >,
+>(
+  organizationId: string,
+  projectId: string,
+  locale: "zh-CN" | "en-US" | "ar",
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getProjectTranslation>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getProjectTranslation>>,
+          TError,
+          Awaited<ReturnType<typeof getProjectTranslation>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetProjectTranslation<
+  TData = Awaited<ReturnType<typeof getProjectTranslation>>,
+  TError = ErrorType<
+    | GetProjectTranslation401
+    | GetProjectTranslation403
+    | GetProjectTranslation404
+    | GetProjectTranslation500
+  >,
+>(
+  organizationId: string,
+  projectId: string,
+  locale: "zh-CN" | "en-US" | "ar",
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getProjectTranslation>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+
+export function useGetProjectTranslation<
+  TData = Awaited<ReturnType<typeof getProjectTranslation>>,
+  TError = ErrorType<
+    | GetProjectTranslation401
+    | GetProjectTranslation403
+    | GetProjectTranslation404
+    | GetProjectTranslation500
+  >,
+>(
+  organizationId: string,
+  projectId: string,
+  locale: "zh-CN" | "en-US" | "ar",
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getProjectTranslation>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+} {
+  const queryOptions = getGetProjectTranslationQueryOptions(
+    organizationId,
+    projectId,
+    locale,
     options
   )
 

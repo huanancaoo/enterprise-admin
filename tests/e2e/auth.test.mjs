@@ -431,6 +431,93 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     })
   })
 
+  it("项目编辑按目标内容语言保存草稿、状态与真实译文", async () => {
+    await page.goto(frontends[0].resolvedUrls.local[0] + "app/")
+    await registerAccount(page, {
+      name: "项目编辑用户",
+      email: "project-edit-browser@example.test",
+      password: credentials.password,
+    })
+    await page.getByLabel("组织名称", { exact: true }).fill("项目编辑组织")
+    await page.getByLabel("组织标识", { exact: true }).fill("project-edit")
+    await page.getByRole("button", { name: "创建组织", exact: true }).click()
+    await page.getByRole("link", { name: "查看项目", exact: true }).click()
+    const organizationId = new URL(page.url()).pathname.split("/").at(-1)
+    expect(organizationId).toBeTruthy()
+    const cookie = (await context.cookies())
+      .map(({ name, value }) => `${name}=${value}`)
+      .join("; ")
+    const tenant = await tenantContexts.resolve(
+      new Headers({ cookie }),
+      String(organizationId),
+      { project: ["create"] },
+      "e2e-project-edit-seed",
+      new RequestLanguage(null)
+    )
+    const project = await createTenantRunner(runtime.pool)(tenant, (tx) =>
+      projectRepository.create(tx, {
+        name: "中文基础内容",
+        description: "基础描述",
+        contentLocale: "zh-CN",
+      })
+    )
+    await page.reload()
+    await page.getByRole("link", { name: "中文基础内容", exact: true }).click()
+    await page.getByRole("button", { name: "编辑项目", exact: true }).click()
+    const dialog = page.getByRole("dialog")
+    await dialog.getByLabel("编辑内容语言", { exact: true }).click()
+    await page.getByRole("option", { name: "English", exact: true }).click()
+    // 英文尚无记录；编辑器必须为空，而非把详情回退得到的中文基础译文当成英文。
+    await expectUI(dialog.getByLabel("项目名称", { exact: true })).toHaveValue(
+      ""
+    )
+    await dialog.getByLabel("项目名称", { exact: true }).fill("English draft")
+    await dialog.getByLabel("状态", { exact: true }).click()
+    await page.getByRole("option", { name: "活跃", exact: true }).click()
+    await dialog.getByLabel("语言", { exact: true }).click()
+    await page.getByRole("option", { name: "English", exact: true }).click()
+    await expectUI(
+      dialog.getByLabel("Content language to edit", { exact: true })
+    ).toHaveText(/en-US/)
+    await expectUI(
+      dialog.getByLabel("Project name", { exact: true })
+    ).toHaveValue("English draft")
+    await page.route("**/api/v1/organizations/*/projects/*", async (route) => {
+      if (route.request().method() === "PATCH") await route.abort()
+      else await route.continue()
+    })
+    await dialog
+      .getByRole("button", { name: "Save project", exact: true })
+      .click()
+    await expectUI(dialog.getByRole("alert")).toBeVisible()
+    await expectUI(
+      dialog.getByLabel("Project name", { exact: true })
+    ).toHaveValue("English draft")
+    await page.unroute("**/api/v1/organizations/*/projects/*")
+    await dialog
+      .getByRole("button", { name: "Save project", exact: true })
+      .click()
+    await expectUI(dialog).toHaveCount(0)
+    await expectUI(page.getByText(/^(活跃|Active)$/)).toBeVisible()
+    await page.reload()
+    await expectUI(page.getByText(/^(活跃|Active)$/)).toBeVisible()
+    await page
+      .getByRole("button", { name: /^(编辑项目|Edit project)$/ })
+      .click()
+    await dialog
+      .getByLabel(/^(编辑内容语言|Content language to edit)$/)
+      .click()
+    await page.getByRole("option", { name: "English", exact: true }).click()
+    await expectUI(
+      dialog.getByLabel(/^(项目名称|Project name)$/)
+    ).toHaveValue("English draft")
+    await mkdir("test-results/s7", { recursive: true })
+    await page.screenshot({
+      path: `test-results/s7/project-edit-${project.id}.png`,
+      fullPage: true,
+    })
+  })
+
   it("注册后刷新恢复会话，登出后刷新仍需登录，错误密码可纠正重试", async () => {
     await page.goto(frontends[0].resolvedUrls.local[0] + "app/")
     await registerAccount(page, { ...credentials, name: "S4 用户" })

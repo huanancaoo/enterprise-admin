@@ -5,6 +5,8 @@ export {
   listProjects,
   createProject,
   getProject,
+  getProjectTranslation,
+  updateProject,
 } from "./generated/endpoints/projects/projects"
 export type * from "./generated/models"
 export { projectKeys } from "./query/projects"
@@ -13,3 +15,4 @@ export {
   getProjectsListOptions,
 } from "./query/use-projects-list"
 export { getProjectDetailOptions } from "./query/use-project-detail"
+export { getProjectTranslationOptions } from "./query/use-project-translation"

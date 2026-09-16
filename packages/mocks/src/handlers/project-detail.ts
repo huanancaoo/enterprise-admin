@@ -1,6 +1,7 @@
 import { delay, http, HttpResponse } from "msw"
 import {
   SupportedLocaleSchema,
+  UpdateProjectSchema,
   type ApiError,
   type ProjectResponse,
 } from "@workspace/contracts"
@@ -8,6 +9,8 @@ import { projectFixtures } from "../fixtures/projects"
 
 export type ProjectDetailScenario =
   "success" | "loading" | "forbidden" | "notFound" | "serverError" | "longText"
+
+export type ProjectEditScenario = "success" | "error" | "refreshDraft"
 
 export function createProjectDetailHandler(
   scenario: ProjectDetailScenario = "success"
@@ -70,4 +73,64 @@ export function createProjectDetailHandler(
       return HttpResponse.json(response, { headers })
     }
   )
+}
+
+export function createProjectEditHandlers(
+  scenario: ProjectEditScenario = "success"
+) {
+  let translationReads = 0
+  return [
+    http.get(
+      /\/api\/v1\/organizations\/(?<organizationId>[^/]+)\/projects\/(?<projectId>[^/]+)\/translations\/(?<locale>[^/?]+)$/,
+      ({ params }) => {
+        const locale = SupportedLocaleSchema.parse(params.locale)
+        translationReads += 1
+        return HttpResponse.json({
+          locale,
+          name:
+            scenario === "refreshDraft" && translationReads > 1
+              ? "Server refreshed content"
+              : `Original ${locale} content`,
+          description: null,
+        })
+      }
+    ),
+    http.patch(
+      /\/api\/v1\/organizations\/(?<organizationId>[^/]+)\/projects\/(?<projectId>[^/?]+)$/,
+      async ({ request, params }) => {
+        const input = UpdateProjectSchema.parse(await request.json())
+        if (scenario === "error")
+          return HttpResponse.json(
+            {
+              code: "INTERNAL_ERROR",
+              message: "Update failed",
+              requestId: "storybook-project-update",
+              locale: "zh-CN",
+            } satisfies ApiError,
+            { status: 500 }
+          )
+        const locale = SupportedLocaleSchema.parse(
+          request.headers.get("Accept-Language") ?? "zh-CN"
+        )
+        const project = projectFixtures(
+          String(params.organizationId),
+          locale
+        ).find((item) => item.id === params.projectId)
+        if (!project)
+          return HttpResponse.json(
+            {
+              code: "NOT_FOUND",
+              message: "NOT_FOUND",
+              requestId: "storybook-project-update",
+              locale,
+            } satisfies ApiError,
+            { status: 404 }
+          )
+        return HttpResponse.json({
+          ...project,
+          status: input.status ?? project.status,
+        } satisfies ProjectResponse)
+      }
+    ),
+  ]
 }

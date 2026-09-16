@@ -20,6 +20,39 @@ export const CreateProjectSchema = z.strictObject({
   contentLocale: SupportedLocaleSchema.optional(),
 })
 export type CreateProject = z.infer<typeof CreateProjectSchema>
+export const UpdateProjectTranslationSchema = z
+  .strictObject({
+    locale: SupportedLocaleSchema,
+    name: z.string().trim().min(1).optional(),
+    description: z.string().nullable().optional(),
+  })
+  .refine(
+    (translation) =>
+      translation.name !== undefined || translation.description !== undefined,
+    { message: "At least one translation field is required" }
+  )
+export type UpdateProjectTranslation = z.infer<
+  typeof UpdateProjectTranslationSchema
+>
+export const UpdateProjectSchema = z
+  .strictObject({
+    status: ProjectStatusSchema.optional(),
+    translation: UpdateProjectTranslationSchema.optional(),
+  })
+  .refine(
+    (project) =>
+      project.status !== undefined || project.translation !== undefined,
+    { message: "At least one project field is required" }
+  )
+export type UpdateProject = z.infer<typeof UpdateProjectSchema>
+export const ProjectTranslationResponseSchema = z.strictObject({
+  locale: SupportedLocaleSchema,
+  name: z.string().min(1),
+  description: z.string().nullable(),
+})
+export type ProjectTranslationResponse = z.infer<
+  typeof ProjectTranslationResponseSchema
+>
 export const ProjectResponseSchema = z.strictObject({
   id: z.uuid(),
   organizationId: OrganizationIdSchema,

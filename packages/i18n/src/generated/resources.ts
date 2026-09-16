@@ -142,6 +142,8 @@ export default interface Resources {
     "description": "描述",
     "detail": "项目详情",
     "draft": "草稿",
+    "edit": "编辑项目",
+    "editDescription": "选择内容语言后编辑名称、描述和状态。",
     "emptyDescription": "创建第一个项目后，它会出现在这里。",
     "emptyTitle": "还没有项目",
     "name": "项目名称",
@@ -150,10 +152,14 @@ export default interface Resources {
     "notFoundTitle": "未找到项目",
     "open": "查看项目",
     "organizationDefault": "使用组织默认语言",
+    "refreshServerContent": "刷新服务器内容",
     "resolvedLocale": "当前内容语言",
+    "save": "保存项目",
     "searchPlaceholder": "搜索项目名称",
     "status": "状态",
+    "targetLocale": "编辑内容语言",
     "title": "项目",
+    "translationLoadFailed": "无法读取所选内容语言。",
     "updatedAt": "更新时间"
   },
   "validation": {

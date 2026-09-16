@@ -39,4 +39,21 @@ export class AuthorizationService {
       throw error;
     }
   }
+
+  async requireAnyPermission(
+    headers: Headers,
+    organizationId: string,
+    alternatives: readonly PermissionRequest[],
+  ): Promise<void> {
+    for (const permissions of alternatives) {
+      try {
+        await this.requirePermission(headers, organizationId, permissions);
+        return;
+      } catch (error) {
+        if (error instanceof ForbiddenException) continue;
+        throw error;
+      }
+    }
+    throw new ForbiddenException();
+  }
 }

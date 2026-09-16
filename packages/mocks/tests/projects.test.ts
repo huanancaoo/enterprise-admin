@@ -1,7 +1,12 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest"
 import { setupServer } from "msw/node"
 import { ApiErrorSchema, ProjectPageSchema } from "@workspace/contracts"
-import { organizations, projectScenarios } from "../src/index"
+import {
+  createProjectEditHandlers,
+  organizations,
+  projectFixtures,
+  projectScenarios,
+} from "../src/index"
 
 const server = setupServer(...projectScenarios.success)
 const url = (organizationId = organizations[0].id as string) =>
@@ -73,5 +78,37 @@ describe("shared Projects MSW contracts", () => {
     expect(ApiErrorSchema.parse(await response.json()).code).toBe(
       "VALIDATION_ERROR"
     )
+  })
+  it("provides the raw target-language content endpoint used by the editor", async () => {
+    const project = projectFixtures(organizations[0].id, "zh-CN")[0]!
+    server.use(...createProjectEditHandlers())
+    const response = await fetch(`${url()}/${project.id}/translations/en-US`)
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      locale: "en-US",
+      name: "Original en-US content",
+      description: null,
+    })
+  })
+  it("accepts the editor update payload", async () => {
+    const project = projectFixtures(organizations[0].id, "zh-CN")[0]!
+    server.use(...createProjectEditHandlers())
+    const response = await fetch(`${url()}/${project.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: "archived",
+        translation: {
+          locale: "ar",
+          name: "اسم المشروع",
+          description: null,
+        },
+      }),
+    })
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({
+      id: project.id,
+      status: "archived",
+    })
   })
 })
