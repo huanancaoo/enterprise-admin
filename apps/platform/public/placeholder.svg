@@ -1,0 +1,267 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1100" fill="none" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradients -->
+    <radialGradient id="bgAmbient" cx="50%" cy="45%" r="60%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="60%" stop-color="#090d16" />
+      <stop offset="100%" stop-color="#05070c" />
+    </radialGradient>
+
+    <radialGradient id="accentAura" cx="50%" cy="40%" r="45%">
+      <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.18" />
+      <stop offset="60%" stop-color="#1d4ed8" stop-opacity="0.05" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Glass Surface & Borders -->
+    <linearGradient id="glassCard" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.06" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.02" />
+    </linearGradient>
+
+    <linearGradient id="glassBorder" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.16" />
+      <stop offset="50%" stop-color="#ffffff" stop-opacity="0.05" />
+      <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.25" />
+    </linearGradient>
+
+    <!-- Chart Wave Gradients -->
+    <linearGradient id="chartArea" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.0" />
+    </linearGradient>
+
+    <linearGradient id="chartLine" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#60a5fa" />
+      <stop offset="50%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#93c5fd" />
+    </linearGradient>
+
+    <linearGradient id="streamGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0" />
+      <stop offset="50%" stop-color="#60a5fa" stop-opacity="1" />
+      <stop offset="100%" stop-color="#93c5fd" stop-opacity="0" />
+    </linearGradient>
+
+    <!-- Architectural Grid -->
+    <pattern id="archGrid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#ffffff" stroke-opacity="0.035" stroke-width="1" />
+    </pattern>
+
+    <!-- Drop Shadows & Glow -->
+    <filter id="cardShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="24" stdDeviation="32" flood-color="#000000" flood-opacity="0.6" />
+    </filter>
+
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <style>
+      text {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      }
+      .float-app {
+        animation: subtleFloat 7s ease-in-out infinite alternate;
+        transform-origin: 450px 520px;
+      }
+      @keyframes subtleFloat {
+        0% { transform: translateY(-8px) scale(0.995); }
+        100% { transform: translateY(8px) scale(1.005); }
+      }
+
+      .chart-pulse {
+        stroke-dasharray: 80 500;
+        animation: waveFlow 4.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+      }
+      @keyframes waveFlow {
+        0% { stroke-dashoffset: 580; }
+        100% { stroke-dashoffset: -580; }
+      }
+
+      .beacon-blink {
+        animation: beaconTwinkle 3s ease-in-out infinite alternate;
+      }
+      @keyframes beaconTwinkle {
+        0% { opacity: 0.4; transform: scale(0.85); }
+        100% { opacity: 1; transform: scale(1.15); }
+      }
+
+      .shimmer-bar {
+        animation: barShimmer 3s ease-in-out infinite alternate;
+      }
+      @keyframes barShimmer {
+        0% { opacity: 0.3; }
+        100% { opacity: 0.8; }
+      }
+    </style>
+  </defs>
+
+  <!-- Deep Architectural Base Canvas -->
+  <rect width="900" height="1100" fill="url(#bgAmbient)" />
+  <rect width="900" height="1100" fill="url(#archGrid)" />
+
+  <!-- Luminous Ambient Core -->
+  <circle cx="450" cy="520" r="380" fill="url(#accentAura)" />
+
+  <!-- Precision Horizon Lines -->
+  <g stroke="#ffffff" stroke-opacity="0.08" stroke-width="1">
+    <line x1="80" y1="520" x2="820" y2="520" stroke-dasharray="4 8" />
+    <line x1="450" y1="120" x2="450" y2="980" stroke-dasharray="4 8" />
+  </g>
+
+  <!-- Technical Framing Marks -->
+  <g stroke="#ffffff" stroke-opacity="0.2" stroke-width="1">
+    <path d="M 60 75 L 60 60 L 75 60" fill="none" />
+    <path d="M 840 75 L 840 60 L 825 60" fill="none" />
+    <path d="M 60 1025 L 60 1040 L 75 1040" fill="none" />
+    <path d="M 840 1025 L 840 1040 L 825 1040" fill="none" />
+    <circle cx="450" cy="60" r="1.5" fill="#ffffff" opacity="0.4" />
+    <circle cx="450" cy="1040" r="1.5" fill="#ffffff" opacity="0.4" />
+  </g>
+
+  <!-- Central Floating Architectural Console UI Mockup -->
+  <g class="float-app" filter="url(#cardShadow)">
+    <!-- Main Window Frame (macOS / Web App Style) -->
+    <rect x="120" y="210" width="660" height="660" rx="20" fill="#090d16" fill-opacity="0.88" stroke="url(#glassBorder)" stroke-width="1.2" />
+
+    <!-- Window Titlebar -->
+    <rect x="120" y="210" width="660" height="52" rx="20" fill="url(#glassCard)" />
+    <!-- Traffic lights -->
+    <circle cx="156" cy="236" r="5" fill="#ef4444" fill-opacity="0.75" />
+    <circle cx="174" cy="236" r="5" fill="#eab308" fill-opacity="0.75" />
+    <circle cx="192" cy="236" r="5" fill="#22c55e" fill-opacity="0.75" />
+
+    <!-- Window Path / Breadcrumb Wireframe -->
+    <rect x="230" y="228" width="80" height="16" rx="8" fill="#ffffff" fill-opacity="0.08" />
+    <rect x="320" y="228" width="120" height="16" rx="8" fill="#3b82f6" fill-opacity="0.15" />
+    <circle cx="330" cy="236" r="3" fill="#60a5fa" />
+    <!-- Right status badge -->
+    <rect x="670" y="226" width="86" height="20" rx="10" fill="#22c55e" fill-opacity="0.12" stroke="#22c55e" stroke-opacity="0.3" stroke-width="1" />
+    <circle cx="682" cy="236" r="3" fill="#22c55e" class="beacon-blink" />
+    <text x="694" y="240" font-size="10" font-weight="600" fill="#86efac" letter-spacing="0.5">HEALTHY</text>
+
+    <!-- Top Metrics Cards Row -->
+    <g transform="translate(148, 286)">
+      <!-- Card 1: Active Tenants -->
+      <g>
+        <rect x="0" y="0" width="186" height="100" rx="14" fill="url(#glassCard)" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1" />
+        <circle cx="24" cy="26" r="10" fill="#3b82f6" fill-opacity="0.15" />
+        <path d="M 20 28 L 24 23 L 28 28 Z" fill="#60a5fa" />
+        <rect x="42" y="22" width="70" height="8" rx="4" fill="#ffffff" fill-opacity="0.4" />
+        <!-- Metric Value -->
+        <rect x="20" y="52" width="55" height="16" rx="4" fill="#ffffff" fill-opacity="0.9" />
+        <rect x="85" y="55" width="48" height="12" rx="6" fill="#22c55e" fill-opacity="0.15" />
+        <rect x="94" y="59" width="30" height="5" rx="2.5" fill="#4ade80" />
+      </g>
+
+      <!-- Card 2: Multi-Tenant RLS -->
+      <g transform="translate(208, 0)">
+        <rect x="0" y="0" width="186" height="100" rx="14" fill="url(#glassCard)" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1" />
+        <circle cx="24" cy="26" r="10" fill="#6366f1" fill-opacity="0.15" />
+        <path d="M 24 20 L 29 23 C 29 27 24 30 24 30 C 24 30 19 27 19 23 Z" fill="#818cf8" />
+        <rect x="42" y="22" width="80" height="8" rx="4" fill="#ffffff" fill-opacity="0.4" />
+        <!-- Metric Value -->
+        <rect x="20" y="52" width="70" height="16" rx="4" fill="#ffffff" fill-opacity="0.9" />
+        <rect x="100" y="55" width="40" height="12" rx="6" fill="#6366f1" fill-opacity="0.15" />
+        <rect x="108" y="59" width="24" height="5" rx="2.5" fill="#a5b4fc" />
+      </g>
+
+      <!-- Card 3: Global Latency (P99) -->
+      <g transform="translate(416, 0)">
+        <rect x="0" y="0" width="188" height="100" rx="14" fill="url(#glassCard)" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1" />
+        <circle cx="24" cy="26" r="10" fill="#06b6d4" fill-opacity="0.15" />
+        <circle cx="24" cy="26" r="4" fill="none" stroke="#22d3ee" stroke-width="1.5" />
+        <rect x="42" y="22" width="65" height="8" rx="4" fill="#ffffff" fill-opacity="0.4" />
+        <!-- Metric Value -->
+        <rect x="20" y="52" width="60" height="16" rx="4" fill="#ffffff" fill-opacity="0.9" />
+        <rect x="90" y="55" width="45" height="12" rx="6" fill="#06b6d4" fill-opacity="0.15" />
+        <rect x="98" y="59" width="28" height="5" rx="2.5" fill="#38bdf8" />
+      </g>
+    </g>
+
+    <!-- Main Dynamic Chart Section: Tenant Telemetry Wave -->
+    <g transform="translate(148, 410)">
+      <rect x="0" y="0" width="604" height="210" rx="16" fill="url(#glassCard)" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1" />
+
+      <!-- Section Header -->
+      <rect x="20" y="20" width="120" height="10" rx="5" fill="#ffffff" fill-opacity="0.75" />
+      <rect x="150" y="20" width="60" height="10" rx="5" fill="#ffffff" fill-opacity="0.2" />
+
+      <!-- Chart Grid Lines -->
+      <g stroke="#ffffff" stroke-opacity="0.04" stroke-width="1">
+        <line x1="20" y1="65" x2="584" y2="65" />
+        <line x1="20" y1="105" x2="584" y2="105" />
+        <line x1="20" y1="145" x2="584" y2="145" />
+        <line x1="20" y1="185" x2="584" y2="185" />
+      </g>
+
+      <!-- Smooth Curved Area Fill -->
+      <path d="M 20 165 C 90 155, 140 100, 200 115 C 270 135, 310 75, 380 90 C 450 105, 490 60, 584 75 L 584 185 L 20 185 Z" fill="url(#chartArea)" />
+
+      <!-- Static Precision Baseline -->
+      <path d="M 20 165 C 90 155, 140 100, 200 115 C 270 135, 310 75, 380 90 C 450 105, 490 60, 584 75" fill="none" stroke="url(#chartLine)" stroke-width="2" stroke-linecap="round" />
+
+      <!-- Dynamic Light Beam Wave Pulse -->
+      <path d="M 20 165 C 90 155, 140 100, 200 115 C 270 135, 310 75, 380 90 C 450 105, 490 60, 584 75" fill="none" stroke="url(#streamGrad)" stroke-width="3.5" stroke-linecap="round" class="chart-pulse" />
+
+      <!-- Active Pulsing Highlight Points on Curve -->
+      <g transform="translate(380, 90)">
+        <circle cx="0" cy="0" r="10" fill="#3b82f6" fill-opacity="0.25" class="beacon-blink" />
+        <circle cx="0" cy="0" r="4" fill="#60a5fa" />
+        <circle cx="0" cy="0" r="1.5" fill="#ffffff" />
+      </g>
+      <g transform="translate(584, 75)">
+        <circle cx="0" cy="0" r="3" fill="#93c5fd" />
+      </g>
+    </g>
+
+    <!-- Lower Section: Multi-Tenant Data Stream Records -->
+    <g transform="translate(148, 642)">
+      <rect x="0" y="0" width="604" height="195" rx="16" fill="url(#glassCard)" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1" />
+
+      <!-- Table Header -->
+      <rect x="24" y="18" width="80" height="7" rx="3.5" fill="#ffffff" fill-opacity="0.3" />
+      <rect x="180" y="18" width="65" height="7" rx="3.5" fill="#ffffff" fill-opacity="0.2" />
+      <rect x="340" y="18" width="55" height="7" rx="3.5" fill="#ffffff" fill-opacity="0.2" />
+      <rect x="490" y="18" width="70" height="7" rx="3.5" fill="#ffffff" fill-opacity="0.2" />
+      <line x1="20" y1="36" x2="584" y2="36" stroke="#ffffff" stroke-opacity="0.06" stroke-width="1" />
+
+      <!-- Row 1: Acme Enterprise -->
+      <g transform="translate(24, 52)">
+        <circle cx="6" cy="6" r="4" fill="#3b82f6" />
+        <rect x="20" y="2" width="90" height="9" rx="4.5" fill="#ffffff" fill-opacity="0.85" />
+        <rect x="156" y="2" width="70" height="9" rx="4.5" fill="#ffffff" fill-opacity="0.3" />
+        <rect x="316" y="0" width="54" height="14" rx="7" fill="#22c55e" fill-opacity="0.15" />
+        <circle cx="325" cy="7" r="2.5" fill="#4ade80" />
+        <rect x="333" y="4" width="28" height="5" rx="2.5" fill="#86efac" />
+        <rect x="466" y="2" width="60" height="9" rx="4.5" fill="#60a5fa" fill-opacity="0.4" class="shimmer-bar" />
+      </g>
+      <line x1="20" y1="80" x2="584" y2="80" stroke="#ffffff" stroke-opacity="0.04" stroke-width="1" />
+
+      <!-- Row 2: Global Logistics Corp -->
+      <g transform="translate(24, 96)">
+        <circle cx="6" cy="6" r="4" fill="#6366f1" />
+        <rect x="20" y="2" width="110" height="9" rx="4.5" fill="#ffffff" fill-opacity="0.85" />
+        <rect x="156" y="2" width="55" height="9" rx="4.5" fill="#ffffff" fill-opacity="0.3" />
+        <rect x="316" y="0" width="54" height="14" rx="7" fill="#22c55e" fill-opacity="0.15" />
+        <circle cx="325" cy="7" r="2.5" fill="#4ade80" />
+        <rect x="333" y="4" width="28" height="5" rx="2.5" fill="#86efac" />
+        <rect x="466" y="2" width="80" height="9" rx="4.5" fill="#818cf8" fill-opacity="0.4" class="shimmer-bar" />
+      </g>
+      <line x1="20" y1="124" x2="584" y2="124" stroke="#ffffff" stroke-opacity="0.04" stroke-width="1" />
+
+      <!-- Row 3: FinTech Gateway Node -->
+      <g transform="translate(24, 140)">
+        <circle cx="6" cy="6" r="4" fill="#06b6d4" />
+        <rect x="20" y="2" width="85" height="9" rx="4.5" fill="#ffffff" fill-opacity="0.85" />
+        <rect x="156" y="2" width="65" height="9" rx="4.5" fill="#ffffff" fill-opacity="0.3" />
+        <rect x="316" y="0" width="54" height="14" rx="7" fill="#3b82f6" fill-opacity="0.15" />
+        <circle cx="325" cy="7" r="2.5" fill="#60a5fa" />
+        <rect x="333" y="4" width="28" height="5" rx="2.5" fill="#93c5fd" />
+        <rect x="466" y="2" width="45" height="9" rx="4.5" fill="#38bdf8" fill-opacity="0.4" class="shimmer-bar" />
+      </g>
+    </g>
+  </g>
+</svg>
