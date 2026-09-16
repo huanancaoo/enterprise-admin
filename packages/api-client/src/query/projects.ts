@@ -1,9 +1,6 @@
-import {
-  ProjectListQuerySchema,
-  SupportedLocaleSchema,
-  type SupportedLocale,
-} from "@workspace/contracts"
+import { ProjectListQuerySchema } from "@workspace/contracts"
 import type {
+  GetProjectHeaders,
   ListProjectsHeaders,
   ListProjectsParams,
 } from "../generated/models"
@@ -14,20 +11,25 @@ export const projectKeys = {
   list: (
     organizationId: string,
     params: ListProjectsParams | undefined,
-    locale: SupportedLocale
+    requestLanguage: string | null
   ) =>
     [
       ...projectKeys.all(organizationId),
       "list",
       ProjectListQuerySchema.parse(params ?? {}),
-      locale,
+      requestLanguage,
     ] as const,
   detail: (
     organizationId: string,
     projectId: string,
-    locale: SupportedLocale
+    requestLanguage: string | null
   ) =>
-    [...projectKeys.all(organizationId), "detail", projectId, locale] as const,
+    [
+      ...projectKeys.all(organizationId),
+      "detail",
+      projectId,
+      requestLanguage,
+    ] as const,
 }
 
 export function listProjectsKey(input: {
@@ -35,9 +37,24 @@ export function listProjectsKey(input: {
   params?: ListProjectsParams
   headers?: ListProjectsHeaders
 }) {
-  // 缓存请求显式携带 UI locale；不能把服务端尚未协商的语言存入一个不确定的 key。
-  const locale = SupportedLocaleSchema.parse(input.headers?.["Accept-Language"])
-  return projectKeys.list(input.organizationId, input.params, locale)
+  // Key 记录原始请求语言；省略 Header 与显式语言必须属于不同缓存。
+  return projectKeys.list(
+    input.organizationId,
+    input.params,
+    input.headers?.["Accept-Language"] ?? null
+  )
+}
+
+export function getProjectKey(input: {
+  organizationId: string
+  projectId: string
+  headers?: GetProjectHeaders
+}) {
+  return projectKeys.detail(
+    input.organizationId,
+    input.projectId,
+    input.headers?.["Accept-Language"] ?? null
+  )
 }
 
 export function projectListOptions<T extends { queryKey: readonly unknown[] }>(

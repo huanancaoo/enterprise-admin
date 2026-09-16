@@ -7,6 +7,7 @@ import {
 import { ProjectListQuerySchema } from "@workspace/contracts"
 import { App } from "./App"
 import { ProjectsRoute } from "./components/projects-route"
+import { ProjectDetailRoute } from "./components/project-detail-route"
 
 const rootRoute = createRootRoute()
 const loginRoute = createRoute({
@@ -39,6 +40,11 @@ const projectsRoute = createRoute({
   validateSearch: ProjectListQuerySchema,
   component: ProjectsRoute,
 })
+const projectDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/app/projects/$organizationId/$projectId",
+  component: ProjectDetailRoute,
+})
 
 export const router = createRouter({
   routeTree: rootRoute.addChildren([
@@ -47,5 +53,6 @@ export const router = createRouter({
     loginRoute,
     organizationRoute,
     projectsRoute,
+    projectDetailRoute,
   ]),
 })

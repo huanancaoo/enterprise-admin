@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import {
   ApiErrorSchema,
@@ -7,6 +15,7 @@ import {
   type CreateProject,
   type ProjectResponse,
   OrganizationIdSchema,
+  ProjectIdSchema,
   ProjectListQuerySchema,
   ProjectPageSchema,
   type ProjectListQuery,
@@ -99,6 +108,38 @@ export class ProjectsController {
         createdAt: item.createdAt.toISOString(),
         updatedAt: item.updatedAt.toISOString(),
       })),
+    };
+  }
+
+  @Get(':projectId')
+  @RequireTenant({ project: ['read'] })
+  @ApiOperation({ operationId: 'getProject' })
+  @ApiHeader({
+    name: 'Accept-Language',
+    required: false,
+    schema: { type: 'string' },
+    description: 'Supported language preference: zh-CN, en-US, ar',
+  })
+  @ApiResponse({ status: 200, standardSchema: ProjectResponseSchema })
+  @ApiResponse({ status: 400, standardSchema: ApiErrorSchema })
+  @ApiResponse({ status: 401, standardSchema: ApiErrorSchema })
+  @ApiResponse({ status: 403, standardSchema: ApiErrorSchema })
+  @ApiResponse({ status: 404, standardSchema: ApiErrorSchema })
+  @ApiResponse({ status: 500, standardSchema: ApiErrorSchema })
+  async get(
+    @Param('organizationId', { schema: OrganizationIdSchema })
+    _organizationId: string,
+    @Param('projectId', { schema: ProjectIdSchema }) projectId: string,
+    @CurrentTenant() context: TenantContext,
+  ): Promise<ProjectResponse> {
+    const project = await createTenantRunner(this.runtime.pool)(context, (tx) =>
+      projectRepository.findLocalized(tx, projectId),
+    );
+    if (!project) throw new NotFoundException();
+    return {
+      ...project,
+      createdAt: project.createdAt.toISOString(),
+      updatedAt: project.updatedAt.toISOString(),
     };
   }
 }

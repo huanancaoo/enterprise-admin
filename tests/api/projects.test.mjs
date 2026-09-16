@@ -33,7 +33,10 @@ import {
   createProject,
   configureApiClient,
   getProjectsListOptions,
+  getProject,
+  getProjectDetailOptions,
 } from "../../packages/api-client/src/index.ts"
+import { getGetProjectQueryKey } from "../../packages/api-client/src/generated/endpoints/projects/projects.ts"
 
 describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", () => {
   let container,
@@ -56,6 +59,21 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
         ...(locale ? { "accept-language": locale } : {}),
       },
     })
+  const queryDetail = (
+    organizationId,
+    projectId,
+    session = cookie,
+    locale = "en-US"
+  ) =>
+    fetch(
+      `${baseURL}/api/v1/organizations/${organizationId}/projects/${projectId}`,
+      {
+        headers: {
+          cookie: session,
+          ...(locale ? { "accept-language": locale } : {}),
+        },
+      }
+    )
   beforeAll(async () => {
     const versions = JSON.parse(
       await readFile("docs/architecture/versions.json", "utf8")
@@ -210,6 +228,56 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
     })
     expect(b.data.items.map((item) => item.name)).toEqual(["B secret"])
   })
+  it("详情按请求语言选择整条译文，跨组织资源返回404", async () => {
+    const localized = await getProject(orgA.id, translated.id, {
+      "Accept-Language": "en-US",
+    })
+    expect(localized.status).toBe(200)
+    expect(localized.data).toMatchObject({
+      id: translated.id,
+      organizationId: orgA.id,
+      contentLocale: "zh-CN",
+      resolvedLocale: "en-US",
+      name: "English %_ Project",
+      description: null,
+    })
+    expect(localized.headers.get("content-language")).toBe("en-US")
+
+    const fallback = await getProject(orgA.id, source.id, {
+      "Accept-Language": "en-US",
+    })
+    expect(fallback.status).toBe(200)
+    expect(fallback.data).toMatchObject({
+      id: source.id,
+      resolvedLocale: "zh-CN",
+      name: "基础 %_ 名称",
+      description: "基础描述",
+    })
+    expect(
+      getProjectDetailOptions(orgA.id, source.id, "en-US").queryKey
+    ).toEqual([
+      "organizations",
+      orgA.id,
+      "projects",
+      "detail",
+      source.id,
+      "en-US",
+    ])
+    expect(getGetProjectQueryKey(orgA.id, source.id)).toEqual([
+      "organizations",
+      orgA.id,
+      "projects",
+      "detail",
+      source.id,
+      null,
+    ])
+
+    const crossOrganization = await queryDetail(orgB.id, source.id)
+    expect(crossOrganization.status).toBe(404)
+    expect(ApiErrorSchema.parse(await crossOrganization.json()).code).toBe(
+      "NOT_FOUND"
+    )
+  })
   it("名称按显示译文筛选，%/_为字面量；排序同值按id，越界总数保留", async () => {
     expect(
       (
@@ -284,6 +352,16 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
     ).toBe(0)
   })
   it("Header、用户偏好、组织默认值及并发语言独立", async () => {
+    const platformDefaultDetail = await queryDetail(
+      orgA.id,
+      source.id,
+      cookie,
+      ""
+    )
+    expect(platformDefaultDetail.headers.get("content-language")).toBe("zh-CN")
+    expect(await platformDefaultDetail.json()).toMatchObject({
+      resolvedLocale: "zh-CN",
+    })
     expect(
       (await query(orgA.id, "", cookie, "")).headers.get("content-language")
     ).toBe("zh-CN")
@@ -291,6 +369,16 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
       "UPDATE organization SET default_locale = $1 WHERE id = $2",
       ["ar", orgA.id]
     )
+    const organizationDefaultDetail = await queryDetail(
+      orgA.id,
+      source.id,
+      cookie,
+      ""
+    )
+    expect(organizationDefaultDetail.headers.get("content-language")).toBe("ar")
+    expect(await organizationDefaultDetail.json()).toMatchObject({
+      resolvedLocale: "zh-CN",
+    })
     expect(
       (await query(orgA.id, "", cookie, undefined)).headers.get(
         "content-language"
@@ -320,6 +408,17 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
       'UPDATE "user" SET preferred_locale = $1 WHERE id = $2',
       ["en-US", contextA.userId]
     )
+    const preferredDetail = await queryDetail(
+      orgA.id,
+      translated.id,
+      cookie,
+      ""
+    )
+    expect(preferredDetail.headers.get("content-language")).toBe("en-US")
+    expect(await preferredDetail.json()).toMatchObject({
+      resolvedLocale: "en-US",
+      name: "English %_ Project",
+    })
     expect((await withoutHeader()).headers.get("content-language")).toBe(
       "en-US"
     )
@@ -445,6 +544,11 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
     )
     await expectError(
       await query(organization.id, "", actorCookie, "en-US"),
+      403,
+      "en-US"
+    )
+    await expectError(
+      await queryDetail(organization.id, source.id, actorCookie, "en-US"),
       403,
       "en-US"
     )
@@ -626,6 +730,11 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
     const body = ApiErrorSchema.parse(await response.json())
     expect(body.code).toBe("INTERNAL_ERROR")
     expect(body.message).toBe("Internal server error")
+    const detailResponse = await queryDetail(orgA.id, source.id)
+    expect(detailResponse.status).toBe(500)
+    expect(ApiErrorSchema.parse(await detailResponse.json()).code).toBe(
+      "INTERNAL_ERROR"
+    )
     expect((await query(orgB.id)).status).toBe(200)
   })
 })

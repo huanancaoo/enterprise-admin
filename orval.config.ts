@@ -31,6 +31,14 @@ export default defineConfig({
               },
             },
           },
+          getProject: {
+            query: {
+              queryKey: {
+                path: "./packages/api-client/src/query/projects.ts",
+                name: "getProjectKey",
+              },
+            },
+          },
         },
         query: {
           version: 5,

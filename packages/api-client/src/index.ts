@@ -4,6 +4,7 @@ export * from "./generated/endpoints/app/app"
 export {
   listProjects,
   createProject,
+  getProject,
 } from "./generated/endpoints/projects/projects"
 export type * from "./generated/models"
 export { projectKeys } from "./query/projects"
@@ -11,3 +12,4 @@ export {
   useProjectsList,
   getProjectsListOptions,
 } from "./query/use-projects-list"
+export { getProjectDetailOptions } from "./query/use-project-detail"

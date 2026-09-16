@@ -28,6 +28,13 @@ import type {
   CreateProject500,
   CreateProjectBody,
   CreateProjectHeaders,
+  GetProject200,
+  GetProject400,
+  GetProject401,
+  GetProject403,
+  GetProject404,
+  GetProject500,
+  GetProjectHeaders,
   ListProjects200,
   ListProjects400,
   ListProjects401,
@@ -41,6 +48,7 @@ import { apiClient } from "../../../http/client"
 import type { ErrorType } from "../../../http/client"
 import { projectListOptions } from "../../../query/projects"
 import { listProjectsKey } from "../../../query/projects"
+import { getProjectKey } from "../../../query/projects"
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1]
 
@@ -468,6 +476,275 @@ export function useListProjects<
   const queryOptions = getListProjectsQueryOptions(
     organizationId,
     params,
+    headers,
+    options
+  )
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+
+  return withQueryKey(query, queryOptions.queryKey)
+}
+
+export type getProjectResponse200 = {
+  data: GetProject200
+  status: 200
+}
+
+export type getProjectResponse400 = {
+  data: GetProject400
+  status: 400
+}
+
+export type getProjectResponse401 = {
+  data: GetProject401
+  status: 401
+}
+
+export type getProjectResponse403 = {
+  data: GetProject403
+  status: 403
+}
+
+export type getProjectResponse404 = {
+  data: GetProject404
+  status: 404
+}
+
+export type getProjectResponse500 = {
+  data: GetProject500
+  status: 500
+}
+
+export type getProjectResponseSuccess = getProjectResponse200 & {
+  headers: Headers
+}
+export type getProjectResponseError = (
+  | getProjectResponse400
+  | getProjectResponse401
+  | getProjectResponse403
+  | getProjectResponse404
+  | getProjectResponse500
+) & {
+  headers: Headers
+}
+
+export const getGetProjectUrl = (organizationId: string, projectId: string) => {
+  return `/api/v1/organizations/${organizationId}/projects/${projectId}`
+}
+
+export const getProject = async (
+  organizationId: string,
+  projectId: string,
+  headers?: GetProjectHeaders,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<getProjectResponseSuccess> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {}
+    if (h instanceof Headers) return Object.fromEntries(h.entries())
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string]
+        )
+      )
+    }
+    const headers: Record<string, string | readonly string[]> = {}
+    for (const [name, value] of Object.entries<
+      string | readonly string[] | undefined
+    >(h)) {
+      if (value !== undefined) headers[name] = value
+    }
+    return headers
+  }
+  return apiClient<getProjectResponseSuccess>(
+    getGetProjectUrl(organizationId, projectId),
+    {
+      ...options,
+      method: "GET",
+      headers: { ...headers, ...getHeaders(options?.headers) },
+    }
+  )
+}
+
+export const getGetProjectQueryKey = (
+  organizationId: string,
+  projectId: string,
+  headers?: GetProjectHeaders
+) => getProjectKey({ organizationId, projectId, headers })
+
+export const useGetProjectQueryOptions = <
+  TData = Awaited<ReturnType<typeof getProject>>,
+  TError = ErrorType<
+    | GetProject400
+    | GetProject401
+    | GetProject403
+    | GetProject404
+    | GetProject500
+  >,
+>(
+  organizationId: string,
+  projectId: string,
+  headers?: GetProjectHeaders,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getProject>>, TError, TData>
+    >
+    request?: SecondParameter<typeof apiClient>
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey = getProjectKey({ organizationId, projectId, headers })
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getProject>>> = ({
+    signal,
+  }) =>
+    getProject(organizationId, projectId, headers, {
+      signal,
+      ...requestOptions,
+    })
+
+  return {
+    queryKey,
+    queryFn,
+    enabled:
+      organizationId !== null &&
+      organizationId !== undefined &&
+      projectId !== null &&
+      projectId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getProject>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetProjectQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getProject>>
+>
+export type GetProjectQueryError = ErrorType<
+  GetProject400 | GetProject401 | GetProject403 | GetProject404 | GetProject500
+>
+
+export function useGetProject<
+  TData = Awaited<ReturnType<typeof getProject>>,
+  TError = ErrorType<
+    | GetProject400
+    | GetProject401
+    | GetProject403
+    | GetProject404
+    | GetProject500
+  >,
+>(
+  organizationId: string,
+  projectId: string,
+  headers: undefined | GetProjectHeaders,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getProject>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getProject>>,
+          TError,
+          Awaited<ReturnType<typeof getProject>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetProject<
+  TData = Awaited<ReturnType<typeof getProject>>,
+  TError = ErrorType<
+    | GetProject400
+    | GetProject401
+    | GetProject403
+    | GetProject404
+    | GetProject500
+  >,
+>(
+  organizationId: string,
+  projectId: string,
+  headers?: GetProjectHeaders,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getProject>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getProject>>,
+          TError,
+          Awaited<ReturnType<typeof getProject>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetProject<
+  TData = Awaited<ReturnType<typeof getProject>>,
+  TError = ErrorType<
+    | GetProject400
+    | GetProject401
+    | GetProject403
+    | GetProject404
+    | GetProject500
+  >,
+>(
+  organizationId: string,
+  projectId: string,
+  headers?: GetProjectHeaders,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getProject>>, TError, TData>
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+
+export function useGetProject<
+  TData = Awaited<ReturnType<typeof getProject>>,
+  TError = ErrorType<
+    | GetProject400
+    | GetProject401
+    | GetProject403
+    | GetProject404
+    | GetProject500
+  >,
+>(
+  organizationId: string,
+  projectId: string,
+  headers?: GetProjectHeaders,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getProject>>, TError, TData>
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+} {
+  const queryOptions = useGetProjectQueryOptions(
+    organizationId,
+    projectId,
     headers,
     options
   )

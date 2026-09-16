@@ -64,6 +64,15 @@ export function ProjectsList({
       columnsHelper.columns([
         columnsHelper.accessor("name", {
           header: t("projects:name"),
+          cell: (cell) => (
+            <Link
+              to="/app/projects/$organizationId/$projectId"
+              params={{ organizationId, projectId: cell.row.original.id }}
+              className="font-medium underline-offset-4 hover:underline"
+            >
+              {cell.getValue()}
+            </Link>
+          ),
           meta: { label: t("projects:name") },
           size: 320,
           enableSorting: false,
@@ -112,7 +121,7 @@ export function ProjectsList({
           meta: { label: t("projects:updatedAt") },
         }),
       ]),
-    [locale, t]
+    [locale, organizationId, t]
   )
   const columnFilters = search.status
     ? [{ id: "status", value: search.status }]

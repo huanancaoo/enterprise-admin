@@ -19,7 +19,10 @@ import {
 } from "vitest"
 import { createTenantRunner } from "../../packages/database/dist/tenant.js"
 import { projectRepository } from "../../packages/database/dist/repositories/projects.js"
-import { projects } from "../../packages/database/dist/schema/projects.js"
+import {
+  projects,
+  projectTranslations,
+} from "../../packages/database/dist/schema/projects.js"
 
 const require = createRequire(import.meta.url)
 const {
@@ -184,11 +187,18 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
       "e2e-project-list-seed",
       new RequestLanguage(null)
     )
-    await createTenantRunner(runtime.pool)(tenant, async (tx) => {
-      await projectRepository.create(tx, {
+    return createTenantRunner(runtime.pool)(tenant, async (tx) => {
+      const target = await projectRepository.create(tx, {
         name: "页外目标项目",
-        description: null,
+        description: "中文详情",
         contentLocale: "zh-CN",
+      })
+      await tx.insert(projectTranslations).values({
+        organizationId,
+        projectId: target.id,
+        locale: "en-US",
+        name: "Off-page target project",
+        description: null,
       })
       // 此临时库尚无其他项目；将唯一目标固定为旧记录，才能证明搜索不是只查当前 20 行。
       await tx.update(projects).set({
@@ -202,6 +212,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
           contentLocale: "zh-CN",
         })
       }
+      return target
     })
   }
 
@@ -270,7 +281,15 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
       const cookie = (await context.cookies())
         .map(({ name, value }) => `${name}=${value}`)
         .join("; ")
-      await seedProjectsOutsideFirstPage(
+      const otherOrganization = await runtime.auth.api.createOrganization({
+        headers: new Headers({ cookie }),
+        body: {
+          name: "详情切换组织",
+          slug: "project-detail-switch",
+          keepCurrentActiveOrganization: true,
+        },
+      })
+      const target = await seedProjectsOutsideFirstPage(
         new Headers({ cookie }),
         String(organizationId)
       )
@@ -295,14 +314,54 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
       await expectUI(
         page.getByText("页外目标项目", { exact: true })
       ).toBeVisible()
-      const filteredURL = new URL(page.url())
-      expect(filteredURL.searchParams.get("name")).toBe("页外目标项目")
-      expect(filteredURL.searchParams.get("page")).toBe("1")
-      expect(filteredURL.searchParams.get("pageSize")).toBe("20")
+      const filteredListURL = new URL(page.url())
+      expect(filteredListURL.searchParams.get("name")).toBe("页外目标项目")
+      expect(filteredListURL.searchParams.get("page")).toBe("1")
+      expect(filteredListURL.searchParams.get("pageSize")).toBe("20")
+      await page
+        .getByRole("link", { name: "页外目标项目", exact: true })
+        .click()
+      await expectUI(page).toHaveURL(
+        new RegExp(`/app/projects/${organizationId}/${target.id}$`)
+      )
+      await expectUI(
+        page.getByRole("heading", { name: "页外目标项目", exact: true })
+      ).toBeVisible()
+      await expectUI(page.getByText("中文详情", { exact: true })).toBeVisible()
       await page.reload()
       await expectUI(
-        page.getByText("页外目标项目", { exact: true })
+        page.getByRole("heading", { name: "页外目标项目", exact: true })
       ).toBeVisible()
+      await page.getByRole("button", { name: "语言", exact: true }).click()
+      await page
+        .getByRole("menuitemradio", { name: "English", exact: true })
+        .click()
+      await expectUI(
+        page.getByRole("heading", {
+          name: "Off-page target project",
+          exact: true,
+        })
+      ).toBeVisible()
+      await expectUI(
+        page.getByText("No description", { exact: true })
+      ).toBeVisible()
+      const detailURL = new URL(page.url())
+      expect(detailURL.pathname).toBe(
+        `/app/projects/${organizationId}/${target.id}`
+      )
+      await page.getByLabel("Select organization", { exact: true }).click()
+      await page
+        .getByRole("option", { name: "详情切换组织", exact: true })
+        .click()
+      await expectUI(page).toHaveURL(
+        new RegExp(`/app/projects/${otherOrganization.id}(?:\\?.*)?$`)
+      )
+      await expectUI(
+        page.getByRole("heading", {
+          name: "Off-page target project",
+          exact: true,
+        })
+      ).toHaveCount(0)
     })
   })
 

@@ -3,6 +3,7 @@ import { z } from "zod"
 export const SupportedLocaleSchema = z.enum(["zh-CN", "en-US", "ar"])
 export type SupportedLocale = z.infer<typeof SupportedLocaleSchema>
 export const OrganizationIdSchema = z.uuidv4()
+export const ProjectIdSchema = z.uuid()
 export const ProjectStatusSchema = z.enum(["draft", "active", "archived"])
 export const ProjectListQuerySchema = z.strictObject({
   page: z.coerce.number().int().min(1).default(1),
