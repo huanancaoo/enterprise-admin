@@ -6,9 +6,11 @@ export { projectScenarios } from "./scenarios/projects"
 export { createProjectHandler } from "./handlers/project-create"
 export {
   createProjectDetailHandler,
+  createProjectDeleteHandler,
   createProjectEditHandlers,
 } from "./handlers/project-detail"
 export type {
+  ProjectDeleteScenario,
   ProjectDetailScenario,
   ProjectEditScenario,
 } from "./handlers/project-detail"

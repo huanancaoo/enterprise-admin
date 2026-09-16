@@ -4,6 +4,7 @@ export * from "./generated/endpoints/app/app"
 export {
   listProjects,
   createProject,
+  deleteProject,
   getProject,
   getProjectTranslation,
   updateProject,

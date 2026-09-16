@@ -28,6 +28,11 @@ import type {
   CreateProject500,
   CreateProjectBody,
   CreateProjectHeaders,
+  DeleteProject400,
+  DeleteProject401,
+  DeleteProject403,
+  DeleteProject404,
+  DeleteProject500,
   GetProject200,
   GetProject400,
   GetProject401,
@@ -770,6 +775,160 @@ export function useGetProject<
   return withQueryKey(query, queryOptions.queryKey)
 }
 
+export type deleteProjectResponse204 = {
+  data: void
+  status: 204
+}
+
+export type deleteProjectResponse400 = {
+  data: DeleteProject400
+  status: 400
+}
+
+export type deleteProjectResponse401 = {
+  data: DeleteProject401
+  status: 401
+}
+
+export type deleteProjectResponse403 = {
+  data: DeleteProject403
+  status: 403
+}
+
+export type deleteProjectResponse404 = {
+  data: DeleteProject404
+  status: 404
+}
+
+export type deleteProjectResponse500 = {
+  data: DeleteProject500
+  status: 500
+}
+
+export type deleteProjectResponseSuccess = deleteProjectResponse204 & {
+  headers: Headers
+}
+export type deleteProjectResponseError = (
+  | deleteProjectResponse400
+  | deleteProjectResponse401
+  | deleteProjectResponse403
+  | deleteProjectResponse404
+  | deleteProjectResponse500
+) & {
+  headers: Headers
+}
+
+export const getDeleteProjectUrl = (
+  organizationId: string,
+  projectId: string
+) => {
+  return `/api/v1/organizations/${organizationId}/projects/${projectId}`
+}
+
+export const deleteProject = async (
+  organizationId: string,
+  projectId: string,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<deleteProjectResponseSuccess> => {
+  return apiClient<deleteProjectResponseSuccess>(
+    getDeleteProjectUrl(organizationId, projectId),
+    {
+      ...options,
+      method: "DELETE",
+    }
+  )
+}
+
+export const getDeleteProjectMutationKey = () => ["deleteProject"] as const
+
+export const getDeleteProjectMutationOptions = <
+  TError = ErrorType<
+    | DeleteProject400
+    | DeleteProject401
+    | DeleteProject403
+    | DeleteProject404
+    | DeleteProject500
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteProject>>,
+    TError,
+    DeleteProjectMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteProject>>,
+  TError,
+  DeleteProjectMutationVariables,
+  TContext
+> => {
+  const mutationKey = getDeleteProjectMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteProject>>,
+    DeleteProjectMutationVariables
+  > = (props) => {
+    const { organizationId, projectId } = props ?? {}
+
+    return deleteProject(organizationId, projectId, requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type DeleteProjectMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteProject>>
+>
+
+export type DeleteProjectMutationError = ErrorType<
+  | DeleteProject400
+  | DeleteProject401
+  | DeleteProject403
+  | DeleteProject404
+  | DeleteProject500
+>
+export type DeleteProjectMutationVariables = {
+  organizationId: string
+  projectId: string
+}
+
+export const useDeleteProject = <
+  TError = ErrorType<
+    | DeleteProject400
+    | DeleteProject401
+    | DeleteProject403
+    | DeleteProject404
+    | DeleteProject500
+  >,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deleteProject>>,
+      TError,
+      DeleteProjectMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof deleteProject>>,
+  TError,
+  DeleteProjectMutationVariables,
+  TContext
+> => {
+  return useMutation(getDeleteProjectMutationOptions(options), queryClient)
+}
 export type updateProjectResponse200 = {
   data: UpdateProject200
   status: 200

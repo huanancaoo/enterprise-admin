@@ -12,6 +12,8 @@ export type ProjectDetailScenario =
 
 export type ProjectEditScenario = "success" | "error" | "refreshDraft"
 
+export type ProjectDeleteScenario = "success" | "loading" | "error"
+
 export function createProjectDetailHandler(
   scenario: ProjectDetailScenario = "success"
 ) {
@@ -133,4 +135,29 @@ export function createProjectEditHandlers(
       }
     ),
   ]
+}
+
+export function createProjectDeleteHandler(
+  scenario: ProjectDeleteScenario = "success"
+) {
+  return http.delete(
+    /\/api\/v1\/organizations\/(?<organizationId>[^/]+)\/projects\/(?<projectId>[^/?]+)$/,
+    async ({ request }) => {
+      const locale = SupportedLocaleSchema.parse(
+        request.headers.get("Accept-Language") ?? "zh-CN"
+      )
+      if (scenario === "loading") await delay("infinite")
+      if (scenario === "error")
+        return HttpResponse.json(
+          {
+            code: "INTERNAL_ERROR",
+            message: "Delete failed",
+            requestId: "storybook-project-delete",
+            locale,
+          } satisfies ApiError,
+          { status: 500, headers: { "Content-Language": locale } }
+        )
+      return new HttpResponse(null, { status: 204 })
+    }
+  )
 }

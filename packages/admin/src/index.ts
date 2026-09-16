@@ -42,3 +42,5 @@ export {
   ErrorState,
   PermissionDeniedState,
 } from "./components/page"
+export { ConfirmDangerAction } from "./components/confirm-danger-action"
+export type { ConfirmDangerActionProps } from "./components/confirm-danger-action"

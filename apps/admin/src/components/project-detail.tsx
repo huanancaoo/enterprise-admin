@@ -14,6 +14,7 @@ import { Badge } from "@workspace/ui/components/badge"
 import { buttonVariants } from "@workspace/ui/components/button"
 import { Card, CardContent } from "@workspace/ui/components/card"
 import { ProjectEdit } from "./project-edit"
+import { ProjectDelete } from "./project-delete"
 
 const statusBadgeVariant = {
   draft: "secondary",
@@ -75,6 +76,11 @@ export function ProjectDetail({
                 <ProjectEdit
                   organizationId={organizationId}
                   project={project}
+                />
+                <ProjectDelete
+                  organizationId={organizationId}
+                  projectId={project.id}
+                  projectName={project.name}
                 />
                 <Link
                   to="/app/projects/$organizationId"

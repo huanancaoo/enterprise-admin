@@ -12,6 +12,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite"
 import { expect, userEvent, waitFor, within } from "storybook/test"
 import {
   createProjectDetailHandler,
+  createProjectDeleteHandler,
   createProjectEditHandlers,
   organizations,
   projectFixtures,
@@ -89,7 +90,11 @@ const meta = {
   parameters: {
     layout: "fullscreen",
     msw: {
-      handlers: [...createProjectEditHandlers(), createProjectDetailHandler()],
+      handlers: [
+        ...createProjectEditHandlers(),
+        createProjectDeleteHandler(),
+        createProjectDetailHandler(),
+      ],
     },
   },
 } satisfies Meta<typeof ProjectDetailStory>
@@ -138,6 +143,102 @@ export const RTL: Story = {
   globals: { locale: "ar" },
   play: async ({ canvasElement }) => {
     await expect(canvasElement.closest("[dir]"))?.toHaveAttribute("dir", "rtl")
+  },
+}
+
+export const DeleteCancel: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const screen = within(canvasElement.ownerDocument.body)
+    await userEvent.click(
+      await canvas.findByRole("button", { name: "删除项目" })
+    )
+    const dialogElement = await screen.findByRole("alertdialog")
+    const dialog = within(dialogElement)
+    await userEvent.click(dialog.getByRole("button", { name: "取消" }))
+    await waitFor(() =>
+      expect(canvas.getByRole("button", { name: "删除项目" })).toHaveAttribute(
+        "aria-expanded",
+        "false"
+      )
+    )
+    await expect(
+      canvas.getByRole("heading", { name: project.name })
+    ).toBeVisible()
+  },
+}
+
+export const DeletePending: Story = {
+  parameters: {
+    msw: {
+      handlers: [
+        ...createProjectEditHandlers(),
+        createProjectDeleteHandler("loading"),
+        createProjectDetailHandler(),
+      ],
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const screen = within(canvasElement.ownerDocument.body)
+    await userEvent.click(
+      await canvas.findByRole("button", { name: "删除项目" })
+    )
+    const dialogElement = await screen.findByRole("alertdialog")
+    const dialog = within(dialogElement)
+    await userEvent.click(dialog.getByRole("button", { name: "删除项目" }))
+    await expect(
+      dialog.getByRole("button", { name: "正在删除…" })
+    ).toBeDisabled()
+    await expect(dialogElement).toHaveAttribute("aria-busy", "true")
+  },
+}
+
+export const DeleteFailure: Story = {
+  parameters: {
+    msw: {
+      handlers: [
+        ...createProjectEditHandlers(),
+        createProjectDeleteHandler("error"),
+        createProjectDetailHandler(),
+      ],
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const screen = within(canvasElement.ownerDocument.body)
+    await userEvent.click(
+      await canvas.findByRole("button", { name: "删除项目" })
+    )
+    const dialog = within(await screen.findByRole("alertdialog"))
+    await userEvent.click(dialog.getByRole("button", { name: "删除项目" }))
+    await expect(await dialog.findByRole("alert")).toHaveTextContent(
+      "操作未成功"
+    )
+  },
+}
+
+export const DeleteRTL: Story = {
+  globals: { locale: "ar" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const screen = within(canvasElement.ownerDocument.body)
+    await userEvent.click(
+      await canvas.findByRole("button", { name: "حذف المشروع" })
+    )
+    const dialog = await screen.findByRole("alertdialog")
+    await expect(canvasElement.closest("[dir]"))?.toHaveAttribute("dir", "rtl")
+    await waitFor(() =>
+      expect(
+        within(dialog).getByRole("button", {
+          name: "حذف المشروع",
+        })
+      ).toBeVisible()
+    )
+    await expect(dialog.getBoundingClientRect().left).toBeGreaterThanOrEqual(0)
+    await expect(dialog.getBoundingClientRect().right).toBeLessThanOrEqual(
+      window.innerWidth
+    )
   },
 }
 

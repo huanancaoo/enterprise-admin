@@ -31,6 +31,7 @@ import {
 import {
   listProjects,
   createProject,
+  deleteProject,
   configureApiClient,
   getProjectsListOptions,
   getProject,
@@ -101,6 +102,14 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
           "accept-language": locale,
         },
         body: JSON.stringify(body),
+      }
+    )
+  const deleteProjectRequest = (organizationId, projectId, session = cookie) =>
+    fetch(
+      `${baseURL}/api/v1/organizations/${organizationId}/projects/${projectId}`,
+      {
+        method: "DELETE",
+        headers: { cookie: session },
       }
     )
   beforeAll(async () => {
@@ -988,6 +997,145 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
         name: "回滚项目",
         description: "保留描述",
       })
+    } finally {
+      await migrator.query("GRANT INSERT ON audit_events TO app_runtime")
+    }
+  })
+  it("硬删除独立的多语言项目，保留删除审计并拒绝越权删除", async () => {
+    const deleted = await createTenantRunner(runtime.pool)(
+      contextB,
+      async (tx) => {
+        const project = await projectRepository.create(tx, {
+          name: "待删除中文项目",
+          description: "中文描述",
+          contentLocale: "zh-CN",
+        })
+        await tx.insert(projectTranslations).values([
+          {
+            organizationId: orgB.id,
+            projectId: project.id,
+            locale: "en-US",
+            name: "Project to delete",
+            description: "English description",
+          },
+          {
+            organizationId: orgB.id,
+            projectId: project.id,
+            locale: "ar",
+            name: "مشروع للحذف",
+            description: "وصف عربي",
+          },
+        ])
+        return project
+      }
+    )
+    const signup = await fetch(`${baseURL}/api/auth/sign-up/email`, {
+      method: "POST",
+      headers: { origin, "content-type": "application/json" },
+      body: JSON.stringify({
+        name: "Delete denied",
+        email: "delete-denied@example.test",
+        password: randomBytes(24).toString("hex"),
+      }),
+    })
+    const deniedActor = await signup.json()
+    const deniedCookie = signup.headers
+      .getSetCookie()
+      .map((item) => item.split(";")[0])
+      .join("; ")
+    await runtime.auth.api.createOrgRole({
+      headers: new Headers({ cookie }),
+      body: {
+        organizationId: orgB.id,
+        role: "delete-reader",
+        permission: { project: ["read"] },
+      },
+    })
+    await runtime.auth.api.addMember({
+      body: {
+        organizationId: orgB.id,
+        userId: deniedActor.user.id,
+        role: "delete-reader",
+      },
+    })
+    const forbidden = await deleteProjectRequest(
+      orgB.id,
+      deleted.id,
+      deniedCookie
+    )
+    expect(forbidden.status).toBe(403)
+    expect(ApiErrorSchema.parse(await forbidden.json()).code).toBe("FORBIDDEN")
+    expect((await deleteProjectRequest(orgA.id, deleted.id)).status).toBe(404)
+
+    const response = await deleteProject(orgB.id, deleted.id)
+    expect(response.status).toBe(204)
+    expect((await queryDetail(orgB.id, deleted.id)).status).toBe(404)
+    for (const locale of ["zh-CN", "en-US", "ar"])
+      expect((await queryTranslation(orgB.id, deleted.id, locale)).status).toBe(
+        404
+      )
+
+    const state = await createTenantRunner(runtime.pool)(
+      contextB,
+      async (tx) => ({
+        project: await projectRepository.find(tx, deleted.id),
+        translations: await projectRepository.translations(tx, deleted.id),
+        audits: await tx.select().from(auditEvents),
+      })
+    )
+    expect(state.project).toBeUndefined()
+    expect(state.translations).toEqual([])
+    expect(state.audits).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          eventCode: "project.deleted",
+          resourceId: deleted.id,
+          organizationId: orgB.id,
+          actorId: contextB.userId,
+          fields: { status: "draft", contentLocale: "zh-CN" },
+        }),
+      ])
+    )
+    expect((await deleteProjectRequest(orgB.id, deleted.id)).status).toBe(404)
+  })
+  it("删除审计写入失败时，项目与全部译文一起回滚", async () => {
+    const retained = await createTenantRunner(runtime.pool)(
+      contextB,
+      async (tx) => {
+        const project = await projectRepository.create(tx, {
+          name: "必须保留的项目",
+          description: null,
+          contentLocale: "zh-CN",
+        })
+        await tx.insert(projectTranslations).values({
+          organizationId: orgB.id,
+          projectId: project.id,
+          locale: "en-US",
+          name: "Must remain",
+          description: null,
+        })
+        return project
+      }
+    )
+    await migrator.query("REVOKE INSERT ON audit_events FROM app_runtime")
+    try {
+      expect((await deleteProjectRequest(orgB.id, retained.id)).status).toBe(
+        500
+      )
+      expect((await queryDetail(orgB.id, retained.id)).status).toBe(200)
+      expect(
+        (await queryTranslation(orgB.id, retained.id, "en-US")).status
+      ).toBe(200)
+      const audits = await createTenantRunner(runtime.pool)(contextB, (tx) =>
+        tx.select().from(auditEvents)
+      )
+      expect(
+        audits.filter(
+          (event) =>
+            event.resourceId === retained.id &&
+            event.eventCode === "project.deleted"
+        )
+      ).toEqual([])
     } finally {
       await migrator.query("GRANT INSERT ON audit_events TO app_runtime")
     }

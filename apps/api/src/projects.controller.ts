@@ -2,8 +2,11 @@ import {
   Body,
   BadRequestException,
   Controller,
+  Delete,
   Get,
   Headers,
+  HttpCode,
+  HttpStatus,
   NotFoundException,
   Param,
   Patch,
@@ -158,6 +161,41 @@ export class ProjectsController {
       createdAt: project.createdAt.toISOString(),
       updatedAt: project.updatedAt.toISOString(),
     };
+  }
+
+  @Delete(':projectId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RequireTenant({ project: ['delete'] })
+  @ApiOperation({ operationId: 'deleteProject' })
+  @ApiResponse({ status: 204, description: 'Project deleted' })
+  @ApiResponse({ status: 400, standardSchema: ApiErrorSchema })
+  @ApiResponse({ status: 401, standardSchema: ApiErrorSchema })
+  @ApiResponse({ status: 403, standardSchema: ApiErrorSchema })
+  @ApiResponse({ status: 404, standardSchema: ApiErrorSchema })
+  @ApiResponse({ status: 500, standardSchema: ApiErrorSchema })
+  async delete(
+    @Param('organizationId', { schema: OrganizationIdSchema })
+    _organizationId: string,
+    @Param('projectId', { schema: ProjectIdSchema }) projectId: string,
+    @CurrentTenant() context: TenantContext,
+  ): Promise<void> {
+    await createTenantRunner(this.runtime.pool)(context, async (tx) => {
+      const project = await this.projectPolicy.requireForMutation(
+        tx,
+        projectId,
+      );
+      const [deleted] = await projectRepository.delete(tx, project.id);
+      if (!deleted) throw new NotFoundException();
+      // 删除与审计共用事务；审计未写入时，级联删除的项目及全部译文必须回滚。
+      await auditRepository.record(tx, {
+        eventCode: 'project.deleted',
+        resourceId: deleted.id,
+        fields: {
+          status: deleted.status,
+          contentLocale: deleted.contentLocale,
+        },
+      });
+    });
   }
 
   @Get(':projectId/translations/:locale')

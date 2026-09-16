@@ -23,6 +23,7 @@ import {
   projects,
   projectTranslations,
 } from "../../packages/database/dist/schema/projects.js"
+import { auditEvents } from "../../packages/database/dist/schema/audit.js"
 
 const require = createRequire(import.meta.url)
 const {
@@ -513,17 +514,13 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
       if (route.request().method() === "PATCH") await route.abort()
       else await route.continue()
     })
-    await dialog
-      .getByRole("button", { name: "保存项目", exact: true })
-      .click()
+    await dialog.getByRole("button", { name: "保存项目", exact: true }).click()
     await expectUI(dialog.getByRole("alert")).toBeVisible()
-    await expectUI(
-      dialog.getByLabel("项目名称", { exact: true })
-    ).toHaveValue("English draft")
+    await expectUI(dialog.getByLabel("项目名称", { exact: true })).toHaveValue(
+      "English draft"
+    )
     await page.unroute("**/api/v1/organizations/*/projects/*")
-    await dialog
-      .getByRole("button", { name: "保存项目", exact: true })
-      .click()
+    await dialog.getByRole("button", { name: "保存项目", exact: true }).click()
     await expectUI(dialog).toHaveCount(0)
     await expectUI(page.getByText(/^(活跃|Active)$/)).toBeVisible()
     await page.reload()
@@ -541,6 +538,102 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
       path: `test-results/s7/project-edit-${project.id}.png`,
       fullPage: true,
     })
+  })
+
+  it("从真实详情确认硬删除项目后，列表与详情不再展示旧数据", async () => {
+    await page.goto(frontends[0].resolvedUrls.local[0] + "app/")
+    await registerAccount(page, {
+      name: "项目删除用户",
+      email: "project-delete-browser@example.test",
+      password: credentials.password,
+    })
+    await page.getByLabel("组织名称", { exact: true }).fill("项目删除组织")
+    await page.getByLabel("组织标识", { exact: true }).fill("project-delete")
+    await page.getByRole("button", { name: "创建组织", exact: true }).click()
+    await page.getByRole("link", { name: "查看项目", exact: true }).click()
+    const organizationId = new URL(page.url()).pathname.split("/").at(-1)
+    expect(organizationId).toBeTruthy()
+    await page.getByRole("button", { name: "创建项目", exact: true }).click()
+    const createDialog = page.getByRole("dialog")
+    await createDialog
+      .getByLabel("项目名称", { exact: true })
+      .fill("浏览器删除项目")
+    await createDialog
+      .getByRole("button", { name: "创建项目", exact: true })
+      .click()
+    await page
+      .getByRole("link", { name: "浏览器删除项目", exact: true })
+      .click()
+    const projectId = new URL(page.url()).pathname.split("/").at(-1)
+    expect(projectId).toBeTruthy()
+
+    await page.getByRole("button", { name: "删除项目", exact: true }).click()
+    const confirmation = page.getByRole("alertdialog")
+    await confirmation
+      .getByRole("button", { name: "取消", exact: true })
+      .click()
+    await expectUI(confirmation).toHaveCount(0)
+    await expectUI(
+      page.getByRole("heading", { name: "浏览器删除项目", exact: true })
+    ).toBeVisible()
+
+    const deletion = page.waitForRequest((request) => {
+      const url = new URL(request.url())
+      return (
+        request.method() === "DELETE" &&
+        url.pathname ===
+          `/api/v1/organizations/${organizationId}/projects/${projectId}`
+      )
+    })
+    await page.getByRole("button", { name: "删除项目", exact: true }).click()
+    await confirmation
+      .getByRole("button", { name: "删除项目", exact: true })
+      .click()
+    await deletion
+    await expectUI(page).toHaveURL(
+      new RegExp(`/app/projects/${organizationId}(?:\\?.*)?$`)
+    )
+    await expectUI(
+      page.getByRole("link", { name: "浏览器删除项目", exact: true })
+    ).toHaveCount(0)
+
+    const cookie = (await context.cookies())
+      .map(({ name, value }) => `${name}=${value}`)
+      .join("; ")
+    const tenant = await tenantContexts.resolve(
+      new Headers({ cookie }),
+      String(organizationId),
+      { project: ["read"] },
+      "e2e-project-delete-inspect",
+      new RequestLanguage(null)
+    )
+    const state = await createTenantRunner(runtime.pool)(
+      tenant,
+      async (tx) => ({
+        project: await projectRepository.find(tx, String(projectId)),
+        translations: await projectRepository.translations(
+          tx,
+          String(projectId)
+        ),
+        audits: await tx.select().from(auditEvents),
+      })
+    )
+    expect(state.project).toBeUndefined()
+    expect(state.translations).toEqual([])
+    expect(
+      state.audits.some(
+        (event) =>
+          event.resourceId === projectId &&
+          event.eventCode === "project.deleted"
+      )
+    ).toBe(true)
+
+    await page.goto(
+      `${frontends[0].resolvedUrls.local[0]}app/projects/${organizationId}/${projectId}`
+    )
+    await expectUI(
+      page.getByRole("heading", { name: "未找到项目", exact: true })
+    ).toBeVisible()
   })
 
   it("注册后刷新恢复会话，登出后刷新仍需登录，错误密码可纠正重试", async () => {

@@ -11,39 +11,37 @@ import type {
 export const projectKeys = {
   all: (organizationId: string) =>
     ["organizations", organizationId, "projects"] as const,
+  lists: (organizationId: string) =>
+    [...projectKeys.all(organizationId), "list"] as const,
   list: (
     organizationId: string,
     params: ListProjectsParams | undefined,
     requestLanguage: string | null
   ) =>
     [
-      ...projectKeys.all(organizationId),
-      "list",
+      ...projectKeys.lists(organizationId),
       ProjectListQuerySchema.parse(params ?? {}),
       requestLanguage,
     ] as const,
+  details: (organizationId: string, projectId: string) =>
+    [...projectKeys.all(organizationId), "detail", projectId] as const,
   detail: (
     organizationId: string,
     projectId: string,
     requestLanguage: string | null
   ) =>
     [
-      ...projectKeys.all(organizationId),
-      "detail",
-      projectId,
+      ...projectKeys.details(organizationId, projectId),
       requestLanguage,
     ] as const,
+  translations: (organizationId: string, projectId: string) =>
+    [...projectKeys.all(organizationId), "translation", projectId] as const,
   translation: (
     organizationId: string,
     projectId: string,
     locale: SupportedLocale
   ) =>
-    [
-      ...projectKeys.all(organizationId),
-      "translation",
-      projectId,
-      locale,
-    ] as const,
+    [...projectKeys.translations(organizationId, projectId), locale] as const,
 }
 
 export function listProjectsKey(input: {
