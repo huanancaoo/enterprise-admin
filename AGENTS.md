@@ -10,8 +10,7 @@
 ## 开始任务
 
 1. 修改文件或执行 Git 操作前，阅读 [Git 协作规范](docs/agents/git.md)，完成其中的工作区、分支和暂存区检查。
-2. 探索领域或调整架构前，阅读 [领域文档规则](docs/agents/domain.md) 与相关 ADR；用 [实施计划](docs/architecture/implementation-plan.md) 确认任务范围，用当前实现确认完成状态。
-3. 代码发现优先使用 codebase-memory-mcp：先 `list_projects`，未索引时执行 `index_repository`；用 `search_graph` 定位符号、`trace_path` 追踪调用、`get_code_snippet` 阅读实现、`query_graph` 查询复杂关系、`get_architecture` 查看结构。字符串、配置、文档或图结果不足时使用 `rg`；图查询无结果不等于代码不存在。
+2. 代码发现优先使用 codebase-memory-mcp：先 `list_projects`，未索引时执行 `index_repository`；用 `search_graph` 定位符号、`trace_path` 追踪调用、`get_code_snippet` 阅读实现、`query_graph` 查询复杂关系、`get_architecture` 查看结构。字符串、配置、文档或图结果不足时使用 `rg`；图查询无结果不等于代码不存在。
 
 ## 项目与边界
 
@@ -69,6 +68,18 @@ pnpm dev
 ## 发布与协作
 
 - 发布前检查目标应用的构建配置和产物路径；数据库迁移镜像与发布门禁见数据库说明。`apps/api/README.md` 中的 Nest 模板部署示例不是本项目发布流程；部署目标或流程未明确时先澄清。
-- 读取、创建或更新 Issue / 规格时，阅读 [Issue 工作流](docs/agents/issue-tracker.md)。
-- 分诊或变更 Issue 标签时，阅读 [标签映射](docs/agents/triage-labels.md)。
 - 提交、推送和 PR 的授权、命名及检查要求统一遵循 Git 协作规范。
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in this repo's GitHub Issues (`gh` CLI). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Canonical roles map 1:1 to `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+multi-context (`CONTEXT-MAP.md` at repo root, per-context `CONTEXT.md`). See `docs/agents/domain.md`.
