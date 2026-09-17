@@ -8,6 +8,7 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu"
 import {
@@ -16,7 +17,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@workspace/ui/components/sidebar"
-import { CheckIcon, ChevronsUpDownIcon } from "lucide-react"
+import { CheckIcon, ChevronsUpDownIcon, PlusIcon } from "lucide-react"
 
 export interface SidebarTeam {
   id: string
@@ -30,7 +31,9 @@ export interface TeamSwitcherProps {
   value: string | null
   label: string
   disabled?: boolean
+  createLabel?: string
   onSelect: (teamId: string) => void
+  onCreate?: () => void
 }
 
 export function TeamSwitcher({
@@ -38,16 +41,21 @@ export function TeamSwitcher({
   value,
   label,
   disabled = false,
+  createLabel,
   onSelect,
+  onCreate,
 }: TeamSwitcherProps) {
   const { isMobile } = useSidebar()
   const activeTeam = teams.find((team) => team.id === value)
+  const triggerName = activeTeam?.name ?? label
+  const triggerLogo = activeTeam?.logo ?? triggerName.slice(0, 1)
 
-  if (!activeTeam) {
+  // 空列表不走 Tooltip：TooltipTrigger 不会把 disabled 落到原生按钮上。
+  if (teams.length === 0) {
     return (
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton size="lg" tooltip={label} disabled>
+          <SidebarMenuButton size="lg" disabled>
             <span className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sm font-semibold text-sidebar-primary-foreground">
               {label.slice(0, 1)}
             </span>
@@ -58,8 +66,6 @@ export function TeamSwitcher({
     )
   }
 
-  const activeLogo = activeTeam.logo ?? activeTeam.name.slice(0, 1)
-
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -69,17 +75,17 @@ export function TeamSwitcher({
             render={
               <SidebarMenuButton
                 size="lg"
-                tooltip={activeTeam.name}
+                tooltip={triggerName}
                 className="data-open:bg-sidebar-accent data-open:text-sidebar-accent-foreground"
               />
             }
           >
             <span className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sm font-semibold text-sidebar-primary-foreground">
-              {activeLogo}
+              {triggerLogo}
             </span>
             <span className="grid flex-1 text-start text-sm leading-tight">
-              <span className="truncate font-medium">{activeTeam.name}</span>
-              {activeTeam.description && (
+              <span className="truncate font-medium">{triggerName}</span>
+              {activeTeam?.description && (
                 <span className="truncate text-xs">
                   {activeTeam.description}
                 </span>
@@ -108,12 +114,25 @@ export function TeamSwitcher({
                       {team.logo ?? team.name.slice(0, 1)}
                     </span>
                     <span className="min-w-0 flex-1 truncate">{team.name}</span>
-                    {team.id === activeTeam.id && (
+                    {team.id === activeTeam?.id && (
                       <CheckIcon className="size-4" />
                     )}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuGroup>
+              {onCreate && createLabel && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={onCreate} className="gap-2 p-2">
+                    <span className="flex size-6 items-center justify-center rounded-md border">
+                      <PlusIcon className="size-4" />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">
+                      {createLabel}
+                    </span>
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           )}
         </DropdownMenu>

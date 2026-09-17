@@ -9,7 +9,7 @@ export function App() {
     <AuthSession
       client={authClient}
       title={t("organization:management")}
-      authenticatedPath="/app/select-organization"
+      authenticatedPath="/app"
       allowSignUp
     >
       <Outlet />

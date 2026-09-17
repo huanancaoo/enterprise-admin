@@ -61,6 +61,31 @@ async function signOutFromAppShell(page, userName) {
   await page.getByRole("menuitem", { name: "退出登录", exact: true }).click()
 }
 
+async function signOutFromGate(page) {
+  await page.getByRole("button", { name: "退出登录", exact: true }).click()
+}
+
+async function createOrganizationFromSwitcher(
+  page,
+  activeOrganizationName,
+  organization
+) {
+  await page
+    .getByRole("button", { name: new RegExp(activeOrganizationName) })
+    .click()
+  await page.getByRole("menuitem", { name: "创建组织", exact: true }).click()
+  const dialog = page.getByRole("dialog")
+  await dialog.getByLabel("组织名称", { exact: true }).fill(organization.name)
+  await dialog.getByLabel("组织标识", { exact: true }).fill(organization.slug)
+  await dialog.getByRole("button", { name: "创建组织", exact: true }).click()
+}
+
+async function signInAccount(page, account) {
+  await page.getByLabel("邮箱", { exact: true }).fill(account.email)
+  await page.getByLabel("密码", { exact: true }).fill(account.password)
+  await page.getByRole("button", { name: "登录", exact: true }).click()
+}
+
 async function selectOrganizationFromAppShell(
   page,
   activeOrganizationName,
@@ -300,13 +325,6 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
       await page.getByLabel("组织名称", { exact: true }).fill("项目列表组织")
       await page.getByLabel("组织标识", { exact: true }).fill("projects-list")
       await page.getByRole("button", { name: "创建组织", exact: true }).click()
-      await expectUI(
-        page.getByRole("heading", {
-          name: "当前组织：项目列表组织",
-          exact: true,
-        })
-      ).toBeVisible()
-      await page.getByRole("link", { name: "查看项目", exact: true }).click()
       await expectUI(page).toHaveURL(/\/app\/projects\/[0-9a-f-]+(?:\?.*)?$/)
       const organizationId = new URL(page.url()).pathname.split("/").at(-1)
       expect(organizationId).toBeTruthy()
@@ -402,7 +420,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await page.getByLabel("组织名称", { exact: true }).fill("项目创建组织")
     await page.getByLabel("组织标识", { exact: true }).fill("project-create")
     await page.getByRole("button", { name: "创建组织", exact: true }).click()
-    await page.getByRole("link", { name: "查看项目", exact: true }).click()
+    await expectUI(page).toHaveURL(/\/app\/projects\/[0-9a-f-]+(?:\?.*)?$/)
     await page.getByRole("button", { name: "创建项目", exact: true }).click()
     const dialog = page.getByRole("dialog")
     await dialog.getByLabel("项目名称", { exact: true }).fill("浏览器创建项目")
@@ -465,7 +483,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await page.getByLabel("组织名称", { exact: true }).fill("项目编辑组织")
     await page.getByLabel("组织标识", { exact: true }).fill("project-edit")
     await page.getByRole("button", { name: "创建组织", exact: true }).click()
-    await page.getByRole("link", { name: "查看项目", exact: true }).click()
+    await expectUI(page).toHaveURL(/\/app\/projects\/[0-9a-f-]+(?:\?.*)?$/)
     const organizationId = new URL(page.url()).pathname.split("/").at(-1)
     expect(organizationId).toBeTruthy()
     const cookie = (await context.cookies())
@@ -551,7 +569,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await page.getByLabel("组织名称", { exact: true }).fill("项目删除组织")
     await page.getByLabel("组织标识", { exact: true }).fill("project-delete")
     await page.getByRole("button", { name: "创建组织", exact: true }).click()
-    await page.getByRole("link", { name: "查看项目", exact: true }).click()
+    await expectUI(page).toHaveURL(/\/app\/projects\/[0-9a-f-]+(?:\?.*)?$/)
     const organizationId = new URL(page.url()).pathname.split("/").at(-1)
     expect(organizationId).toBeTruthy()
     await page.getByRole("button", { name: "创建项目", exact: true }).click()
@@ -648,13 +666,6 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await page.getByLabel("组织名称", { exact: true }).fill("全流程验收组织")
     await page.getByLabel("组织标识", { exact: true }).fill("full-flow-org")
     await page.getByRole("button", { name: "创建组织", exact: true }).click()
-    await expectUI(
-      page.getByRole("heading", {
-        name: "当前组织：全流程验收组织",
-        exact: true,
-      })
-    ).toBeVisible()
-    await page.getByRole("link", { name: "查看项目", exact: true }).click()
     await expectUI(page).toHaveURL(/\/app\/projects\/[0-9a-f-]+(?:\?.*)?$/)
     const organizationId = new URL(page.url()).pathname.split("/").at(-1)
     expect(organizationId).toBeTruthy()
@@ -941,7 +952,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
       fullPage: true,
     })
     const oldCookies = await context.cookies()
-    await signOutFromAppShell(page, "S4 用户")
+    await signOutFromGate(page)
     await page.getByRole("heading", { name: "登录", exact: true }).waitFor()
     await page.reload()
     await page.getByRole("heading", { name: "登录", exact: true }).waitFor()
@@ -984,15 +995,13 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await page.getByLabel("组织名称", { exact: true }).fill("甲组织")
     await page.getByLabel("组织标识", { exact: true }).fill("organization-a")
     await page.getByRole("button", { name: "创建组织", exact: true }).click()
-    await expectUI(
-      page.getByRole("heading", { name: "当前组织：甲组织", exact: true })
-    ).toBeVisible()
-    await page.getByLabel("组织名称", { exact: true }).fill("乙组织")
-    await page.getByLabel("组织标识", { exact: true }).fill("organization-b")
-    await page.getByRole("button", { name: "创建组织", exact: true }).click()
-    await expectUI(
-      page.getByRole("heading", { name: "当前组织：乙组织", exact: true })
-    ).toBeVisible()
+    await expectUI(page).toHaveURL(/\/app\/projects\/[0-9a-f-]+(?:\?.*)?$/)
+    await expectUI(page.getByRole("button", { name: /甲组织/ })).toBeVisible()
+    await createOrganizationFromSwitcher(page, "甲组织", {
+      name: "乙组织",
+      slug: "organization-b",
+    })
+    await expectUI(page.getByRole("button", { name: /乙组织/ })).toBeVisible()
     let releaseRefresh
     const refreshGate = new Promise((resolve) => {
       releaseRefresh = resolve
@@ -1012,24 +1021,14 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await refreshStarted
     try {
       await expectUI(activeTeamSwitcher).toHaveAttribute("data-disabled", "")
-      await expectUI(
-        page.getByLabel("组织名称", { exact: true })
-      ).toBeDisabled()
-      await expectUI(
-        page.getByRole("button", { name: "提交中…", exact: true })
-      ).toBeDisabled()
     } finally {
       releaseRefresh()
     }
     // 等待已拦截请求处理完再解除路由，避免与尚在执行的 continue 竞争。
     await page.unrouteAll({ behavior: "wait" })
-    await expectUI(
-      page.getByRole("heading", { name: "当前组织：甲组织", exact: true })
-    ).toBeVisible()
+    await expectUI(page.getByRole("button", { name: /甲组织/ })).toBeVisible()
     await page.reload()
-    await expectUI(
-      page.getByRole("heading", { name: "当前组织：甲组织", exact: true })
-    ).toBeVisible()
+    await expectUI(page.getByRole("button", { name: /甲组织/ })).toBeVisible()
     await page.screenshot({
       path: "test-results/s4-02/organizations.png",
       fullPage: true,
@@ -1042,22 +1041,90 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
       path: "test-results/s4-02/organizations-mobile.png",
       fullPage: true,
     })
-    await page.getByLabel("组织名称", { exact: true }).fill("重复组织")
-    await page.getByLabel("组织标识", { exact: true }).fill("organization-a")
-    await page.getByRole("button", { name: "创建组织", exact: true }).click()
-    await expectUI(page.getByRole("alert")).toBeVisible()
-    await expectUI(
-      page.getByRole("heading", { name: "当前组织：甲组织", exact: true })
-    ).toBeVisible()
-    await expectUI(
-      page.getByRole("button", { name: "选择 重复组织", exact: true })
-    ).toHaveCount(0)
-    await expectUI(page.getByLabel("组织名称", { exact: true })).toHaveValue(
+    // 窄屏只验证工作区不横向溢出；切换器在侧栏抽屉里，后续创建断言回到桌面视口。
+    await page.setViewportSize({ width: 1280, height: 800 })
+    const organizationURL = page.url()
+    await page.getByRole("button", { name: /甲组织/ }).click()
+    await page.getByRole("menuitem", { name: "创建组织", exact: true }).click()
+    const dialog = page.getByRole("dialog")
+    await dialog.getByLabel("组织名称", { exact: true }).fill("重复组织")
+    await dialog.getByLabel("组织标识", { exact: true }).fill("organization-a")
+    await dialog.getByRole("button", { name: "创建组织", exact: true }).click()
+    await expectUI(dialog.getByRole("alert")).toBeVisible()
+    expect(page.url()).toBe(organizationURL)
+    await expectUI(dialog.getByLabel("组织名称", { exact: true })).toHaveValue(
       "重复组织"
     )
-    await expectUI(page.getByLabel("组织标识", { exact: true })).toHaveValue(
+    await expectUI(dialog.getByLabel("组织标识", { exact: true })).toHaveValue(
       "organization-a"
     )
+  })
+
+  it("已有一个组织的用户登录后进入该组织工作区", async () => {
+    const account = {
+      name: "单组织用户",
+      email: "single-org-login@example.test",
+      password: credentials.password,
+    }
+    await page.goto(frontends[0].resolvedUrls.local[0] + "app/")
+    await registerAccount(page, account)
+    await page.getByLabel("组织名称", { exact: true }).fill("唯一组织")
+    await page.getByLabel("组织标识", { exact: true }).fill("only-org")
+    await page.getByRole("button", { name: "创建组织", exact: true }).click()
+    await expectUI(page).toHaveURL(/\/app\/projects\/[0-9a-f-]+(?:\?.*)?$/)
+    await expectUI(page.getByRole("button", { name: /唯一组织/ })).toBeVisible()
+    await signOutFromAppShell(page, account.name)
+    await page.getByRole("heading", { name: "登录", exact: true }).waitFor()
+    await signInAccount(page, account)
+    await expectUI(page).toHaveURL(/\/app\/projects\/[0-9a-f-]+(?:\?.*)?$/)
+    await expectUI(
+      page.getByRole("heading", { name: "项目", exact: true })
+    ).toBeVisible()
+    await expectUI(page.getByText("还没有项目", { exact: true })).toBeVisible()
+    await expectUI(
+      page.getByRole("heading", { name: "创建组织", exact: true })
+    ).toHaveCount(0)
+  })
+
+  it("已有多个组织的用户登录后选择已有组织进入", async () => {
+    const account = {
+      name: "多组织用户",
+      email: "multi-org-login@example.test",
+      password: credentials.password,
+    }
+    await page.goto(frontends[0].resolvedUrls.local[0] + "app/")
+    await registerAccount(page, account)
+    await page.getByLabel("组织名称", { exact: true }).fill("北区组织")
+    await page.getByLabel("组织标识", { exact: true }).fill("north-org")
+    await page.getByRole("button", { name: "创建组织", exact: true }).click()
+    await expectUI(page).toHaveURL(/\/app\/projects\/[0-9a-f-]+(?:\?.*)?$/)
+    await createOrganizationFromSwitcher(page, "北区组织", {
+      name: "南区组织",
+      slug: "south-org",
+    })
+    await expectUI(page.getByRole("button", { name: /南区组织/ })).toBeVisible()
+    await signOutFromAppShell(page, account.name)
+    await page.getByRole("heading", { name: "登录", exact: true }).waitFor()
+    await signInAccount(page, account)
+    await expectUI(page).toHaveURL(/\/app\/select-organization$/)
+    await expectUI(
+      page.getByRole("heading", { name: "选择组织", exact: true })
+    ).toBeVisible()
+    await expectUI(
+      page.getByRole("link", { name: "北区组织", exact: true })
+    ).toBeVisible()
+    await expectUI(
+      page.getByRole("link", { name: "南区组织", exact: true })
+    ).toBeVisible()
+    await page.getByRole("link", { name: "北区组织", exact: true }).click()
+    await expectUI(page).toHaveURL(/\/app\/projects\/[0-9a-f-]+(?:\?.*)?$/)
+    await expectUI(
+      page.getByRole("heading", { name: "项目", exact: true })
+    ).toBeVisible()
+    await expectUI(page.getByText("还没有项目", { exact: true })).toBeVisible()
+    await expectUI(
+      page.getByRole("heading", { name: "创建组织", exact: true })
+    ).toHaveCount(0)
   })
 
   it("创建成功后的读回失败只重试读取，恢复后清空已提交草稿", async () => {
@@ -1089,14 +1156,13 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     ).toHaveCount(0)
     await page.unroute("**/api/auth/organization/list")
     await page.getByRole("button", { name: "重试", exact: true }).click()
+    await expectUI(page).toHaveURL(/\/app\/projects\/[0-9a-f-]+(?:\?.*)?$/)
     await expectUI(
-      page.getByRole("heading", { name: "当前组织：已创建组织", exact: true })
+      page.getByRole("heading", { name: "项目", exact: true })
     ).toBeVisible()
-    await expectUI(page.getByLabel("组织名称", { exact: true })).toHaveValue("")
-    await expectUI(page.getByLabel("组织标识", { exact: true })).toHaveValue("")
     await page.reload()
     await expectUI(
-      page.getByRole("heading", { name: "当前组织：已创建组织", exact: true })
+      page.getByRole("heading", { name: "项目", exact: true })
     ).toBeVisible()
   })
 
@@ -1107,7 +1173,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
       email: "platform-login@example.test",
       password: credentials.password,
     })
-    await signOutFromAppShell(page, "普通账号")
+    await signOutFromGate(page)
     await page.getByRole("heading", { name: "登录", exact: true }).waitFor()
     await page.goto(frontends[1].resolvedUrls.local[0] + "platform/")
     await expectUI(
@@ -1168,8 +1234,9 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
         await page
           .getByRole("button", { name: "创建组织", exact: true })
           .click()
+        await expectUI(page).toHaveURL(/\/app\/projects\/[0-9a-f-]+(?:\?.*)?$/)
         await expectUI(
-          page.getByRole("heading", { name: "当前组织：第一个账号的组织" })
+          page.getByRole("button", { name: /第一个账号的组织/ })
         ).toBeVisible()
         await signOutFromAppShell(page, "换账号测试")
         await expectUI(

@@ -2,6 +2,7 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  Outlet,
   redirect,
 } from "@tanstack/react-router"
 import { ProjectListQuerySchema } from "@workspace/contracts"
@@ -9,46 +10,54 @@ import { App } from "./App"
 import { ProjectsRoute } from "./components/projects-route"
 import { ProjectDetailRoute } from "./components/project-detail-route"
 import { AdminLayout } from "./components/admin-layout"
-import { OrganizationWorkspace } from "./components/organization-workspace"
+import {
+  OrganizationGate,
+  WorkspaceEntry,
+} from "./components/organization-workspace"
 
 const rootRoute = createRootRoute({ component: App })
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/login",
 })
-const organizationRoute = createRoute({
-  getParentRoute: () => appRoute,
-  path: "/select-organization",
-  component: OrganizationWorkspace,
-})
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
   beforeLoad: () => {
-    throw redirect({ to: "/app/select-organization" })
+    throw redirect({ to: "/app" })
   },
 })
 const appRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/app",
-  component: AdminLayout,
+  component: Outlet,
 })
 const appIndexRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/",
-  beforeLoad: () => {
-    throw redirect({ to: "/app/select-organization" })
-  },
+  component: WorkspaceEntry,
+})
+// 进入门不能套工作台：此时还没有租户可工作。
+const organizationRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/select-organization",
+  component: OrganizationGate,
+})
+// 工作台挂在 /projects 下，进入门仍是 /app 的兄弟路由。不用 pathless id，以免改写 useParams 的 from。
+const projectsLayoutRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/projects",
+  component: AdminLayout,
 })
 const projectsRoute = createRoute({
-  getParentRoute: () => appRoute,
-  path: "/projects/$organizationId",
+  getParentRoute: () => projectsLayoutRoute,
+  path: "/$organizationId",
   validateSearch: ProjectListQuerySchema,
   component: ProjectsRoute,
 })
 const projectDetailRoute = createRoute({
-  getParentRoute: () => appRoute,
-  path: "/projects/$organizationId/$projectId",
+  getParentRoute: () => projectsLayoutRoute,
+  path: "/$organizationId/$projectId",
   component: ProjectDetailRoute,
 })
 
@@ -59,8 +68,7 @@ export const router = createRouter({
     appRoute.addChildren([
       appIndexRoute,
       organizationRoute,
-      projectsRoute,
-      projectDetailRoute,
+      projectsLayoutRoute.addChildren([projectsRoute, projectDetailRoute]),
     ]),
   ]),
 })
