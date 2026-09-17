@@ -105,6 +105,26 @@ describe(
             const headers = new Headers(init?.headers);
             headers.set('origin', origin);
             if (cookie) headers.set('cookie', cookie);
+            const requestURL =
+              input instanceof Request ? input.url : input.toString();
+            if (
+              /\/organization\/(update-member-role|update-role|delete-role)$/.test(
+                requestURL,
+              ) &&
+              typeof init?.body === 'string'
+            ) {
+              const body = JSON.parse(init.body) as { organizationId: string };
+              const result = await migratorDatabase!.pool.query<{
+                authorization_version: number;
+              }>(
+                'SELECT authorization_version FROM organization_status WHERE organization_id = $1',
+                [body.organizationId],
+              );
+              headers.set(
+                'X-Expected-Authz-Version',
+                String(result.rows[0].authorization_version),
+              );
+            }
             const response = await fetch(input, { ...init, headers });
             const cookies = response.headers.getSetCookie();
             if (cookies.length)
@@ -300,6 +320,7 @@ describe(
           }),
         ).rejects.toBeInstanceOf(ForbiddenException);
         const member = await app!.get(AuthRuntime).auth.api.addMember({
+          headers: ownerHeaders,
           body: {
             organizationId,
             userId: other.data!.user.id,
@@ -535,6 +556,7 @@ describe(
         expect((await get(a.id)).status).toBe(403);
         await deniedMutation(403, outsiderCookie);
         const membership = await runtime.auth.api.addMember({
+          headers: new Headers({ cookie: ownerCookie }),
           body: {
             organizationId: a.id,
             userId: outsider.user.id,
@@ -597,6 +619,7 @@ describe(
         expect((await get(a.id, outsiderCookie)).status).toBe(403);
         await deniedMutation(403, outsiderCookie);
         await runtime.auth.api.addMember({
+          headers: new Headers({ cookie: ownerCookie }),
           body: {
             organizationId: a.id,
             userId: outsider.user.id,

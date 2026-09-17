@@ -26,6 +26,7 @@ const a = context(randomUUID())
 const b = context(randomUUID())
 let container: StartedTestContainer | undefined
 let pool: Pool
+let migrator: Pool
 let run: ReturnType<typeof createTenantRunner>
 let projectA: string
 let projectB: string
@@ -70,12 +71,16 @@ beforeAll(async () => {
     connectionString: url("app_runtime", passwords[2]),
     max: 1,
   })
+  migrator = new Pool({
+    connectionString: url("app_migrator", passwords[1]),
+    max: 1,
+  })
   run = createTenantRunner(pool)
   for (const [ctx, name] of [
     [a, "A"],
     [b, "B"],
   ] as const) {
-    await pool.query(
+    await migrator.query(
       "INSERT INTO organization(id,name,slug,created_at) VALUES ($1,$2,$2,now())",
       [ctx.organizationId, name]
     )
@@ -102,6 +107,7 @@ beforeAll(async () => {
 afterAll(async () => {
   try {
     await pool?.end()
+    await migrator?.end()
   } finally {
     await container?.stop()
   }

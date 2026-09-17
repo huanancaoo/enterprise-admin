@@ -1,5 +1,4 @@
 import { betterAuth } from "better-auth"
-import { drizzleAdapter } from "@better-auth/drizzle-adapter"
 import { organization } from "better-auth/plugins"
 import { createAccessControl } from "better-auth/plugins/access"
 import {
@@ -11,31 +10,35 @@ import {
 import {
   APIError,
   createAuthMiddleware,
+  getAuthoritativeSessionFromCtx,
   getSessionFromCtx,
 } from "better-auth/api"
-import { drizzle } from "drizzle-orm/node-postgres"
+import { randomUUID } from "node:crypto"
 import type { Pool } from "pg"
-import * as schema from "./schema/auth.ts"
 import { permissionStatements, projectActions } from "@workspace/permissions"
 import {
   isOrganizationMember,
-  organizationIdForInvitation,
   readOrganizationStatus,
-  resolveOrganizationId,
+  type QueryExecutor,
 } from "./organization-status.ts"
+import { resolveOrganizationAccessTarget } from "./organization-access.ts"
+import {
+  createTransactionalAuthAdapter,
+  wrapTransactionalOrganizationEndpoints,
+} from "./auth-transaction.ts"
+import { getAuthRequestContext } from "./auth-request-context.ts"
+
+export { runWithAuthRequestContext } from "./auth-request-context.ts"
 
 const ac = createAccessControl({
   ...defaultStatements,
   ...permissionStatements,
 })
 
-const unrestrictedOrganizationPaths = new Set([
-  "/organization/list",
-  "/organization/check-slug",
-  "/organization/create",
-  "/organization/reject-invitation",
-  "/organization/get-invitation",
-  "/organization/list-user-invitations",
+const versionedOrganizationWritePaths = new Set([
+  "/organization/update-member-role",
+  "/organization/update-role",
+  "/organization/delete-role",
 ])
 
 function missingOrganizationStatus(organizationId: string): never {
@@ -49,7 +52,10 @@ function missingOrganizationStatus(organizationId: string): never {
   })
 }
 
-async function assertActiveOrganization(pool: Pool, organizationId: string) {
+async function assertActiveOrganization(
+  pool: QueryExecutor,
+  organizationId: string
+) {
   const status = await readOrganizationStatus(pool, organizationId)
   if (!status) missingOrganizationStatus(organizationId)
   if (status !== "ACTIVE") {
@@ -66,12 +72,80 @@ export function createAuth(
   secret: string,
   trustedOrigins: string[] = []
 ) {
+  const transactionalAdapter = createTransactionalAuthAdapter(pool)
+  const organizationPlugin = wrapTransactionalOrganizationEndpoints(
+    organization({
+      schema: {
+        organization: {
+          additionalFields: {
+            defaultLocale: {
+              type: ["zh-CN", "en-US", "ar"],
+              required: true,
+              defaultValue: "zh-CN",
+              input: false,
+            },
+          },
+        },
+      },
+      ac,
+      roles: {
+        owner: ac.newRole({
+          ...ownerAc.statements,
+          project: [...projectActions],
+        }),
+        admin: ac.newRole({
+          ...adminAc.statements,
+          project: [...projectActions],
+        }),
+        member: ac.newRole({ ...memberAc.statements, project: ["read"] }),
+      },
+      dynamicAccessControl: { enabled: true },
+      organizationHooks: {
+        beforeAddMember: async ({ member }) => {
+          await assertActiveOrganization(
+            { query: transactionalAdapter.query },
+            member.organizationId
+          )
+        },
+      },
+    }),
+    transactionalAdapter.run,
+    async (context) => {
+      const endpointContext = context as Parameters<
+        typeof getAuthoritativeSessionFromCtx
+      >[0] & { path?: string }
+      const session = await getAuthoritativeSessionFromCtx(endpointContext)
+      if (!session) throw new APIError("UNAUTHORIZED")
+      const request = getAuthRequestContext()
+      if (
+        endpointContext.path &&
+        versionedOrganizationWritePaths.has(endpointContext.path) &&
+        request?.expectedAuthorizationVersion === undefined
+      )
+        throw new APIError("CONFLICT", {
+          code: "AUTHORIZATION_VERSION_CONFLICT",
+          message: "AUTHORIZATION_VERSION_CONFLICT",
+        })
+      await transactionalAdapter.query(
+        `SELECT
+           set_config('app.auth_actor_id', $1, true),
+           set_config('app.auth_request_id', $2, true),
+           set_config('app.expected_authorization_version', $3, true)`,
+        [
+          session.user.id,
+          request?.requestId ?? randomUUID(),
+          request?.expectedAuthorizationVersion?.toString() ?? "",
+        ]
+      )
+    }
+  )
+
   return betterAuth({
     baseURL,
     basePath: "/api/auth",
     secret,
     trustedOrigins,
-    database: drizzleAdapter(drizzle(pool), { provider: "pg", schema }),
+    database: transactionalAdapter.adapterFactory,
     emailAndPassword: { enabled: true },
     user: {
       additionalFields: {
@@ -105,7 +179,6 @@ export function createAuth(
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
         if (!ctx.path.startsWith("/organization/")) return
-        if (unrestrictedOrganizationPaths.has(ctx.path)) return
         const body = (ctx.body ?? {}) as {
           organizationId?: string | null
           organizationSlug?: string | null
@@ -123,83 +196,28 @@ export function createAuth(
         const userId = session.user.id
         const activeOrganizationId =
           session.session.activeOrganizationId ?? undefined
-        if (ctx.path === "/organization/set-active") {
-          // 只有显式 null 才是清除偏好；省略字段会按当前 active 组织再写入并返回组织资料。
-          if (body.organizationId === null && !body.organizationSlug) return
-          const organizationId =
-            (await resolveOrganizationId(pool, body)) ?? activeOrganizationId
-          if (!organizationId) return
-          if (!(await isOrganizationMember(pool, organizationId, userId)))
-            return
-          await assertActiveOrganization(pool, organizationId)
-          return
-        }
-        if (ctx.path === "/organization/accept-invitation") {
-          if (!body.invitationId) return
-          const organizationId = await organizationIdForInvitation(
-            pool,
-            body.invitationId
-          )
-          if (!organizationId) return
-          await assertActiveOrganization(pool, organizationId)
-          return
-        }
-        if (ctx.path === "/organization/cancel-invitation") {
-          if (!body.invitationId) return
-          const organizationId = await organizationIdForInvitation(
-            pool,
-            body.invitationId
-          )
-          if (!organizationId) return
-          if (!(await isOrganizationMember(pool, organizationId, userId)))
-            return
-          await assertActiveOrganization(pool, organizationId)
-          return
-        }
-        const organizationId =
-          (await resolveOrganizationId(pool, {
-            organizationId: query.organizationId ?? body.organizationId,
-            organizationSlug: query.organizationSlug ?? body.organizationSlug,
-          })) ?? activeOrganizationId
+        const organizationQuery = { query: transactionalAdapter.query }
+        const organizationId = await resolveOrganizationAccessTarget(
+          organizationQuery,
+          {
+            path: ctx.path,
+            activeOrganizationId,
+            body,
+            query,
+          }
+        )
         if (!organizationId) return
-        if (!(await isOrganizationMember(pool, organizationId, userId))) return
-        await assertActiveOrganization(pool, organizationId)
+        if (
+          !(await isOrganizationMember(
+            organizationQuery,
+            organizationId,
+            userId
+          ))
+        )
+          return
+        await assertActiveOrganization(organizationQuery, organizationId)
       }),
     },
-    plugins: [
-      organization({
-        schema: {
-          organization: {
-            additionalFields: {
-              defaultLocale: {
-                type: ["zh-CN", "en-US", "ar"],
-                required: true,
-                defaultValue: "zh-CN",
-                input: false,
-              },
-            },
-          },
-        },
-        ac,
-        roles: {
-          owner: ac.newRole({
-            ...ownerAc.statements,
-            project: [...projectActions],
-          }),
-          admin: ac.newRole({
-            ...adminAc.statements,
-            project: [...projectActions],
-          }),
-          member: ac.newRole({ ...memberAc.statements, project: ["read"] }),
-        },
-        dynamicAccessControl: { enabled: true },
-        organizationHooks: {
-          // addMember 没有 HTTP 入口；创建组织时 owner 入组发生在 INSERT 触发器之后。
-          beforeAddMember: async ({ member }) => {
-            await assertActiveOrganization(pool, member.organizationId)
-          },
-        },
-      }),
-    ],
+    plugins: [organizationPlugin],
   })
 }

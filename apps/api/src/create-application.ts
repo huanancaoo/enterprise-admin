@@ -2,6 +2,7 @@ import type { NestApplicationOptions } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { toNodeHandler } from 'better-auth/node';
+import { runWithAuthRequestContext } from '@workspace/database/auth';
 import { AppModule } from './app.module';
 import { AuthRuntime, type AuthConfig } from './auth-runtime';
 import { configureApp } from './configure-app';
@@ -45,7 +46,27 @@ export async function createApplication(
     configureApp(app);
     // Better Auth 需要原始请求流；Nest 的业务 JSON 解析必须在认证路由之后。
     const server = app.getHttpAdapter().getInstance();
-    server.all('/api/auth/*path', toNodeHandler(runtime.auth));
+    const authHandler = toNodeHandler(runtime.auth);
+    server.all('/api/auth/*path', (request, response) => {
+      const rawVersion = request.get('X-Expected-Authz-Version');
+      const parsedVersion = rawVersion ? Number(rawVersion) : undefined;
+      const expectedAuthorizationVersion =
+        parsedVersion !== undefined &&
+        Number.isSafeInteger(parsedVersion) &&
+        parsedVersion > 0 &&
+        parsedVersion <= 2_147_483_647
+          ? parsedVersion
+          : undefined;
+      return runWithAuthRequestContext(
+        {
+          requestId: response.locals.requestId as string,
+          ...(expectedAuthorizationVersion
+            ? { expectedAuthorizationVersion }
+            : {}),
+        },
+        () => authHandler(request, response),
+      );
+    });
     app.useBodyParser('json');
     app.useBodyParser('urlencoded', { extended: true });
     setupSwagger(app);

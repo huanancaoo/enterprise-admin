@@ -53,6 +53,26 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
     translated,
     migrator
   const origin = "http://localhost:3200"
+  const versionedAuthWrite = async (path, organizationId, body) => {
+    const result = await migrator.query(
+      "SELECT authorization_version FROM organization_status WHERE organization_id = $1",
+      [organizationId]
+    )
+    const response = await fetch(`${baseURL}/api/auth/organization/${path}`, {
+      method: "POST",
+      headers: {
+        origin,
+        cookie,
+        "content-type": "application/json",
+        "X-Expected-Authz-Version": String(
+          result.rows[0].authorization_version
+        ),
+      },
+      body: JSON.stringify(body),
+    })
+    expect(response.status).toBe(200)
+    return response
+  }
   const query = (id, suffix = "", session = cookie, locale = "en-US") =>
     fetch(`${baseURL}/api/v1/organizations/${id}/projects${suffix}`, {
       headers: {
@@ -403,7 +423,7 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
     expect(
       (await query(orgA.id, "", cookie, "")).headers.get("content-language")
     ).toBe("zh-CN")
-    await runtime.pool.query(
+    await migrator.query(
       "UPDATE organization SET default_locale = $1 WHERE id = $2",
       ["ar", orgA.id]
     )
@@ -478,15 +498,23 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
     expect(data.headers.get("content-language")).toBe("ar")
   })
   it("非法参数、无会话、跨组织请求和404都返回稳定错误契约", async () => {
-    const other = await runtime.auth.api.signUpEmail({
-      body: {
+    const otherSignup = await fetch(`${baseURL}/api/auth/sign-up/email`, {
+      method: "POST",
+      headers: { origin, "content-type": "application/json" },
+      body: JSON.stringify({
         name: "Other",
         email: "other-projects@example.test",
         password: randomBytes(24).toString("hex"),
-      },
+      }),
     })
+    expect(otherSignup.status).toBe(200)
+    const otherCookie = otherSignup.headers
+      .getSetCookie()
+      .map((item) => item.split(";")[0])
+      .join("; ")
     const outsider = await runtime.auth.api.createOrganization({
-      body: { userId: other.user.id, name: "Other", slug: "other-projects" },
+      headers: new Headers({ cookie: otherCookie }),
+      body: { name: "Other", slug: "other-projects" },
     })
     for (const [response, code, status] of [
       [await query(orgA.id, "?pageSize=101"), "VALIDATION_ERROR", 400],
@@ -529,7 +557,7 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
       headers: ownerHeaders,
       body: { name: "Language stages", slug: "language-stages" },
     })
-    await runtime.pool.query(
+    await migrator.query(
       "UPDATE organization SET default_locale = $1 WHERE id = $2",
       ["ar", organization.id]
     )
@@ -565,6 +593,7 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
       },
     })
     await runtime.auth.api.addMember({
+      headers: ownerHeaders,
       body: {
         organizationId: organization.id,
         userId: actor.user.id,
@@ -590,13 +619,10 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
       403,
       "en-US"
     )
-    await runtime.auth.api.updateOrgRole({
-      headers: ownerHeaders,
-      body: {
-        organizationId: organization.id,
-        roleName: "translator",
-        data: { permission: { project: ["read"] } },
-      },
+    await versionedAuthWrite("update-role", organization.id, {
+      organizationId: organization.id,
+      roleName: "translator",
+      data: { permission: { project: ["read"] } },
     })
     const success = await query(organization.id, "", actorCookie, "")
     expect(success.status).toBe(200)
@@ -635,7 +661,7 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
     expect(page.data.items).toEqual([created])
   })
   it("创建审计使用可信身份，组织默认语言独立于请求语言，删除保留审计", async () => {
-    await runtime.pool.query(
+    await migrator.query(
       "UPDATE organization SET default_locale = 'ar' WHERE id = $1",
       [orgB.id]
     )
@@ -650,8 +676,10 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
       status: "draft",
     })
     const readAudit = (context) =>
-      createTenantRunner(runtime.pool)(context, (tx) =>
-        tx.select().from(auditEvents)
+      createTenantRunner(runtime.pool)(context, async (tx) =>
+        (await tx.select().from(auditEvents)).filter((event) =>
+          event.eventCode.startsWith("project.")
+        )
       )
     const records = await readAudit(contextB)
     const event = records.find((row) => row.resourceId === response.data.id)
@@ -751,6 +779,7 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
       },
     })
     await runtime.auth.api.addMember({
+      headers: new Headers({ cookie }),
       body: { organizationId: orgB.id, userId: actor.user.id, role: "reader" },
     })
     expect((await post(valid, session)).status).toBe(403)
@@ -829,6 +858,7 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
       },
     })
     await runtime.auth.api.addMember({
+      headers: new Headers({ cookie }),
       body: {
         organizationId: orgB.id,
         userId: translator.user.id,
@@ -896,13 +926,10 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
     })
     expect(sameStatusUpdate.status).toBe(200)
 
-    await runtime.auth.api.updateOrgRole({
-      headers: new Headers({ cookie }),
-      body: {
-        organizationId: orgB.id,
-        roleName: "project-translator",
-        data: { permission: { project: ["read"] } },
-      },
+    await versionedAuthWrite("update-role", orgB.id, {
+      organizationId: orgB.id,
+      roleName: "project-translator",
+      data: { permission: { project: ["read"] } },
     })
     expect(
       (
@@ -1052,6 +1079,7 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
       },
     })
     await runtime.auth.api.addMember({
+      headers: new Headers({ cookie }),
       body: {
         organizationId: orgB.id,
         userId: deniedActor.user.id,

@@ -1,9 +1,16 @@
-import type { Pool } from "pg"
+import type { QueryResult, QueryResultRow } from "pg"
+
+export type QueryExecutor = {
+  query<Row extends QueryResultRow>(
+    text: string,
+    values?: unknown[]
+  ): Promise<QueryResult<Row>>
+}
 
 export type OrganizationStatus = "ACTIVE" | "SUSPENDED"
 
 export async function readOrganizationStatus(
-  pool: Pool,
+  pool: QueryExecutor,
   organizationId: string
 ): Promise<OrganizationStatus | null> {
   const result = await pool.query<{ status: OrganizationStatus }>(
@@ -13,25 +20,8 @@ export async function readOrganizationStatus(
   return result.rows[0]?.status ?? null
 }
 
-export async function resolveOrganizationId(
-  pool: Pool,
-  target: {
-    organizationId?: string | null
-    organizationSlug?: string | null
-  }
-): Promise<string | undefined> {
-  if (target.organizationSlug) {
-    const result = await pool.query<{ id: string }>(
-      `SELECT id FROM organization WHERE slug = $1`,
-      [target.organizationSlug]
-    )
-    return result.rows[0]?.id
-  }
-  return target.organizationId ?? undefined
-}
-
 export async function organizationIdForInvitation(
-  pool: Pool,
+  pool: QueryExecutor,
   invitationId: string
 ): Promise<string | undefined> {
   const result = await pool.query<{ organization_id: string }>(
@@ -42,7 +32,7 @@ export async function organizationIdForInvitation(
 }
 
 export async function isOrganizationMember(
-  pool: Pool,
+  pool: QueryExecutor,
   organizationId: string,
   userId: string
 ): Promise<boolean> {

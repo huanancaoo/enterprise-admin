@@ -290,7 +290,7 @@ describe(suiteName, { concurrent: false }, () => {
           [org!.id]
         )
       ).rows[0],
-      { status: "ACTIVE", status_version: 1, authorization_version: 1 }
+      { status: "ACTIVE", status_version: 1, authorization_version: 2 }
     )
     await assert.rejects(
       runtime.query(
@@ -430,19 +430,24 @@ describe(suiteName, { concurrent: false }, () => {
       const journal = JSON.parse(await readFile(journalPath, "utf8")) as {
         entries: { tag: string }[]
       }
-      const current = journal.entries.pop()!
+      const statusMigrationIndex = journal.entries.findIndex(
+        ({ tag }) => tag === "0010_loose_lady_mastermind"
+      )
+      const pending = journal.entries.splice(statusMigrationIndex)
       await writeFile(journalPath, JSON.stringify(journal))
-      await rm(join(dir, "migrations", `${current.tag}.sql`))
+      for (const migration of pending)
+        await rm(join(dir, "migrations", `${migration.tag}.sql`))
       await runMigration(join(dir, "src/migrate.ts"), backfillUrl)
       const org = await backfill.query<{ id: string }>(
         "INSERT INTO organization (name, slug, created_at, enabled) VALUES ('Legacy Disabled', 'legacy-disabled', now(), false) RETURNING id"
       )
-      journal.entries.push(current)
+      journal.entries.push(...pending)
       await writeFile(journalPath, JSON.stringify(journal))
-      await cp(
-        `migrations/${current.tag}.sql`,
-        join(dir, "migrations", `${current.tag}.sql`)
-      )
+      for (const migration of pending)
+        await cp(
+          `migrations/${migration.tag}.sql`,
+          join(dir, "migrations", `${migration.tag}.sql`)
+        )
       await runMigration(join(dir, "src/migrate.ts"), backfillUrl)
       assert.deepEqual(
         (

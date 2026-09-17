@@ -1006,16 +1006,11 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     const refreshGate = new Promise((resolve) => {
       releaseRefresh = resolve
     })
-    await page.route(
-      "**/api/auth/organization/get-full-organization",
-      async (route) => {
-        await refreshGate
-        await route.continue()
-      }
-    )
-    const refreshStarted = page.waitForRequest(
-      "**/api/auth/organization/get-full-organization"
-    )
+    await page.route("**/api/v1/me/organizations", async (route) => {
+      await refreshGate
+      await route.continue()
+    })
+    const refreshStarted = page.waitForRequest("**/api/v1/me/organizations")
     const activeTeamSwitcher = page.getByRole("button", { name: /乙组织/ })
     await selectOrganizationFromAppShell(page, "乙组织", "甲组织")
     await refreshStarted
@@ -1137,13 +1132,15 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await expectUI(
       page.getByRole("heading", { name: "创建组织", exact: true })
     ).toBeVisible()
-    await page.route("**/api/auth/organization/list", (route) =>
+    await page.route("**/api/v1/me/organizations", (route) =>
       route.fulfill({
         status: 503,
         contentType: "application/json",
         body: JSON.stringify({
-          code: "TEST_READ_FAILURE",
+          code: "INTERNAL_ERROR",
           message: "组织读取失败",
+          requestId: "workspace-refresh-test",
+          locale: "zh-CN",
         }),
       })
     )
@@ -1154,7 +1151,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await expectUI(
       page.getByRole("button", { name: "创建组织", exact: true })
     ).toHaveCount(0)
-    await page.unroute("**/api/auth/organization/list")
+    await page.unroute("**/api/v1/me/organizations")
     await page.getByRole("button", { name: "重试", exact: true }).click()
     await expectUI(page).toHaveURL(/\/app\/projects\/[0-9a-f-]+(?:\?.*)?$/)
     await expectUI(

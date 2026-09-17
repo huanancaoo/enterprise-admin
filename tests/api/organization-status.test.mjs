@@ -200,4 +200,79 @@ describe("S8-02: organization status access boundary", () => {
       code: "AUTHORIZATION_UNAVAILABLE",
     })
   })
+
+  it("checks the same organization that a native update mutates", async () => {
+    const actor = await signup()
+    const suspended = await organization(actor, "Suspended target")
+    const active = await organization(actor, "Active decoy")
+    await suspend(suspended.id)
+
+    const response = await post(
+      `organization/update?organizationId=${active.id}`,
+      {
+        organizationId: suspended.id,
+        data: { name: "Must remain unchanged" },
+      },
+      actor.cookie
+    )
+
+    expect(response.status).toBe(403)
+    expect(await json(response)).toMatchObject({
+      code: "ORGANIZATION_SUSPENDED",
+    })
+    expect(
+      (
+        await migrator.query("SELECT name FROM organization WHERE id = $1", [
+          suspended.id,
+        ])
+      ).rows
+    ).toEqual([{ name: "Suspended target" }])
+  })
+
+  it("checks the organization id that set-active selects when a slug is also present", async () => {
+    const actor = await signup()
+    const suspended = await organization(actor, "Suspended target")
+    const active = await organization(actor, "Active decoy")
+    await suspend(suspended.id)
+
+    const response = await post(
+      "organization/set-active",
+      {
+        organizationId: suspended.id,
+        organizationSlug: active.slug,
+      },
+      actor.cookie
+    )
+
+    expect(response.status).toBe(403)
+    expect(await json(response)).toMatchObject({
+      code: "ORGANIZATION_SUSPENDED",
+    })
+  })
+
+  it("checks the active organization used by get-active-member", async () => {
+    const actor = await signup()
+    const suspended = await organization(actor, "Suspended target")
+    const active = await organization(actor, "Active decoy")
+    expect(
+      (
+        await post(
+          "organization/set-active",
+          { organizationId: suspended.id },
+          actor.cookie
+        )
+      ).status
+    ).toBe(200)
+    await suspend(suspended.id)
+
+    const response = await fetch(
+      `${baseURL}/api/auth/organization/get-active-member?organizationId=${active.id}`,
+      { headers: { cookie: actor.cookie } }
+    )
+
+    expect(response.status).toBe(403)
+    expect(await json(response)).toMatchObject({
+      code: "ORGANIZATION_SUSPENDED",
+    })
+  })
 })

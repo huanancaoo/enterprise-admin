@@ -64,14 +64,6 @@ export function createWorkspaceSessionHandlers(options?: {
         effectiveLocale: "zh-CN",
       })
     }),
-    http.get("*/api/auth/organization/list", () => HttpResponse.json(teams)),
-    http.get("*/api/auth/organization/get-full-organization", () =>
-      HttpResponse.json({
-        ...teams.find((team) => team.id === activeId),
-        members: [],
-        invitations: [],
-      })
-    ),
     http.post("*/api/auth/organization/set-active", async ({ request }) => {
       const body = (await request.json()) as { organizationId: string }
       const team = teams.find((item) => item.id === body.organizationId)
