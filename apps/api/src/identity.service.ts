@@ -40,6 +40,15 @@ export class IdentityService {
     return identity;
   }
 
+  async requirePlatformAssignment(identity: Identity): Promise<void> {
+    // 任职以当前表为准，不沿用会话或组织角色里的任何标记。
+    const result = await this.runtime.pool.query(
+      `SELECT 1 FROM platform_assignment WHERE user_id = $1 LIMIT 1`,
+      [identity.userId],
+    );
+    if ((result.rowCount ?? 0) === 0) throw new ForbiddenException();
+  }
+
   async requireOrganizationMembership(
     organizationId: string,
     identity: Identity,

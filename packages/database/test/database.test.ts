@@ -22,6 +22,7 @@ import {
 import { Pool } from "pg"
 import { createAuth } from "../src/auth.ts"
 import { createDatabase } from "../src/index.ts"
+import { createPlatformAdmin } from "../src/platform-admin.ts"
 
 const exec = promisify(execFile)
 const tables = [
@@ -144,7 +145,12 @@ describe(suiteName, { concurrent: false }, () => {
           "SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename"
         )
       ).rows.map((row) => row.tablename),
-      [...tables, "audit_events", "organization_status"].sort()
+      [
+        ...tables,
+        "audit_events",
+        "organization_status",
+        "platform_assignment",
+      ].sort()
     )
   })
 
@@ -242,6 +248,23 @@ describe(suiteName, { concurrent: false }, () => {
       {
         code: "42501",
       }
+    )
+    assert.deepEqual(
+      (
+        await runtime.query(
+          `SELECT
+            has_table_privilege(current_user, 'platform_assignment', 'SELECT') AS read,
+            has_table_privilege(current_user, 'platform_assignment', 'INSERT') AS insert,
+            has_table_privilege(current_user, 'platform_assignment', 'UPDATE') AS update,
+            has_table_privilege(current_user, 'platform_assignment', 'DELETE') AS delete
+          `
+        )
+      ).rows[0],
+      { read: true, insert: true, update: false, delete: false }
+    )
+    await assert.rejects(
+      platform.query("SELECT user_id FROM platform_assignment"),
+      { code: "42501" }
     )
     for (const table of tables) {
       const { rows } = await runtime.query(
@@ -341,6 +364,47 @@ describe(suiteName, { concurrent: false }, () => {
     })
     await auth.api.signOut({ headers })
     assert.equal(await auth.api.getSession({ headers }), null)
+  })
+
+  test("CLI 创建的平台管理员可登录，邮箱无需验证，也不因此成为组织成员", async () => {
+    const auth = createAuth(
+      runtime,
+      "http://localhost:3000",
+      randomBytes(32).toString("hex")
+    )
+    const email = "platform-admin@example.test"
+    const password = "platform-admin-test-password"
+    const { userId } = await createPlatformAdmin(auth, runtime, {
+      email,
+      password,
+      name: "平台管理员",
+    })
+    assert.equal(
+      (
+        await runtime.query(
+          'SELECT email_verified FROM public."user" WHERE id = $1',
+          [userId]
+        )
+      ).rows[0].email_verified,
+      false
+    )
+    assert.equal(
+      (await runtime.query("SELECT 1 FROM member WHERE user_id = $1", [userId]))
+        .rowCount,
+      0
+    )
+    const response = await auth.api.signInEmail({
+      body: { email, password },
+      asResponse: true,
+    })
+    assert.equal(response.status, 200)
+    await assert.rejects(
+      createPlatformAdmin(auth, runtime, {
+        email,
+        password,
+        name: "平台管理员",
+      })
+    )
   })
 
   test("停用后写入锁拒绝提交，缺失状态失败关闭", async () => {
@@ -476,7 +540,7 @@ describe(suiteName, { concurrent: false }, () => {
     assert.equal(
       (await platform.query('SELECT id, name, email FROM public."user"'))
         .rowCount,
-      1
+      2
     )
     assert.equal(
       (await platform.query("SELECT id, name, slug FROM public.organization"))

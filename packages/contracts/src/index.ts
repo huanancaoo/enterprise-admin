@@ -90,6 +90,10 @@ export const OrganizationAccessSchema = z.strictObject({
   effectiveLocale: SupportedLocaleSchema,
 })
 export type OrganizationAccess = z.infer<typeof OrganizationAccessSchema>
+export const PlatformAccessSchema = z.strictObject({
+  userId: z.uuid(),
+})
+export type PlatformAccess = z.infer<typeof PlatformAccessSchema>
 export const ApiErrorCodeSchema = z.enum([
   "VALIDATION_ERROR",
   "UNAUTHENTICATED",

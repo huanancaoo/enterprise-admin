@@ -12,6 +12,10 @@
       "types": "./dist/auth.d.ts",
       "default": "./dist/auth.js"
     },
+    "./platform-admin": {
+      "types": "./dist/platform-admin.d.ts",
+      "default": "./dist/platform-admin.js"
+    },
     "./tenant": {
       "types": "./dist/tenant.d.ts",
       "default": "./dist/tenant.js"

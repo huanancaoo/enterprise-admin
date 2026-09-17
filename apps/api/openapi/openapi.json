@@ -2490,6 +2490,177 @@
           "organizations"
         ]
       }
+    },
+    "/api/v1/me/platform": {
+      "get": {
+        "operationId": "getMyPlatformAccess",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "userId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    }
+                  },
+                  "required": [
+                    "userId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "VALIDATION_ERROR",
+                        "UNAUTHENTICATED",
+                        "FORBIDDEN",
+                        "NOT_FOUND",
+                        "ORGANIZATION_SUSPENDED",
+                        "AUTHORIZATION_UNAVAILABLE",
+                        "INTERNAL_ERROR"
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "locale": {
+                      "type": "string",
+                      "enum": [
+                        "zh-CN",
+                        "en-US",
+                        "ar"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "requestId",
+                    "locale"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "VALIDATION_ERROR",
+                        "UNAUTHENTICATED",
+                        "FORBIDDEN",
+                        "NOT_FOUND",
+                        "ORGANIZATION_SUSPENDED",
+                        "AUTHORIZATION_UNAVAILABLE",
+                        "INTERNAL_ERROR"
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "locale": {
+                      "type": "string",
+                      "enum": [
+                        "zh-CN",
+                        "en-US",
+                        "ar"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "requestId",
+                    "locale"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "VALIDATION_ERROR",
+                        "UNAUTHENTICATED",
+                        "FORBIDDEN",
+                        "NOT_FOUND",
+                        "ORGANIZATION_SUSPENDED",
+                        "AUTHORIZATION_UNAVAILABLE",
+                        "INTERNAL_ERROR"
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "locale": {
+                      "type": "string",
+                      "enum": [
+                        "zh-CN",
+                        "en-US",
+                        "ar"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "requestId",
+                    "locale"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "platform"
+        ]
+      }
     }
   },
   "info": {
