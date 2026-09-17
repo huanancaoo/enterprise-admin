@@ -7,7 +7,7 @@
 S4-01 至 S4-07 已完成。前序实现详见 [S4-01](s4-01-validation.md)、[S4-02](s4-02-validation.md)、[S4-03](s4-03-validation.md)、[S4-04](s4-04-validation.md)；这些记录保留各次执行时的范围和边界，本记录汇总当前阶段结果。
 
 - S4-05：`packages/permissions` 统一定义 read/create/update/delete/export/translate 动作、Better Auth 权限声明与 API 请求类型。认证配置直接引用目录，不重复维护完整动作列表；未新增角色模型或导出功能。
-- S4-06：`RequireTenant` 在处理器执行前通过身份、成员、组织状态及动作权限检查。`ProjectPolicy.requireForMutation` 只接受 TenantTx，在同一事务中按组织与资源 ID 查询并锁定资源，之后才执行修改。不存在或跨组织资源返回 404。根据 ADR-0004，不附加负责人、创建者或归档状态限制。
+- S4-06：`RequireTenant` 在处理器执行前通过身份、成员、组织状态及动作权限检查。`ProjectPolicy.requireForMutation` 只接受 TenantTx，在同一事务中按组织与资源 ID 查询并锁定资源，之后才执行修改。不存在或跨组织资源返回 404。不附加负责人、创建者或归档状态限制。
 - S4-07：真实 HTTP 写操作验证登出、成员撤销、角色降级和组织停用后的拒绝行为。既校验状态码，也断言处理器未进入、目标资源及另一组织资源仍存在；有效授权下先成功删除对照资源，防止测试因端点本身不可用而产生假阳性。
 
 正式应用注册 IdentityService、AuthorizationService、TenantContextService、TenantGuard 和 ProjectPolicy。组织启用状态及数据库列权限沿用 S4-04，现有组织和新建组织默认启用。

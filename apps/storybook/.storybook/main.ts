@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url"
 const config: StorybookConfig = {
   staticDirs: ["../public"],
   framework: "@storybook/react-vite",
-  stories: ["../src/**/*.stories.tsx", "../../admin/src/**/*.stories.tsx"],
+  stories: ["../src/**/*.stories.tsx", "../../tenant/src/**/*.stories.tsx"],
   addons: ["@storybook/addon-vitest", "@storybook/addon-a11y"],
   core: { disableTelemetry: true },
   async viteFinal(config) {
@@ -15,7 +15,7 @@ const config: StorybookConfig = {
         ...config.resolve,
         alias: {
           ...config.resolve?.alias,
-          "@": fileURLToPath(new URL("../../admin/src", import.meta.url)),
+          "@": fileURLToPath(new URL("../../tenant/src", import.meta.url)),
         },
       },
       plugins: [...(config.plugins ?? []), tailwindcss()],

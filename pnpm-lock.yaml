@@ -203,88 +203,6 @@ importers:
         specifier: 4.1.11
         version: 4.1.11(@types/node@26.5.1)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(msw@2.15.0(@types/node@26.5.1)(typescript@6.0.3))(vite@8.3.0(@types/node@26.5.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1))
 
-  apps/admin:
-    dependencies:
-      '@tanstack/react-form':
-        specifier: 1.33.5
-        version: 1.33.5(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      '@tanstack/react-query':
-        specifier: 5.102.8
-        version: 5.102.8(react@19.3.0)
-      '@tanstack/react-router':
-        specifier: 1.170.36
-        version: 1.170.36(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      '@workspace/admin':
-        specifier: workspace:*
-        version: link:../../packages/admin
-      '@workspace/api-client':
-        specifier: workspace:*
-        version: link:../../packages/api-client
-      '@workspace/contracts':
-        specifier: workspace:*
-        version: link:../../packages/contracts
-      '@workspace/i18n':
-        specifier: workspace:*
-        version: link:../../packages/i18n
-      '@workspace/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      lucide-react:
-        specifier: 1.46.0
-        version: 1.46.0(react@19.3.0)
-      react:
-        specifier: 19.3.0
-        version: 19.3.0
-      react-dom:
-        specifier: 19.3.0
-        version: 19.3.0(react@19.3.0)
-      react-i18next:
-        specifier: 17.0.14
-        version: 17.0.14(i18next@26.4.2(typescript@6.0.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@6.0.3)
-      zod:
-        specifier: 4.6.5
-        version: 4.6.5
-    devDependencies:
-      '@storybook/react-vite':
-        specifier: 10.6.0
-        version: 10.6.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(storybook@10.6.0(@types/react@19.3.0)(prettier@3.9.6)(react@19.3.0))(supports-color@8.1.1)(typescript@6.0.3)(vite@8.3.0(@types/node@26.5.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1))
-      '@tailwindcss/vite':
-        specifier: 4.3.3
-        version: 4.3.3(vite@8.3.0(@types/node@26.5.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1))
-      '@types/node':
-        specifier: 26.5.1
-        version: 26.5.1
-      '@types/react':
-        specifier: 19.3.0
-        version: 19.3.0
-      '@types/react-dom':
-        specifier: 19.3.0
-        version: 19.3.0(@types/react@19.3.0)
-      '@vitejs/plugin-react':
-        specifier: 6.1.1
-        version: 6.1.1(vite@8.3.0(@types/node@26.5.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1))
-      '@workspace/eslint-config':
-        specifier: workspace:*
-        version: link:../../packages/eslint-config
-      '@workspace/mocks':
-        specifier: workspace:*
-        version: link:../../packages/mocks
-      '@workspace/typescript-config':
-        specifier: workspace:*
-        version: link:../../packages/typescript-config
-      eslint:
-        specifier: 10.10.0
-        version: 10.10.0(jiti@2.7.0)(supports-color@8.1.1)
-      storybook:
-        specifier: 10.6.0
-        version: 10.6.0(@types/react@19.3.0)(prettier@3.9.6)(react@19.3.0)
-      typescript:
-        specifier: 6.0.3
-        version: 6.0.3
-      vite:
-        specifier: 8.3.0
-        version: 8.3.0(@types/node@26.5.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)
-
   apps/api:
     dependencies:
       '@nestjs/common':
@@ -530,6 +448,88 @@ importers:
       vitest:
         specifier: 4.1.11
         version: 4.1.11(@types/node@26.5.1)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(msw@2.15.0(@types/node@26.5.1)(typescript@6.0.3))(vite@8.3.0(@types/node@26.5.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1))
+
+  apps/tenant:
+    dependencies:
+      '@tanstack/react-form':
+        specifier: 1.33.5
+        version: 1.33.5(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@tanstack/react-query':
+        specifier: 5.102.8
+        version: 5.102.8(react@19.3.0)
+      '@tanstack/react-router':
+        specifier: 1.170.36
+        version: 1.170.36(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@workspace/admin':
+        specifier: workspace:*
+        version: link:../../packages/admin
+      '@workspace/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
+      '@workspace/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@workspace/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
+      '@workspace/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      lucide-react:
+        specifier: 1.46.0
+        version: 1.46.0(react@19.3.0)
+      react:
+        specifier: 19.3.0
+        version: 19.3.0
+      react-dom:
+        specifier: 19.3.0
+        version: 19.3.0(react@19.3.0)
+      react-i18next:
+        specifier: 17.0.14
+        version: 17.0.14(i18next@26.4.2(typescript@6.0.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@6.0.3)
+      zod:
+        specifier: 4.6.5
+        version: 4.6.5
+    devDependencies:
+      '@storybook/react-vite':
+        specifier: 10.6.0
+        version: 10.6.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(storybook@10.6.0(@types/react@19.3.0)(prettier@3.9.6)(react@19.3.0))(supports-color@8.1.1)(typescript@6.0.3)(vite@8.3.0(@types/node@26.5.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1))
+      '@tailwindcss/vite':
+        specifier: 4.3.3
+        version: 4.3.3(vite@8.3.0(@types/node@26.5.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1))
+      '@types/node':
+        specifier: 26.5.1
+        version: 26.5.1
+      '@types/react':
+        specifier: 19.3.0
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: 19.3.0
+        version: 19.3.0(@types/react@19.3.0)
+      '@vitejs/plugin-react':
+        specifier: 6.1.1
+        version: 6.1.1(vite@8.3.0(@types/node@26.5.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1))
+      '@workspace/eslint-config':
+        specifier: workspace:*
+        version: link:../../packages/eslint-config
+      '@workspace/mocks':
+        specifier: workspace:*
+        version: link:../../packages/mocks
+      '@workspace/typescript-config':
+        specifier: workspace:*
+        version: link:../../packages/typescript-config
+      eslint:
+        specifier: 10.10.0
+        version: 10.10.0(jiti@2.7.0)(supports-color@8.1.1)
+      storybook:
+        specifier: 10.6.0
+        version: 10.6.0(@types/react@19.3.0)(prettier@3.9.6)(react@19.3.0)
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+      vite:
+        specifier: 8.3.0
+        version: 8.3.0(@types/node@26.5.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)
 
   packages/admin:
     dependencies:

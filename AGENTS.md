@@ -14,11 +14,11 @@
 
 ## 项目与边界
 
-多租户企业应用基础框架，使用 pnpm workspace 与 Turborepo，主要技术为 TypeScript、React/Vite、NestJS、PostgreSQL/Drizzle 和 Better Auth。架构依据见 [ADR-0001](docs/adr/0001-architecture-baseline.md)。
+多租户企业应用基础框架，使用 pnpm workspace 与 Turborepo，主要技术为 TypeScript、React/Vite、NestJS、PostgreSQL/Drizzle 和 Better Auth。
 
 理解整体设计、追溯选型理由或设计跨模块能力时，阅读 [多租户基础架构原文](docs/architecture/multi-tenant-foundation.md) 的相关章节。该文档是归档研究；实施决策以用户确认和已接受 ADR 为准，精确版本以当前配置为准，原文建议不自动成为任务范围。
 
-- `apps/admin` / `apps/platform`：租户后台与平台后台；`apps/api`：HTTP 服务；`apps/storybook`：公共组件工作台。
+- `apps/tenant` / `apps/platform`：租户后台与平台后台；`apps/api`：HTTP 服务；`apps/storybook`：公共组件工作台。
 - `packages/ui` 放通用 UI，`packages/admin` 放业务无关后台组件；具体业务留在应用内。
 - `packages/contracts` 定义 HTTP Schema，`packages/api-client` 承载客户端；数据库能力位于仅供服务端使用的 `packages/database`。
 - 修改跨包依赖时运行 `pnpm lint:boundaries`。边界规则以 `packages/eslint-config/boundaries/check.mjs` 为准。
@@ -32,7 +32,7 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-单独启动使用 `pnpm --filter admin dev`、`pnpm --filter platform dev`、`pnpm --filter api dev` 或 `pnpm --filter storybook dev`。其他包命令先查对应 `package.json`，过滤名称使用其 `name` 字段。
+单独启动使用 `pnpm --filter tenant dev`、`pnpm --filter platform dev`、`pnpm --filter api dev` 或 `pnpm --filter storybook dev`。其他包命令先查对应 `package.json`，过滤名称使用其 `name` 字段。
 
 - 配置前端时查看对应应用的 `.env.example`；`VITE_` 变量会暴露给浏览器，只存公开配置。
 - 本地运行 API 前按 `apps/api/.env.example` 配置 `apps/api/.env`；`start`、`dev`、`start:debug` 通过 Nest CLI 加载它，已有进程环境变量优先。生产 `start:prod` 使用部署环境注入的变量。认证流程需要数据库与认证密钥，不能依据早期 S1 的无数据库说明验收当前流程。
@@ -42,7 +42,7 @@ pnpm dev
 
 - 使用所属包的 ESLint、TypeScript 和 Prettier 配置。修改共享配置前阅读 [ESLint 说明](packages/eslint-config/README.md) 或 [TypeScript 说明](packages/typescript-config/README.md)。
 - 新增或修改 React 表单前，阅读 [表单规范](docs/agents/forms.md)，统一使用 TanStack Form、Zod 与 shadcn/ui `Field` 结构。
-- 添加 shadcn 组件从 `apps/admin` 的配置入口操作，公共组件归入 `packages/ui`。
+- 添加 shadcn 组件从 `apps/tenant` 的配置入口操作，公共组件归入 `packages/ui`。
 - 修改 API 生成链时查看 [Orval 配置](orval.config.ts)：先运行 `pnpm api:openapi`，再运行 `pnpm api:generate`，审查快照与生成客户端差异；生成目录通过源定义重新生成。
 - 格式化仅针对本次修改的文件：`pnpm exec prettier --write <文件路径>`。
 

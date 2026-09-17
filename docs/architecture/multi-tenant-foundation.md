@@ -53,7 +53,7 @@
 
 ## 总体架构与职责边界
 
-整个系统采用**前后端分离的模块化单体**。前端由两个 React + Vite SPA 构成：`apps/admin` 服务租户用户，`apps/platform` 服务平台运营人员；后端保持单一 NestJS API Host，按 Identity、Tenancy、Authorization、Platform、Audit、Files、Notifications、Localization 及业务模块划分。Better Auth Organization 提供 Organization、Member、Invitation 及组织级 Access Control，不再自行实现第二套重复成员系统。citeturn14search2
+整个系统采用**前后端分离的模块化单体**。前端由两个 React + Vite SPA 构成：`apps/tenant` 服务租户用户，`apps/platform` 服务平台运营人员；后端保持单一 NestJS API Host，按 Identity、Tenancy、Authorization、Platform、Audit、Files、Notifications、Localization 及业务模块划分。Better Auth Organization 提供 Organization、Member、Invitation 及组织级 Access Control，不再自行实现第二套重复成员系统。citeturn14search2
 
 Better Auth 的 NestJS 集成目前由社区维护，而且官方集成文档仍将 Fastify 支持标为 beta，因此首版 NestJS Adapter 选择 Express，减少认证集成变量。citeturn14search0
 
@@ -156,9 +156,9 @@ export const projectKeys = {
 └── settings
 ```
 
-`apps/admin` 与 `apps/platform` 物理拆分，但共同消费 `packages/ui` 和 `packages/admin`。这是借鉴成熟企业 starter 将 Operator Console 与 Tenant Application 分开的实践；FullStackHero 当前同样维护独立 operator admin 与 tenant dashboard React/Vite 客户端。citeturn22search1
+`apps/tenant` 与 `apps/platform` 物理拆分，但共同消费 `packages/ui` 和 `packages/admin`。这是借鉴成熟企业 starter 将 Operator Console 与 Tenant Application 分开的实践；FullStackHero 当前同样维护独立 operator admin 与 tenant dashboard React/Vite 客户端。citeturn22search1
 
-**下一步任务清单：** ☐ 定义 Route Search Schema 规范； ☐ 创建 Query Key Factory 规范； ☐ 制定 Form→Mutation→Invalidate→Reset 模板； ☐ 建立 `apps/admin` 与 `apps/platform` Composition Root； ☐ 禁止 `packages/ui`、`packages/admin` 直接依赖 Database/API Server 包。
+**下一步任务清单：** ☐ 定义 Route Search Schema 规范； ☐ 创建 Query Key Factory 规范； ☐ 制定 Form→Mutation→Invalidate→Reset 模板； ☐ 建立 `apps/tenant` 与 `apps/platform` Composition Root； ☐ 禁止 `packages/ui`、`packages/admin` 直接依赖 Database/API Server 包。
 
 ## 前端组件、Storybook 与国际化体系
 
@@ -170,7 +170,7 @@ export const projectKeys = {
 |---|---|
 | `packages/ui` | `Button`、`Input`、`Textarea`、`Select`、`Combobox`、`Checkbox`、`RadioGroup`、`Dialog`、`Sheet`、`Popover`、`Tooltip`、`Tabs`、`DropdownMenu`、`Command`、`Badge`、`Skeleton`、`Toast`、`DatePicker`、基础 `Table` |
 | `packages/admin` | `AppShell`、`PageHeader`、`Breadcrumbs`、`TenantSwitcher`、`LocaleSwitcher`、`PermissionGate`、`ResourceList`、`ResourceShow`、`ResourceCreate`、`ResourceEdit`、`DataTable`、`FilterBar`、`ColumnSelector`、`BulkActions`、`Pagination`、`EntityForm`、`FormDialog`、`FormSheet`、`DetailPanel`、`AuditTimeline`、`EmptyState`、`ErrorState`、`LoadingState`、`ConfirmDangerAction` |
-| `apps/admin` | Projects、Members、Roles、Files、Settings 等真实 Tenant Feature |
+| `apps/tenant` | Projects、Members、Roles、Files、Settings 等真实 Tenant Feature |
 | `apps/platform` | Organization Operations、Platform Users、Cross-Tenant Audit 等平台专属 Feature |
 
 这里不引入 `ra-core`、React-admin 或 Refine 作为运行时基础。我们的目标是借鉴 Resource/Admin Domain Component 思想，同时继续保持 TanStack Router、Query、Table、Form 的状态模型，不重新引入 React Router 或 React Hook Form。shadcn-admin-kit 当前技术栈正是 React Router + TanStack Query + React Hook Form + Ra-Core，因此更适合作为设计参考，而非直接核心依赖。citeturn21search1
@@ -570,11 +570,11 @@ Node/NestJS 并发请求不使用全局 `changeLanguage()` 改变服务器语言
 
 ## Monorepo、迁移流程与参考业务模块
 
-最终目录不再把所有能力塞进 `apps/admin`，而是明确应用、共享 UI、Admin Domain、Contract、Database、Mock、i18n 的边界：
+最终目录不再把所有能力塞进 `apps/tenant`，而是明确应用、共享 UI、Admin Domain、Contract、Database、Mock、i18n 的边界：
 
 | 路径 | 职责 |
 |---|---|
-| `apps/admin` | Tenant Admin React + Vite SPA |
+| `apps/tenant` | Tenant Admin React + Vite SPA |
 | `apps/platform` | Platform Operator React + Vite SPA |
 | `apps/storybook` | 公共 UI/Admin Domain Component 工作台 |
 | `apps/api` | NestJS Modular Monolith |
@@ -935,13 +935,13 @@ Git JSON translations
 | **ixartz/SaaS-Boilerplate** | 多租户、Role/Permission、Drizzle、i18n、Vitest、Playwright、Storybook、GitHub Actions、Visual Regression，DX 完整。citeturn21search2 | CI、Storybook、测试、i18n、Release DX | 不采用 Next.js Fullstack 或强制 Clerk |
 | **BoxyHQ SaaS Starter Kit** | SAML SSO、SCIM Directory Sync、Webhook、Audit、Role/Permission、Docker Compose、E2E，代表 Enterprise SaaS Feature Checklist。citeturn21search4 | 将 SSO/SCIM/Webhook/Audit 作为 v2 Enterprise Roadmap | 核心框架不强制依赖 Svix/Retraced 等外部服务 |
 | **cursive-team/saas-boilerplate** | 独立 Next 前端 + Express API、Better Auth Organization、PostgreSQL、Turborepo、Vitest/Testcontainers；README 明确要求前端不直连数据库，且 API Query 始终按 Organization Scope。citeturn22search0 | “独立 API + Better Auth Org + Example Resource + Monorepo”的工程思想 | 不采用 Prisma；不复制 Next.js；当前项目成熟度仍较早，因此只作架构参考 |
-| **FullStackHero .NET Starter Kit** | Modular Monolith、Operator/Tenant 两套 React/Vite、独立 one-shot Migrator、Module Contract、Architecture Test、Testcontainers、OpenTelemetry、CLI Scaffold。citeturn22search1 | `apps/admin`/`apps/platform`、Migrator、Architecture Tests、后续 CLI | 不复制 .NET/CQRS 实现技术栈 |
+| **FullStackHero .NET Starter Kit** | Modular Monolith、Operator/Tenant 两套 React/Vite、独立 one-shot Migrator、Module Contract、Architecture Test、Testcontainers、OpenTelemetry、CLI Scaffold。citeturn22search1 | `apps/tenant`/`apps/platform`、Migrator、Architecture Tests、后续 CLI | 不复制 .NET/CQRS 实现技术栈 |
 
 研究结果还带来三个具体修订。
 
 第一，**UI 层不再只做 shadcn primitives。** shadcn-admin-kit 的价值在于证明后台开发的高频抽象是 Resource、List、Filter、Bulk Action、Reference、Permission，而不是再造 Button。citeturn21search1
 
-第二，**Tenant Console 与 Operator Console 物理分应用是合理的长期方向。** FullStackHero 当前直接维护 `clients/admin` 与 `clients/dashboard` 两个 React/Vite 应用，同时共享后端模块，这与本项目的 `apps/platform`/`apps/admin` 划分高度一致。citeturn22search1
+第二，**Tenant Console 与 Operator Console 物理分应用是合理的长期方向。** FullStackHero 当前直接维护 `clients/admin` 与 `clients/dashboard` 两个 React/Vite 应用，同时共享后端模块，这与本项目的 `apps/platform`/`apps/tenant` 划分高度一致。citeturn22search1
 
 第三，**Reference Domain 和 One-shot Migrator 应从 v0.1 就存在。** cursive 用 Example Resource 告诉贡献者如何添加功能，FullStackHero 用独立 Migrator 避免 API 实例并发迁移；这两点比“继续增加更多 Starter Feature”更值得优先复制。citeturn22search0turn22search1
 
@@ -989,7 +989,7 @@ Git JSON translations
 |---|---|
 | React Hook Form | **TanStack Form v1** |
 | Prisma | **Drizzle ORM + Drizzle Kit + `pg`** |
-| 单一 Admin SPA 思维 | **Tenant `apps/admin` + Operator `apps/platform`** |
+| 单一 Admin SPA 思维 | **Tenant `apps/tenant` + Operator `apps/platform`** |
 | shadcn/UI primitives 为主 | **`packages/ui` + `packages/admin` 双层组件体系** |
 | Storybook 附属于应用 | **独立 `apps/storybook`** |
 | Mock 分散在 Story/Test | **统一 `packages/mocks` + MSW** |
@@ -1011,7 +1011,7 @@ Git JSON translations
 ```text
 React + Vite
 │
-├── apps/admin                Tenant Console
+├── apps/tenant                Tenant Console
 ├── apps/platform             Operator Console
 ├── apps/storybook            UI Workbench
 │

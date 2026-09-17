@@ -19,13 +19,13 @@
 
 ### 架构决策
 
-- 身份、组织、成员、邀请与动态组织角色统一使用 Better Auth Organization，不建立第二套身份或成员模型。[ADR-0001](../adr/0001-architecture-baseline.md)
-- 组织路径由 TanStack Router 持有。[ADR-0001](../adr/0001-architecture-baseline.md)
-- `activeOrganizationId` 只表示工作区偏好，不是访问凭据。每次业务请求仍验证目标组织、Session、Membership、组织状态和动作权限。[ADR-0002](../adr/0002-organization-identifiers.md)
+- 身份、组织、成员、邀请与动态组织角色统一使用 Better Auth Organization，不建立第二套身份或成员模型。[s4-03-validation.md](s4-03-validation.md)
+- 组织路径由 TanStack Router 持有。[implementation-plan.md](implementation-plan.md)
+- `activeOrganizationId` 只表示工作区偏好，不是访问凭据。每次业务请求仍验证目标组织、Session、Membership、组织状态和动作权限。[s4-04-validation.md](s4-04-validation.md)
 - 实施计划重复同一边界：active organization 只是工作区偏好；客户端路径、Header、Body 或当前 UI 选中的组织都不是授权证明。[implementation-plan.md](implementation-plan.md)
 - 业务请求的目标组织来自路由参数 `organizationId`，不由 active organization 决定。[s4-04-validation.md](s4-04-validation.md)
 
-[ADR-0001](../adr/0001-architecture-baseline.md) 写明：[归档研究](multi-tenant-foundation.md)中的建议不自动成为实施授权。该文路由示意含 `/app/select-organization` 与 `/app/:organizationId/`，只能当作研究原文，不能当作已接受决策。[multi-tenant-foundation.md](multi-tenant-foundation.md)
+[归档研究](multi-tenant-foundation.md)中的建议不自动成为实施授权。该文路由示意含 `/app/select-organization` 与 `/app/:organizationId/`，只能当作研究原文，不能当作已接受决策。
 
 本仓库没有与 Clerk Personal Account 或 GitHub 个人仓库主页对等的「无组织也可办公」模型。租户业务以 URL `organizationId` 为范围。[s4-04-validation.md](s4-04-validation.md)
 
@@ -37,12 +37,12 @@ S4-02 记录：Admin `/login` 之后进入 `/app/select-organization`，支持�
 
 当前文件（含未提交改动）与 S4-02 记录不一致：
 
-- 登录成功后的认证落地路径是 `/app`，不是 `/app/select-organization`。[apps/admin/src/App.tsx](../../apps/admin/src/App.tsx)
-- `/app` 使用 `AdminLayout`，内部是 `AppShell`、面包屑、侧栏 TeamSwitcher 与「项目」导航。[apps/admin/src/router.tsx](../../apps/admin/src/router.tsx)、[apps/admin/src/components/admin-layout.tsx](../../apps/admin/src/components/admin-layout.tsx)
-- `/app/select-organization` 是 `/app` 的子路由，因此也套在 `AdminLayout` / `AppShell` 里。[apps/admin/src/router.tsx](../../apps/admin/src/router.tsx)
-- `/app` 索引 `WorkspaceEntry`：成员数为 1 时直接进入 `/app/projects/$organizationId`；否则（0 或大于 1）跳到 `/app/select-organization`。注释写明组织管理页本身不自动跳走，否则无法创建下一个组织。[apps/admin/src/components/organization-workspace.tsx](../../apps/admin/src/components/organization-workspace.tsx)
-- `/app/select-organization` 在同一页列出已有组织并提供创建表单；列表项用链接进入项目页，创建调用 `organization.create({ keepCurrentActiveOrganization: false })`。[apps/admin/src/components/organization-workspace.tsx](../../apps/admin/src/components/organization-workspace.tsx)、[apps/admin/src/hooks/use-organization-workspace.ts](../../apps/admin/src/hooks/use-organization-workspace.ts)
-- 侧栏 TeamSwitcher 在已进入 `AdminLayout` 后切换组织并 `setActive`。[apps/admin/src/components/admin-layout.tsx](../../apps/admin/src/components/admin-layout.tsx)、[packages/admin/src/components/team-switcher.tsx](../../packages/admin/src/components/team-switcher.tsx)
+- 登录成功后的认证落地路径是 `/app`，不是 `/app/select-organization`。[apps/tenant/src/App.tsx](../../apps/tenant/src/App.tsx)
+- `/app` 使用 `AdminLayout`，内部是 `AppShell`、面包屑、侧栏 TeamSwitcher 与「项目」导航。[apps/tenant/src/router.tsx](../../apps/tenant/src/router.tsx)、[apps/tenant/src/components/admin-layout.tsx](../../apps/tenant/src/components/admin-layout.tsx)
+- `/app/select-organization` 是 `/app` 的子路由，因此也套在 `AdminLayout` / `AppShell` 里。[apps/tenant/src/router.tsx](../../apps/tenant/src/router.tsx)
+- `/app` 索引 `WorkspaceEntry`：成员数为 1 时直接进入 `/app/projects/$organizationId`；否则（0 或大于 1）跳到 `/app/select-organization`。注释写明组织管理页本身不自动跳走，否则无法创建下一个组织。[apps/tenant/src/components/organization-workspace.tsx](../../apps/tenant/src/components/organization-workspace.tsx)
+- `/app/select-organization` 在同一页列出已有组织并提供创建表单；列表项用链接进入项目页，创建调用 `organization.create({ keepCurrentActiveOrganization: false })`。[apps/tenant/src/components/organization-workspace.tsx](../../apps/tenant/src/components/organization-workspace.tsx)、[apps/tenant/src/hooks/use-organization-workspace.ts](../../apps/tenant/src/hooks/use-organization-workspace.ts)
+- 侧栏 TeamSwitcher 在已进入 `AdminLayout` 后切换组织并 `setActive`。[apps/tenant/src/components/admin-layout.tsx](../../apps/tenant/src/components/admin-layout.tsx)、[packages/admin/src/components/team-switcher.tsx](../../packages/admin/src/components/team-switcher.tsx)
 - 未登录只渲染 `/login`，登录页不使用 `AppShell`。[packages/admin/src/auth/auth-session.tsx](../../packages/admin/src/auth/auth-session.tsx)
 - `AuthSession` 只区分有无 Session，不检查组织成员数。[packages/admin/src/auth/auth-session.tsx](../../packages/admin/src/auth/auth-session.tsx)
 
@@ -183,17 +183,17 @@ Slack 把创建和加入放在 `slack.com` 上的独立站点，不在某个已�
 
 不是设计建议，只标出调研事实与仓库约束之间的交叉点。
 
-- **本仓库更接近「必须有组织才能做租户业务」，而不是 GitHub/Vercel 的「账号即默认空间」。** 业务请求以 URL `organizationId` 为租户范围，没有个人工作区模型。[s4-04-validation.md](s4-04-validation.md)、[ADR-0002](../adr/0002-organization-identifiers.md)。与此同类的第一方做法是 Clerk 的 session task（受保护路由之前 create or join）和 Slack 的 get-started/signin 独立页。
+- **本仓库更接近「必须有组织才能做租户业务」，而不是 GitHub/Vercel 的「账号即默认空间」。** 业务请求以 URL `organizationId` 为租户范围，没有个人工作区模型。[s4-04-validation.md](s4-04-validation.md)。与此同类的第一方做法是 Clerk 的 session task（受保护路由之前 create or join）和 Slack 的 get-started/signin 独立页。
 
-- **当前实现把选择/创建放在 `AdminLayout` / `AppShell` 内，与「不要放进工作区壳层」直接冲突。** `/app/select-organization` 是 `/app` 子路由；0 个组织时 `WorkspaceEntry` 仍先进入带 TeamSwitcher 和「项目」导航的壳，再跳到选择页。[apps/admin/src/router.tsx](../../apps/admin/src/router.tsx)、[apps/admin/src/components/admin-layout.tsx](../../apps/admin/src/components/admin-layout.tsx)、[apps/admin/src/components/organization-workspace.tsx](../../apps/admin/src/components/organization-workspace.tsx)
+- **当前实现把选择/创建放在 `AdminLayout` / `AppShell` 内，与「不要放进工作区壳层」直接冲突。** `/app/select-organization` 是 `/app` 子路由；0 个组织时 `WorkspaceEntry` 仍先进入带 TeamSwitcher 和「项目」导航的壳，再跳到选择页。[apps/tenant/src/router.tsx](../../apps/tenant/src/router.tsx)、[apps/tenant/src/components/admin-layout.tsx](../../apps/tenant/src/components/admin-layout.tsx)、[apps/tenant/src/components/organization-workspace.tsx](../../apps/tenant/src/components/organization-workspace.tsx)
 
-- **S4-02 记录与当前落地路径冲突。** 当时登录后进入 `/app/select-organization`；当前 `authenticatedPath` 是 `/app`。[s4-02-validation.md](s4-02-validation.md)、[apps/admin/src/App.tsx](../../apps/admin/src/App.tsx)
+- **S4-02 记录与当前落地路径冲突。** 当时登录后进入 `/app/select-organization`；当前 `authenticatedPath` 是 `/app`。[s4-02-validation.md](s4-02-validation.md)、[apps/tenant/src/App.tsx](../../apps/tenant/src/App.tsx)
 
-- **当前「1 个组织自动进入」是仓库代码行为，不是行业文档共识。** [organization-workspace.tsx](../../apps/admin/src/components/organization-workspace.tsx) 在成员数等于 1 时 `Navigate` 到项目页。Clerk force-selection 未承诺这一跳过。
+- **当前「1 个组织自动进入」是仓库代码行为，不是行业文档共识。** [organization-workspace.tsx](../../apps/tenant/src/components/organization-workspace.tsx) 在成员数等于 1 时 `Navigate` 到项目页。Clerk force-selection 未承诺这一跳过。
 
 - **当前同一页同时承担「0 个时创建」和「N 个时选择 + 再创建」。** Linear / Vercel / Notion 的第一方文档把「再创建一个」放在已进入工作区之后的 switcher。用户已否定用壳层承担进入门，但「已在组织内再创建」是否仍算进入门，仓库还没有产品结论。
 
-- **会话偏好不能替代进入门，也不能替代 URL。** Better Auth 新会话默认 active organization 为 `null`；本仓库也不把该字段当授权。进入租户页最终仍要落到带 `organizationId` 的路由。[Better Auth Organization](https://better-auth.com/docs/plugins/organization)、[ADR-0002](../adr/0002-organization-identifiers.md)
+- **会话偏好不能替代进入门，也不能替代 URL。** Better Auth 新会话默认 active organization 为 `null`；本仓库也不把该字段当授权。进入租户页最终仍要落到带 `organizationId` 的路由。[Better Auth Organization](https://better-auth.com/docs/plugins/organization)、[s4-04-validation.md](s4-04-validation.md)
 
 - **文档里出现过、且不依赖工作区壳层的载体只有这些（罗列，不选型）：**
   - 独立页：Clerk `TaskChooseOrganization` 自托管路径、Clerk `CreateOrganization` 的 `path`、Slack `get-started` / `signin`、GitHub 账号设置里的 New organization。

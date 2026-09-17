@@ -4,7 +4,7 @@ export default defineConfig({
   locales: ["zh-CN", "en-US", "ar"],
   extract: {
     input: [
-      "../../apps/admin/src/**/*.{ts,tsx}",
+      "../../apps/tenant/src/**/*.{ts,tsx}",
       "../../apps/platform/src/**/*.{ts,tsx}",
       "../admin/src/**/*.{ts,tsx}",
       "../../apps/storybook/src/form-dialog-example.tsx",

@@ -1,6 +1,6 @@
 # S5：API 契约、语言协商与生成客户端
 
-日期：2026-09-15。依据 [原架构](multi-tenant-foundation.md)、[S5 计划](implementation-plan.md#s5建立-api-契约错误与本地化规则生成客户端) 和已接受的 [Projects 业务基线](../adr/0004-projects-reference-domain.md)。
+日期：2026-09-15。依据 [原架构](multi-tenant-foundation.md)、[S5 计划](implementation-plan.md#s5建立-api-契约错误与本地化规则生成客户端) 和 [Projects 全链路计划](implementation-plan.md#s7完成-projects-全链路每个操作纵向交付)。
 
 ## 当前交付与待确认项
 

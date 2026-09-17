@@ -4,7 +4,7 @@ import path from "path"
 import { defineConfig } from "vite"
 
 const apiProxyTarget =
-  process.env.ADMIN_API_PROXY_TARGET ?? "http://localhost:3000"
+  process.env.TENANT_API_PROXY_TARGET ?? "http://localhost:3000"
 
 // https://vite.dev/config/
 export default defineConfig({

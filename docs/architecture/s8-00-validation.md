@@ -75,7 +75,7 @@ HTTP handler 与 auth.api 公共调用共享插件，但纯服务器调用不自
 
 ## 固定实施路径与阻塞
 
-[ADR-0005](../adr/0005-organization-management-integration.md) 选择父规格要求的数据库不变量与同事务审计路径；[ADR-0003](../adr/0003-platform-access.md) 固化双平台角色、部署 CLI、ACTIVE/SUSPENDED 单一状态、Session assurance、固定函数/NOLOGIN executor。没有把旧 ADR 的 enabled 或单角色范围用来削减 S8。
+组织管理的数据库不变量与同事务审计路径、双平台角色、部署 CLI、ACTIVE/SUSPENDED 单一状态、Session assurance、固定函数/NOLOGIN executor 见 [S8 集成约束](s8-integration-contract.md)。没有把旧的 enabled 或单角色范围用来削减 S8。
 
 以下未通过或尚未证明项是后续相关能力的发布阻塞，不是默许跳过的验收项：
 

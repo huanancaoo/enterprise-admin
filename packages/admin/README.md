@@ -17,7 +17,7 @@
 - `renderExpandedRow` 负责业务展开内容。列重排只移动可配置列，控制列的位置和固定状态保留；列宽方向由当前 UI 语言统一决定。带 `facetOptions` 的列由封装根据 `facetMode` 配置筛选算法。
 - 保留 TanStack 的受控状态与 `manualPagination/manualFiltering/manualSorting`。Router 持有已应用查询条件，Query 持有请求事实，Table 持有视图状态；不在组件内调用 API、做路由跳转或复制服务端数据。
 
-使用方在导入 `@workspace/ui/globals.css` 的样式入口中，将本包源码加入 Tailwind `@source`。接入示例见 `apps/admin/src/styles.css`；交互测试见 `apps/storybook/src/data-table.stories.tsx`。
+使用方在导入 `@workspace/ui/globals.css` 的样式入口中，将本包源码加入 Tailwind `@source`。接入示例见 `apps/tenant/src/styles.css`；交互测试见 `apps/storybook/src/data-table.stories.tsx`。
 
 ## S6 后台组件
 
@@ -31,4 +31,4 @@
 
 DataTable 自带文案使用翻译目录。列标题、业务状态与选项由调用方翻译；名称等租户内容直接来自 API。没有名称搜索能力的页面使用 `showSearch={false}`；使用内置搜索时，调用方将受控状态连接到 URL 与请求，不能额外添加平行的筛选栏。请求使用 `manualFiltering/manualSorting/manualPagination` 和受控分页。列宽拖拽及键盘调整遵循当前文字方向。
 
-Projects 列表示例在 `apps/admin/src/components/projects-list.stories.tsx`，由公共 Storybook 加载；它以 Router 包装生产 `ProjectsList` 并通过生成客户端调用共享 MSW。ResourceCreate/Edit/Show 随 S7 的真实操作补齐，本阶段没有通用 Resource Engine。
+Projects 列表示例在 `apps/tenant/src/components/projects-list.stories.tsx`，由公共 Storybook 加载；它以 Router 包装生产 `ProjectsList` 并通过生成客户端调用共享 MSW。ResourceCreate/Edit/Show 随 S7 的真实操作补齐，本阶段没有通用 Resource Engine。

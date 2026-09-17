@@ -6,7 +6,7 @@ import ts from "typescript"
 
 // 白名单约束整个包依赖图，避免前端通过共享包间接取得服务端代码。
 const allowed = {
-  "apps/admin": [
+  "apps/tenant": [
     "packages/ui",
     "packages/admin",
     "packages/contracts",

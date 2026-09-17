@@ -1,6 +1,6 @@
 # S8 集成约束
 
-依据 [父规格 #8](https://github.com/huanancaoo/enterprise-admin/issues/8) 与 [验证任务 #9](https://github.com/huanancaoo/enterprise-admin/issues/9) 固化。本文承接 ADR 的具体权限和实施约束，不表示功能已交付；证据与发布阻塞见 [S8-00 验证](s8-00-validation.md)。
+依据 [父规格 #8](https://github.com/huanancaoo/enterprise-admin/issues/8) 与 [验证任务 #9](https://github.com/huanancaoo/enterprise-admin/issues/9) 固化。本文记录平台与组织管理的具体权限和实施约束，不表示功能已交付；证据与发布阻塞见 [S8-00 验证](s8-00-validation.md)。
 
 ## 平台集成
 
@@ -101,4 +101,4 @@ owner 可管理 admin/owner，但始终至少保留一个 owner；admin 不能�
 
 Native /api/auth 路由不经过 Nest TenantGuard，必须在认证集成边界执行一致策略。组织创建、更新、删除、组织详情、完整组织、成员/邀请列表、邀请操作、退出、角色 CRUD 和服务器 addMember 均在盘点范围；不能只保护页面使用的路径。
 
-个人语言、组织 defaultLocale、平台默认语言各自唯一；复用已有个人/组织字段并增加所需版本与 nullable 语义，不新建重复事实表。平台状态、会话与固定函数遵循 [ADR-0003](../adr/0003-platform-access.md)。当前仅完成技术验证及决策，未生成或应用 S8 生产迁移。
+个人语言、组织 defaultLocale、平台默认语言各自唯一；复用已有个人/组织字段并增加所需版本与 nullable 语义，不新建重复事实表。平台状态、会话与固定函数遵循上文平台集成约束。当前仅完成技术验证及决策，未生成或应用 S8 生产迁移。

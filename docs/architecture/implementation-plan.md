@@ -56,7 +56,7 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 本地实施及验收已完成，见 [S1 验收记录](s1-validation.md)。远端 CI 尚未推送触发。
 
 - [x] S1-01：初始化 pnpm workspace、Turborepo、TypeScript strict、共享 ESLint/TypeScript 配置。
-- [x] S1-02：创建 `apps/admin`、`apps/platform`、`apps/api`、`apps/storybook` 的可运行入口。
+- [x] S1-02：创建 `apps/tenant`、`apps/platform`、`apps/api`、`apps/storybook` 的可运行入口。
 - [x] S1-03：创建 `packages/ui`、`admin`、`mocks`、`contracts`、`api-client`、`database`、`permissions`、`i18n` 的最小包边界；不一次实现所有预想组件。
 - [x] S1-04：预留 `apps/worker` 的规划位置；未启用异步任务时，不要求它运行或部署。
 - [x] S1-05：设置依赖边界检查：前端不能依赖 database/API server；contracts 不能依赖 Drizzle；公共 UI 不绑定 Projects 等具体业务模块。

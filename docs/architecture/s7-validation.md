@@ -78,6 +78,6 @@
 
 ## 实施参考
 
-- [ADR-0001: 架构基线](../adr/0001-architecture-baseline.md)
+- [多租户基础架构原文](multi-tenant-foundation.md)
 - [实施计划](implementation-plan.md)
 - [S6 验收记录](s6-validation.md)

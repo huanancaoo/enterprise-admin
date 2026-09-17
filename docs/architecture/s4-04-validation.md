@@ -4,7 +4,7 @@
 
 ## 已确认的业务规则
 
-用户确认现有组织和新建组织默认启用，已记录在 [ADR-0003](../adr/0003-platform-access.md)。`organization.enabled` 为非空布尔值、默认 true，沿用 Better Auth Organization 扩展字段和正式 Schema 生成链，没有第二套组织模型。
+用户确认现有组织和新建组织默认启用。`organization.enabled` 为非空布尔值、默认 true，沿用 Better Auth Organization 扩展字段和正式 Schema 生成链，没有第二套组织模型。
 
 迁移 `0004_awesome_gwen_stacy.sql` 为现有数据设置默认启用状态；`0005_organization-status-grants.sql` 将 app_runtime 的组织 UPDATE 收紧到原有列，仅 platform_runtime 具有 enabled 的 UPDATE 权限。认证扩展配置 `input: false`，组织客户端不能修改启停状态。两个迁移只在临时测试数据库执行，尚未迁移开发或生产数据库。
 

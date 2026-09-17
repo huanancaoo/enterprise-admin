@@ -108,7 +108,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
   let context
   let page
   let pageErrors
-  const originalAdminApiProxyTarget = process.env.ADMIN_API_PROXY_TARGET
+  const originalTenantApiProxyTarget = process.env.TENANT_API_PROXY_TARGET
   const frontends = []
   const credentials = {
     email: "s4-02@example.test",
@@ -168,8 +168,8 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     tenantContexts = app.get(TenantContextService)
     await app.listen(0, "127.0.0.1")
     const apiOrigin = await app.getUrl()
-    process.env.ADMIN_API_PROXY_TARGET = apiOrigin
-    for (const name of ["admin", "platform"]) {
+    process.env.TENANT_API_PROXY_TARGET = apiOrigin
+    for (const name of ["tenant", "platform"]) {
       const server = await createServer({
         root: resolve(`apps/${name}`),
         configFile: resolve(`apps/${name}/vite.config.ts`),
@@ -225,10 +225,10 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
         try {
           await app?.close()
         } finally {
-          if (originalAdminApiProxyTarget === undefined) {
-            delete process.env.ADMIN_API_PROXY_TARGET
+          if (originalTenantApiProxyTarget === undefined) {
+            delete process.env.TENANT_API_PROXY_TARGET
           } else {
-            process.env.ADMIN_API_PROXY_TARGET = originalAdminApiProxyTarget
+            process.env.TENANT_API_PROXY_TARGET = originalTenantApiProxyTarget
           }
           await container?.stop()
         }

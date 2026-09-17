@@ -1,6 +1,6 @@
 # Enterprise Admin
 
-多租户企业应用基础框架。架构依据见 [ADR-0001](docs/adr/0001-architecture-baseline.md)，阶段范围见 [实施计划](docs/architecture/implementation-plan.md)。
+多租户企业应用基础框架。架构原文见 [多租户基础架构原文](docs/architecture/multi-tenant-foundation.md)，阶段范围见 [实施计划](docs/architecture/implementation-plan.md)。归档研究中的建议不自动成为实施授权。
 
 ## 本地运行
 
@@ -14,7 +14,7 @@ pnpm dev
 
 | 应用      | 地址                         | 单独启动                      |
 | --------- | ---------------------------- | ----------------------------- |
-| 租户后台  | http://localhost:3200        | `pnpm --filter admin dev`     |
+| 租户后台  | http://localhost:3200        | `pnpm --filter tenant dev`    |
 | 平台后台  | http://localhost:3201        | `pnpm --filter platform dev`  |
 | API       | http://localhost:3000/api/v1 | `pnpm --filter api dev`       |
 | Storybook | http://localhost:6006        | `pnpm --filter storybook dev` |
@@ -23,7 +23,7 @@ S1 四个入口不依赖 PostgreSQL、Redis 或外部账号。API 的开发文�
 
 ## 环境配置
 
-默认配置即可启动 S1。公开前端配置分别位于 `apps/admin/.env.example`、`apps/platform/.env.example`；如需增加公开变量，将示例复制为应用目录的 `.env.local`，由 Vite 加载。任何 `VITE_` 变量都可能进入浏览器。
+默认配置即可启动 S1。公开前端配置分别位于 `apps/tenant/.env.example`、`apps/platform/.env.example`；如需增加公开变量，将示例复制为应用目录的 `.env.local`，由 Vite 加载。任何 `VITE_` 变量都可能进入浏览器。
 
 API 使用进程环境变量，示例见 `apps/api/.env.example`。例如 `PORT=3100 pnpm --filter api dev`。API 不自动读取 `.env` 文件。
 
@@ -44,7 +44,7 @@ pnpm verify
 
 ## 应用与包边界
 
-- `apps/admin`、`apps/platform`：租户与平台 SPA。
+- `apps/tenant`、`apps/platform`：租户与平台 SPA。
 - `apps/api`：NestJS API Host，输出 JSON operational logs；每个请求生成独立 `X-Request-Id`，日志不记录查询串、请求体和认证 Header。
 - `apps/storybook`：可独立启动的公共组件工作台。
 - `packages/ui`：通用组件；`packages/admin`：业务无关后台组件。
@@ -52,4 +52,4 @@ pnpm verify
 - `packages/database`：服务端数据库边界；`packages/permissions`：固定权限声明。
 - `packages/mocks`、`packages/i18n`：共享 Mock 与翻译目录。
 
-新增的空包仅声明边界，具体功能随相应阶段实现。向 UI 包添加 shadcn 组件时，从 `apps/admin` 配置入口操作。
+新增的空包仅声明边界，具体功能随相应阶段实现。向 UI 包添加 shadcn 组件时，从 `apps/tenant` 配置入口操作。

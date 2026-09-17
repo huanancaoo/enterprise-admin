@@ -1,4 +1,4 @@
 @import "@workspace/ui/globals.css";
 
 @source "../../../packages/admin/src/**/*.{ts,tsx}";
-@source "../../../apps/admin/src/**/*.{ts,tsx}";
+@source "../../../apps/tenant/src/**/*.{ts,tsx}";

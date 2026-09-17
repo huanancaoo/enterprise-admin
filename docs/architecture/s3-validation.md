@@ -6,8 +6,8 @@
 
 - TenantContext 包含 organizationId、userId、membershipId、requestId、locale。`createTenantRunner(pool)` 返回 `runInTenant(context, work)`，在同一事务设置 transaction-local 组织上下文并执行 Repository。
 - TenantTx 使用不可由普通 db/Pool 满足的品牌类型，Repository 从事务上下文取得组织 ID，并显式限定查询范围。依赖边界门禁禁止 Repository 导入连接、全局 db 和事务工厂。
-- Projects 与 ProjectTranslations 使用 UUID、组织复合外键、组织/项目/语言唯一约束；状态和语言沿用 ADR-0004。创建同时写入基础译文，删除级联译文。
-- 唯一 Drizzle 迁移链新增结构迁移 `0002_projects.sql` 和策略/授权迁移 `0003_tenant-rls.sql`。两表 ENABLE/FORCE RLS，USING 与 WITH CHECK 使用 ADR-0002 的 UUID 表达式。仅 app_runtime 获得两表 CRUD 权限。
+- Projects 与 ProjectTranslations 使用 UUID、组织复合外键、组织/项目/语言唯一约束；状态和语言沿用 [Projects 全链路计划](implementation-plan.md#s7完成-projects-全链路每个操作纵向交付)。创建同时写入基础译文，删除级联译文。
+- 唯一 Drizzle 迁移链新增结构迁移 `0002_projects.sql` 和策略/授权迁移 `0003_tenant-rls.sql`。两表 ENABLE/FORCE RLS，USING 与 WITH CHECK 使用 UUID 组织标识表达式。仅 app_runtime 获得两表 CRUD 权限。
 - 根 `pnpm verify` 的数据库测试自动覆盖 S3；`pnpm test:isolation` 可单独复现隔离测试。
 
 ## 隔离用例
