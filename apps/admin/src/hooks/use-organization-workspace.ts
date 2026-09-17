@@ -36,14 +36,19 @@ export function useOrganizationWorkspace() {
     workspace,
     pending: action.pending || workspace.isFetching,
     error: action.error,
-    createOrganization: (input: { name: string; slug: string }) =>
-      run(() =>
-        authClient.organization.create({
+    createOrganization: async (input: { name: string; slug: string }) => {
+      let organizationId: string | undefined
+      const ok = await run(async () => {
+        const result = await authClient.organization.create({
           name: input.name.trim(),
           slug: input.slug.trim(),
           keepCurrentActiveOrganization: false,
         })
-      ),
+        if (!result.error) organizationId = result.data.id
+        return result
+      })
+      return ok ? organizationId : undefined
+    },
     selectOrganization: (organizationId: string) =>
       run(() => authClient.organization.setActive({ organizationId })),
   }

@@ -118,7 +118,6 @@ export default interface Resources {
     "activate": "激活",
     "bulkActions": "批量操作",
     "create": "创建组织",
-    "current": "当前组织：{{name}}",
     "department": "部门",
     "lastActive": "最近活跃",
     "loading": "正在加载组织…",

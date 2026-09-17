@@ -2,7 +2,6 @@
   "activate": "Activate",
   "bulkActions": "Bulk actions",
   "create": "Create organization",
-  "current": "Current organization: {{name}}",
   "department": "Department",
   "lastActive": "Last active",
   "loading": "Loading organizations…",

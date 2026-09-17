@@ -2,7 +2,6 @@
   "activate": "تفعيل",
   "bulkActions": "إجراءات مجمعة",
   "create": "إنشاء مؤسسة",
-  "current": "المؤسسة الحالية: {{name}}",
   "department": "القسم",
   "lastActive": "آخر نشاط",
   "loading": "جارٍ تحميل المؤسسات…",
