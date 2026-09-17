@@ -436,7 +436,7 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
     ).rejects.toMatchObject({ code: "23514" })
     await expect(
       runtime.pool.query(
-        "UPDATE organization SET enabled = false WHERE id = $1",
+        "UPDATE organization_status SET status = 'SUSPENDED' WHERE organization_id = $1",
         [orgA.id]
       )
     ).rejects.toMatchObject({ code: "42501" })

@@ -66,7 +66,7 @@ API / Worker 启动脚本不运行迁移。运行账号、平台账号、迁移�
 | `app_runtime`      | 非 Owner；认证八表及 RLS 约束下的 Projects 两表 SELECT/INSERT/UPDATE/DELETE；audit_events 仅 SELECT/INSERT；无 DDL、TEMP、TRUNCATE、迁移 ledger 或角色切换权限 |
 | `platform_runtime` | 非 Owner；只读 user 公开身份列、organization 运营列和 member 关系列；无 account/session/verification 权限                                                      |
 
-S4-04 已增加组织 `enabled` 字段：现有及新建组织默认 true，客户端不能设置。`app_runtime` 对 organization 的 UPDATE 仅限原有资料列，不能修改 enabled；`platform_runtime` 可 SELECT/UPDATE enabled。平台授权、启停 HTTP 操作、平台设置和审计仍属于 S8；平台数据库账号本身不等同于 HTTP 请求已经获得平台授权。
+组织运营状态的唯一来源是 `organization_status`（ACTIVE/SUSPENDED 及授权版本）。新组织由 INSERT 触发器初始化为 ACTIVE；缺失状态拒绝访问。`app_runtime` 可读状态与授权版本、可更新 `authorization_version`，不能改 `status`；`platform_runtime` 不能读写该表。平台停用/恢复 HTTP 仍属于后续任务；测试用 migrator 夹具布置状态。
 
 服务端通过 `createDatabase(runtimeUrl)` 获取 `pool` 和类型化 `db`，调用者在退出时执行 `pool.end()`。包不会自动连接或读取迁移变量。`createAuth(pool, baseURL, secret)` 提供与生成器相同的认证配置；真实 HTTP 接入和密钥注入在 S4 完成。
 
@@ -97,7 +97,7 @@ TenantTx 品牌阻止普通 db/Pool 作为 Repository 参数；`pnpm lint:bounda
 
 ## S5 语言字段与列表
 
-迁移 0006/0007 增加 user.preferred_locale（可空）与 organization.default_locale（默认 zh-CN），并限制支持语言。app_runtime 获得 default_locale 列的 UPDATE 权限，不能修改 enabled。迁移仍只由 one-shot migrator 执行。
+迁移 0006/0007 增加 user.preferred_locale（可空）与 organization.default_locale（默认 zh-CN），并限制支持语言。app_runtime 获得 default_locale 列的 UPDATE 权限。迁移仍只由 one-shot migrator 执行。
 
 `projectRepository.listPage(tx, query)` 在 TenantTx 内按请求 locale 解析整条译文，执行分页、筛选与稳定排序，同时返回 total。基础译文缺失视为数据完整性错误。详见 [S5 实施与验证记录](../../docs/architecture/s5-validation.md)。
 

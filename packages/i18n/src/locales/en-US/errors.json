@@ -1,7 +1,9 @@
 {
+  "AUTHORIZATION_UNAVAILABLE": "Authorization is unavailable",
   "FORBIDDEN": "Access denied",
   "INTERNAL_ERROR": "Internal server error",
   "NOT_FOUND": "Resource not found",
+  "ORGANIZATION_SUSPENDED": "This organization is suspended",
   "UNAUTHENTICATED": "Authentication required",
   "VALIDATION_ERROR": "Invalid request parameters"
 }

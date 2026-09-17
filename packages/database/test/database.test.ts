@@ -144,7 +144,7 @@ describe(suiteName, { concurrent: false }, () => {
           "SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename"
         )
       ).rows.map((row) => row.tablename),
-      [...tables, "audit_events"].sort()
+      [...tables, "audit_events", "organization_status"].sort()
     )
   })
 
@@ -203,6 +203,46 @@ describe(suiteName, { concurrent: false }, () => {
     await assert.rejects(platform.query("SELECT * FROM audit_events"), {
       code: "42501",
     })
+    assert.deepEqual(
+      (
+        await runtime.query(
+          `SELECT
+            has_column_privilege(current_user, 'organization_status', 'organization_id', 'SELECT') AS organization_id,
+            has_column_privilege(current_user, 'organization_status', 'status', 'SELECT') AS status,
+            has_column_privilege(current_user, 'organization_status', 'status_version', 'SELECT') AS status_version,
+            has_column_privilege(current_user, 'organization_status', 'authorization_version', 'SELECT') AS authorization_version,
+            has_column_privilege(current_user, 'organization_status', 'status_changed_at', 'SELECT') AS status_changed_at,
+            has_column_privilege(current_user, 'organization_status', 'status_changed_by', 'SELECT') AS status_changed_by,
+            has_column_privilege(current_user, 'organization_status', 'internal_reason', 'SELECT') AS internal_reason,
+            has_column_privilege(current_user, 'organization_status', 'authorization_version', 'UPDATE') AS update_authorization_version,
+            has_column_privilege(current_user, 'organization_status', 'status', 'UPDATE') AS update_status,
+            has_table_privilege(current_user, 'organization_status', 'INSERT') AS insert,
+            has_table_privilege(current_user, 'organization_status', 'DELETE') AS delete,
+            has_function_privilege(current_user, 'require_active_organization(uuid)', 'EXECUTE') AS execute_lock
+          `
+        )
+      ).rows[0],
+      {
+        organization_id: true,
+        status: true,
+        status_version: true,
+        authorization_version: true,
+        status_changed_at: true,
+        status_changed_by: false,
+        internal_reason: false,
+        update_authorization_version: true,
+        update_status: false,
+        insert: false,
+        delete: false,
+        execute_lock: true,
+      }
+    )
+    await assert.rejects(
+      platform.query("SELECT status FROM organization_status"),
+      {
+        code: "42501",
+      }
+    )
     for (const table of tables) {
       const { rows } = await runtime.query(
         "SELECT has_table_privilege(current_user, $1, 'SELECT') AND has_table_privilege(current_user, $1, 'INSERT') AND has_any_column_privilege(current_user, $1, 'UPDATE') AND has_table_privilege(current_user, $1, 'DELETE') AS allowed",
@@ -243,6 +283,29 @@ describe(suiteName, { concurrent: false }, () => {
       body: { name: "S2 Org", slug: "s2-org" },
     })
     assert.ok(org?.id)
+    assert.deepEqual(
+      (
+        await runtime.query(
+          "SELECT status, status_version, authorization_version FROM organization_status WHERE organization_id = $1",
+          [org!.id]
+        )
+      ).rows[0],
+      { status: "ACTIVE", status_version: 1, authorization_version: 1 }
+    )
+    await assert.rejects(
+      runtime.query(
+        "UPDATE organization_status SET status = 'SUSPENDED' WHERE organization_id = $1",
+        [org!.id]
+      ),
+      { code: "42501" }
+    )
+    await assert.rejects(
+      platform.query(
+        "UPDATE organization_status SET status = 'SUSPENDED' WHERE organization_id = $1",
+        [org!.id]
+      ),
+      { code: "42501" }
+    )
     await auth.api.setActiveOrganization({
       headers,
       body: { organizationId: org!.id },
@@ -266,8 +329,142 @@ describe(suiteName, { concurrent: false }, () => {
       "Updated",
       registered.user.id,
     ])
+    await migrator.query(
+      "UPDATE organization_status SET status = 'SUSPENDED', status_version = status_version + 1, status_changed_at = now() WHERE organization_id = $1",
+      [org!.id]
+    )
+    await assert.rejects(auth.api.getFullOrganization({ headers }), {
+      status: "FORBIDDEN",
+    })
+    await assert.rejects(auth.api.listMembers({ headers }), {
+      status: "FORBIDDEN",
+    })
     await auth.api.signOut({ headers })
     assert.equal(await auth.api.getSession({ headers }), null)
+  })
+
+  test("停用后写入锁拒绝提交，缺失状态失败关闭", async () => {
+    const inserted = await migrator.query<{ id: string }>(
+      "INSERT INTO organization (name, slug, created_at) VALUES ('Lock Org', 'lock-org', now()) RETURNING id"
+    )
+    const organizationId = inserted.rows[0].id
+    await migrator.query(
+      "UPDATE organization_status SET status = 'SUSPENDED', status_version = status_version + 1, status_changed_at = now() WHERE organization_id = $1",
+      [organizationId]
+    )
+    await assert.rejects(
+      runtime.query("SELECT public.require_active_organization($1::uuid)", [
+        organizationId,
+      ]),
+      (error: { code?: string }) => error.code === "ORS02"
+    )
+    await migrator.query(
+      "UPDATE organization_status SET status = 'ACTIVE', status_version = status_version + 1, status_changed_at = now() WHERE organization_id = $1",
+      [organizationId]
+    )
+    const client = await runtime.connect()
+    try {
+      await client.query("BEGIN")
+      await client.query(
+        "SELECT public.require_active_organization($1::uuid)",
+        [organizationId]
+      )
+      const pending = migrator.query(
+        "UPDATE organization_status SET status = 'SUSPENDED', status_version = status_version + 1, status_changed_at = now() WHERE organization_id = $1",
+        [organizationId]
+      )
+      const waitingLocks = async () =>
+        (
+          await owner.query<{ n: number }>(
+            "SELECT count(*)::int AS n FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND query ILIKE '%organization_status%'"
+          )
+        ).rows[0].n
+      const deadline = Date.now() + 5_000
+      while (Date.now() < deadline) {
+        if ((await waitingLocks()) > 0) break
+        await new Promise((resolve) => setTimeout(resolve, 25))
+      }
+      assert.equal(await waitingLocks(), 1)
+      await client.query("COMMIT")
+      await pending
+    } finally {
+      client.release()
+    }
+    await assert.rejects(
+      runtime.query("SELECT public.require_active_organization($1::uuid)", [
+        organizationId,
+      ]),
+      (error: { code?: string }) => error.code === "ORS02"
+    )
+    await migrator.query(
+      "DELETE FROM organization_status WHERE organization_id = $1",
+      [organizationId]
+    )
+    await assert.rejects(
+      runtime.query("SELECT public.require_active_organization($1::uuid)", [
+        organizationId,
+      ]),
+      (error: { code?: string }) => error.code === "ORS01"
+    )
+    await migrator.query("DELETE FROM organization WHERE id = $1", [
+      organizationId,
+    ])
+  })
+
+  test("既有 enabled=false 回填为 SUSPENDED，不能覆盖成 ACTIVE", async () => {
+    await owner.query(
+      "CREATE DATABASE organization_status_backfill OWNER app_migrator"
+    )
+    const backfillUrl = migrationUrl.replace(
+      /\/enterprise_admin$/,
+      "/organization_status_backfill"
+    )
+    const dir = await mkdtemp(join(tmpdir(), "organization-status-backfill-"))
+    const backfill = new Pool({ connectionString: backfillUrl })
+    try {
+      await mkdir(join(dir, "src"))
+      await cp("src/migrate.ts", join(dir, "src/migrate.ts"))
+      await cp("migrations", join(dir, "migrations"), { recursive: true })
+      await symlink(resolve("node_modules"), join(dir, "node_modules"))
+      const journalPath = join(dir, "migrations/meta/_journal.json")
+      const journal = JSON.parse(await readFile(journalPath, "utf8")) as {
+        entries: { tag: string }[]
+      }
+      const current = journal.entries.pop()!
+      await writeFile(journalPath, JSON.stringify(journal))
+      await rm(join(dir, "migrations", `${current.tag}.sql`))
+      await runMigration(join(dir, "src/migrate.ts"), backfillUrl)
+      const org = await backfill.query<{ id: string }>(
+        "INSERT INTO organization (name, slug, created_at, enabled) VALUES ('Legacy Disabled', 'legacy-disabled', now(), false) RETURNING id"
+      )
+      journal.entries.push(current)
+      await writeFile(journalPath, JSON.stringify(journal))
+      await cp(
+        `migrations/${current.tag}.sql`,
+        join(dir, "migrations", `${current.tag}.sql`)
+      )
+      await runMigration(join(dir, "src/migrate.ts"), backfillUrl)
+      assert.deepEqual(
+        (
+          await backfill.query(
+            "SELECT status FROM organization_status WHERE organization_id = $1",
+            [org.rows[0].id]
+          )
+        ).rows[0],
+        { status: "SUSPENDED" }
+      )
+      assert.equal(
+        (
+          await backfill.query(
+            "SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'organization' AND column_name = 'enabled'"
+          )
+        ).rowCount,
+        0
+      )
+    } finally {
+      await backfill.end()
+      await rm(dir, { recursive: true, force: true })
+    }
   })
 
   test("平台仅能读允许的元数据列，不能读凭据或获得默认新表权限", async () => {

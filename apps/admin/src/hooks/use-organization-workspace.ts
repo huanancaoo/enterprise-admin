@@ -1,18 +1,19 @@
 import { authClient } from "@/lib/auth-client"
+import {
+  dropOrganizationQueries,
+  listMyOrganizations,
+  listMyOrganizationsKey,
+} from "@workspace/api-client"
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useAuthAction } from "@workspace/admin/auth"
+import { useEffect, useRef } from "react"
 
 // QueryClient 由 AuthSession 按账号隔离；此 Key 仅持有当前账号的组织事实。
 const workspaceQuery = queryOptions({
-  queryKey: ["identity", "organization-workspace"],
+  queryKey: listMyOrganizationsKey(),
   queryFn: async () => {
-    const [organizations, active] = await Promise.all([
-      authClient.organization.list(),
-      authClient.organization.getFullOrganization(),
-    ])
-    if (organizations.error) throw new Error(organizations.error.message)
-    if (active.error) throw new Error(active.error.message)
-    return { organizations: organizations.data, active: active.data }
+    const result = await listMyOrganizations()
+    return result.data
   },
   retry: false,
 })
@@ -52,4 +53,17 @@ export function useOrganizationWorkspace() {
     selectOrganization: (organizationId: string) =>
       run(() => authClient.organization.setActive({ organizationId })),
   }
+}
+
+export function useDropStaleOrganizationQueries(
+  organizationId: string | undefined
+) {
+  const queryClient = useQueryClient()
+  const previousId = useRef(organizationId)
+  useEffect(() => {
+    const previous = previousId.current
+    if (previous && previous !== organizationId)
+      dropOrganizationQueries(queryClient, previous)
+    previousId.current = organizationId
+  }, [organizationId, queryClient])
 }

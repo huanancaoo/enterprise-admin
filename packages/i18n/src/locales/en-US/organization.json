@@ -19,5 +19,6 @@
   "select": "Select organization",
   "slug": "Organization identifier",
   "slugHint": "A unique identifier, for example my-team.",
-  "suspend": "Suspend"
+  "suspend": "Suspend",
+  "unavailableHint": "Select another available organization, or sign out."
 }

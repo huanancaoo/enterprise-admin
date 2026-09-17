@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   Link,
   Outlet,
@@ -6,6 +6,7 @@ import {
   useParams,
   useSearch,
 } from "@tanstack/react-router"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@workspace/admin"
 import {
   Breadcrumb,
@@ -18,18 +19,48 @@ import {
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import { FolderKanbanIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
-import { useOrganizationWorkspace } from "@/hooks/use-organization-workspace"
-import { CreateOrganizationDialog } from "./organization-workspace"
+import {
+  ApiClientError,
+  useGetOrganizationAccessQueryOptions,
+  projectKeys,
+} from "@workspace/api-client"
+import {
+  useDropStaleOrganizationQueries,
+  useOrganizationWorkspace,
+} from "@/hooks/use-organization-workspace"
+import {
+  CreateOrganizationDialog,
+  OrganizationUnavailable,
+} from "./organization-workspace"
 
 export function AdminLayout() {
-  const { t } = useTranslation(["organization", "projects", "common"])
+  const { t } = useTranslation(["organization", "projects", "common", "errors"])
   const session = useAuthenticatedSession()!
   const workspace = useOrganizationWorkspace()
+  const queryClient = useQueryClient()
   const params = useParams({ strict: false })
   const search = useSearch({ strict: false })
   const navigate = useNavigate()
   const [createOpen, setCreateOpen] = useState(false)
   const organizationId = params.organizationId
+  const organizations = workspace.workspace.data ?? []
+  useDropStaleOrganizationQueries(organizationId)
+  const access = useQuery({
+    ...useGetOrganizationAccessQueryOptions(organizationId ?? ""),
+    enabled: Boolean(organizationId),
+    retry: false,
+  })
+  useEffect(() => {
+    if (
+      !organizationId ||
+      !(access.error instanceof ApiClientError) ||
+      access.error.body.code !== "ORGANIZATION_SUSPENDED"
+    )
+      return
+    const queryKey = projectKeys.all(organizationId)
+    void queryClient.cancelQueries({ queryKey })
+    queryClient.removeQueries({ queryKey })
+  }, [access.error, organizationId, queryClient])
   const projectLink = organizationId ? (
     <Link
       to="/app/projects/$organizationId"
@@ -37,9 +68,15 @@ export function AdminLayout() {
       search={params.projectId ? {} : search}
     />
   ) : undefined
+  const suspended =
+    access.error instanceof ApiClientError &&
+    access.error.body.code === "ORGANIZATION_SUSPENDED"
 
   async function selectOrganization(nextOrganizationId: string) {
-    if (!(await workspace.selectOrganization(nextOrganizationId))) return
+    const target = organizations.find((item) => item.id === nextOrganizationId)
+    if (target?.status === "ACTIVE") {
+      if (!(await workspace.selectOrganization(nextOrganizationId))) return
+    }
     await navigate({
       to: "/app/projects/$organizationId",
       params: { organizationId: nextOrganizationId },
@@ -72,12 +109,10 @@ export function AdminLayout() {
       }
       sidebar={{
         teamSwitcher: {
-          teams: (workspace.workspace.data?.organizations ?? []).map(
-            (organization) => ({
-              id: organization.id,
-              name: organization.name,
-            })
-          ),
+          teams: organizations.map((organization) => ({
+            id: organization.id,
+            name: organization.name,
+          })),
           value: organizationId ?? null,
           label: t("organization:select"),
           disabled: workspace.pending,
@@ -92,7 +127,7 @@ export function AdminLayout() {
               title: t("projects:title"),
               icon: <FolderKanbanIcon />,
               isActive: !!params.organizationId,
-              disabled: !organizationId,
+              disabled: !organizationId || suspended,
               render: projectLink,
             },
           ],
@@ -114,6 +149,20 @@ export function AdminLayout() {
           {workspace.error}
         </p>
       )}
+      {organizationId && access.isPending && (
+        <p role="status">{t("organization:loading")}</p>
+      )}
+      {suspended && (
+        <OrganizationUnavailable
+          organizations={organizations}
+          currentId={organizationId}
+        />
+      )}
+      {access.error && !suspended && (
+        <p role="alert" className="text-sm text-destructive">
+          {access.error.message}
+        </p>
+      )}
       <CreateOrganizationDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
@@ -127,7 +176,7 @@ export function AdminLayout() {
           })
         }}
       />
-      <Outlet />
+      {access.isSuccess ? <Outlet /> : null}
     </AppShell>
   )
 }

@@ -1,10 +1,12 @@
 import {
   ForbiddenException,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
-import { APIError } from 'better-auth/api';
+import type { OrganizationStatus } from '@workspace/contracts';
 import { AuthRuntime } from './auth-runtime';
+import { ApiException } from './api-exception';
 
 export interface Identity {
   userId: string;
@@ -14,6 +16,8 @@ export interface Identity {
 
 @Injectable()
 export class IdentityService {
+  private readonly logger = new Logger(IdentityService.name);
+
   constructor(private readonly runtime: AuthRuntime) {}
 
   async getIdentity(headers: Headers): Promise<Identity | null> {
@@ -37,48 +41,85 @@ export class IdentityService {
   }
 
   async requireOrganizationMembership(
-    headers: Headers,
     organizationId: string,
     identity: Identity,
+    requestId: string,
   ): Promise<{
     membershipId: string;
-    enabled: boolean;
     defaultLocale: string;
+    status: OrganizationStatus;
+    authorizationVersion: number;
   }> {
-    try {
-      // 按已验证用户过滤；不读取 active member，避免工作区偏好改变授权目标。
-      const { members } = await this.runtime.auth.api.listMembers({
-        headers,
-        query: {
-          organizationId,
-          filterField: 'userId',
-          filterValue: identity.userId,
-          filterOperator: 'eq',
-          limit: 1,
-        },
+    const result = await this.runtime.pool.query<{
+      membership_id: string;
+      default_locale: string;
+      status: OrganizationStatus | null;
+      authorization_version: number | null;
+    }>(
+      `SELECT m.id AS membership_id, o.default_locale, s.status, s.authorization_version
+       FROM member m
+       INNER JOIN organization o ON o.id = m.organization_id
+       LEFT JOIN organization_status s ON s.organization_id = m.organization_id
+       WHERE m.organization_id = $1 AND m.user_id = $2
+       LIMIT 1`,
+      [organizationId, identity.userId],
+    );
+    const membership = result.rows[0];
+    if (!membership) throw new ForbiddenException();
+    if (!membership.status || membership.authorization_version == null) {
+      this.logger.error({
+        event: 'organization.status.missing',
+        organizationId,
+        requestId,
       });
-      const member = members[0];
-      if (!member) throw new ForbiddenException();
-      const organization = await this.runtime.auth.api.getFullOrganization({
-        headers,
-        query: { organizationId, membersLimit: 1 },
-      });
-      if (!organization) throw new ForbiddenException();
-      return {
-        membershipId: member.id,
-        enabled: organization.enabled,
-        defaultLocale: organization.defaultLocale,
-      };
-    } catch (error) {
-      if (error instanceof APIError) {
-        if (error.statusCode === 401) throw new UnauthorizedException();
-        if (
-          error.statusCode === 403 ||
-          error.body?.code === 'ORGANIZATION_NOT_FOUND'
-        )
-          throw new ForbiddenException();
-      }
-      throw error;
+      throw new ApiException(503, 'AUTHORIZATION_UNAVAILABLE');
     }
+    return {
+      membershipId: membership.membership_id,
+      defaultLocale: membership.default_locale,
+      status: membership.status,
+      authorizationVersion: membership.authorization_version,
+    };
+  }
+
+  async listMembershipOrganizations(
+    identity: Identity,
+    requestId: string,
+  ): Promise<
+    {
+      id: string;
+      name: string;
+      slug: string;
+      status: OrganizationStatus;
+    }[]
+  > {
+    const result = await this.runtime.pool.query<{
+      id: string;
+      name: string;
+      slug: string;
+      status: OrganizationStatus | null;
+    }>(
+      `SELECT o.id, o.name, o.slug, s.status
+       FROM member m
+       INNER JOIN organization o ON o.id = m.organization_id
+       LEFT JOIN organization_status s ON s.organization_id = o.id
+       WHERE m.user_id = $1
+       ORDER BY o.created_at ASC, o.id ASC`,
+      [identity.userId],
+    );
+    if (result.rows.some((row) => !row.status)) {
+      this.logger.error({
+        event: 'organization.status.missing',
+        organizationId: result.rows.find((row) => !row.status)?.id,
+        requestId,
+      });
+      throw new ApiException(503, 'AUTHORIZATION_UNAVAILABLE');
+    }
+    return result.rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      status: row.status!,
+    }));
   }
 }

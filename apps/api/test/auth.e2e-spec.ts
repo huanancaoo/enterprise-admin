@@ -84,6 +84,7 @@ describe(
     let container: StartedTestContainer | undefined;
     let app: NestExpressApplication | undefined;
     let platformDatabase: ReturnType<typeof createDatabase> | undefined;
+    let migratorDatabase: ReturnType<typeof createDatabase> | undefined;
     let baseURL: string;
     let cookie = '';
     let revokedCookie: string;
@@ -156,6 +157,7 @@ describe(
           },
         },
       );
+      migratorDatabase = createDatabase(url('app_migrator', passwords[1]));
       platformDatabase = createDatabase(url('platform_runtime', passwords[3]));
       app = await createApplication(
         {
@@ -176,6 +178,7 @@ describe(
         await app?.close();
         if (app) expect(app.get(AuthRuntime).pool.ended).toBe(true);
       } finally {
+        await migratorDatabase?.pool.end();
         await platformDatabase?.pool.end();
         await container?.stop();
       }
@@ -493,19 +496,29 @@ describe(
         ).toBe(false);
         await expect(
           runtime.pool.query(
-            'UPDATE organization SET enabled = false WHERE id = $1',
+            "UPDATE organization_status SET status = 'SUSPENDED' WHERE organization_id = $1",
             [a.id],
           ),
         ).rejects.toThrow(/permission denied/);
-        await platformDatabase!.pool.query(
-          'UPDATE organization SET enabled = false WHERE id = $1',
+        await expect(
+          platformDatabase!.pool.query(
+            "UPDATE organization_status SET status = 'SUSPENDED' WHERE organization_id = $1",
+            [a.id],
+          ),
+        ).rejects.toThrow(/permission denied/);
+        await migratorDatabase!.pool.query(
+          "UPDATE organization_status SET status = 'SUSPENDED', status_version = status_version + 1, status_changed_at = now() WHERE organization_id = $1",
           [a.id],
         );
-        expect((await get(a.id)).status).toBe(403);
+        const suspended = await get(a.id);
+        expect(suspended.status).toBe(403);
+        expect(await suspended.json()).toMatchObject({
+          code: 'ORGANIZATION_SUSPENDED',
+        });
         await deniedMutation(403, ownerCookie);
         expect((await get(b.id)).status).toBe(200);
-        await platformDatabase!.pool.query(
-          'UPDATE organization SET enabled = true WHERE id = $1',
+        await migratorDatabase!.pool.query(
+          "UPDATE organization_status SET status = 'ACTIVE', status_version = status_version + 1, status_changed_at = now() WHERE organization_id = $1",
           [a.id],
         );
         expect((await get(a.id)).status).toBe(200);

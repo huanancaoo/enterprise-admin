@@ -110,19 +110,21 @@ describe("S8-00: locked Organization integration evidence", () => {
     )
     expect(result.rowCount).toBe(1)
   })
-  it("native organization reads still expose a disabled organization", async () => {
+  it("native organization reads reject a suspended organization", async () => {
     const actor = await signup()
     const org = await organization(actor)
     await migrator.query(
-      "UPDATE organization SET enabled = false WHERE id = $1",
+      "UPDATE organization_status SET status = 'SUSPENDED', status_version = status_version + 1, status_changed_at = now() WHERE organization_id = $1",
       [org.id]
     )
     const response = await fetch(
       `${baseURL}/api/auth/organization/get-full-organization?organizationId=${org.id}`,
       { headers: { cookie: actor.cookie } }
     )
-    expect(response.status).toBe(200)
-    expect((await response.json()).id).toBe(org.id)
+    expect(response.status).toBe(403)
+    expect(await response.json()).toMatchObject({
+      code: "ORGANIZATION_SUSPENDED",
+    })
   })
 
   it("role deletion ignores pending invitation references", async () => {

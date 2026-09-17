@@ -72,11 +72,31 @@ export const ProjectPageSchema = z.strictObject({
   total: z.number().int().min(0),
 })
 export type ProjectPage = z.infer<typeof ProjectPageSchema>
+export const OrganizationStatusSchema = z.enum(["ACTIVE", "SUSPENDED"])
+export type OrganizationStatus = z.infer<typeof OrganizationStatusSchema>
+export const OrganizationSummarySchema = z.strictObject({
+  id: OrganizationIdSchema,
+  name: z.string().min(1),
+  slug: z.string().min(1),
+  status: OrganizationStatusSchema,
+})
+export type OrganizationSummary = z.infer<typeof OrganizationSummarySchema>
+export const OrganizationListSchema = z.array(OrganizationSummarySchema)
+export type OrganizationList = z.infer<typeof OrganizationListSchema>
+export const OrganizationAccessSchema = z.strictObject({
+  organizationId: OrganizationIdSchema,
+  status: z.literal("ACTIVE"),
+  authorizationVersion: z.number().int().min(1),
+  effectiveLocale: SupportedLocaleSchema,
+})
+export type OrganizationAccess = z.infer<typeof OrganizationAccessSchema>
 export const ApiErrorCodeSchema = z.enum([
   "VALIDATION_ERROR",
   "UNAUTHENTICATED",
   "FORBIDDEN",
   "NOT_FOUND",
+  "ORGANIZATION_SUSPENDED",
+  "AUTHORIZATION_UNAVAILABLE",
   "INTERNAL_ERROR",
 ])
 export type ApiErrorCode = z.infer<typeof ApiErrorCodeSchema>

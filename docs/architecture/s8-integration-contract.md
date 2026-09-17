@@ -32,7 +32,7 @@
 
 ### 状态与版本的唯一来源
 
-organization_runtime_state 以 organizationId 为 PK/FK，持有 ACTIVE/SUSPENDED、statusVersion、authorizationVersion、statusChangedAt/By、internalReason。缺失状态失败关闭；新组织由认证集成建立 ACTIVE。迁移旧 enabled 时 false → SUSPENDED、true → ACTIVE，核对既有事实后移除旧字段，不能并存两套独立状态。
+物理表名为 organization_status，表达组织状态；不使用 organization_runtime_state，也不再保留 enabled。该表以 organizationId 为 PK/FK，持有 ACTIVE/SUSPENDED、statusVersion、authorizationVersion、statusChangedAt/By、internalReason。缺失状态失败关闭；新组织由 INSERT 触发器建立 ACTIVE。迁移旧 enabled 时 false → SUSPENDED、true → ACTIVE，核对既有事实后移除旧字段，不能并存两套独立状态。
 
 停用拒绝该组织业务、管理、受保护原生读入口及邀请接受；仍允许全局登录/退出、本人语言设置、最小组织列表、切其他可用组织及拒绝自己的邀请。恢复不重建 Membership、不恢复权限、不延长邀请。
 
@@ -58,7 +58,7 @@ SECURITY DEFINER 函数由最小权限 NOLOGIN 角色持有，固定安全 searc
 
 ### 发布门禁
 
-生产迁移需撤销现有 platform_runtime 直接列权限，并验证 PUBLIC、函数、视图、继承及连接池隔离；不能只检查 NOBYPASSRLS。任职表默认无授权。现存 organization.enabled 与语言字段的迁移保持唯一事实，不回写为默认启用。
+生产迁移需撤销现有 platform_runtime 直接列权限，并验证 PUBLIC、函数、视图、继承及连接池隔离；不能只检查 NOBYPASSRLS。任职表默认无授权。现存 organization.enabled 与语言字段的迁移保持唯一事实，不回写为默认 ACTIVE。
 
 MFA 事实传递、可信 actor/request、组织锁与审计原子性未通过真实故障注入前，相关平台管理能力阻塞。旧 API 不理解停用/撤权约束时不得直接回退上线。实施顺序和完整要求仍以 #8 为准，不能以本 ADR 缩减 S8。
 

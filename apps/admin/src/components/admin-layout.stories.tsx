@@ -87,3 +87,33 @@ export const PersistentSidebar: Story = {
     ).toBe(sidebar)
   },
 }
+
+export const SuspendedOrganization: Story = {
+  parameters: {
+    msw: {
+      handlers: [
+        ...createWorkspaceSessionHandlers({
+          suspendedIds: [organizations[0].id],
+        }),
+        createProjectsHandler(),
+        createProjectDetailHandler(),
+      ],
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const screen = within(canvasElement.ownerDocument.body)
+    await expect(await canvas.findByRole("alert")).toHaveTextContent(
+      "该组织已停用"
+    )
+    await expect(canvas.queryByRole("table")).toBeNull()
+    await userEvent.click(
+      canvas.getByRole("button", { name: /North workspace/ })
+    )
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: /South workspace/ })
+    )
+    await expect(await canvas.findByRole("table")).toBeVisible()
+    await expect(canvas.queryByRole("alert")).toBeNull()
+  },
+}

@@ -1,7 +1,9 @@
 {
+  "AUTHORIZATION_UNAVAILABLE": "حالة التفويض غير متاحة",
   "FORBIDDEN": "الوصول غير مسموح",
   "INTERNAL_ERROR": "خطأ داخلي في الخادم",
   "NOT_FOUND": "المورد غير موجود",
+  "ORGANIZATION_SUSPENDED": "هذه المؤسسة موقوفة",
   "UNAUTHENTICATED": "يرجى تسجيل الدخول",
   "VALIDATION_ERROR": "معلمات الطلب غير صالحة"
 }

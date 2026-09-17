@@ -35,4 +35,4 @@ HTTP 使用 Zod 4 定义唯一 Schema，通过 NestJS 原生 Standard Schema 校
 
 精确版本与镜像摘要见 [版本基线](../architecture/versions.json)，实际依赖以当前包配置和锁文件为准；测试职责、命令与历史验证见 [测试说明](../architecture/testing.md)。本 ADR 记录架构选择，不表示各阶段已经实现；交付范围见 [实施计划](../architecture/implementation-plan.md)，[归档研究](../architecture/multi-tenant-foundation.md)中的建议不自动成为实施授权。
 
-相关边界分别由 [组织标识](0002-organization-identifiers.md)、[平台访问](0003-platform-access.md)和 [Projects 参考领域](0004-projects-reference-domain.md)决策约束。
+相关边界分别由 [组织标识](0002-organization-identifiers.md)、[平台访问](0003-platform-access.md)、[Projects 参考领域](0004-projects-reference-domain.md)和 [组织状态](0006-organization-status.md)决策约束。

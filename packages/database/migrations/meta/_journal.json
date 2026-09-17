@@ -71,6 +71,13 @@
       "when": 1789530089110,
       "tag": "0009_audit-rls",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1789634054496,
+      "tag": "0010_loose_lady_mastermind",
+      "breakpoints": true
     }
   ]
 }

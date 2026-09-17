@@ -19,5 +19,6 @@
   "select": "选择组织",
   "slug": "组织标识",
   "slugHint": "用于区分组织，必须唯一，例如 my-team。",
-  "suspend": "暂停"
+  "suspend": "暂停",
+  "unavailableHint": "请选择其他可用组织，或退出登录。"
 }

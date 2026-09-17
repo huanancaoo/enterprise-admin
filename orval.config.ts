@@ -18,6 +18,14 @@ export default defineConfig({
       packageJson: "./packages/api-client/package.json",
       override: {
         operations: {
+          getOrganizationAccess: {
+            query: {
+              queryKey: {
+                path: "./packages/api-client/src/query/organizations.ts",
+                name: "organizationAccessKey",
+              },
+            },
+          },
           listProjects: {
             query: {
               queryOptions: {

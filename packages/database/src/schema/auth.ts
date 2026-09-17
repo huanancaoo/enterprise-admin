@@ -1,4 +1,4 @@
-import { relations, sql } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm"
 import {
   pgTable,
   text,
@@ -6,7 +6,7 @@ import {
   boolean,
   uuid,
   index,
-} from "drizzle-orm/pg-core";
+} from "drizzle-orm/pg-core"
 
 export const user = pgTable("user", {
   id: uuid("id")
@@ -22,7 +22,7 @@ export const user = pgTable("user", {
     .$onUpdate(() => /* @__PURE__ */ new Date())
     .notNull(),
   preferredLocale: text("preferred_locale", { enum: ["zh-CN", "en-US", "ar"] }),
-});
+})
 
 export const session = pgTable(
   "session",
@@ -43,11 +43,11 @@ export const session = pgTable(
       .references(() => user.id, { onDelete: "cascade" }),
     activeOrganizationId: uuid("active_organization_id").references(
       () => organization.id,
-      { onDelete: "set null" },
+      { onDelete: "set null" }
     ),
   },
-  (table) => [index("session_userId_idx").on(table.userId)],
-);
+  (table) => [index("session_userId_idx").on(table.userId)]
+)
 
 export const account = pgTable(
   "account",
@@ -72,8 +72,8 @@ export const account = pgTable(
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
   },
-  (table) => [index("account_userId_idx").on(table.userId)],
-);
+  (table) => [index("account_userId_idx").on(table.userId)]
+)
 
 export const verification = pgTable(
   "verification",
@@ -90,8 +90,8 @@ export const verification = pgTable(
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
   },
-  (table) => [index("verification_identifier_idx").on(table.identifier)],
-);
+  (table) => [index("verification_identifier_idx").on(table.identifier)]
+)
 
 export const organization = pgTable("organization", {
   id: uuid("id")
@@ -105,8 +105,7 @@ export const organization = pgTable("organization", {
   defaultLocale: text("default_locale", { enum: ["zh-CN", "en-US", "ar"] })
     .default("zh-CN")
     .notNull(),
-  enabled: boolean("enabled").default(true).notNull(),
-});
+})
 
 export const organizationRole = pgTable(
   "organization_role",
@@ -121,14 +120,14 @@ export const organizationRole = pgTable(
     permission: text("permission").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").$onUpdate(
-      () => /* @__PURE__ */ new Date(),
+      () => /* @__PURE__ */ new Date()
     ),
   },
   (table) => [
     index("organizationRole_organizationId_idx").on(table.organizationId),
     index("organizationRole_role_idx").on(table.role),
-  ],
-);
+  ]
+)
 
 export const member = pgTable(
   "member",
@@ -148,8 +147,8 @@ export const member = pgTable(
   (table) => [
     index("member_organizationId_idx").on(table.organizationId),
     index("member_userId_idx").on(table.userId),
-  ],
-);
+  ]
+)
 
 export const invitation = pgTable(
   "invitation",
@@ -172,15 +171,15 @@ export const invitation = pgTable(
   (table) => [
     index("invitation_organizationId_idx").on(table.organizationId),
     index("invitation_email_idx").on(table.email),
-  ],
-);
+  ]
+)
 
 export const userRelations = relations(user, ({ many }) => ({
   sessions: many(session),
   accounts: many(account),
   members: many(member),
   invitations: many(invitation),
-}));
+}))
 
 export const sessionRelations = relations(session, ({ one }) => ({
   user: one(user, {
@@ -191,21 +190,21 @@ export const sessionRelations = relations(session, ({ one }) => ({
     fields: [session.activeOrganizationId],
     references: [organization.id],
   }),
-}));
+}))
 
 export const accountRelations = relations(account, ({ one }) => ({
   user: one(user, {
     fields: [account.userId],
     references: [user.id],
   }),
-}));
+}))
 
 export const organizationRelations = relations(organization, ({ many }) => ({
   sessions: many(session),
   organizationRoles: many(organizationRole),
   members: many(member),
   invitations: many(invitation),
-}));
+}))
 
 export const organizationRoleRelations = relations(
   organizationRole,
@@ -214,8 +213,8 @@ export const organizationRoleRelations = relations(
       fields: [organizationRole.organizationId],
       references: [organization.id],
     }),
-  }),
-);
+  })
+)
 
 export const memberRelations = relations(member, ({ one }) => ({
   organization: one(organization, {
@@ -226,7 +225,7 @@ export const memberRelations = relations(member, ({ one }) => ({
     fields: [member.userId],
     references: [user.id],
   }),
-}));
+}))
 
 export const invitationRelations = relations(invitation, ({ one }) => ({
   organization: one(organization, {
@@ -237,4 +236,4 @@ export const invitationRelations = relations(invitation, ({ one }) => ({
     fields: [invitation.inviterId],
     references: [user.id],
   }),
-}));
+}))

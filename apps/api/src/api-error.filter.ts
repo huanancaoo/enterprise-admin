@@ -6,7 +6,11 @@ import {
   Logger,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import type { ApiError, ApiErrorCode } from '@workspace/contracts';
+import {
+  ApiErrorCodeSchema,
+  type ApiError,
+  type ApiErrorCode,
+} from '@workspace/contracts';
 import { getTranslator } from '@workspace/i18n';
 import { getRequestLanguage } from './request-language';
 
@@ -23,7 +27,7 @@ export class ApiErrorFilter implements ExceptionFilter {
       403: 'FORBIDDEN',
       404: 'NOT_FOUND',
     };
-    const code = codes[status] ?? 'INTERNAL_ERROR';
+    const code = declaredCode(error) ?? codes[status] ?? 'INTERNAL_ERROR';
     const locale = getRequestLanguage(response).writeTo(response);
     const requestId = response.locals.requestId as string;
     if (status >= 500)
@@ -36,4 +40,13 @@ export class ApiErrorFilter implements ExceptionFilter {
     };
     response.status(status).json(body);
   }
+}
+
+function declaredCode(error: unknown): ApiErrorCode | undefined {
+  if (!(error instanceof HttpException)) return undefined;
+  const body = error.getResponse();
+  if (typeof body !== 'object' || body === null || !('code' in body))
+    return undefined;
+  const parsed = ApiErrorCodeSchema.safeParse(body.code);
+  return parsed.success ? parsed.data : undefined;
 }

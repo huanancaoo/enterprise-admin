@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next"
 import type { ReactNode } from "react"
 import type { TFunction } from "@workspace/i18n"
+import type { OrganizationSummary } from "@workspace/contracts"
 import { useOrganizationWorkspace } from "@/hooks/use-organization-workspace"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import { FormDialog, LocaleSwitcher } from "@workspace/admin"
@@ -51,17 +52,58 @@ function WorkspaceQueryStatus({
   return null
 }
 
+export function OrganizationUnavailable({
+  organizations,
+  currentId,
+}: {
+  organizations: readonly OrganizationSummary[]
+  currentId?: string
+}) {
+  const { t } = useTranslation(["organization", "errors"])
+  const alternatives = organizations.filter(
+    (organization) =>
+      organization.status === "ACTIVE" && organization.id !== currentId
+  )
+  return (
+    <div className="space-y-4">
+      <p role="alert">{t("errors:ORGANIZATION_SUSPENDED")}</p>
+      <p>{t("organization:unavailableHint")}</p>
+      {alternatives.length > 0 && (
+        <nav aria-labelledby="switch-organization-heading">
+          <h2 id="switch-organization-heading" className="sr-only">
+            {t("organization:select")}
+          </h2>
+          <ul className="space-y-2">
+            {alternatives.map((organization) => (
+              <li key={organization.id}>
+                <Link
+                  to="/app/projects/$organizationId"
+                  params={{ organizationId: organization.id }}
+                  className="block rounded-xl border px-4 py-3 text-sm font-medium hover:bg-muted/50"
+                >
+                  {organization.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
+    </div>
+  )
+}
+
 export function WorkspaceEntry() {
   const { workspace } = useOrganizationWorkspace()
   if (workspace.isPending || workspace.isError)
     return <WorkspaceQueryStatus workspace={workspace} />
 
-  const organizations = workspace.data?.organizations ?? []
-  if (organizations.length === 1) {
+  const organizations = workspace.data ?? []
+  const only = organizations.length === 1 ? organizations[0] : undefined
+  if (only?.status === "ACTIVE") {
     return (
       <Navigate
         to="/app/projects/$organizationId"
-        params={{ organizationId: organizations[0].id }}
+        params={{ organizationId: only.id }}
         replace
       />
     )
@@ -236,7 +278,13 @@ function IdentityPage({
 }
 
 export function OrganizationGate() {
-  const { t } = useTranslation(["organization", "common", "validation", "auth"])
+  const { t } = useTranslation([
+    "organization",
+    "common",
+    "validation",
+    "auth",
+    "errors",
+  ])
   const session = useAuthenticatedSession()!
   const { workspace, pending, error, createOrganization } =
     useOrganizationWorkspace()
@@ -271,12 +319,13 @@ export function OrganizationGate() {
     )
   }
 
-  const organizations = workspace.data?.organizations ?? []
-  if (organizations.length === 1) {
+  const organizations = workspace.data ?? []
+  const only = organizations.length === 1 ? organizations[0] : undefined
+  if (only?.status === "ACTIVE") {
     return (
       <Navigate
         to="/app/projects/$organizationId"
-        params={{ organizationId: organizations[0].id }}
+        params={{ organizationId: only.id }}
         replace
       />
     )
@@ -292,6 +341,14 @@ export function OrganizationGate() {
           {error}
         </p>
       )}
+      {organizations.length > 0 &&
+        organizations.every(
+          (organization) => organization.status === "SUSPENDED"
+        ) && (
+          <div className="mb-4">
+            <OrganizationUnavailable organizations={organizations} />
+          </div>
+        )}
       {organizations.length === 0 ? (
         <section aria-labelledby="create-organization-heading">
           <form
@@ -337,6 +394,11 @@ export function OrganizationGate() {
                   className="block rounded-xl border px-4 py-3 text-sm font-medium hover:bg-muted/50"
                 >
                   {organization.name}
+                  {organization.status === "SUSPENDED" ? (
+                    <span className="mt-1 block text-sm font-normal text-muted-foreground">
+                      {t("errors:ORGANIZATION_SUSPENDED")}
+                    </span>
+                  ) : null}
                 </Link>
               </li>
             ))}

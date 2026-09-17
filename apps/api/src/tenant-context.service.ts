@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-} from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import type { TenantContext } from '@workspace/database/tenant';
 import { OrganizationIdSchema } from '@workspace/contracts';
 import type { RequestLanguage } from './request-language';
@@ -11,6 +7,7 @@ import {
   AuthorizationService,
   type PermissionRequest,
 } from './authorization.service';
+import { ApiException } from './api-exception';
 
 @Injectable()
 export class TenantContextService {
@@ -72,12 +69,13 @@ export class TenantContextService {
     const actor = await this.identity.requireIdentity(headers);
     language.useUserPreference(actor.preferredLocale);
     const membership = await this.identity.requireOrganizationMembership(
-      headers,
       organizationId,
       actor,
+      requestId,
     );
     language.useOrganizationDefault(membership.defaultLocale);
-    if (!membership.enabled) throw new ForbiddenException();
+    if (membership.status !== 'ACTIVE')
+      throw new ApiException(403, 'ORGANIZATION_SUSPENDED');
     // 可信上下文只使用已验证的身份、成员和组织；请求体不能参与构造。
     return Object.freeze({
       organizationId,

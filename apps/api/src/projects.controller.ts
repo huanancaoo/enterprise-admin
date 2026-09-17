@@ -39,6 +39,7 @@ import {
   createTenantRunner,
   type TenantContext,
 } from '@workspace/database/tenant';
+import { runTenantWrite } from './tenant-write';
 import { projectRepository } from '@workspace/database/repositories/projects';
 import { auditRepository } from '@workspace/database/repositories/audit';
 import { AuthRuntime } from './auth-runtime';
@@ -74,7 +75,7 @@ export class ProjectsController {
     @Body({ schema: CreateProjectSchema }) input: CreateProject,
     @CurrentTenant() context: TenantContext,
   ): Promise<ProjectResponse> {
-    return createTenantRunner(this.runtime.pool)(context, async (tx) => {
+    return runTenantWrite(this.runtime.pool, context, async (tx) => {
       const contentLocale =
         input.contentLocale ?? (await projectRepository.defaultLocale(tx));
       const project = await projectRepository.create(tx, {
@@ -179,7 +180,7 @@ export class ProjectsController {
     @Param('projectId', { schema: ProjectIdSchema }) projectId: string,
     @CurrentTenant() context: TenantContext,
   ): Promise<void> {
-    await createTenantRunner(this.runtime.pool)(context, async (tx) => {
+    await runTenantWrite(this.runtime.pool, context, async (tx) => {
       const project = await this.projectPolicy.requireForMutation(
         tx,
         projectId,
@@ -270,7 +271,8 @@ export class ProjectsController {
         context.organizationId,
         { project: ['update'] },
       );
-    const project = await createTenantRunner(this.runtime.pool)(
+    const project = await runTenantWrite(
+      this.runtime.pool,
       context,
       async (tx) => {
         const current = await this.projectPolicy.requireForMutation(

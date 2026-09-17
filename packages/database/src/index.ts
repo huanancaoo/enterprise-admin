@@ -9,3 +9,4 @@ export function createDatabase(connectionString: string) {
 }
 
 export { schema }
+export type { OrganizationStatus } from "./organization-status.ts"
