@@ -18,16 +18,9 @@ import type {
 } from "@tanstack/react-query"
 
 import type {
-  GetOrganizationAccess200,
-  GetOrganizationAccess400,
-  GetOrganizationAccess401,
-  GetOrganizationAccess403,
-  GetOrganizationAccess500,
-  GetOrganizationAccess503,
-  ListMyOrganizations200Item,
-  ListMyOrganizations401,
-  ListMyOrganizations500,
-  ListMyOrganizations503,
+  ApiError,
+  OrganizationAccess,
+  OrganizationSummary,
 } from "../../models"
 
 import { apiClient } from "../../../http/client"
@@ -55,22 +48,22 @@ const withQueryKey = <T extends object, K>(
 }
 
 export type listMyOrganizationsResponse200 = {
-  data: ListMyOrganizations200Item[]
+  data: OrganizationSummary[]
   status: 200
 }
 
 export type listMyOrganizationsResponse401 = {
-  data: ListMyOrganizations401
+  data: ApiError
   status: 401
 }
 
 export type listMyOrganizationsResponse500 = {
-  data: ListMyOrganizations500
+  data: ApiError
   status: 500
 }
 
 export type listMyOrganizationsResponse503 = {
-  data: ListMyOrganizations503
+  data: ApiError
   status: 503
 }
 
@@ -108,9 +101,7 @@ export const getListMyOrganizationsQueryKey = () => {
 
 export const getListMyOrganizationsQueryOptions = <
   TData = Awaited<ReturnType<typeof listMyOrganizations>>,
-  TError = ErrorType<
-    ListMyOrganizations401 | ListMyOrganizations500 | ListMyOrganizations503
-  >,
+  TError = ErrorType<ApiError>,
 >(options?: {
   query?: Partial<
     UseQueryOptions<
@@ -139,15 +130,11 @@ export const getListMyOrganizationsQueryOptions = <
 export type ListMyOrganizationsQueryResult = NonNullable<
   Awaited<ReturnType<typeof listMyOrganizations>>
 >
-export type ListMyOrganizationsQueryError = ErrorType<
-  ListMyOrganizations401 | ListMyOrganizations500 | ListMyOrganizations503
->
+export type ListMyOrganizationsQueryError = ErrorType<ApiError>
 
 export function useListMyOrganizations<
   TData = Awaited<ReturnType<typeof listMyOrganizations>>,
-  TError = ErrorType<
-    ListMyOrganizations401 | ListMyOrganizations500 | ListMyOrganizations503
-  >,
+  TError = ErrorType<ApiError>,
 >(
   options: {
     query: Partial<
@@ -173,9 +160,7 @@ export function useListMyOrganizations<
 }
 export function useListMyOrganizations<
   TData = Awaited<ReturnType<typeof listMyOrganizations>>,
-  TError = ErrorType<
-    ListMyOrganizations401 | ListMyOrganizations500 | ListMyOrganizations503
-  >,
+  TError = ErrorType<ApiError>,
 >(
   options?: {
     query?: Partial<
@@ -201,9 +186,7 @@ export function useListMyOrganizations<
 }
 export function useListMyOrganizations<
   TData = Awaited<ReturnType<typeof listMyOrganizations>>,
-  TError = ErrorType<
-    ListMyOrganizations401 | ListMyOrganizations500 | ListMyOrganizations503
-  >,
+  TError = ErrorType<ApiError>,
 >(
   options?: {
     query?: Partial<
@@ -222,9 +205,7 @@ export function useListMyOrganizations<
 
 export function useListMyOrganizations<
   TData = Awaited<ReturnType<typeof listMyOrganizations>>,
-  TError = ErrorType<
-    ListMyOrganizations401 | ListMyOrganizations500 | ListMyOrganizations503
-  >,
+  TError = ErrorType<ApiError>,
 >(
   options?: {
     query?: Partial<
@@ -251,32 +232,32 @@ export function useListMyOrganizations<
 }
 
 export type getOrganizationAccessResponse200 = {
-  data: GetOrganizationAccess200
+  data: OrganizationAccess
   status: 200
 }
 
 export type getOrganizationAccessResponse400 = {
-  data: GetOrganizationAccess400
+  data: ApiError
   status: 400
 }
 
 export type getOrganizationAccessResponse401 = {
-  data: GetOrganizationAccess401
+  data: ApiError
   status: 401
 }
 
 export type getOrganizationAccessResponse403 = {
-  data: GetOrganizationAccess403
+  data: ApiError
   status: 403
 }
 
 export type getOrganizationAccessResponse500 = {
-  data: GetOrganizationAccess500
+  data: ApiError
   status: 500
 }
 
 export type getOrganizationAccessResponse503 = {
-  data: GetOrganizationAccess503
+  data: ApiError
   status: 503
 }
 
@@ -316,13 +297,7 @@ export const getGetOrganizationAccessQueryKey = (organizationId: string) =>
 
 export const useGetOrganizationAccessQueryOptions = <
   TData = Awaited<ReturnType<typeof getOrganizationAccess>>,
-  TError = ErrorType<
-    | GetOrganizationAccess400
-    | GetOrganizationAccess401
-    | GetOrganizationAccess403
-    | GetOrganizationAccess500
-    | GetOrganizationAccess503
-  >,
+  TError = ErrorType<ApiError>,
 >(
   organizationId: string,
   options?: {
@@ -360,23 +335,11 @@ export const useGetOrganizationAccessQueryOptions = <
 export type GetOrganizationAccessQueryResult = NonNullable<
   Awaited<ReturnType<typeof getOrganizationAccess>>
 >
-export type GetOrganizationAccessQueryError = ErrorType<
-  | GetOrganizationAccess400
-  | GetOrganizationAccess401
-  | GetOrganizationAccess403
-  | GetOrganizationAccess500
-  | GetOrganizationAccess503
->
+export type GetOrganizationAccessQueryError = ErrorType<ApiError>
 
 export function useGetOrganizationAccess<
   TData = Awaited<ReturnType<typeof getOrganizationAccess>>,
-  TError = ErrorType<
-    | GetOrganizationAccess400
-    | GetOrganizationAccess401
-    | GetOrganizationAccess403
-    | GetOrganizationAccess500
-    | GetOrganizationAccess503
-  >,
+  TError = ErrorType<ApiError>,
 >(
   organizationId: string,
   options: {
@@ -403,13 +366,7 @@ export function useGetOrganizationAccess<
 }
 export function useGetOrganizationAccess<
   TData = Awaited<ReturnType<typeof getOrganizationAccess>>,
-  TError = ErrorType<
-    | GetOrganizationAccess400
-    | GetOrganizationAccess401
-    | GetOrganizationAccess403
-    | GetOrganizationAccess500
-    | GetOrganizationAccess503
-  >,
+  TError = ErrorType<ApiError>,
 >(
   organizationId: string,
   options?: {
@@ -436,13 +393,7 @@ export function useGetOrganizationAccess<
 }
 export function useGetOrganizationAccess<
   TData = Awaited<ReturnType<typeof getOrganizationAccess>>,
-  TError = ErrorType<
-    | GetOrganizationAccess400
-    | GetOrganizationAccess401
-    | GetOrganizationAccess403
-    | GetOrganizationAccess500
-    | GetOrganizationAccess503
-  >,
+  TError = ErrorType<ApiError>,
 >(
   organizationId: string,
   options?: {
@@ -462,13 +413,7 @@ export function useGetOrganizationAccess<
 
 export function useGetOrganizationAccess<
   TData = Awaited<ReturnType<typeof getOrganizationAccess>>,
-  TError = ErrorType<
-    | GetOrganizationAccess400
-    | GetOrganizationAccess401
-    | GetOrganizationAccess403
-    | GetOrganizationAccess500
-    | GetOrganizationAccess503
-  >,
+  TError = ErrorType<ApiError>,
 >(
   organizationId: string,
   options?: {

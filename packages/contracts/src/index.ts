@@ -1,10 +1,14 @@
 import { z } from "zod"
 
-export const SupportedLocaleSchema = z.enum(["zh-CN", "en-US", "ar"])
+export const SupportedLocaleSchema = z
+  .enum(["zh-CN", "en-US", "ar"])
+  .meta({ id: "SupportedLocale" })
 export type SupportedLocale = z.infer<typeof SupportedLocaleSchema>
 export const OrganizationIdSchema = z.uuidv4()
 export const ProjectIdSchema = z.uuid()
-export const ProjectStatusSchema = z.enum(["draft", "active", "archived"])
+export const ProjectStatusSchema = z
+  .enum(["draft", "active", "archived"])
+  .meta({ id: "ProjectStatus" })
 export const ProjectListQuerySchema = z.strictObject({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
@@ -14,11 +18,13 @@ export const ProjectListQuerySchema = z.strictObject({
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
 })
 export type ProjectListQuery = z.infer<typeof ProjectListQuerySchema>
-export const CreateProjectSchema = z.strictObject({
-  name: z.string().trim().min(1),
-  description: z.string().nullable(),
-  contentLocale: SupportedLocaleSchema.optional(),
-})
+export const CreateProjectSchema = z
+  .strictObject({
+    name: z.string().trim().min(1),
+    description: z.string().nullable(),
+    contentLocale: SupportedLocaleSchema.optional(),
+  })
+  .meta({ id: "CreateProject" })
 export type CreateProject = z.infer<typeof CreateProjectSchema>
 export const UpdateProjectTranslationSchema = z
   .strictObject({
@@ -31,6 +37,7 @@ export const UpdateProjectTranslationSchema = z
       translation.name !== undefined || translation.description !== undefined,
     { message: "At least one translation field is required" }
   )
+  .meta({ id: "UpdateProjectTranslation" })
 export type UpdateProjectTranslation = z.infer<
   typeof UpdateProjectTranslationSchema
 >
@@ -44,70 +51,89 @@ export const UpdateProjectSchema = z
       project.status !== undefined || project.translation !== undefined,
     { message: "At least one project field is required" }
   )
+  .meta({ id: "UpdateProject" })
 export type UpdateProject = z.infer<typeof UpdateProjectSchema>
-export const ProjectTranslationResponseSchema = z.strictObject({
-  locale: SupportedLocaleSchema,
-  name: z.string().min(1),
-  description: z.string().nullable(),
-})
+export const ProjectTranslationResponseSchema = z
+  .strictObject({
+    locale: SupportedLocaleSchema,
+    name: z.string().min(1),
+    description: z.string().nullable(),
+  })
+  .meta({ id: "ProjectTranslationResponse" })
 export type ProjectTranslationResponse = z.infer<
   typeof ProjectTranslationResponseSchema
 >
-export const ProjectResponseSchema = z.strictObject({
-  id: z.uuid(),
-  organizationId: OrganizationIdSchema,
-  status: ProjectStatusSchema,
-  contentLocale: SupportedLocaleSchema,
-  resolvedLocale: SupportedLocaleSchema,
-  name: z.string().min(1),
-  description: z.string().nullable(),
-  createdAt: z.iso.datetime(),
-  updatedAt: z.iso.datetime(),
-})
+export const ProjectResponseSchema = z
+  .strictObject({
+    id: z.uuid(),
+    organizationId: OrganizationIdSchema,
+    status: ProjectStatusSchema,
+    contentLocale: SupportedLocaleSchema,
+    resolvedLocale: SupportedLocaleSchema,
+    name: z.string().min(1),
+    description: z.string().nullable(),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
+  })
+  .meta({ id: "ProjectResponse" })
 export type ProjectResponse = z.infer<typeof ProjectResponseSchema>
-export const ProjectPageSchema = z.strictObject({
-  items: z.array(ProjectResponseSchema),
-  page: z.number().int().min(1),
-  pageSize: z.number().int().min(1).max(100),
-  total: z.number().int().min(0),
-})
+export const ProjectPageSchema = z
+  .strictObject({
+    items: z.array(ProjectResponseSchema),
+    page: z.number().int().min(1),
+    pageSize: z.number().int().min(1).max(100),
+    total: z.number().int().min(0),
+  })
+  .meta({ id: "ProjectPage" })
 export type ProjectPage = z.infer<typeof ProjectPageSchema>
-export const OrganizationStatusSchema = z.enum(["ACTIVE", "SUSPENDED"])
+export const OrganizationStatusSchema = z
+  .enum(["ACTIVE", "SUSPENDED"])
+  .meta({ id: "OrganizationStatus" })
 export type OrganizationStatus = z.infer<typeof OrganizationStatusSchema>
-export const OrganizationSummarySchema = z.strictObject({
-  id: OrganizationIdSchema,
-  name: z.string().min(1),
-  slug: z.string().min(1),
-  status: OrganizationStatusSchema,
-})
+export const OrganizationSummarySchema = z
+  .strictObject({
+    id: OrganizationIdSchema,
+    name: z.string().min(1),
+    slug: z.string().min(1),
+    status: OrganizationStatusSchema,
+  })
+  .meta({ id: "OrganizationSummary" })
 export type OrganizationSummary = z.infer<typeof OrganizationSummarySchema>
 export const OrganizationListSchema = z.array(OrganizationSummarySchema)
 export type OrganizationList = z.infer<typeof OrganizationListSchema>
-export const OrganizationAccessSchema = z.strictObject({
-  organizationId: OrganizationIdSchema,
-  status: z.literal("ACTIVE"),
-  authorizationVersion: z.number().int().min(1),
-  effectiveLocale: SupportedLocaleSchema,
-})
+export const OrganizationAccessSchema = z
+  .strictObject({
+    organizationId: OrganizationIdSchema,
+    status: z.literal("ACTIVE"),
+    authorizationVersion: z.number().int().min(1),
+    effectiveLocale: SupportedLocaleSchema,
+  })
+  .meta({ id: "OrganizationAccess" })
 export type OrganizationAccess = z.infer<typeof OrganizationAccessSchema>
-export const PlatformAccessSchema = z.strictObject({
-  userId: z.uuid(),
-})
+export const PlatformAccessSchema = z
+  .strictObject({
+    userId: z.uuid(),
+  })
+  .meta({ id: "PlatformAccess" })
 export type PlatformAccess = z.infer<typeof PlatformAccessSchema>
-export const ApiErrorCodeSchema = z.enum([
-  "VALIDATION_ERROR",
-  "UNAUTHENTICATED",
-  "FORBIDDEN",
-  "NOT_FOUND",
-  "ORGANIZATION_SUSPENDED",
-  "AUTHORIZATION_UNAVAILABLE",
-  "INTERNAL_ERROR",
-])
+export const ApiErrorCodeSchema = z
+  .enum([
+    "VALIDATION_ERROR",
+    "UNAUTHENTICATED",
+    "FORBIDDEN",
+    "NOT_FOUND",
+    "ORGANIZATION_SUSPENDED",
+    "AUTHORIZATION_UNAVAILABLE",
+    "INTERNAL_ERROR",
+  ])
+  .meta({ id: "ApiErrorCode" })
 export type ApiErrorCode = z.infer<typeof ApiErrorCodeSchema>
-export const ApiErrorSchema = z.strictObject({
-  code: ApiErrorCodeSchema,
-  message: z.string(),
-  requestId: z.string().min(1),
-  locale: SupportedLocaleSchema,
-})
+export const ApiErrorSchema = z
+  .strictObject({
+    code: ApiErrorCodeSchema,
+    message: z.string(),
+    requestId: z.string().min(1),
+    locale: SupportedLocaleSchema,
+  })
+  .meta({ id: "ApiError" })
 export type ApiError = z.infer<typeof ApiErrorSchema>

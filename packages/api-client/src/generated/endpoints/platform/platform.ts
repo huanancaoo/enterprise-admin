@@ -17,12 +17,7 @@ import type {
   UseQueryResult,
 } from "@tanstack/react-query"
 
-import type {
-  GetMyPlatformAccess200,
-  GetMyPlatformAccess401,
-  GetMyPlatformAccess403,
-  GetMyPlatformAccess500,
-} from "../../models"
+import type { ApiError, PlatformAccess } from "../../models"
 
 import { apiClient } from "../../../http/client"
 import type { ErrorType } from "../../../http/client"
@@ -48,22 +43,22 @@ const withQueryKey = <T extends object, K>(
 }
 
 export type getMyPlatformAccessResponse200 = {
-  data: GetMyPlatformAccess200
+  data: PlatformAccess
   status: 200
 }
 
 export type getMyPlatformAccessResponse401 = {
-  data: GetMyPlatformAccess401
+  data: ApiError
   status: 401
 }
 
 export type getMyPlatformAccessResponse403 = {
-  data: GetMyPlatformAccess403
+  data: ApiError
   status: 403
 }
 
 export type getMyPlatformAccessResponse500 = {
-  data: GetMyPlatformAccess500
+  data: ApiError
   status: 500
 }
 
@@ -101,9 +96,7 @@ export const getGetMyPlatformAccessQueryKey = () => {
 
 export const getGetMyPlatformAccessQueryOptions = <
   TData = Awaited<ReturnType<typeof getMyPlatformAccess>>,
-  TError = ErrorType<
-    GetMyPlatformAccess401 | GetMyPlatformAccess403 | GetMyPlatformAccess500
-  >,
+  TError = ErrorType<ApiError>,
 >(options?: {
   query?: Partial<
     UseQueryOptions<
@@ -132,15 +125,11 @@ export const getGetMyPlatformAccessQueryOptions = <
 export type GetMyPlatformAccessQueryResult = NonNullable<
   Awaited<ReturnType<typeof getMyPlatformAccess>>
 >
-export type GetMyPlatformAccessQueryError = ErrorType<
-  GetMyPlatformAccess401 | GetMyPlatformAccess403 | GetMyPlatformAccess500
->
+export type GetMyPlatformAccessQueryError = ErrorType<ApiError>
 
 export function useGetMyPlatformAccess<
   TData = Awaited<ReturnType<typeof getMyPlatformAccess>>,
-  TError = ErrorType<
-    GetMyPlatformAccess401 | GetMyPlatformAccess403 | GetMyPlatformAccess500
-  >,
+  TError = ErrorType<ApiError>,
 >(
   options: {
     query: Partial<
@@ -166,9 +155,7 @@ export function useGetMyPlatformAccess<
 }
 export function useGetMyPlatformAccess<
   TData = Awaited<ReturnType<typeof getMyPlatformAccess>>,
-  TError = ErrorType<
-    GetMyPlatformAccess401 | GetMyPlatformAccess403 | GetMyPlatformAccess500
-  >,
+  TError = ErrorType<ApiError>,
 >(
   options?: {
     query?: Partial<
@@ -194,9 +181,7 @@ export function useGetMyPlatformAccess<
 }
 export function useGetMyPlatformAccess<
   TData = Awaited<ReturnType<typeof getMyPlatformAccess>>,
-  TError = ErrorType<
-    GetMyPlatformAccess401 | GetMyPlatformAccess403 | GetMyPlatformAccess500
-  >,
+  TError = ErrorType<ApiError>,
 >(
   options?: {
     query?: Partial<
@@ -215,9 +200,7 @@ export function useGetMyPlatformAccess<
 
 export function useGetMyPlatformAccess<
   TData = Awaited<ReturnType<typeof getMyPlatformAccess>>,
-  TError = ErrorType<
-    GetMyPlatformAccess401 | GetMyPlatformAccess403 | GetMyPlatformAccess500
-  >,
+  TError = ErrorType<ApiError>,
 >(
   options?: {
     query?: Partial<

@@ -13,36 +13,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "type": "string",
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
-                      },
-                      "name": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "slug": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "status": {
-                        "type": "string",
-                        "enum": [
-                          "ACTIVE",
-                          "SUSPENDED"
-                        ]
-                      }
-                    },
-                    "required": [
-                      "id",
-                      "name",
-                      "slug",
-                      "status"
-                    ],
-                    "additionalProperties": false
+                    "$ref": "#/components/schemas/OrganizationSummary"
                   }
                 }
               }
@@ -53,43 +24,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -99,43 +34,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -145,43 +44,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -214,40 +77,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "organizationId": {
-                      "type": "string",
-                      "format": "uuid",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
-                    },
-                    "status": {
-                      "type": "string",
-                      "enum": [
-                        "ACTIVE"
-                      ]
-                    },
-                    "authorizationVersion": {
-                      "type": "integer",
-                      "minimum": 1,
-                      "maximum": 9007199254740991
-                    },
-                    "effectiveLocale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "organizationId",
-                    "status",
-                    "authorizationVersion",
-                    "effectiveLocale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/OrganizationAccess"
                 }
               }
             }
@@ -257,43 +87,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -303,43 +97,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -349,43 +107,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -395,43 +117,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -441,43 +127,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -517,30 +167,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "name": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "description": {
-                    "nullable": true,
-                    "type": "string"
-                  },
-                  "contentLocale": {
-                    "type": "string",
-                    "enum": [
-                      "zh-CN",
-                      "en-US",
-                      "ar"
-                    ]
-                  }
-                },
-                "required": [
-                  "name",
-                  "description"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/CreateProject"
               }
             }
           }
@@ -551,73 +178,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "format": "uuid",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                    },
-                    "organizationId": {
-                      "type": "string",
-                      "format": "uuid",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
-                    },
-                    "status": {
-                      "type": "string",
-                      "enum": [
-                        "draft",
-                        "active",
-                        "archived"
-                      ]
-                    },
-                    "contentLocale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    },
-                    "resolvedLocale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    },
-                    "name": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "description": {
-                      "nullable": true,
-                      "type": "string"
-                    },
-                    "createdAt": {
-                      "type": "string",
-                      "format": "date-time",
-                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                    },
-                    "updatedAt": {
-                      "type": "string",
-                      "format": "date-time",
-                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "organizationId",
-                    "status",
-                    "contentLocale",
-                    "resolvedLocale",
-                    "name",
-                    "description",
-                    "createdAt",
-                    "updatedAt"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ProjectResponse"
                 }
               }
             }
@@ -627,43 +188,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -673,43 +198,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -719,43 +208,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -765,43 +218,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -852,11 +269,10 @@
             "required": false,
             "in": "query",
             "schema": {
-              "type": "string",
-              "enum": [
-                "draft",
-                "active",
-                "archived"
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ProjectStatus"
+                }
               ]
             }
           },
@@ -910,103 +326,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "items": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string",
-                            "format": "uuid",
-                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                          },
-                          "organizationId": {
-                            "type": "string",
-                            "format": "uuid",
-                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
-                          },
-                          "status": {
-                            "type": "string",
-                            "enum": [
-                              "draft",
-                              "active",
-                              "archived"
-                            ]
-                          },
-                          "contentLocale": {
-                            "type": "string",
-                            "enum": [
-                              "zh-CN",
-                              "en-US",
-                              "ar"
-                            ]
-                          },
-                          "resolvedLocale": {
-                            "type": "string",
-                            "enum": [
-                              "zh-CN",
-                              "en-US",
-                              "ar"
-                            ]
-                          },
-                          "name": {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          "description": {
-                            "nullable": true,
-                            "type": "string"
-                          },
-                          "createdAt": {
-                            "type": "string",
-                            "format": "date-time",
-                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                          },
-                          "updatedAt": {
-                            "type": "string",
-                            "format": "date-time",
-                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "organizationId",
-                          "status",
-                          "contentLocale",
-                          "resolvedLocale",
-                          "name",
-                          "description",
-                          "createdAt",
-                          "updatedAt"
-                        ],
-                        "additionalProperties": false
-                      }
-                    },
-                    "page": {
-                      "type": "integer",
-                      "minimum": 1,
-                      "maximum": 9007199254740991
-                    },
-                    "pageSize": {
-                      "type": "integer",
-                      "minimum": 1,
-                      "maximum": 100
-                    },
-                    "total": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "maximum": 9007199254740991
-                    }
-                  },
-                  "required": [
-                    "items",
-                    "page",
-                    "pageSize",
-                    "total"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ProjectPage"
                 }
               }
             }
@@ -1016,43 +336,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -1062,43 +346,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -1108,43 +356,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -1154,43 +366,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -1242,73 +418,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "format": "uuid",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                    },
-                    "organizationId": {
-                      "type": "string",
-                      "format": "uuid",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
-                    },
-                    "status": {
-                      "type": "string",
-                      "enum": [
-                        "draft",
-                        "active",
-                        "archived"
-                      ]
-                    },
-                    "contentLocale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    },
-                    "resolvedLocale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    },
-                    "name": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "description": {
-                      "nullable": true,
-                      "type": "string"
-                    },
-                    "createdAt": {
-                      "type": "string",
-                      "format": "date-time",
-                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                    },
-                    "updatedAt": {
-                      "type": "string",
-                      "format": "date-time",
-                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "organizationId",
-                    "status",
-                    "contentLocale",
-                    "resolvedLocale",
-                    "name",
-                    "description",
-                    "createdAt",
-                    "updatedAt"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ProjectResponse"
                 }
               }
             }
@@ -1318,43 +428,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -1364,43 +438,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -1410,43 +448,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -1456,43 +458,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -1502,43 +468,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -1582,43 +512,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -1628,43 +522,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -1674,43 +532,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -1720,43 +542,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -1766,43 +552,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -1851,43 +601,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "status": {
-                    "type": "string",
-                    "enum": [
-                      "draft",
-                      "active",
-                      "archived"
-                    ]
-                  },
-                  "translation": {
-                    "type": "object",
-                    "properties": {
-                      "locale": {
-                        "type": "string",
-                        "enum": [
-                          "zh-CN",
-                          "en-US",
-                          "ar"
-                        ]
-                      },
-                      "name": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "description": {
-                        "nullable": true,
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "locale"
-                    ],
-                    "additionalProperties": false
-                  }
-                },
-                "additionalProperties": false
+                "$ref": "#/components/schemas/UpdateProject"
               }
             }
           }
@@ -1898,73 +612,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "format": "uuid",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                    },
-                    "organizationId": {
-                      "type": "string",
-                      "format": "uuid",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
-                    },
-                    "status": {
-                      "type": "string",
-                      "enum": [
-                        "draft",
-                        "active",
-                        "archived"
-                      ]
-                    },
-                    "contentLocale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    },
-                    "resolvedLocale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    },
-                    "name": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "description": {
-                      "nullable": true,
-                      "type": "string"
-                    },
-                    "createdAt": {
-                      "type": "string",
-                      "format": "date-time",
-                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                    },
-                    "updatedAt": {
-                      "type": "string",
-                      "format": "date-time",
-                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "organizationId",
-                    "status",
-                    "contentLocale",
-                    "resolvedLocale",
-                    "name",
-                    "description",
-                    "createdAt",
-                    "updatedAt"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ProjectResponse"
                 }
               }
             }
@@ -1974,43 +622,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -2020,43 +632,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -2066,43 +642,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -2112,43 +652,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -2158,43 +662,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -2235,12 +703,7 @@
             "required": true,
             "in": "path",
             "schema": {
-              "type": "string",
-              "enum": [
-                "zh-CN",
-                "en-US",
-                "ar"
-              ]
+              "$ref": "#/components/schemas/SupportedLocale"
             }
           }
         ],
@@ -2250,31 +713,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    },
-                    "name": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "description": {
-                      "nullable": true,
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "locale",
-                    "name",
-                    "description"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ProjectTranslationResponse"
                 }
               }
             }
@@ -2284,43 +723,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -2330,43 +733,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -2376,43 +743,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -2422,43 +753,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -2480,18 +775,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "userId": {
-                      "type": "string",
-                      "format": "uuid",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                    }
-                  },
-                  "required": [
-                    "userId"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/PlatformAccess"
                 }
               }
             }
@@ -2501,43 +785,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -2547,43 +795,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -2593,43 +805,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiError"
                 }
               }
             }
@@ -2651,6 +827,314 @@
   "tags": [],
   "servers": [],
   "components": {
-    "schemas": {}
+    "schemas": {
+      "OrganizationSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "slug": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "$ref": "#/components/schemas/OrganizationStatus"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "OrganizationStatus": {
+        "type": "string",
+        "enum": [
+          "ACTIVE",
+          "SUSPENDED"
+        ]
+      },
+      "ApiError": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ApiErrorCode"
+          },
+          "message": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "locale": {
+            "$ref": "#/components/schemas/SupportedLocale"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "requestId",
+          "locale"
+        ],
+        "additionalProperties": false
+      },
+      "ApiErrorCode": {
+        "type": "string",
+        "enum": [
+          "VALIDATION_ERROR",
+          "UNAUTHENTICATED",
+          "FORBIDDEN",
+          "NOT_FOUND",
+          "ORGANIZATION_SUSPENDED",
+          "AUTHORIZATION_UNAVAILABLE",
+          "INTERNAL_ERROR"
+        ]
+      },
+      "SupportedLocale": {
+        "type": "string",
+        "enum": [
+          "zh-CN",
+          "en-US",
+          "ar"
+        ]
+      },
+      "OrganizationAccess": {
+        "type": "object",
+        "properties": {
+          "organizationId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE"
+            ]
+          },
+          "authorizationVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "effectiveLocale": {
+            "$ref": "#/components/schemas/SupportedLocale"
+          }
+        },
+        "required": [
+          "organizationId",
+          "status",
+          "authorizationVersion",
+          "effectiveLocale"
+        ],
+        "additionalProperties": false
+      },
+      "CreateProject": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "nullable": true,
+            "type": "string"
+          },
+          "contentLocale": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SupportedLocale"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "description"
+        ],
+        "additionalProperties": false
+      },
+      "ProjectResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "organizationId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProjectStatus"
+          },
+          "contentLocale": {
+            "$ref": "#/components/schemas/SupportedLocale"
+          },
+          "resolvedLocale": {
+            "$ref": "#/components/schemas/SupportedLocale"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "nullable": true,
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "organizationId",
+          "status",
+          "contentLocale",
+          "resolvedLocale",
+          "name",
+          "description",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "ProjectStatus": {
+        "type": "string",
+        "enum": [
+          "draft",
+          "active",
+          "archived"
+        ]
+      },
+      "ProjectPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectResponse"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "pageSize": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
+        "additionalProperties": false
+      },
+      "ProjectTranslationResponse": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "$ref": "#/components/schemas/SupportedLocale"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "locale",
+          "name",
+          "description"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateProject": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProjectStatus"
+              }
+            ]
+          },
+          "translation": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UpdateProjectTranslation"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdateProjectTranslation": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "$ref": "#/components/schemas/SupportedLocale"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "locale"
+        ],
+        "additionalProperties": false
+      },
+      "PlatformAccess": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "userId"
+        ],
+        "additionalProperties": false
+      }
+    }
   }
 }

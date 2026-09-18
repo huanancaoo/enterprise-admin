@@ -6,7 +6,7 @@
  */
 import type { ListProjectsSortBy } from "./listProjectsSortBy"
 import type { ListProjectsSortOrder } from "./listProjectsSortOrder"
-import type { ListProjectsStatus } from "./listProjectsStatus"
+import type { ProjectStatus } from "./projectStatus"
 
 export type ListProjectsParams = {
   /**
@@ -19,7 +19,7 @@ export type ListProjectsParams = {
    * @maximum 100
    */
   pageSize?: number
-  status?: ListProjectsStatus
+  status?: ProjectStatus
   name?: string
   sortBy?: ListProjectsSortBy
   sortOrder?: ListProjectsSortOrder

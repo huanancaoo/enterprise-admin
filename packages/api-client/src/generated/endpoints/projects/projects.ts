@@ -21,44 +21,17 @@ import type {
 } from "@tanstack/react-query"
 
 import type {
-  CreateProject201,
-  CreateProject400,
-  CreateProject401,
-  CreateProject403,
-  CreateProject500,
-  CreateProjectBody,
+  ApiError,
+  CreateProject,
   CreateProjectHeaders,
-  DeleteProject400,
-  DeleteProject401,
-  DeleteProject403,
-  DeleteProject404,
-  DeleteProject500,
-  GetProject200,
-  GetProject400,
-  GetProject401,
-  GetProject403,
-  GetProject404,
-  GetProject500,
   GetProjectHeaders,
-  GetProjectTranslation200,
-  GetProjectTranslation401,
-  GetProjectTranslation403,
-  GetProjectTranslation404,
-  GetProjectTranslation500,
-  ListProjects200,
-  ListProjects400,
-  ListProjects401,
-  ListProjects403,
-  ListProjects500,
   ListProjectsHeaders,
   ListProjectsParams,
-  UpdateProject200,
-  UpdateProject400,
-  UpdateProject401,
-  UpdateProject403,
-  UpdateProject404,
-  UpdateProject500,
-  UpdateProjectBody,
+  ProjectPage,
+  ProjectResponse,
+  ProjectTranslationResponse,
+  SupportedLocale,
+  UpdateProject,
   UpdateProjectHeaders,
 } from "../../models"
 
@@ -89,27 +62,27 @@ const withQueryKey = <T extends object, K>(
 }
 
 export type createProjectResponse201 = {
-  data: CreateProject201
+  data: ProjectResponse
   status: 201
 }
 
 export type createProjectResponse400 = {
-  data: CreateProject400
+  data: ApiError
   status: 400
 }
 
 export type createProjectResponse401 = {
-  data: CreateProject401
+  data: ApiError
   status: 401
 }
 
 export type createProjectResponse403 = {
-  data: CreateProject403
+  data: ApiError
   status: 403
 }
 
 export type createProjectResponse500 = {
-  data: CreateProject500
+  data: ApiError
   status: 500
 }
 
@@ -131,7 +104,7 @@ export const getCreateProjectUrl = (organizationId: string) => {
 
 export const createProject = async (
   organizationId: string,
-  createProjectBody: CreateProjectBody,
+  createProjectBody: CreateProject,
   headers?: CreateProjectHeaders,
   options?: Parameters<typeof apiClient>[1]
 ): Promise<createProjectResponseSuccess> => {
@@ -174,9 +147,7 @@ export const createProject = async (
 export const getCreateProjectMutationKey = () => ["createProject"] as const
 
 export const getCreateProjectMutationOptions = <
-  TError = ErrorType<
-    CreateProject400 | CreateProject401 | CreateProject403 | CreateProject500
-  >,
+  TError = ErrorType<ApiError>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -216,20 +187,16 @@ export const getCreateProjectMutationOptions = <
 export type CreateProjectMutationResult = NonNullable<
   Awaited<ReturnType<typeof createProject>>
 >
-export type CreateProjectMutationBody = CreateProjectBody
-export type CreateProjectMutationError = ErrorType<
-  CreateProject400 | CreateProject401 | CreateProject403 | CreateProject500
->
+export type CreateProjectMutationBody = CreateProject
+export type CreateProjectMutationError = ErrorType<ApiError>
 export type CreateProjectMutationVariables = {
   organizationId: string
-  data: CreateProjectBody
+  data: CreateProject
   headers?: CreateProjectHeaders
 }
 
 export const useCreateProject = <
-  TError = ErrorType<
-    CreateProject400 | CreateProject401 | CreateProject403 | CreateProject500
-  >,
+  TError = ErrorType<ApiError>,
   TContext = unknown,
 >(
   options?: {
@@ -251,27 +218,27 @@ export const useCreateProject = <
   return useMutation(getCreateProjectMutationOptions(options), queryClient)
 }
 export type listProjectsResponse200 = {
-  data: ListProjects200
+  data: ProjectPage
   status: 200
 }
 
 export type listProjectsResponse400 = {
-  data: ListProjects400
+  data: ApiError
   status: 400
 }
 
 export type listProjectsResponse401 = {
-  data: ListProjects401
+  data: ApiError
   status: 401
 }
 
 export type listProjectsResponse403 = {
-  data: ListProjects403
+  data: ApiError
   status: 403
 }
 
 export type listProjectsResponse500 = {
-  data: ListProjects500
+  data: ApiError
   status: 500
 }
 
@@ -351,9 +318,7 @@ export const getListProjectsQueryKey = (
 
 export const getListProjectsQueryOptions = <
   TData = Awaited<ReturnType<typeof listProjects>>,
-  TError = ErrorType<
-    ListProjects400 | ListProjects401 | ListProjects403 | ListProjects500
-  >,
+  TError = ErrorType<ApiError>,
 >(
   organizationId: string,
   params?: ListProjectsParams,
@@ -394,15 +359,11 @@ export const getListProjectsQueryOptions = <
 export type ListProjectsQueryResult = NonNullable<
   Awaited<ReturnType<typeof listProjects>>
 >
-export type ListProjectsQueryError = ErrorType<
-  ListProjects400 | ListProjects401 | ListProjects403 | ListProjects500
->
+export type ListProjectsQueryError = ErrorType<ApiError>
 
 export function useListProjects<
   TData = Awaited<ReturnType<typeof listProjects>>,
-  TError = ErrorType<
-    ListProjects400 | ListProjects401 | ListProjects403 | ListProjects500
-  >,
+  TError = ErrorType<ApiError>,
 >(
   organizationId: string,
   params: undefined | ListProjectsParams,
@@ -427,9 +388,7 @@ export function useListProjects<
 }
 export function useListProjects<
   TData = Awaited<ReturnType<typeof listProjects>>,
-  TError = ErrorType<
-    ListProjects400 | ListProjects401 | ListProjects403 | ListProjects500
-  >,
+  TError = ErrorType<ApiError>,
 >(
   organizationId: string,
   params?: ListProjectsParams,
@@ -454,9 +413,7 @@ export function useListProjects<
 }
 export function useListProjects<
   TData = Awaited<ReturnType<typeof listProjects>>,
-  TError = ErrorType<
-    ListProjects400 | ListProjects401 | ListProjects403 | ListProjects500
-  >,
+  TError = ErrorType<ApiError>,
 >(
   organizationId: string,
   params?: ListProjectsParams,
@@ -474,9 +431,7 @@ export function useListProjects<
 
 export function useListProjects<
   TData = Awaited<ReturnType<typeof listProjects>>,
-  TError = ErrorType<
-    ListProjects400 | ListProjects401 | ListProjects403 | ListProjects500
-  >,
+  TError = ErrorType<ApiError>,
 >(
   organizationId: string,
   params?: ListProjectsParams,
@@ -507,32 +462,32 @@ export function useListProjects<
 }
 
 export type getProjectResponse200 = {
-  data: GetProject200
+  data: ProjectResponse
   status: 200
 }
 
 export type getProjectResponse400 = {
-  data: GetProject400
+  data: ApiError
   status: 400
 }
 
 export type getProjectResponse401 = {
-  data: GetProject401
+  data: ApiError
   status: 401
 }
 
 export type getProjectResponse403 = {
-  data: GetProject403
+  data: ApiError
   status: 403
 }
 
 export type getProjectResponse404 = {
-  data: GetProject404
+  data: ApiError
   status: 404
 }
 
 export type getProjectResponse500 = {
-  data: GetProject500
+  data: ApiError
   status: 500
 }
 
@@ -598,13 +553,7 @@ export const getGetProjectQueryKey = (
 
 export const useGetProjectQueryOptions = <
   TData = Awaited<ReturnType<typeof getProject>>,
-  TError = ErrorType<
-    | GetProject400
-    | GetProject401
-    | GetProject403
-    | GetProject404
-    | GetProject500
-  >,
+  TError = ErrorType<ApiError>,
 >(
   organizationId: string,
   projectId: string,
@@ -647,19 +596,11 @@ export const useGetProjectQueryOptions = <
 export type GetProjectQueryResult = NonNullable<
   Awaited<ReturnType<typeof getProject>>
 >
-export type GetProjectQueryError = ErrorType<
-  GetProject400 | GetProject401 | GetProject403 | GetProject404 | GetProject500
->
+export type GetProjectQueryError = ErrorType<ApiError>
 
 export function useGetProject<
   TData = Awaited<ReturnType<typeof getProject>>,
-  TError = ErrorType<
-    | GetProject400
-    | GetProject401
-    | GetProject403
-    | GetProject404
-    | GetProject500
-  >,
+  TError = ErrorType<ApiError>,
 >(
   organizationId: string,
   projectId: string,
@@ -684,13 +625,7 @@ export function useGetProject<
 }
 export function useGetProject<
   TData = Awaited<ReturnType<typeof getProject>>,
-  TError = ErrorType<
-    | GetProject400
-    | GetProject401
-    | GetProject403
-    | GetProject404
-    | GetProject500
-  >,
+  TError = ErrorType<ApiError>,
 >(
   organizationId: string,
   projectId: string,
@@ -715,13 +650,7 @@ export function useGetProject<
 }
 export function useGetProject<
   TData = Awaited<ReturnType<typeof getProject>>,
-  TError = ErrorType<
-    | GetProject400
-    | GetProject401
-    | GetProject403
-    | GetProject404
-    | GetProject500
-  >,
+  TError = ErrorType<ApiError>,
 >(
   organizationId: string,
   projectId: string,
@@ -739,13 +668,7 @@ export function useGetProject<
 
 export function useGetProject<
   TData = Awaited<ReturnType<typeof getProject>>,
-  TError = ErrorType<
-    | GetProject400
-    | GetProject401
-    | GetProject403
-    | GetProject404
-    | GetProject500
-  >,
+  TError = ErrorType<ApiError>,
 >(
   organizationId: string,
   projectId: string,
@@ -781,27 +704,27 @@ export type deleteProjectResponse204 = {
 }
 
 export type deleteProjectResponse400 = {
-  data: DeleteProject400
+  data: ApiError
   status: 400
 }
 
 export type deleteProjectResponse401 = {
-  data: DeleteProject401
+  data: ApiError
   status: 401
 }
 
 export type deleteProjectResponse403 = {
-  data: DeleteProject403
+  data: ApiError
   status: 403
 }
 
 export type deleteProjectResponse404 = {
-  data: DeleteProject404
+  data: ApiError
   status: 404
 }
 
 export type deleteProjectResponse500 = {
-  data: DeleteProject500
+  data: ApiError
   status: 500
 }
 
@@ -842,13 +765,7 @@ export const deleteProject = async (
 export const getDeleteProjectMutationKey = () => ["deleteProject"] as const
 
 export const getDeleteProjectMutationOptions = <
-  TError = ErrorType<
-    | DeleteProject400
-    | DeleteProject401
-    | DeleteProject403
-    | DeleteProject404
-    | DeleteProject500
-  >,
+  TError = ErrorType<ApiError>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -889,26 +806,14 @@ export type DeleteProjectMutationResult = NonNullable<
   Awaited<ReturnType<typeof deleteProject>>
 >
 
-export type DeleteProjectMutationError = ErrorType<
-  | DeleteProject400
-  | DeleteProject401
-  | DeleteProject403
-  | DeleteProject404
-  | DeleteProject500
->
+export type DeleteProjectMutationError = ErrorType<ApiError>
 export type DeleteProjectMutationVariables = {
   organizationId: string
   projectId: string
 }
 
 export const useDeleteProject = <
-  TError = ErrorType<
-    | DeleteProject400
-    | DeleteProject401
-    | DeleteProject403
-    | DeleteProject404
-    | DeleteProject500
-  >,
+  TError = ErrorType<ApiError>,
   TContext = unknown,
 >(
   options?: {
@@ -930,32 +835,32 @@ export const useDeleteProject = <
   return useMutation(getDeleteProjectMutationOptions(options), queryClient)
 }
 export type updateProjectResponse200 = {
-  data: UpdateProject200
+  data: ProjectResponse
   status: 200
 }
 
 export type updateProjectResponse400 = {
-  data: UpdateProject400
+  data: ApiError
   status: 400
 }
 
 export type updateProjectResponse401 = {
-  data: UpdateProject401
+  data: ApiError
   status: 401
 }
 
 export type updateProjectResponse403 = {
-  data: UpdateProject403
+  data: ApiError
   status: 403
 }
 
 export type updateProjectResponse404 = {
-  data: UpdateProject404
+  data: ApiError
   status: 404
 }
 
 export type updateProjectResponse500 = {
-  data: UpdateProject500
+  data: ApiError
   status: 500
 }
 
@@ -982,7 +887,7 @@ export const getUpdateProjectUrl = (
 export const updateProject = async (
   organizationId: string,
   projectId: string,
-  updateProjectBody: UpdateProjectBody,
+  updateProjectBody: UpdateProject,
   headers?: UpdateProjectHeaders,
   options?: Parameters<typeof apiClient>[1]
 ): Promise<updateProjectResponseSuccess> => {
@@ -1025,13 +930,7 @@ export const updateProject = async (
 export const getUpdateProjectMutationKey = () => ["updateProject"] as const
 
 export const getUpdateProjectMutationOptions = <
-  TError = ErrorType<
-    | UpdateProject400
-    | UpdateProject401
-    | UpdateProject403
-    | UpdateProject404
-    | UpdateProject500
-  >,
+  TError = ErrorType<ApiError>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -1077,29 +976,17 @@ export const getUpdateProjectMutationOptions = <
 export type UpdateProjectMutationResult = NonNullable<
   Awaited<ReturnType<typeof updateProject>>
 >
-export type UpdateProjectMutationBody = UpdateProjectBody
-export type UpdateProjectMutationError = ErrorType<
-  | UpdateProject400
-  | UpdateProject401
-  | UpdateProject403
-  | UpdateProject404
-  | UpdateProject500
->
+export type UpdateProjectMutationBody = UpdateProject
+export type UpdateProjectMutationError = ErrorType<ApiError>
 export type UpdateProjectMutationVariables = {
   organizationId: string
   projectId: string
-  data: UpdateProjectBody
+  data: UpdateProject
   headers?: UpdateProjectHeaders
 }
 
 export const useUpdateProject = <
-  TError = ErrorType<
-    | UpdateProject400
-    | UpdateProject401
-    | UpdateProject403
-    | UpdateProject404
-    | UpdateProject500
-  >,
+  TError = ErrorType<ApiError>,
   TContext = unknown,
 >(
   options?: {
@@ -1121,27 +1008,27 @@ export const useUpdateProject = <
   return useMutation(getUpdateProjectMutationOptions(options), queryClient)
 }
 export type getProjectTranslationResponse200 = {
-  data: GetProjectTranslation200
+  data: ProjectTranslationResponse
   status: 200
 }
 
 export type getProjectTranslationResponse401 = {
-  data: GetProjectTranslation401
+  data: ApiError
   status: 401
 }
 
 export type getProjectTranslationResponse403 = {
-  data: GetProjectTranslation403
+  data: ApiError
   status: 403
 }
 
 export type getProjectTranslationResponse404 = {
-  data: GetProjectTranslation404
+  data: ApiError
   status: 404
 }
 
 export type getProjectTranslationResponse500 = {
-  data: GetProjectTranslation500
+  data: ApiError
   status: 500
 }
 
@@ -1161,7 +1048,7 @@ export type getProjectTranslationResponseError = (
 export const getGetProjectTranslationUrl = (
   organizationId: string,
   projectId: string,
-  locale: "zh-CN" | "en-US" | "ar"
+  locale: SupportedLocale
 ) => {
   return `/api/v1/organizations/${organizationId}/projects/${projectId}/translations/${locale}`
 }
@@ -1169,7 +1056,7 @@ export const getGetProjectTranslationUrl = (
 export const getProjectTranslation = async (
   organizationId: string,
   projectId: string,
-  locale: "zh-CN" | "en-US" | "ar",
+  locale: SupportedLocale,
   options?: Parameters<typeof apiClient>[1]
 ): Promise<getProjectTranslationResponseSuccess> => {
   return apiClient<getProjectTranslationResponseSuccess>(
@@ -1184,7 +1071,7 @@ export const getProjectTranslation = async (
 export const getGetProjectTranslationQueryKey = (
   organizationId: string,
   projectId: string,
-  locale: "zh-CN" | "en-US" | "ar"
+  locale: SupportedLocale
 ) => {
   return [
     `/api/v1/organizations/${organizationId}/projects/${projectId}/translations/${locale}`,
@@ -1193,16 +1080,11 @@ export const getGetProjectTranslationQueryKey = (
 
 export const getGetProjectTranslationQueryOptions = <
   TData = Awaited<ReturnType<typeof getProjectTranslation>>,
-  TError = ErrorType<
-    | GetProjectTranslation401
-    | GetProjectTranslation403
-    | GetProjectTranslation404
-    | GetProjectTranslation500
-  >,
+  TError = ErrorType<ApiError>,
 >(
   organizationId: string,
   projectId: string,
-  locale: "zh-CN" | "en-US" | "ar",
+  locale: SupportedLocale,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -1249,25 +1131,15 @@ export const getGetProjectTranslationQueryOptions = <
 export type GetProjectTranslationQueryResult = NonNullable<
   Awaited<ReturnType<typeof getProjectTranslation>>
 >
-export type GetProjectTranslationQueryError = ErrorType<
-  | GetProjectTranslation401
-  | GetProjectTranslation403
-  | GetProjectTranslation404
-  | GetProjectTranslation500
->
+export type GetProjectTranslationQueryError = ErrorType<ApiError>
 
 export function useGetProjectTranslation<
   TData = Awaited<ReturnType<typeof getProjectTranslation>>,
-  TError = ErrorType<
-    | GetProjectTranslation401
-    | GetProjectTranslation403
-    | GetProjectTranslation404
-    | GetProjectTranslation500
-  >,
+  TError = ErrorType<ApiError>,
 >(
   organizationId: string,
   projectId: string,
-  locale: "zh-CN" | "en-US" | "ar",
+  locale: SupportedLocale,
   options: {
     query: Partial<
       UseQueryOptions<
@@ -1292,16 +1164,11 @@ export function useGetProjectTranslation<
 }
 export function useGetProjectTranslation<
   TData = Awaited<ReturnType<typeof getProjectTranslation>>,
-  TError = ErrorType<
-    | GetProjectTranslation401
-    | GetProjectTranslation403
-    | GetProjectTranslation404
-    | GetProjectTranslation500
-  >,
+  TError = ErrorType<ApiError>,
 >(
   organizationId: string,
   projectId: string,
-  locale: "zh-CN" | "en-US" | "ar",
+  locale: SupportedLocale,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -1326,16 +1193,11 @@ export function useGetProjectTranslation<
 }
 export function useGetProjectTranslation<
   TData = Awaited<ReturnType<typeof getProjectTranslation>>,
-  TError = ErrorType<
-    | GetProjectTranslation401
-    | GetProjectTranslation403
-    | GetProjectTranslation404
-    | GetProjectTranslation500
-  >,
+  TError = ErrorType<ApiError>,
 >(
   organizationId: string,
   projectId: string,
-  locale: "zh-CN" | "en-US" | "ar",
+  locale: SupportedLocale,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -1353,16 +1215,11 @@ export function useGetProjectTranslation<
 
 export function useGetProjectTranslation<
   TData = Awaited<ReturnType<typeof getProjectTranslation>>,
-  TError = ErrorType<
-    | GetProjectTranslation401
-    | GetProjectTranslation403
-    | GetProjectTranslation404
-    | GetProjectTranslation500
-  >,
+  TError = ErrorType<ApiError>,
 >(
   organizationId: string,
   projectId: string,
-  locale: "zh-CN" | "en-US" | "ar",
+  locale: SupportedLocale,
   options?: {
     query?: Partial<
       UseQueryOptions<
