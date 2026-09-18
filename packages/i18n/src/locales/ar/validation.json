@@ -5,6 +5,7 @@
   "organizationSlug": "أدخل معرّف المؤسسة.",
   "passwordMax": "استخدم 128 حرفًا كحد أقصى.",
   "passwordMin": "استخدم 8 أحرف على الأقل.",
+  "passwordMismatch": "كلمتا المرور غير متطابقتين.",
   "passwordRequired": "أدخل كلمة المرور.",
   "projectName": "أدخل اسم المشروع."
 }

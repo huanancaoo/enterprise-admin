@@ -59,7 +59,7 @@ API / Worker 启动脚本不运行迁移。运行账号、平台账号、迁移�
 
 ## 创建平台管理员
 
-平台后台没有注册。用与 API 相同的 runtime 连接和认证配置创建用户并写入平台任职；不验证邮箱、不发邮件。邮箱已被占用时失败，不会改已有用户。
+平台后台没有注册。用与 API 相同的 runtime 连接和认证配置创建用户并写入平台任职；创建后将邮箱标为已验证，不入队验证邮件。邮箱已被占用时失败，不会改已有用户。
 
 ```sh
 ea platform admin create --email admin@example.test --password 'your-password' --name 平台管理员
@@ -67,12 +67,12 @@ ea platform admin create --email admin@example.test --password 'your-password' -
 
 ## 角色和访问范围
 
-| 角色               | 权限                                                                                                                                                                                                 |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `bootstrap_admin`  | PostgreSQL 镜像初始化角色，拥有数据库；只用于首次初始化/运维                                                                                                                                         |
-| `app_migrator`     | 非超级用户，可建 schema、持有应用表和迁移 ledger；无创建数据库/角色或 BYPASSRLS 权限                                                                                                                 |
-| `app_runtime`      | 非 Owner；认证八表及 RLS 约束下的 Projects 两表 SELECT/INSERT/UPDATE/DELETE；audit_events 仅 SELECT/INSERT；platform_assignment 仅 SELECT/INSERT；无 DDL、TEMP、TRUNCATE、迁移 ledger 或角色切换权限 |
-| `platform_runtime` | 非 Owner；只读 user 公开身份列、organization 运营列和 member 关系列；无 account/session/verification 权限                                                                                            |
+| 角色               | 权限                                                                                                                                                                                                                    |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bootstrap_admin`  | PostgreSQL 镜像初始化角色，拥有数据库；只用于首次初始化/运维                                                                                                                                                            |
+| `app_migrator`     | 非超级用户，可建 schema、持有应用表和迁移 ledger；无创建数据库/角色或 BYPASSRLS 权限                                                                                                                                    |
+| `app_runtime`      | 非 Owner；认证八表、`email_messages` 及 RLS 约束下的 Projects 两表 SELECT/INSERT/UPDATE/DELETE；audit_events 仅 SELECT/INSERT；platform_assignment 仅 SELECT/INSERT；无 DDL、TEMP、TRUNCATE、迁移 ledger 或角色切换权限 |
+| `platform_runtime` | 非 Owner；只读 user 公开身份列、organization 运营列和 member 关系列；无 account/session/verification 权限                                                                                                               |
 
 组织运营状态的唯一来源是 `organization_status`（ACTIVE/SUSPENDED 及授权版本）。新组织由 INSERT 触发器初始化为 ACTIVE；缺失状态拒绝访问。`app_runtime` 可读状态与授权版本、可更新 `authorization_version`，不能改 `status`；`platform_runtime` 不能读写该表。平台停用/恢复 HTTP 仍属于后续任务；测试用 migrator 夹具布置状态。
 

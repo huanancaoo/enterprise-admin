@@ -28,7 +28,42 @@ import {
 } from "./auth-transaction.ts"
 import { getAuthRequestContext } from "./auth-request-context.ts"
 
-export { runWithAuthRequestContext } from "./auth-request-context.ts"
+export {
+  getAuthRequestContext,
+  runWithAuthRequestContext,
+} from "./auth-request-context.ts"
+
+export type AuthEmailUser = {
+  id: string
+  email: string
+  name: string
+  preferredLocale?: string | null
+}
+
+export type AuthEmailHooks = {
+  sendVerificationEmail: (data: {
+    user: AuthEmailUser
+    url: string
+  }) => Promise<void>
+  sendResetPassword: (data: {
+    user: AuthEmailUser
+    url: string
+  }) => Promise<void>
+  sendInvitationEmail: (data: {
+    id: string
+    email: string
+    role: string
+    organization: { id: string; name: string; defaultLocale?: string | null }
+    invitation: { id: string }
+    inviter: { user: { name: string } }
+  }) => Promise<void>
+}
+
+export const noopAuthEmailHooks: AuthEmailHooks = {
+  sendVerificationEmail: async () => {},
+  sendResetPassword: async () => {},
+  sendInvitationEmail: async () => {},
+}
 
 const ac = createAccessControl({
   ...defaultStatements,
@@ -70,7 +105,8 @@ export function createAuth(
   pool: Pool,
   baseURL: string,
   secret: string,
-  trustedOrigins: string[] = []
+  trustedOrigins: string[] = [],
+  emailHooks: AuthEmailHooks
 ) {
   const transactionalAdapter = createTransactionalAuthAdapter(pool)
   const organizationPlugin = wrapTransactionalOrganizationEndpoints(
@@ -100,6 +136,25 @@ export function createAuth(
         member: ac.newRole({ ...memberAc.statements, project: ["read"] }),
       },
       dynamicAccessControl: { enabled: true },
+      invitationExpiresIn: 60 * 60 * 48,
+      requireEmailVerificationOnInvitation: true,
+      sendInvitationEmail: async (data) => {
+        await emailHooks.sendInvitationEmail({
+          id: data.id,
+          email: data.email,
+          role: data.role,
+          organization: {
+            id: data.organization.id,
+            name: data.organization.name,
+            defaultLocale:
+              "defaultLocale" in data.organization
+                ? (data.organization.defaultLocale as string | null | undefined)
+                : undefined,
+          },
+          invitation: { id: data.invitation.id },
+          inviter: { user: { name: data.inviter.user.name } },
+        })
+      },
       organizationHooks: {
         beforeAddMember: async ({ member }) => {
           await assertActiveOrganization(
@@ -146,7 +201,45 @@ export function createAuth(
     secret,
     trustedOrigins,
     database: transactionalAdapter.adapterFactory,
-    emailAndPassword: { enabled: true },
+    emailAndPassword: {
+      enabled: true,
+      requireEmailVerification: true,
+      resetPasswordTokenExpiresIn: 3600,
+      revokeSessionsOnPasswordReset: true,
+      sendResetPassword: async ({ user, url }) => {
+        await emailHooks.sendResetPassword({
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            preferredLocale:
+              "preferredLocale" in user
+                ? (user.preferredLocale as string | null | undefined)
+                : undefined,
+          },
+          url,
+        })
+      },
+    },
+    emailVerification: {
+      sendOnSignUp: true,
+      sendOnSignIn: true,
+      autoSignInAfterVerification: false,
+      sendVerificationEmail: async ({ user, url }) => {
+        await emailHooks.sendVerificationEmail({
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            preferredLocale:
+              "preferredLocale" in user
+                ? (user.preferredLocale as string | null | undefined)
+                : undefined,
+          },
+          url,
+        })
+      },
+    },
     user: {
       additionalFields: {
         preferredLocale: {

@@ -5,6 +5,7 @@
   "organizationSlug": "请输入组织标识。",
   "passwordMax": "密码不能超过 128 个字符。",
   "passwordMin": "密码至少需要 8 个字符。",
+  "passwordMismatch": "两次输入的密码不一致。",
   "passwordRequired": "请输入密码。",
   "projectName": "请输入项目名称。"
 }

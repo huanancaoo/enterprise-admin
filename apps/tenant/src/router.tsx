@@ -6,10 +6,18 @@ import {
   redirect,
 } from "@tanstack/react-router"
 import { ProjectListQuerySchema } from "@workspace/contracts"
-import { App } from "./App"
+import { ForgotPasswordPage } from "@workspace/admin/auth"
+import {
+  App,
+  TenantAcceptInvitationPage,
+  TenantAuthTitlePage,
+  TenantEmailVerifiedPage,
+  TenantResetPasswordPage,
+} from "./App"
 import { ProjectsRoute } from "./components/projects-route"
 import { ProjectDetailRoute } from "./components/project-detail-route"
 import { AdminLayout } from "./components/admin-layout"
+import { MembersRoute } from "./components/members-route"
 import {
   OrganizationGate,
   WorkspaceEntry,
@@ -19,6 +27,42 @@ const rootRoute = createRootRoute({ component: App })
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/login",
+  validateSearch: (search: Record<string, unknown>) => {
+    const redirectTo = search.redirect
+    if (
+      typeof redirectTo === "string" &&
+      /^\/accept-invitation\/[0-9a-f-]+$/.test(redirectTo)
+    ) {
+      return { redirect: redirectTo }
+    }
+    return {}
+  },
+})
+const forgotPasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/forgot-password",
+  component: () => <TenantAuthTitlePage Page={ForgotPasswordPage} />,
+})
+const resetPasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/reset-password",
+  validateSearch: (search: Record<string, unknown>) => ({
+    ...(typeof search.token === "string" ? { token: search.token } : {}),
+    ...(typeof search.error === "string" ? { error: search.error } : {}),
+  }),
+  component: TenantResetPasswordPage,
+})
+const emailVerifiedRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/auth/verified",
+  validateSearch: (search: Record<string, unknown>) =>
+    typeof search.error === "string" ? { error: search.error } : {},
+  component: TenantEmailVerifiedPage,
+})
+const acceptInvitationRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/accept-invitation/$invitationId",
+  component: TenantAcceptInvitationPage,
 })
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -60,15 +104,30 @@ const projectDetailRoute = createRoute({
   path: "/$organizationId/$projectId",
   component: ProjectDetailRoute,
 })
+const membersLayoutRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/members",
+  component: AdminLayout,
+})
+const membersRoute = createRoute({
+  getParentRoute: () => membersLayoutRoute,
+  path: "/$organizationId",
+  component: MembersRoute,
+})
 
 export const router = createRouter({
   routeTree: rootRoute.addChildren([
     indexRoute,
     loginRoute,
+    forgotPasswordRoute,
+    resetPasswordRoute,
+    emailVerifiedRoute,
+    acceptInvitationRoute,
     appRoute.addChildren([
       appIndexRoute,
       organizationRoute,
       projectsLayoutRoute.addChildren([projectsRoute, projectDetailRoute]),
+      membersLayoutRoute.addChildren([membersRoute]),
     ]),
   ]),
 })

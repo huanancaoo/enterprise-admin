@@ -14,6 +14,7 @@ import {
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApplication } from '../src/create-application';
 import { AuthRuntime } from '../src/auth-runtime';
+import type { EmailConfig } from '../src/email/email-config';
 import { IdentityService } from '../src/identity.service';
 import { AuthorizationService } from '../src/authorization.service';
 import {
@@ -89,6 +90,16 @@ describe(
     let cookie = '';
     let revokedCookie: string;
     const origin = 'http://localhost:3200';
+    const emailConfig: EmailConfig = {
+      smtp: { host: '127.0.0.1', port: 1025, secure: false },
+      from: { email: 'noreply@example.test', name: 'Enterprise Admin' },
+      encryptionKey: Buffer.alloc(32, 7),
+      linkOrigin: origin,
+      defaultLocale: 'zh-CN',
+      pollIntervalMs: 50,
+      retry: { maxAttempts: 5, baseDelayMs: 50 },
+      messageTtlMs: 86_400_000,
+    };
     const credentials = {
       email: 's4-01@example.test',
       password: randomBytes(24).toString('hex'),
@@ -185,6 +196,7 @@ describe(
           baseURL: 'http://localhost:3000',
           secret: randomBytes(32).toString('hex'),
           trustedOrigins: [origin],
+          email: emailConfig,
         },
         { logger: false },
       );
@@ -231,7 +243,10 @@ describe(
       });
       expect(registered.error).toBeNull();
       expect(registered.data?.user.id).toMatch(/^[0-9a-f-]{36}$/);
-      await client.signOut();
+      await migratorDatabase!.pool.query(
+        'UPDATE public."user" SET email_verified = true WHERE id = $1',
+        [registered.data!.user.id],
+      );
       const signedIn = await client.signIn.email(credentials);
       expect(signedIn.error).toBeNull();
       expect(cookie).toContain('session_token=');
@@ -301,12 +316,25 @@ describe(
 
       cookie = '';
       try {
+        const otherPassword = randomBytes(24).toString('hex');
         const other = await client.signUp.email({
           email: 'adapter-member@example.test',
-          password: randomBytes(24).toString('hex'),
+          password: otherPassword,
           name: 'Adapter member',
         });
         expect(other.error).toBeNull();
+        await migratorDatabase!.pool.query(
+          'UPDATE public."user" SET email_verified = true WHERE id = $1',
+          [other.data!.user.id],
+        );
+        expect(
+          (
+            await client.signIn.email({
+              email: 'adapter-member@example.test',
+              password: otherPassword,
+            })
+          ).error,
+        ).toBeNull();
         const otherOrganization = await client.organization.create({
           name: 'Adapter B',
           slug: 'adapter-b',
@@ -545,13 +573,26 @@ describe(
         expect((await get(a.id)).status).toBe(200);
 
         cookie = '';
+        const outsiderPassword = randomBytes(24).toString('hex');
         const outsider = (
           await client.signUp.email({
             email: 'context-outsider@example.test',
-            password: randomBytes(24).toString('hex'),
+            password: outsiderPassword,
             name: 'Outsider',
           })
         ).data!;
+        await migratorDatabase!.pool.query(
+          'UPDATE public."user" SET email_verified = true WHERE id = $1',
+          [outsider.user.id],
+        );
+        expect(
+          (
+            await client.signIn.email({
+              email: 'context-outsider@example.test',
+              password: outsiderPassword,
+            })
+          ).error,
+        ).toBeNull();
         const outsiderCookie = cookie;
         expect((await get(a.id)).status).toBe(403);
         await deniedMutation(403, outsiderCookie);

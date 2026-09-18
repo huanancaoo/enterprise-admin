@@ -1,4 +1,6 @@
 import { startAuthProbeDatabase } from "../setup/auth-probe-database.mjs"
+import { signUpVerified } from "../setup/complete-signup.mjs"
+import { testEmailConfig } from "../setup/email-config.ts"
 import { execFile } from "node:child_process"
 import { randomBytes, randomUUID } from "node:crypto"
 import { promisify } from "node:util"
@@ -44,26 +46,8 @@ describe("S8: Organization integration invariants", () => {
       body: JSON.stringify(body),
     })
   }
-  const signup = async () => {
-    const email = `${randomUUID()}@example.test`
-    const response = await post("sign-up/email", {
-      email,
-      name: "S8 probe",
-      password: randomBytes(24).toString("hex"),
-    })
-    expect(response.status).toBe(200)
-    const cookie = response.headers
-      .getSetCookie()
-      .map((value) => value.split(";")[0])
-      .join("; ")
-    const { user } = await response.json()
-    // 邮箱投递不在本探针范围；只为受邀身份建立已经验证的测试前提。
-    await migrator.query(
-      'UPDATE "user" SET email_verified = true WHERE id = $1',
-      [user.id]
-    )
-    return { user, email, cookie, headers: new Headers({ cookie, origin }) }
-  }
+  const signup = () =>
+    signUpVerified(baseURL, origin, migrator, { name: "S8 probe" })
   const organization = async (actor) =>
     runtime.auth.api.createOrganization({
       headers: actor.headers,
@@ -90,6 +74,7 @@ describe("S8: Organization integration invariants", () => {
         baseURL: "http://localhost:3000",
         secret: randomBytes(32).toString("hex"),
         trustedOrigins: [origin],
+        email: testEmailConfig(),
       },
       { logger: ["error"] }
     )

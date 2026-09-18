@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import {
   Link,
   Outlet,
+  useLocation,
   useNavigate,
   useParams,
   useSearch,
@@ -17,7 +18,7 @@ import {
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
-import { FolderKanbanIcon } from "lucide-react"
+import { FolderKanbanIcon, UsersIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import {
   ApiClientError,
@@ -40,10 +41,12 @@ export function AdminLayout() {
   const queryClient = useQueryClient()
   const params = useParams({ strict: false })
   const search = useSearch({ strict: false })
+  const pathname = useLocation({ select: (location) => location.pathname })
   const navigate = useNavigate()
   const [createOpen, setCreateOpen] = useState(false)
   const organizationId = params.organizationId
   const organizations = workspace.workspace.data ?? []
+  const onMembers = pathname.startsWith("/app/members/")
   useDropStaleOrganizationQueries(organizationId)
   const access = useQuery({
     ...useGetOrganizationAccessQueryOptions(organizationId ?? ""),
@@ -68,6 +71,9 @@ export function AdminLayout() {
       search={params.projectId ? {} : search}
     />
   ) : undefined
+  const membersLink = organizationId ? (
+    <Link to="/app/members/$organizationId" params={{ organizationId }} />
+  ) : undefined
   const suspended =
     access.error instanceof ApiClientError &&
     access.error.body.code === "ORGANIZATION_SUSPENDED"
@@ -76,6 +82,13 @@ export function AdminLayout() {
     const target = organizations.find((item) => item.id === nextOrganizationId)
     if (target?.status === "ACTIVE") {
       if (!(await workspace.selectOrganization(nextOrganizationId))) return
+    }
+    if (onMembers) {
+      await navigate({
+        to: "/app/members/$organizationId",
+        params: { organizationId: nextOrganizationId },
+      })
+      return
     }
     await navigate({
       to: "/app/projects/$organizationId",
@@ -101,7 +114,11 @@ export function AdminLayout() {
             )}
             <BreadcrumbItem>
               <BreadcrumbPage>
-                {params.projectId ? t("projects:detail") : t("projects:title")}
+                {onMembers
+                  ? t("organization:members")
+                  : params.projectId
+                    ? t("projects:detail")
+                    : t("projects:title")}
               </BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
@@ -126,9 +143,16 @@ export function AdminLayout() {
             {
               title: t("projects:title"),
               icon: <FolderKanbanIcon />,
-              isActive: !!params.organizationId,
+              isActive: pathname.startsWith("/app/projects/"),
               disabled: !organizationId || suspended,
               render: projectLink,
+            },
+            {
+              title: t("organization:members"),
+              icon: <UsersIcon />,
+              isActive: onMembers,
+              disabled: !organizationId || suspended,
+              render: membersLink,
             },
           ],
         },
@@ -171,7 +195,9 @@ export function AdminLayout() {
         error={workspace.error}
         onCreated={(nextOrganizationId) => {
           void navigate({
-            to: "/app/projects/$organizationId",
+            to: onMembers
+              ? "/app/members/$organizationId"
+              : "/app/projects/$organizationId",
             params: { organizationId: nextOrganizationId },
           })
         }}

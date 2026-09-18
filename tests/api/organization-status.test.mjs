@@ -1,4 +1,6 @@
 import { startAuthProbeDatabase } from "../setup/auth-probe-database.mjs"
+import { signUpVerified } from "../setup/complete-signup.mjs"
+import { testEmailConfig } from "../setup/email-config.ts"
 import { execFile } from "node:child_process"
 import { randomBytes, randomUUID } from "node:crypto"
 import { promisify } from "node:util"
@@ -25,25 +27,8 @@ describe("S8-02: organization status access boundary", () => {
       },
       body: JSON.stringify(body),
     })
-  const signup = async () => {
-    const email = `${randomUUID()}@example.test`
-    const response = await post("sign-up/email", {
-      email,
-      name: "S8 status",
-      password: randomBytes(24).toString("hex"),
-    })
-    expect(response.status).toBe(200)
-    const cookie = response.headers
-      .getSetCookie()
-      .map((value) => value.split(";")[0])
-      .join("; ")
-    const { user } = await response.json()
-    await migrator.query(
-      'UPDATE "user" SET email_verified = true WHERE id = $1',
-      [user.id]
-    )
-    return { user, email, cookie, headers: new Headers({ cookie, origin }) }
-  }
+  const signup = () =>
+    signUpVerified(baseURL, origin, migrator, { name: "S8 status" })
   const organization = async (actor, name = "Status org") =>
     runtime.auth.api.createOrganization({
       headers: actor.headers,
@@ -77,6 +62,7 @@ describe("S8-02: organization status access boundary", () => {
         baseURL: "http://localhost:3000",
         secret: randomBytes(32).toString("hex"),
         trustedOrigins: [origin],
+        email: testEmailConfig(),
       },
       { logger: ["error"] }
     )

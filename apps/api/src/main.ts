@@ -1,5 +1,5 @@
 import { ConsoleLogger } from '@nestjs/common';
-import { readAuthConfig } from './auth-runtime';
+import { AuthRuntime, readAuthConfig } from './auth-runtime';
 import { createApplication } from './create-application';
 
 async function bootstrap() {
@@ -7,5 +7,7 @@ async function bootstrap() {
     logger: new ConsoleLogger({ json: true }),
   });
   await app.listen(process.env.PORT ?? 3000);
+  app.get(AuthRuntime).startEmailDispatcher();
 }
+
 void bootstrap();

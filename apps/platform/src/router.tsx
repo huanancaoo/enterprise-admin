@@ -4,12 +4,41 @@ import {
   createRouter,
   redirect,
 } from "@tanstack/react-router"
-import { App, PlatformHome, PlatformLayout } from "./App"
+import { ForgotPasswordPage } from "@workspace/admin/auth"
+import {
+  App,
+  PlatformAuthTitlePage,
+  PlatformEmailVerifiedPage,
+  PlatformHome,
+  PlatformLayout,
+  PlatformResetPasswordPage,
+} from "./App"
 
 const rootRoute = createRootRoute({ component: App })
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/login",
+})
+const forgotPasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/forgot-password",
+  component: () => <PlatformAuthTitlePage Page={ForgotPasswordPage} />,
+})
+const resetPasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/reset-password",
+  validateSearch: (search: Record<string, unknown>) => ({
+    ...(typeof search.token === "string" ? { token: search.token } : {}),
+    ...(typeof search.error === "string" ? { error: search.error } : {}),
+  }),
+  component: PlatformResetPasswordPage,
+})
+const emailVerifiedRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/auth/verified",
+  validateSearch: (search: Record<string, unknown>) =>
+    typeof search.error === "string" ? { error: search.error } : {},
+  component: PlatformEmailVerifiedPage,
 })
 const platformRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -33,6 +62,9 @@ export const router = createRouter({
   routeTree: rootRoute.addChildren([
     indexRoute,
     loginRoute,
+    forgotPasswordRoute,
+    resetPasswordRoute,
+    emailVerifiedRoute,
     platformRoute.addChildren([platformIndexRoute]),
   ]),
 })

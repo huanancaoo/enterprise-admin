@@ -99,6 +99,20 @@
       "when": 1789668671691,
       "tag": "0013_platform-assignment-grants",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1789701655758,
+      "tag": "0014_email-messages",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1789701804571,
+      "tag": "0015_email-messages-grants",
+      "breakpoints": true
     }
   ]
 }

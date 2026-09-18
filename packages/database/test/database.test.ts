@@ -20,13 +20,14 @@ import {
   type StartedTestContainer,
 } from "testcontainers"
 import { Pool } from "pg"
-import { createAuth } from "../src/auth.ts"
+import { createAuth, noopAuthEmailHooks } from "../src/auth.ts"
 import { createDatabase } from "../src/index.ts"
 import { createPlatformAdmin } from "../src/platform-admin.ts"
 
 const exec = promisify(execFile)
 const tables = [
   "account",
+  "email_messages",
   "invitation",
   "member",
   "organization",
@@ -279,7 +280,9 @@ describe(suiteName, { concurrent: false }, () => {
     const auth = createAuth(
       runtime,
       "http://localhost:3000",
-      randomBytes(32).toString("hex")
+      randomBytes(32).toString("hex"),
+      [],
+      noopAuthEmailHooks
     )
     const registered = await auth.api.signUpEmail({
       body: {
@@ -289,6 +292,10 @@ describe(suiteName, { concurrent: false }, () => {
       },
     })
     assert.ok(registered.user.id)
+    await runtime.query(
+      'UPDATE public."user" SET email_verified = true WHERE id = $1',
+      [registered.user.id]
+    )
     const response = await auth.api.signInEmail({
       body: { email: "s2@example.test", password: "S2-database-test-password" },
       asResponse: true,
@@ -366,11 +373,13 @@ describe(suiteName, { concurrent: false }, () => {
     assert.equal(await auth.api.getSession({ headers }), null)
   })
 
-  test("CLI 创建的平台管理员可登录，邮箱无需验证，也不因此成为组织成员", async () => {
+  test("CLI 创建的平台管理员可登录，邮箱已验证，也不因此成为组织成员", async () => {
     const auth = createAuth(
       runtime,
       "http://localhost:3000",
-      randomBytes(32).toString("hex")
+      randomBytes(32).toString("hex"),
+      [],
+      noopAuthEmailHooks
     )
     const email = "platform-admin@example.test"
     const password = "platform-admin-test-password"
@@ -386,7 +395,7 @@ describe(suiteName, { concurrent: false }, () => {
           [userId]
         )
       ).rows[0].email_verified,
-      false
+      true
     )
     assert.equal(
       (await runtime.query("SELECT 1 FROM member WHERE user_id = $1", [userId]))
@@ -550,6 +559,7 @@ describe(suiteName, { concurrent: false }, () => {
     for (const sql of [
       "SELECT * FROM public.account",
       "SELECT * FROM public.session",
+      "SELECT * FROM public.email_messages",
       "SELECT metadata FROM public.organization",
       "UPDATE public.organization SET name='forbidden'",
     ])

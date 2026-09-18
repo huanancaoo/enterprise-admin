@@ -1,4 +1,6 @@
 import { startAuthProbeDatabase } from "../setup/auth-probe-database.mjs"
+import { signUpVerified } from "../setup/complete-signup.mjs"
+import { testEmailConfig } from "../setup/email-config.ts"
 import { execFile } from "node:child_process"
 import { randomBytes, randomUUID } from "node:crypto"
 import { promisify } from "node:util"
@@ -15,32 +17,8 @@ const { AuthRuntime } = require("../../apps/api/dist/auth-runtime.js")
 describe("platform assignment access boundary", () => {
   let container, app, runtime, migrator, baseURL
   const origin = "http://localhost:3201"
-  const post = (path, body, cookie) =>
-    fetch(`${baseURL}/api/auth/${path}`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        origin,
-        ...(cookie ? { cookie } : {}),
-      },
-      body: JSON.stringify(body),
-    })
-  const signup = async () => {
-    const email = `${randomUUID()}@example.test`
-    const password = randomBytes(24).toString("hex")
-    const response = await post("sign-up/email", {
-      email,
-      name: "Member",
-      password,
-    })
-    expect(response.status).toBe(200)
-    const cookie = response.headers
-      .getSetCookie()
-      .map((value) => value.split(";")[0])
-      .join("; ")
-    const { user } = await response.json()
-    return { user, cookie, headers: new Headers({ cookie, origin }) }
-  }
+  const signup = () =>
+    signUpVerified(baseURL, origin, migrator, { name: "Member" })
   const json = (response) => response.json()
   const platformAccess = (cookie) =>
     fetch(`${baseURL}/api/v1/me/platform`, {
@@ -68,6 +46,7 @@ describe("platform assignment access boundary", () => {
         baseURL: "http://localhost:3000",
         secret: randomBytes(32).toString("hex"),
         trustedOrigins: [origin],
+        email: testEmailConfig(),
       },
       { logger: ["error"] }
     )

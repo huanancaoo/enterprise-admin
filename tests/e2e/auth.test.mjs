@@ -2,12 +2,14 @@ import { execFile } from "node:child_process"
 import { randomBytes } from "node:crypto"
 import { mkdir, readFile } from "node:fs/promises"
 import { createRequire } from "node:module"
+import { createServer as createNetServer } from "node:net"
 import { resolve } from "node:path"
 import { promisify } from "node:util"
 import { chromium } from "playwright"
 import { expect as expectUI } from "playwright/test"
 import { GenericContainer, Wait } from "testcontainers"
 import { createServer } from "vite"
+import { testEmailConfig } from "../setup/email-config.ts"
 import {
   afterAll,
   afterEach,
@@ -36,12 +38,32 @@ const {
   TenantContextService,
 } = require("../../apps/api/dist/tenant-context.service.js")
 
-async function registerAccount(page, account) {
+let emailVerifyPool
+
+async function reservePort() {
+  const server = createNetServer()
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve))
+  const { port } = server.address()
+  await new Promise((resolve, reject) =>
+    server.close((error) => (error ? reject(error) : resolve()))
+  )
+  return port
+}
+
+async function registerAccount(page, account, { enterApp = true } = {}) {
   await page.getByRole("button", { name: "创建账号", exact: true }).click()
   await page.getByLabel("姓名", { exact: true }).fill(account.name)
   await page.getByLabel("邮箱", { exact: true }).fill(account.email)
   await page.getByLabel("密码", { exact: true }).fill(account.password)
   await page.getByRole("button", { name: "注册", exact: true }).click()
+  if (!enterApp) return
+  await page.getByRole("heading", { name: "查收邮件", exact: true }).waitFor()
+  await emailVerifyPool.query(
+    'UPDATE public."user" SET email_verified = true WHERE email = $1',
+    [account.email]
+  )
+  await page.getByRole("button", { name: "去登录", exact: true }).click()
+  await signInAccount(page, account)
 }
 
 async function openAdminUserMenu(page, userName) {
@@ -154,28 +176,38 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
         },
       }
     )
+    // EmailService 在构造时把 trustedOrigins 解析成 URL，不能再用 127.0.0.1:* 通配。
+    const tenantPort = await reservePort()
+    const platformPort = await reservePort()
+    const tenantOrigin = `http://127.0.0.1:${tenantPort}`
+    const platformOrigin = `http://127.0.0.1:${platformPort}`
     app = await createApplication(
       {
         databaseURL: databaseURL("app_runtime", passwords[2]),
         baseURL: "http://127.0.0.1",
         secret: randomBytes(32).toString("hex"),
-        // 测试前端由 OS 分配端口；仅此临时认证实例信任 loopback 的随机端口。
-        trustedOrigins: ["http://127.0.0.1:*"],
+        trustedOrigins: [tenantOrigin, platformOrigin],
+        email: testEmailConfig({ linkOrigin: tenantOrigin }),
       },
       { logger: false }
     )
     runtime = app.get(AuthRuntime)
+    emailVerifyPool = runtime.pool
     tenantContexts = app.get(TenantContextService)
     await app.listen(0, "127.0.0.1")
     const apiOrigin = await app.getUrl()
     process.env.TENANT_API_PROXY_TARGET = apiOrigin
-    for (const name of ["tenant", "platform"]) {
+    for (const { name, port } of [
+      { name: "tenant", port: tenantPort },
+      { name: "platform", port: platformPort },
+    ]) {
       const server = await createServer({
         root: resolve(`apps/${name}`),
         configFile: resolve(`apps/${name}/vite.config.ts`),
         server: {
           host: "127.0.0.1",
-          port: 0,
+          port,
+          strictPort: true,
           ...(name === "platform" ? { proxy: { "/api/auth": apiOrigin } } : {}),
         },
       })
@@ -1279,11 +1311,15 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
       await route.continue()
     })
     await page.goto(frontends[0].resolvedUrls.local[0] + "login")
-    await registerAccount(page, {
-      name: "慢网账号",
-      email: "slow-account@example.test",
-      password: credentials.password,
-    })
+    await registerAccount(
+      page,
+      {
+        name: "慢网账号",
+        email: "slow-account@example.test",
+        password: credentials.password,
+      },
+      { enterApp: false }
+    )
     try {
       await expectUI(
         page.getByRole("button", { name: "提交中…", exact: true })
@@ -1295,7 +1331,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
       releaseRequest()
     }
     await expectUI(
-      page.getByRole("heading", { name: "创建组织", exact: true })
+      page.getByRole("heading", { name: "查收邮件", exact: true })
     ).toBeVisible()
   })
 })

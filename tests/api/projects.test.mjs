@@ -1,6 +1,8 @@
 import { execFile } from "node:child_process"
 import { randomBytes } from "node:crypto"
 import { readFile } from "node:fs/promises"
+import { signUpVerified } from "../setup/complete-signup.mjs"
+import { testEmailConfig } from "../setup/email-config.ts"
 import { resolve } from "node:path"
 import { promisify } from "node:util"
 import { GenericContainer, Wait } from "testcontainers"
@@ -178,27 +180,19 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
         baseURL: "http://localhost:3000",
         secret: randomBytes(32).toString("hex"),
         trustedOrigins: [origin],
+        email: testEmailConfig(),
       },
       { logger: ["error"] }
     )
     await app.listen(0, "127.0.0.1")
     baseURL = await app.getUrl()
     runtime = app.get(AuthRuntime)
-    const response = await fetch(`${baseURL}/api/auth/sign-up/email`, {
-      method: "POST",
-      headers: { "content-type": "application/json", origin },
-      body: JSON.stringify({
-        email: "projects@example.test",
-        password: randomBytes(24).toString("hex"),
-        name: "Projects",
-      }),
+    const account = await signUpVerified(baseURL, origin, migrator, {
+      email: "projects@example.test",
+      name: "Projects",
     })
-    expect(response.status).toBe(200)
-    cookie = response.headers
-      .getSetCookie()
-      .map((item) => item.split(";")[0])
-      .join("; ")
-    const headers = new Headers({ cookie })
+    cookie = account.cookie
+    const headers = account.headers
     orgA = await runtime.auth.api.createOrganization({
       headers,
       body: { name: "Projects A", slug: "projects-a" },
@@ -498,20 +492,11 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
     expect(data.headers.get("content-language")).toBe("ar")
   })
   it("非法参数、无会话、跨组织请求和404都返回稳定错误契约", async () => {
-    const otherSignup = await fetch(`${baseURL}/api/auth/sign-up/email`, {
-      method: "POST",
-      headers: { origin, "content-type": "application/json" },
-      body: JSON.stringify({
-        name: "Other",
-        email: "other-projects@example.test",
-        password: randomBytes(24).toString("hex"),
-      }),
+    const other = await signUpVerified(baseURL, origin, migrator, {
+      name: "Other",
+      email: "other-projects@example.test",
     })
-    expect(otherSignup.status).toBe(200)
-    const otherCookie = otherSignup.headers
-      .getSetCookie()
-      .map((item) => item.split(";")[0])
-      .join("; ")
+    const otherCookie = other.cookie
     const outsider = await runtime.auth.api.createOrganization({
       headers: new Headers({ cookie: otherCookie }),
       body: { name: "Other", slug: "other-projects" },
@@ -537,21 +522,12 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
     }
   })
   it("授权失败只使用已验证阶段的语言，成功与错误响应共用语言输出", async () => {
-    const response = await fetch(`${baseURL}/api/auth/sign-up/email`, {
-      method: "POST",
-      headers: { "content-type": "application/json", origin },
-      body: JSON.stringify({
-        email: "language-stages@example.test",
-        password: randomBytes(24).toString("hex"),
-        name: "Language stages",
-      }),
+    const account = await signUpVerified(baseURL, origin, migrator, {
+      email: "language-stages@example.test",
+      name: "Language stages",
     })
-    expect(response.status).toBe(200)
-    const actor = await response.json()
-    const actorCookie = response.headers
-      .getSetCookie()
-      .map((item) => item.split(";")[0])
-      .join("; ")
+    const actor = { user: account.user }
+    const actorCookie = account.cookie
     const ownerHeaders = new Headers({ cookie })
     const organization = await runtime.auth.api.createOrganization({
       headers: ownerHeaders,
@@ -755,20 +731,12 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
       { ...valid, status: "active" },
     ])
       expect((await post(body)).status).toBe(400)
-    const signup = await fetch(`${baseURL}/api/auth/sign-up/email`, {
-      method: "POST",
-      headers: { origin, "content-type": "application/json" },
-      body: JSON.stringify({
-        name: "Read only",
-        email: "create-denied@example.test",
-        password: randomBytes(24).toString("hex"),
-      }),
+    const account = await signUpVerified(baseURL, origin, migrator, {
+      name: "Read only",
+      email: "create-denied@example.test",
     })
-    const actor = await signup.json()
-    const session = signup.headers
-      .getSetCookie()
-      .map((item) => item.split(";")[0])
-      .join("; ")
+    const actor = { user: account.user }
+    const session = account.cookie
     expect((await post(valid, session)).status).toBe(403)
     await runtime.auth.api.createOrgRole({
       headers: new Headers({ cookie }),
@@ -834,21 +802,12 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
       name: "更新前中文名称",
       description: "更新前中文描述",
     })
-    const signup = await fetch(`${baseURL}/api/auth/sign-up/email`, {
-      method: "POST",
-      headers: { origin, "content-type": "application/json" },
-      body: JSON.stringify({
-        name: "Project translator",
-        email: "project-translator@example.test",
-        password: randomBytes(24).toString("hex"),
-      }),
+    const account = await signUpVerified(baseURL, origin, migrator, {
+      name: "Project translator",
+      email: "project-translator@example.test",
     })
-    expect(signup.status).toBe(200)
-    const translator = await signup.json()
-    const translatorCookie = signup.headers
-      .getSetCookie()
-      .map((item) => item.split(";")[0])
-      .join("; ")
+    const translator = { user: account.user }
+    const translatorCookie = account.cookie
     await runtime.auth.api.createOrgRole({
       headers: new Headers({ cookie }),
       body: {
@@ -1056,20 +1015,12 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
         return project
       }
     )
-    const signup = await fetch(`${baseURL}/api/auth/sign-up/email`, {
-      method: "POST",
-      headers: { origin, "content-type": "application/json" },
-      body: JSON.stringify({
-        name: "Delete denied",
-        email: "delete-denied@example.test",
-        password: randomBytes(24).toString("hex"),
-      }),
+    const account = await signUpVerified(baseURL, origin, migrator, {
+      name: "Delete denied",
+      email: "delete-denied@example.test",
     })
-    const deniedActor = await signup.json()
-    const deniedCookie = signup.headers
-      .getSetCookie()
-      .map((item) => item.split(";")[0])
-      .join("; ")
+    const deniedActor = { user: account.user }
+    const deniedCookie = account.cookie
     await runtime.auth.api.createOrgRole({
       headers: new Headers({ cookie }),
       body: {

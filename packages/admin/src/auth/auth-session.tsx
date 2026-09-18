@@ -1,11 +1,10 @@
 import { useTranslation } from "react-i18next"
-import { LocaleSwitcher } from "../components/workspace"
 import type { TFunction } from "@workspace/i18n"
 import { useState, type ReactNode } from "react"
 import { useForm } from "@tanstack/react-form"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { Navigate, useLocation } from "@tanstack/react-router"
-import { Eye, EyeOff, GalleryVerticalEnd } from "lucide-react"
+import { Link, Navigate, useLocation } from "@tanstack/react-router"
+import { Eye, EyeOff } from "lucide-react"
 import { cn } from "cn"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -22,6 +21,8 @@ import {
   AuthenticatedSessionContext,
   type AuthenticatedSession,
 } from "./authenticated-session"
+import { AuthClientContext } from "./auth-client-context"
+import { AuthPageShell } from "./auth-page-shell"
 import type { WorkspaceAuthClient } from "./client"
 import { useAuthAction } from "./use-auth-action"
 
@@ -56,6 +57,24 @@ function createCredentialsSchemas(
   return { signInSchema, signUpSchema }
 }
 
+function isAnonymousAuthPath(pathname: string) {
+  return (
+    pathname === "/login" ||
+    pathname === "/forgot-password" ||
+    pathname === "/reset-password" ||
+    pathname === "/auth/verified" ||
+    pathname.startsWith("/accept-invitation/")
+  )
+}
+
+function invitationRedirect(searchStr: string) {
+  const query = searchStr.startsWith("?") ? searchStr.slice(1) : searchStr
+  const redirect = new URLSearchParams(query).get("redirect")
+  if (redirect && /^\/accept-invitation\/[0-9a-f-]+$/.test(redirect)) {
+    return redirect
+  }
+}
+
 export function AuthSession({
   client,
   title,
@@ -66,8 +85,12 @@ export function AuthSession({
   const { t } = useTranslation(["auth", "common", "validation"])
   const session = client.useSession()
   const pathname = useLocation({ select: (location) => location.pathname })
+  const searchStr = useLocation({ select: (location) => location.searchStr })
+  // Better Auth 在匿名 refetch（含注册成功）会把 isPending 设回 true；不能卸载入口，否则查收邮件等本地状态会丢。
+  const [sessionSettled, setSessionSettled] = useState(false)
+  if (!session.isPending && !sessionSettled) setSessionSettled(true)
 
-  if (session.isPending) {
+  if (session.isPending && !sessionSettled) {
     return (
       <main className="p-8" role="status">
         {t("auth:restoring")}
@@ -86,21 +109,37 @@ export function AuthSession({
     )
   }
   if (!session.data) {
-    if (pathname !== "/login") return <Navigate to="/login" replace />
+    if (!isAnonymousAuthPath(pathname)) return <Navigate to="/login" replace />
     return (
-      <SessionQueryProvider key="anonymous">
-        <AuthEntry client={client} title={title} allowSignUp={allowSignUp} />
-      </SessionQueryProvider>
+      <AuthClientContext.Provider value={client}>
+        <SessionQueryProvider key="anonymous">
+          {pathname === "/login" ? (
+            <AuthEntry
+              client={client}
+              title={title}
+              allowSignUp={allowSignUp}
+            />
+          ) : (
+            children
+          )}
+        </SessionQueryProvider>
+      </AuthClientContext.Provider>
     )
   }
-  if (pathname === "/login") return <Navigate to={authenticatedPath} replace />
+  if (pathname === "/login") {
+    const redirect = invitationRedirect(searchStr)
+    if (redirect) return <Navigate to={redirect as never} replace />
+    return <Navigate to={authenticatedPath} replace />
+  }
   return (
-    <SessionQueryProvider key={session.data.user.id}>
-      <AuthenticatedSessionProvider client={client} user={session.data.user}>
-        {/* 用户变化时卸载组织页面，避免将前一个用户的表单状态带入新会话。 */}
-        <section key={session.data.user.id}>{children}</section>
-      </AuthenticatedSessionProvider>
-    </SessionQueryProvider>
+    <AuthClientContext.Provider value={client}>
+      <SessionQueryProvider key={session.data.user.id}>
+        <AuthenticatedSessionProvider client={client} user={session.data.user}>
+          {/* 用户变化时卸载组织页面，避免将前一个用户的表单状态带入新会话。 */}
+          <section key={session.data.user.id}>{children}</section>
+        </AuthenticatedSessionProvider>
+      </SessionQueryProvider>
+    </AuthClientContext.Provider>
   )
 }
 
@@ -142,47 +181,43 @@ function AuthEntry({
   allowSignUp = false,
 }: Pick<AuthSessionProps, "client" | "title" | "allowSignUp">) {
   const [signUp, setSignUp] = useState(false)
+  const [checkEmail, setCheckEmail] = useState(false)
   // 请求状态由入口持有，模式切换不能卸载提交锁并启动竞争会话的第二个请求。
   const action = useAuthAction()
+  const { t } = useTranslation("auth")
   return (
-    <main className="grid min-h-svh lg:grid-cols-2">
-      <div className="flex flex-col gap-4 p-6 md:p-10">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 font-medium">
-            <div className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <GalleryVerticalEnd className="size-4" />
-            </div>
-            <span className="text-sm font-semibold tracking-tight">
-              {title}
-            </span>
-          </div>
-          <LocaleSwitcher align="end" />
+    <AuthPageShell title={title}>
+      {checkEmail ? (
+        <div className="flex flex-col items-center gap-4 text-center">
+          <h1 className="text-2xl font-bold">{t("checkEmailTitle")}</h1>
+          <p className="text-sm text-muted-foreground">
+            {t("checkEmailDescription")}
+          </p>
+          <Button
+            onClick={() => {
+              action.reset()
+              setCheckEmail(false)
+              setSignUp(false)
+            }}
+          >
+            {t("goToSignIn")}
+          </Button>
         </div>
-        <div className="flex flex-1 items-center justify-center">
-          <div className="w-full max-w-xs">
-            <CredentialsForm
-              key={String(signUp)}
-              client={client}
-              signUp={signUp}
-              action={action}
-              allowSignUp={allowSignUp}
-              onToggleSignUp={() => {
-                action.reset()
-                setSignUp(!signUp)
-              }}
-            />
-          </div>
-        </div>
-      </div>
-      <div className="relative hidden bg-muted lg:block">
-        <img
-          src="/placeholder.svg"
-          alt=""
-          aria-hidden="true"
-          className="absolute inset-0 h-full w-full object-cover"
+      ) : (
+        <CredentialsForm
+          key={String(signUp)}
+          client={client}
+          signUp={signUp}
+          action={action}
+          allowSignUp={allowSignUp}
+          onSignedUp={() => setCheckEmail(true)}
+          onToggleSignUp={() => {
+            action.reset()
+            setSignUp(!signUp)
+          }}
         />
-      </div>
-    </main>
+      )}
+    </AuthPageShell>
   )
 }
 
@@ -192,12 +227,14 @@ function CredentialsForm({
   action,
   allowSignUp,
   onToggleSignUp,
+  onSignedUp,
 }: {
   client: WorkspaceAuthClient
   signUp: boolean
   action: ReturnType<typeof useAuthAction>
   allowSignUp: boolean
   onToggleSignUp: () => void
+  onSignedUp: () => void
 }) {
   const { t } = useTranslation(["auth", "common", "validation"])
   const [showPassword, setShowPassword] = useState(false)
@@ -212,11 +249,16 @@ function CredentialsForm({
         email: value.email.trim(),
         password: value.password,
       }
-      await action.run(() =>
+      const ok = await action.run(() =>
         signUp
-          ? client.signUp.email({ ...credentials, name: value.name.trim() })
+          ? client.signUp.email({
+              ...credentials,
+              name: value.name.trim(),
+              callbackURL: `${window.location.origin}/auth/verified`,
+            })
           : client.signIn.email(credentials)
       )
+      if (ok && signUp) onSignedUp()
     },
   })
 
@@ -307,17 +349,12 @@ function CredentialsForm({
                       {t("auth:password")}
                     </FieldLabel>
                     {!signUp && (
-                      <a
-                        href="#"
-                        role="button"
-                        aria-disabled="true"
-                        tabIndex={-1}
-                        className="cursor-not-allowed text-sm text-muted-foreground underline-offset-4 opacity-75 hover:underline"
-                        title={t("auth:featureUnavailable")}
-                        onClick={(event) => event.preventDefault()}
+                      <Link
+                        to="/forgot-password"
+                        className="text-sm underline-offset-4 hover:underline"
                       >
                         {t("auth:forgotPassword")}
-                      </a>
+                      </Link>
                     )}
                   </div>
                   <div className="relative">

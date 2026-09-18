@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next"
-import { Link, Outlet } from "@tanstack/react-router"
+import { Link, Outlet, useSearch } from "@tanstack/react-router"
 import { AppShell } from "@workspace/admin"
 import {
   Breadcrumb,
@@ -7,7 +7,13 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
 } from "@workspace/ui/components/breadcrumb"
-import { AuthSession, useAuthenticatedSession } from "@workspace/admin/auth"
+import {
+  AuthSession,
+  EmailVerifiedPage,
+  ForgotPasswordPage,
+  ResetPasswordPage,
+  useAuthenticatedSession,
+} from "@workspace/admin/auth"
 import { LayoutDashboardIcon } from "lucide-react"
 import { authClient } from "./lib/auth-client"
 
@@ -88,4 +94,25 @@ export function PlatformHome() {
       <p className="text-muted-foreground">{t("platformUnavailable")}</p>
     </div>
   )
+}
+
+export function PlatformAuthTitlePage({
+  Page,
+}: {
+  Page: typeof ForgotPasswordPage
+}) {
+  const { t } = useTranslation("auth")
+  return <Page title={t("platformTitle")} />
+}
+
+export function PlatformResetPasswordPage() {
+  const { t } = useTranslation("auth")
+  const { token } = useSearch({ from: "/reset-password" })
+  return <ResetPasswordPage title={t("platformTitle")} token={token} />
+}
+
+export function PlatformEmailVerifiedPage() {
+  const { t } = useTranslation("auth")
+  const { error } = useSearch({ from: "/auth/verified" })
+  return <EmailVerifiedPage title={t("platformTitle")} error={error} />
 }
