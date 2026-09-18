@@ -2,7 +2,7 @@ import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { APIError } from 'better-auth/api';
 import { describe, expect, it, vi } from 'vitest';
-import { AuthRuntime } from './auth-runtime';
+import { AuthRuntime } from '../identity/auth-runtime';
 import { AuthorizationService } from './authorization.service';
 
 async function setup() {

@@ -1,19 +1,21 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, Module } from '@nestjs/common';
 import type { OpenAPIObject } from '@nestjs/swagger';
 import request from 'supertest';
 import { App } from 'supertest/types';
-import { AppModule } from './../src/app.module';
-import { configureApp } from './../src/configure-app';
+import { configureApp } from './../src/http/configure-app';
 import { setupSwagger } from './../src/openapi/setup-swagger';
 
-describe('AppController (e2e)', () => {
+@Module({})
+class HttpHarnessModule {}
+
+describe('HTTP 横切（e2e）', () => {
   let app: INestApplication<App>;
 
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
+      imports: [HttpHarnessModule],
     }).compile();
 
     app = moduleFixture.createNestApplication();
@@ -22,21 +24,20 @@ describe('AppController (e2e)', () => {
     await app.init();
   });
 
-  it('/api/v1 (GET)', () => {
+  it('/api/v1 无业务路由时仍协商语言且禁止共享缓存', () => {
     return request(app.getHttpServer())
       .get('/api/v1')
       .set('Accept-Language', 'ar')
-      .expect(200)
+      .expect(404)
       .expect('Content-Language', 'ar')
-      .expect('Content-Type', /text\/html/)
-      .expect('Hello World!');
+      .expect('Cache-Control', 'private, no-store');
   });
 
   it('生成独立 requestId，不信任客户端传入值', async () => {
     const first = await request(app.getHttpServer())
       .get('/api/v1')
       .set('X-Request-Id', 'client-value')
-      .expect(200);
+      .expect(404);
     const second = await request(app.getHttpServer())
       .get('/missing')
       .expect(404);
@@ -55,12 +56,7 @@ describe('AppController (e2e)', () => {
         const document = res.body as OpenAPIObject;
         expect(document.openapi).toMatch(/^3\./);
         expect(document.info.title).toBe('Enterprise Foundation API');
-        expect(document.paths).toHaveProperty('/api/v1');
-        expect(document.paths['/api/v1'].get?.responses['200']).toMatchObject({
-          content: {
-            'text/html': { schema: { type: 'string' } },
-          },
-        });
+        expect(document.paths).not.toHaveProperty('/api/v1');
       });
   });
 

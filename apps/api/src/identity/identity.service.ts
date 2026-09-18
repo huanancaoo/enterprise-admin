@@ -5,8 +5,8 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import type { OrganizationStatus } from '@workspace/contracts';
+import { ApiException } from '../http/api-exception';
 import { AuthRuntime } from './auth-runtime';
-import { ApiException } from './api-exception';
 
 export interface Identity {
   userId: string;

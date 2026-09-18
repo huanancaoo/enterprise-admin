@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 import { Module } from '@nestjs/common';
 import { CommandFactory } from 'nest-commander';
-import { PlatformAdminCreateCommand } from './platform-admin-create.command';
+import { PlatformAdminCreateCommand } from './platform/platform-admin-create.command';
 import {
   EnterpriseAdminCommand,
   PlatformAdminCommand,
   PlatformCommand,
-} from './platform.command';
+} from './platform/platform.command';
 
 @Module({
   providers: [

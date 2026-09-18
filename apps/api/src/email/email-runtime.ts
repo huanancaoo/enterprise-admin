@@ -1,6 +1,6 @@
 import type { OnModuleDestroy } from '@nestjs/common';
-import type { AuthRuntime } from '../auth-runtime';
-import type { ApplicationConfig } from '../application-config';
+import type { ApplicationConfig } from '../config/application-config';
+import type { AuthRuntime } from '../identity/auth-runtime';
 import { EmailDispatcher } from './email-dispatcher';
 import { EmailService } from './email.service';
 import { emailOriginAllowlist } from './email-url';

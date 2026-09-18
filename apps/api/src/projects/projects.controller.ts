@@ -34,8 +34,12 @@ import {
   type ProjectPage,
 } from '@workspace/contracts';
 import type { TenantContext } from '@workspace/database/tenant';
+import {
+  CurrentTenant,
+  RequireTenant,
+  RequireTenantAny,
+} from '../tenancy/tenant.guard';
 import { Projects } from './projects';
-import { CurrentTenant, RequireTenant, RequireTenantAny } from './tenant.guard';
 
 @ApiTags('projects')
 @Controller('organizations/:organizationId/projects')

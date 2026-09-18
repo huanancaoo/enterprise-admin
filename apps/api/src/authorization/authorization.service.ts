@@ -5,7 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { APIError } from 'better-auth/api';
-import { AuthRuntime } from './auth-runtime';
+import { AuthRuntime } from '../identity/auth-runtime';
 import type { PermissionRequest } from '@workspace/permissions';
 
 export type { PermissionRequest } from '@workspace/permissions';

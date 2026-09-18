@@ -1,5 +1,5 @@
 import { ConsoleLogger } from '@nestjs/common';
-import { readApplicationConfig } from './application-config';
+import { readApplicationConfig } from './config/application-config';
 import { EmailRuntime } from './email/email-runtime';
 import { createApplication } from './create-application';
 

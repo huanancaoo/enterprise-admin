@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { fromNodeHeaders } from 'better-auth/node';
 import type { Request } from 'express';
-import { IdentityService, type Identity } from './identity.service';
+import { IdentityService, type Identity } from '../identity/identity.service';
 
 const trustedPlatform = Symbol('trustedPlatformIdentity');
 type PlatformRequest = Request & { [trustedPlatform]?: Identity };

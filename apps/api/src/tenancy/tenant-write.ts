@@ -5,7 +5,7 @@ import {
   type TenantContext,
   type TenantTx,
 } from '@workspace/database/tenant';
-import { ApiException } from './api-exception';
+import { ApiException } from '../http/api-exception';
 
 const logger = new Logger('TenantWrite');
 

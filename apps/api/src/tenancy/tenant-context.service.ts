@@ -1,13 +1,13 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type { TenantContext } from '@workspace/database/tenant';
 import { OrganizationIdSchema } from '@workspace/contracts';
-import type { RequestLanguage } from './request-language';
-import { IdentityService } from './identity.service';
 import {
   AuthorizationService,
   type PermissionRequest,
-} from './authorization.service';
-import { ApiException } from './api-exception';
+} from '../authorization/authorization.service';
+import { ApiException } from '../http/api-exception';
+import type { RequestLanguage } from '../http/request-language';
+import { IdentityService } from '../identity/identity.service';
 
 @Injectable()
 export class TenantContextService {

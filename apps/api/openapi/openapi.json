@@ -1,24 +1,491 @@
 {
   "openapi": "3.0.0",
   "paths": {
-    "/api/v1": {
+    "/api/v1/me/organizations": {
       "get": {
-        "operationId": "AppController_getHello",
+        "operationId": "listMyOrganizations",
         "parameters": [],
         "responses": {
           "200": {
             "description": "",
             "content": {
-              "text/html": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+                      },
+                      "name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "slug": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "ACTIVE",
+                          "SUSPENDED"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "slug",
+                      "status"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "VALIDATION_ERROR",
+                        "UNAUTHENTICATED",
+                        "FORBIDDEN",
+                        "NOT_FOUND",
+                        "ORGANIZATION_SUSPENDED",
+                        "AUTHORIZATION_UNAVAILABLE",
+                        "INTERNAL_ERROR"
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "locale": {
+                      "type": "string",
+                      "enum": [
+                        "zh-CN",
+                        "en-US",
+                        "ar"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "requestId",
+                    "locale"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "VALIDATION_ERROR",
+                        "UNAUTHENTICATED",
+                        "FORBIDDEN",
+                        "NOT_FOUND",
+                        "ORGANIZATION_SUSPENDED",
+                        "AUTHORIZATION_UNAVAILABLE",
+                        "INTERNAL_ERROR"
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "locale": {
+                      "type": "string",
+                      "enum": [
+                        "zh-CN",
+                        "en-US",
+                        "ar"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "requestId",
+                    "locale"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "VALIDATION_ERROR",
+                        "UNAUTHENTICATED",
+                        "FORBIDDEN",
+                        "NOT_FOUND",
+                        "ORGANIZATION_SUSPENDED",
+                        "AUTHORIZATION_UNAVAILABLE",
+                        "INTERNAL_ERROR"
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "locale": {
+                      "type": "string",
+                      "enum": [
+                        "zh-CN",
+                        "en-US",
+                        "ar"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "requestId",
+                    "locale"
+                  ],
+                  "additionalProperties": false
                 }
               }
             }
           }
         },
+        "summary": "",
         "tags": [
-          "App"
+          "organizations"
+        ]
+      }
+    },
+    "/api/v1/organizations/{organizationId}/access": {
+      "get": {
+        "operationId": "getOrganizationAccess",
+        "parameters": [
+          {
+            "name": "organizationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "organizationId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ACTIVE"
+                      ]
+                    },
+                    "authorizationVersion": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "effectiveLocale": {
+                      "type": "string",
+                      "enum": [
+                        "zh-CN",
+                        "en-US",
+                        "ar"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "organizationId",
+                    "status",
+                    "authorizationVersion",
+                    "effectiveLocale"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "VALIDATION_ERROR",
+                        "UNAUTHENTICATED",
+                        "FORBIDDEN",
+                        "NOT_FOUND",
+                        "ORGANIZATION_SUSPENDED",
+                        "AUTHORIZATION_UNAVAILABLE",
+                        "INTERNAL_ERROR"
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "locale": {
+                      "type": "string",
+                      "enum": [
+                        "zh-CN",
+                        "en-US",
+                        "ar"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "requestId",
+                    "locale"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "VALIDATION_ERROR",
+                        "UNAUTHENTICATED",
+                        "FORBIDDEN",
+                        "NOT_FOUND",
+                        "ORGANIZATION_SUSPENDED",
+                        "AUTHORIZATION_UNAVAILABLE",
+                        "INTERNAL_ERROR"
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "locale": {
+                      "type": "string",
+                      "enum": [
+                        "zh-CN",
+                        "en-US",
+                        "ar"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "requestId",
+                    "locale"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "VALIDATION_ERROR",
+                        "UNAUTHENTICATED",
+                        "FORBIDDEN",
+                        "NOT_FOUND",
+                        "ORGANIZATION_SUSPENDED",
+                        "AUTHORIZATION_UNAVAILABLE",
+                        "INTERNAL_ERROR"
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "locale": {
+                      "type": "string",
+                      "enum": [
+                        "zh-CN",
+                        "en-US",
+                        "ar"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "requestId",
+                    "locale"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "VALIDATION_ERROR",
+                        "UNAUTHENTICATED",
+                        "FORBIDDEN",
+                        "NOT_FOUND",
+                        "ORGANIZATION_SUSPENDED",
+                        "AUTHORIZATION_UNAVAILABLE",
+                        "INTERNAL_ERROR"
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "locale": {
+                      "type": "string",
+                      "enum": [
+                        "zh-CN",
+                        "en-US",
+                        "ar"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "requestId",
+                    "locale"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "VALIDATION_ERROR",
+                        "UNAUTHENTICATED",
+                        "FORBIDDEN",
+                        "NOT_FOUND",
+                        "ORGANIZATION_SUSPENDED",
+                        "AUTHORIZATION_UNAVAILABLE",
+                        "INTERNAL_ERROR"
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "locale": {
+                      "type": "string",
+                      "enum": [
+                        "zh-CN",
+                        "en-US",
+                        "ar"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "requestId",
+                    "locale"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "organizations"
         ]
       }
     },
@@ -2000,494 +2467,6 @@
         "summary": "",
         "tags": [
           "projects"
-        ]
-      }
-    },
-    "/api/v1/me/organizations": {
-      "get": {
-        "operationId": "listMyOrganizations",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "type": "string",
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
-                      },
-                      "name": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "slug": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "status": {
-                        "type": "string",
-                        "enum": [
-                          "ACTIVE",
-                          "SUSPENDED"
-                        ]
-                      }
-                    },
-                    "required": [
-                      "id",
-                      "name",
-                      "slug",
-                      "status"
-                    ],
-                    "additionalProperties": false
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        },
-        "summary": "",
-        "tags": [
-          "organizations"
-        ]
-      }
-    },
-    "/api/v1/organizations/{organizationId}/access": {
-      "get": {
-        "operationId": "getOrganizationAccess",
-        "parameters": [
-          {
-            "name": "organizationId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "organizationId": {
-                      "type": "string",
-                      "format": "uuid",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
-                    },
-                    "status": {
-                      "type": "string",
-                      "enum": [
-                        "ACTIVE"
-                      ]
-                    },
-                    "authorizationVersion": {
-                      "type": "integer",
-                      "minimum": 1,
-                      "maximum": 9007199254740991
-                    },
-                    "effectiveLocale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "organizationId",
-                    "status",
-                    "authorizationVersion",
-                    "effectiveLocale"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "enum": [
-                        "VALIDATION_ERROR",
-                        "UNAUTHENTICATED",
-                        "FORBIDDEN",
-                        "NOT_FOUND",
-                        "ORGANIZATION_SUSPENDED",
-                        "AUTHORIZATION_UNAVAILABLE",
-                        "INTERNAL_ERROR"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "locale": {
-                      "type": "string",
-                      "enum": [
-                        "zh-CN",
-                        "en-US",
-                        "ar"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "requestId",
-                    "locale"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        },
-        "summary": "",
-        "tags": [
-          "organizations"
         ]
       }
     },

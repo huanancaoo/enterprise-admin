@@ -19,9 +19,9 @@ import {
 } from '@workspace/database/tenant';
 import { projectRepository } from '@workspace/database/repositories/projects';
 import { auditRepository } from '@workspace/database/repositories/audit';
-import { AuthRuntime } from './auth-runtime';
-import { AuthorizationService } from './authorization.service';
-import { runTenantWrite } from './tenant-write';
+import { AuthorizationService } from '../authorization/authorization.service';
+import { AuthRuntime } from '../identity/auth-runtime';
+import { runTenantWrite } from '../tenancy/tenant-write';
 
 // 调用者提供经组织授权的上下文；项目规则、写入锁与审计必须在本 module 内共同演进。
 @Injectable()

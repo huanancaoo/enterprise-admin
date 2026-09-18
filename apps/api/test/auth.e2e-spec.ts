@@ -13,10 +13,10 @@ import {
 } from 'testcontainers';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApplication } from '../src/create-application';
-import { AuthRuntime } from '../src/auth-runtime';
+import { AuthorizationService } from '../src/authorization/authorization.service';
 import type { EmailConfig } from '../src/email/email-config';
-import { IdentityService } from '../src/identity.service';
-import { AuthorizationService } from '../src/authorization.service';
+import { AuthRuntime } from '../src/identity/auth-runtime';
+import { IdentityService } from '../src/identity/identity.service';
 import {
   Controller,
   Get,
@@ -33,11 +33,15 @@ import {
   createTenantRunner,
   type TenantContext,
 } from '@workspace/database/tenant';
-import { RequestLanguage } from '../src/request-language';
-import { TenantContextService } from '../src/tenant-context.service';
-import { CurrentTenant, RequireTenant, TenantGuard } from '../src/tenant.guard';
-import { configureApp } from '../src/configure-app';
-import { Projects } from '../src/projects';
+import { configureApp } from '../src/http/configure-app';
+import { RequestLanguage } from '../src/http/request-language';
+import { Projects } from '../src/projects/projects';
+import { TenantContextService } from '../src/tenancy/tenant-context.service';
+import {
+  CurrentTenant,
+  RequireTenant,
+  TenantGuard,
+} from '../src/tenancy/tenant.guard';
 import { projectRepository } from '@workspace/database/repositories/projects';
 
 // 探针只在测试模块注册，不向正式应用增加业务或调试端点。
@@ -217,14 +221,12 @@ describe(
       const response = await fetch(`${baseURL}/api/auth/ok`);
       expect(await response.json()).toEqual({ ok: true });
       expect(response.headers.get('x-request-id')).toMatch(/^[0-9a-f-]{36}$/);
-      expect(await (await fetch(`${baseURL}/api/v1`)).text()).toBe(
-        'Hello World!',
-      );
+      expect((await fetch(`${baseURL}/api/v1`)).status).toBe(404);
       expect((await fetch(`${baseURL}/api/v1/auth/ok`)).status).toBe(404);
       const document = (await (
         await fetch(`${baseURL}/api/docs-json`)
       ).json()) as { paths: Record<string, unknown> };
-      expect(document.paths).toHaveProperty('/api/v1');
+      expect(document.paths).toHaveProperty('/api/v1/me/organizations');
       expect(
         Object.keys(document.paths).some((path) =>
           path.startsWith('/api/auth'),

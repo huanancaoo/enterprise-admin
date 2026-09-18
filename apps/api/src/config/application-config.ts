@@ -1,6 +1,6 @@
-import { readAuthConfig, type AuthConfig } from './auth-runtime';
-import type { EmailConfig } from './email/email-config';
-import { parseEmailEncryptionKey } from './email/email-crypto';
+import type { EmailConfig } from '../email/email-config';
+import { parseEmailEncryptionKey } from '../email/email-crypto';
+import { readAuthConfig, type AuthConfig } from '../identity/auth-runtime';
 
 export interface ApplicationConfig extends AuthConfig {
   email: EmailConfig;

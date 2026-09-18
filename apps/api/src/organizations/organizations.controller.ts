@@ -11,9 +11,9 @@ import {
   type OrganizationAccess,
   type OrganizationList,
 } from '@workspace/contracts';
-import { IdentityService } from './identity.service';
-import { ApiException } from './api-exception';
-import { getRequestLanguage } from './request-language';
+import { ApiException } from '../http/api-exception';
+import { getRequestLanguage } from '../http/request-language';
+import { IdentityService } from '../identity/identity.service';
 
 @ApiTags('organizations')
 @Controller()

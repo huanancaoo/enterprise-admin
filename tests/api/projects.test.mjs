@@ -5,11 +5,13 @@ import { beforeAll, afterAll, describe, expect, it } from "vitest"
 import { createRequire } from "node:module"
 const require = createRequire(import.meta.url)
 // Nest 注入令牌与生产 CJS 入口使用同一个模块实例。
-const { Projects } = require("../../apps/api/dist/projects.js")
-const { RequestLanguage } = require("../../apps/api/dist/request-language.js")
+const { Projects } = require("../../apps/api/dist/projects/projects.js")
+const {
+  RequestLanguage,
+} = require("../../apps/api/dist/http/request-language.js")
 const {
   TenantContextService,
-} = require("../../apps/api/dist/tenant-context.service.js")
+} = require("../../apps/api/dist/tenancy/tenant-context.service.js")
 import { auditEvents } from "../../packages/database/dist/schema/audit.js"
 import { createTenantRunner } from "../../packages/database/dist/tenant.js"
 import { projectRepository } from "../../packages/database/dist/repositories/projects.js"

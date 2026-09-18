@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { createPlatformAdmin } from '@workspace/database/platform-admin';
 import { CommandRunner, Option, SubCommand } from 'nest-commander';
-import { AuthRuntime, readAuthConfig } from './auth-runtime';
+import { AuthRuntime, readAuthConfig } from '../identity/auth-runtime';
 import { noopAuthEmailHooks } from '@workspace/database/auth';
 
 interface PlatformAdminCreateOptions {

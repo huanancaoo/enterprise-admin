@@ -12,9 +12,9 @@ import { Reflector } from '@nestjs/core';
 import { fromNodeHeaders } from 'better-auth/node';
 import type { Request, Response } from 'express';
 import type { TenantContext } from '@workspace/database/tenant';
-import type { PermissionRequest } from './authorization.service';
+import type { PermissionRequest } from '../authorization/authorization.service';
+import { getRequestLanguage } from '../http/request-language';
 import { TenantContextService } from './tenant-context.service';
-import { getRequestLanguage } from './request-language';
 
 const tenantPermissions = Symbol('tenantPermissions');
 const trustedContext = Symbol('trustedTenantContext');

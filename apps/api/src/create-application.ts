@@ -4,20 +4,11 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { toNodeHandler } from 'better-auth/node';
 import { runWithAuthRequestContext } from '@workspace/database/auth';
 import { AppModule } from './app.module';
-import { AuthRuntime } from './auth-runtime';
-import type { ApplicationConfig } from './application-config';
+import type { ApplicationConfig } from './config/application-config';
 import { EmailRuntime } from './email/email-runtime';
-import { configureApp } from './configure-app';
+import { configureApp } from './http/configure-app';
+import { AuthRuntime } from './identity/auth-runtime';
 import { setupSwagger } from './openapi/setup-swagger';
-import { IdentityService } from './identity.service';
-import { AuthorizationService } from './authorization.service';
-import { TenantContextService } from './tenant-context.service';
-import { TenantGuard } from './tenant.guard';
-import { Projects } from './projects';
-import { ProjectsController } from './projects.controller';
-import { OrganizationsController } from './organizations.controller';
-import { PlatformController } from './platform.controller';
-import { PlatformGuard } from './platform.guard';
 
 export async function createApplication(
   config: ApplicationConfig,
@@ -31,32 +22,7 @@ export async function createApplication(
       return email.hooks;
     });
     const app = await NestFactory.create<NestExpressApplication>(
-      {
-        module: AppModule,
-        controllers: [
-          ProjectsController,
-          OrganizationsController,
-          PlatformController,
-        ],
-        providers: [
-          { provide: AuthRuntime, useValue: runtime },
-          { provide: EmailRuntime, useValue: email },
-          IdentityService,
-          AuthorizationService,
-          TenantContextService,
-          TenantGuard,
-          PlatformGuard,
-          Projects,
-        ],
-        exports: [
-          IdentityService,
-          AuthorizationService,
-          TenantContextService,
-          TenantGuard,
-          PlatformGuard,
-          Projects,
-        ],
-      },
+      AppModule.forRoot(runtime, email!),
       { ...options, bodyParser: false, abortOnError: false },
     );
     configureApp(app);

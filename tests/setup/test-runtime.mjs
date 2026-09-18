@@ -15,7 +15,7 @@ const require = createRequire(import.meta.url)
 const {
   createApplication,
 } = require("../../apps/api/dist/create-application.js")
-const { AuthRuntime } = require("../../apps/api/dist/auth-runtime.js")
+const { AuthRuntime } = require("../../apps/api/dist/identity/auth-runtime.js")
 const { EmailRuntime } = require("../../apps/api/dist/email/email-runtime.js")
 
 async function reservePort() {

@@ -22,10 +22,12 @@ import { auditEvents } from "../../packages/database/dist/schema/audit.js"
 import { eq } from "../../packages/database/node_modules/drizzle-orm/index.js"
 
 const require = createRequire(import.meta.url)
-const { RequestLanguage } = require("../../apps/api/dist/request-language.js")
+const {
+  RequestLanguage,
+} = require("../../apps/api/dist/http/request-language.js")
 const {
   TenantContextService,
-} = require("../../apps/api/dist/tenant-context.service.js")
+} = require("../../apps/api/dist/tenancy/tenant-context.service.js")
 
 let emailVerifyPool
 

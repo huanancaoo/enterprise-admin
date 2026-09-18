@@ -5,8 +5,8 @@ import {
   PlatformAccessSchema,
   type PlatformAccess,
 } from '@workspace/contracts';
+import type { Identity } from '../identity/identity.service';
 import { CurrentPlatform, RequirePlatform } from './platform.guard';
-import type { Identity } from './identity.service';
 
 @ApiTags('platform')
 @Controller()
