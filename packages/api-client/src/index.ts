@@ -28,3 +28,5 @@ export {
 } from "./query/use-projects-list"
 export { getProjectDetailOptions } from "./query/use-project-detail"
 export { getProjectTranslationOptions } from "./query/use-project-translation"
+
+export { createProjectMutations } from "./query/project-mutations"

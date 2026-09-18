@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
 import { FormDialog } from "@workspace/admin"
-import { createProject, projectKeys } from "@workspace/api-client"
+import { createProjectMutations } from "@workspace/api-client"
 import { SupportedLocaleSchema } from "@workspace/contracts"
 import { localeMeta } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
@@ -37,6 +37,7 @@ export function ProjectCreate({ organizationId }: { organizationId: string }) {
   const { t } = useTranslation(["projects", "common", "validation"])
   const locale = useUiLocale()
   const queryClient = useQueryClient()
+  const mutations = createProjectMutations(queryClient, organizationId, locale)
   const id = useId()
   const [open, setOpen] = useState(false)
   const [failed, setFailed] = useState(false)
@@ -50,27 +51,19 @@ export function ProjectCreate({ organizationId }: { organizationId: string }) {
     onSubmit: async ({ value, formApi }) => {
       setFailed(false)
       try {
-        await createProject(
-          organizationId,
-          {
-            name: value.name.trim(),
-            description: value.description === "" ? null : value.description,
-            ...(value.contentLocale === "default"
-              ? {}
-              : { contentLocale: value.contentLocale }),
-          },
-          { "Accept-Language": locale }
-        )
+        await mutations.create({
+          name: value.name.trim(),
+          description: value.description === "" ? null : value.description,
+          ...(value.contentLocale === "default"
+            ? {}
+            : { contentLocale: value.contentLocale }),
+        })
       } catch {
         setFailed(true)
         return
       }
       formApi.reset()
       setOpen(false)
-      // 仅在服务端确认提交后刷新本组织所有语言；读取失败不应诱发重复创建。
-      void queryClient.invalidateQueries({
-        queryKey: projectKeys.all(organizationId),
-      })
     },
   })
   return (

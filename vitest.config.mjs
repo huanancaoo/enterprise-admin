@@ -11,6 +11,7 @@ export default defineConfig({
             "packages/eslint-config/boundaries/**/*.test.mjs",
             "tests/unit/**/*.test.ts",
             "packages/mocks/tests/**/*.test.ts",
+            "packages/api-client/tests/**/*.test.ts",
           ],
         },
       },

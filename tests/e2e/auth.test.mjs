@@ -1,15 +1,8 @@
-import { execFile } from "node:child_process"
+import { startBrowserApplication } from "../setup/test-runtime.mjs"
 import { randomBytes } from "node:crypto"
-import { mkdir, readFile } from "node:fs/promises"
+import { mkdir } from "node:fs/promises"
 import { createRequire } from "node:module"
-import { createServer as createNetServer } from "node:net"
-import { resolve } from "node:path"
-import { promisify } from "node:util"
-import { chromium } from "playwright"
 import { expect as expectUI } from "playwright/test"
-import { GenericContainer, Wait } from "testcontainers"
-import { createServer } from "vite"
-import { testEmailConfig } from "../setup/email-config.ts"
 import {
   afterAll,
   afterEach,
@@ -29,26 +22,12 @@ import { auditEvents } from "../../packages/database/dist/schema/audit.js"
 import { eq } from "../../packages/database/node_modules/drizzle-orm/index.js"
 
 const require = createRequire(import.meta.url)
-const {
-  createApplication,
-} = require("../../apps/api/dist/create-application.js")
-const { AuthRuntime } = require("../../apps/api/dist/auth-runtime.js")
 const { RequestLanguage } = require("../../apps/api/dist/request-language.js")
 const {
   TenantContextService,
 } = require("../../apps/api/dist/tenant-context.service.js")
 
 let emailVerifyPool
-
-async function reservePort() {
-  const server = createNetServer()
-  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve))
-  const { port } = server.address()
-  await new Promise((resolve, reject) =>
-    server.close((error) => (error ? reject(error) : resolve()))
-  )
-  return port
-}
 
 async function registerAccount(page, account, { enterApp = true } = {}) {
   await page.getByRole("button", { name: "创建账号", exact: true }).click()
@@ -122,7 +101,7 @@ async function selectOrganizationFromAppShell(
 }
 
 describe("S4-02：真实浏览器认证与组织流程", () => {
-  let container
+  let environment
   let app
   let runtime
   let tenantContexts
@@ -130,91 +109,17 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
   let context
   let page
   let pageErrors
-  const originalTenantApiProxyTarget = process.env.TENANT_API_PROXY_TARGET
-  const frontends = []
+  let tenantOrigin, platformOrigin
   const credentials = {
     email: "s4-02@example.test",
     password: randomBytes(24).toString("hex"),
   }
 
   beforeAll(async () => {
-    const versions = JSON.parse(
-      await readFile("docs/architecture/versions.json", "utf8")
-    )
-    const passwords = Array.from({ length: 4 }, () =>
-      randomBytes(24).toString("hex")
-    )
-    container = await new GenericContainer(versions.postgresql.image)
-      .withEnvironment({
-        POSTGRES_USER: "bootstrap_admin",
-        POSTGRES_DB: "enterprise_admin",
-        POSTGRES_PASSWORD: passwords[0],
-        APP_MIGRATOR_PASSWORD: passwords[1],
-        APP_RUNTIME_PASSWORD: passwords[2],
-        PLATFORM_RUNTIME_PASSWORD: passwords[3],
-      })
-      .withCopyFilesToContainer([
-        {
-          source: resolve("infra/postgres/bootstrap.sql"),
-          target: "/docker-entrypoint-initdb.d/001-bootstrap.sql",
-        },
-      ])
-      .withExposedPorts(5432)
-      .withWaitStrategy(
-        Wait.forLogMessage("database system is ready to accept connections", 2)
-      )
-      .start()
-    const databaseURL = (user, password) =>
-      `postgresql://${user}:${password}@${container.getHost()}:${container.getMappedPort(5432)}/enterprise_admin`
-    await promisify(execFile)(
-      process.execPath,
-      ["packages/database/src/migrate.ts"],
-      {
-        env: {
-          PATH: process.env.PATH,
-          MIGRATION_DATABASE_URL: databaseURL("app_migrator", passwords[1]),
-        },
-      }
-    )
-    // EmailService 在构造时把 trustedOrigins 解析成 URL，不能再用 127.0.0.1:* 通配。
-    const tenantPort = await reservePort()
-    const platformPort = await reservePort()
-    const tenantOrigin = `http://127.0.0.1:${tenantPort}`
-    const platformOrigin = `http://127.0.0.1:${platformPort}`
-    app = await createApplication(
-      {
-        databaseURL: databaseURL("app_runtime", passwords[2]),
-        baseURL: "http://127.0.0.1",
-        secret: randomBytes(32).toString("hex"),
-        trustedOrigins: [tenantOrigin, platformOrigin],
-        email: testEmailConfig({ linkOrigin: tenantOrigin }),
-      },
-      { logger: false }
-    )
-    runtime = app.get(AuthRuntime)
+    environment = await startBrowserApplication()
+    ;({ app, runtime, browser, tenantOrigin, platformOrigin } = environment)
     emailVerifyPool = runtime.pool
     tenantContexts = app.get(TenantContextService)
-    await app.listen(0, "127.0.0.1")
-    const apiOrigin = await app.getUrl()
-    process.env.TENANT_API_PROXY_TARGET = apiOrigin
-    for (const { name, port } of [
-      { name: "tenant", port: tenantPort },
-      { name: "platform", port: platformPort },
-    ]) {
-      const server = await createServer({
-        root: resolve(`apps/${name}`),
-        configFile: resolve(`apps/${name}/vite.config.ts`),
-        server: {
-          host: "127.0.0.1",
-          port,
-          strictPort: true,
-          ...(name === "platform" ? { proxy: { "/api/auth": apiOrigin } } : {}),
-        },
-      })
-      frontends.push(server)
-      await server.listen()
-    }
-    browser = await chromium.launch()
   })
 
   beforeEach(async () => {
@@ -248,24 +153,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
   })
 
   afterAll(async () => {
-    try {
-      await browser?.close()
-    } finally {
-      try {
-        await Promise.all(frontends.map((server) => server.close()))
-      } finally {
-        try {
-          await app?.close()
-        } finally {
-          if (originalTenantApiProxyTarget === undefined) {
-            delete process.env.TENANT_API_PROXY_TARGET
-          } else {
-            process.env.TENANT_API_PROXY_TARGET = originalTenantApiProxyTarget
-          }
-          await container?.stop()
-        }
-      }
-    }
+    await environment?.close()
   })
 
   async function seedProjectsOutsideFirstPage(headers, organizationId) {
@@ -306,7 +194,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
   }
 
   it("切换语言保留 URL 和表单草稿，同步 HTML 方向", async () => {
-    await page.goto(frontends[0].resolvedUrls.local[0] + "login")
+    await page.goto(tenantOrigin + "/" + "login")
     await page.getByRole("heading", { name: "登录", exact: true }).waitFor()
     const originalURL = page.url()
     await page
@@ -348,7 +236,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
 
   describe("S7：项目列表", () => {
     it("通过内置搜索命中当前页外的真实组织数据，并可由 URL 恢复", async () => {
-      await page.goto(frontends[0].resolvedUrls.local[0] + "app/")
+      await page.goto(tenantOrigin + "/" + "app/")
       await registerAccount(page, {
         name: "项目列表用户",
         email: "projects-list-browser@example.test",
@@ -443,7 +331,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
   })
 
   it("正式创建失败保留草稿，切语言保留内容，成功列表读回且刷新持久化", async () => {
-    await page.goto(frontends[0].resolvedUrls.local[0] + "app/")
+    await page.goto(tenantOrigin + "/" + "app/")
     await registerAccount(page, {
       name: "项目创建用户",
       email: "project-create-browser@example.test",
@@ -506,7 +394,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
   })
 
   it("项目编辑按目标内容语言保存草稿、状态与真实译文", async () => {
-    await page.goto(frontends[0].resolvedUrls.local[0] + "app/")
+    await page.goto(tenantOrigin + "/" + "app/")
     await registerAccount(page, {
       name: "项目编辑用户",
       email: "project-edit-browser@example.test",
@@ -592,7 +480,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
   })
 
   it("从真实详情确认硬删除项目后，列表与详情不再展示旧数据", async () => {
-    await page.goto(frontends[0].resolvedUrls.local[0] + "app/")
+    await page.goto(tenantOrigin + "/" + "app/")
     await registerAccount(page, {
       name: "项目删除用户",
       email: "project-delete-browser@example.test",
@@ -680,7 +568,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     ).toBe(true)
 
     await page.goto(
-      `${frontends[0].resolvedUrls.local[0]}app/projects/${organizationId}/${projectId}`
+      `${tenantOrigin + "/"}app/projects/${organizationId}/${projectId}`
     )
     await expectUI(
       page.getByRole("heading", { name: "未找到项目", exact: true })
@@ -689,7 +577,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
 
   it("S7：完整业务流程 Login → Org → Create → Edit → DataTable Filter/Sort/Pagination → Delete 并验证审计与持久化", async () => {
     // 1. 真实登录与创建组织
-    await page.goto(frontends[0].resolvedUrls.local[0] + "app/")
+    await page.goto(tenantOrigin + "/" + "app/")
     await registerAccount(page, {
       name: "全流程用户",
       email: "project-full-flow@example.test",
@@ -926,7 +814,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
 
     // 直接访问详情返回 404
     await page.goto(
-      `${frontends[0].resolvedUrls.local[0]}app/projects/${organizationId}/${projectId}`
+      `${tenantOrigin + "/"}app/projects/${organizationId}/${projectId}`
     )
     await expectUI(
       page.getByRole("heading", { name: "未找到项目", exact: true })
@@ -973,7 +861,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
   })
 
   it("注册后刷新恢复会话，登出后刷新仍需登录，错误密码可纠正重试", async () => {
-    await page.goto(frontends[0].resolvedUrls.local[0] + "app/")
+    await page.goto(tenantOrigin + "/" + "app/")
     await registerAccount(page, { ...credentials, name: "S4 用户" })
     await page.getByRole("heading", { name: "创建组织", exact: true }).waitFor()
     await expectUI(page).toHaveURL(/\/app\/select-organization$/)
@@ -1015,7 +903,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
   })
 
   it("无组织用户创建两个组织，切换后刷新保留选择，重复标识不改变当前组织", async () => {
-    await page.goto(frontends[0].resolvedUrls.local[0] + "app/")
+    await page.goto(tenantOrigin + "/" + "app/")
     await registerAccount(page, {
       name: "组织创建者",
       email: "organizations@example.test",
@@ -1093,7 +981,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
       email: "single-org-login@example.test",
       password: credentials.password,
     }
-    await page.goto(frontends[0].resolvedUrls.local[0] + "app/")
+    await page.goto(tenantOrigin + "/" + "app/")
     await registerAccount(page, account)
     await page.getByLabel("组织名称", { exact: true }).fill("唯一组织")
     await page.getByLabel("组织标识", { exact: true }).fill("only-org")
@@ -1119,7 +1007,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
       email: "multi-org-login@example.test",
       password: credentials.password,
     }
-    await page.goto(frontends[0].resolvedUrls.local[0] + "app/")
+    await page.goto(tenantOrigin + "/" + "app/")
     await registerAccount(page, account)
     await page.getByLabel("组织名称", { exact: true }).fill("北区组织")
     await page.getByLabel("组织标识", { exact: true }).fill("north-org")
@@ -1155,7 +1043,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
   })
 
   it("创建成功后的读回失败只重试读取，恢复后清空已提交草稿", async () => {
-    await page.goto(frontends[0].resolvedUrls.local[0] + "app/")
+    await page.goto(tenantOrigin + "/" + "app/")
     await registerAccount(page, {
       name: "刷新测试",
       email: "workspace-refresh@example.test",
@@ -1196,7 +1084,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
   })
 
   it("Platform 使用已有账号登录、恢复会话和登出，不将登录当作平台授权", async () => {
-    await page.goto(frontends[0].resolvedUrls.local[0] + "app/")
+    await page.goto(tenantOrigin + "/" + "app/")
     await registerAccount(page, {
       name: "普通账号",
       email: "platform-login@example.test",
@@ -1204,7 +1092,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     })
     await signOutFromGate(page)
     await page.getByRole("heading", { name: "登录", exact: true }).waitFor()
-    await page.goto(frontends[1].resolvedUrls.local[0] + "platform/")
+    await page.goto(platformOrigin + "/" + "platform/")
     await expectUI(
       page.getByRole("heading", { name: "登录", exact: true })
     ).toBeVisible()
@@ -1238,9 +1126,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     ).toBeVisible()
   })
   it("同一浏览器更换账号后不保留上一账号的组织", async () => {
-    await page.goto(
-      frontends[0].resolvedUrls.local[0] + "app/select-organization"
-    )
+    await page.goto(tenantOrigin + "/" + "app/select-organization")
     for (const email of [
       "first-account@example.test",
       "second-account@example.test",
@@ -1286,9 +1172,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await page.route("**/api/auth/get-session", (route) =>
       route.abort("failed")
     )
-    await page.goto(
-      frontends[0].resolvedUrls.local[0] + "app/select-organization"
-    )
+    await page.goto(tenantOrigin + "/" + "app/select-organization")
     await expectUI(page.getByRole("alert")).toHaveText("无法恢复会话，请重试。")
     await expectUI(
       page.getByRole("button", { name: "创建组织", exact: true })
@@ -1310,7 +1194,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
       await requestGate
       await route.continue()
     })
-    await page.goto(frontends[0].resolvedUrls.local[0] + "login")
+    await page.goto(tenantOrigin + "/" + "login")
     await registerAccount(
       page,
       {

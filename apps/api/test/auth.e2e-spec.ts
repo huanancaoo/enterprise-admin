@@ -37,7 +37,7 @@ import { RequestLanguage } from '../src/request-language';
 import { TenantContextService } from '../src/tenant-context.service';
 import { CurrentTenant, RequireTenant, TenantGuard } from '../src/tenant.guard';
 import { configureApp } from '../src/configure-app';
-import { ProjectPolicy } from '../src/project.policy';
+import { Projects } from '../src/projects';
 import { projectRepository } from '@workspace/database/repositories/projects';
 
 // 探针只在测试模块注册，不向正式应用增加业务或调试端点。
@@ -46,7 +46,7 @@ class TenantProbeController {
   enteredMutations = 0;
   constructor(
     private readonly runtime: AuthRuntime,
-    private readonly policy: ProjectPolicy,
+    private readonly projects: Projects,
   ) {}
 
   @Delete(':projectId')
@@ -57,10 +57,7 @@ class TenantProbeController {
     @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
   ) {
     this.enteredMutations++;
-    await createTenantRunner(this.runtime.pool)(context, async (tx) => {
-      await this.policy.requireForMutation(tx, projectId);
-      await projectRepository.delete(tx, projectId);
-    });
+    await this.projects.delete(context, projectId);
   }
 
   @Get()
@@ -402,7 +399,7 @@ describe(
         providers: [
           TenantGuard,
           TenantContextService,
-          ProjectPolicy,
+          Projects,
           { provide: AuthRuntime, useValue: { pool: runtime.pool } },
           {
             provide: IdentityService,

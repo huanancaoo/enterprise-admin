@@ -1,15 +1,7 @@
-import { execFile } from "node:child_process"
+import { startBrowserApplication } from "../setup/test-runtime.mjs"
 import { randomBytes, randomUUID } from "node:crypto"
-import { mkdir, readFile } from "node:fs/promises"
-import { createRequire } from "node:module"
-import { createServer as createNetServer } from "node:net"
-import { resolve } from "node:path"
-import { promisify } from "node:util"
-import { chromium } from "playwright"
+import { mkdir } from "node:fs/promises"
 import { expect as expectUI } from "playwright/test"
-import { GenericContainer, Wait } from "testcontainers"
-import { createServer } from "vite"
-import { testEmailConfig } from "../setup/email-config.ts"
 import { firstHttpUrl, waitForMail } from "../setup/mailpit.mjs"
 import {
   afterAll,
@@ -21,24 +13,6 @@ import {
   it,
 } from "vitest"
 
-const require = createRequire(import.meta.url)
-const {
-  createApplication,
-} = require("../../apps/api/dist/create-application.js")
-const { AuthRuntime } = require("../../apps/api/dist/auth-runtime.js")
-
-async function reservePort() {
-  const server = createNetServer()
-  await new Promise((resolveListen) =>
-    server.listen(0, "127.0.0.1", resolveListen)
-  )
-  const { port } = server.address()
-  await new Promise((resolveClose, reject) =>
-    server.close((error) => (error ? reject(error) : resolveClose()))
-  )
-  return port
-}
-
 function newAccount(name) {
   return {
     name,
@@ -48,9 +22,7 @@ function newAccount(name) {
 }
 
 describe("email auth UI", () => {
-  let postgres
-  let mailpit
-  let app
+  let environment
   let browser
   let context
   let page
@@ -58,8 +30,6 @@ describe("email auth UI", () => {
   let tenantOrigin
   let platformOrigin
   let mailpitOrigin
-  const originalTenantApiProxyTarget = process.env.TENANT_API_PROXY_TARGET
-  const frontends = []
 
   async function signUp(target, account) {
     await target.getByRole("button", { name: "创建账号", exact: true }).click()
@@ -97,94 +67,8 @@ describe("email auth UI", () => {
   }
 
   beforeAll(async () => {
-    const versions = JSON.parse(
-      await readFile("docs/architecture/versions.json", "utf8")
-    )
-    const passwords = Array.from({ length: 4 }, () =>
-      randomBytes(24).toString("hex")
-    )
-    postgres = await new GenericContainer(versions.postgresql.image)
-      .withEnvironment({
-        POSTGRES_USER: "bootstrap_admin",
-        POSTGRES_DB: "enterprise_admin",
-        POSTGRES_PASSWORD: passwords[0],
-        APP_MIGRATOR_PASSWORD: passwords[1],
-        APP_RUNTIME_PASSWORD: passwords[2],
-        PLATFORM_RUNTIME_PASSWORD: passwords[3],
-      })
-      .withCopyFilesToContainer([
-        {
-          source: resolve("infra/postgres/bootstrap.sql"),
-          target: "/docker-entrypoint-initdb.d/001-bootstrap.sql",
-        },
-      ])
-      .withExposedPorts(5432)
-      .withWaitStrategy(
-        Wait.forLogMessage("database system is ready to accept connections", 2)
-      )
-      .start()
-    mailpit = await new GenericContainer(versions.mailpit.image)
-      .withExposedPorts(1025, 8025)
-      .withWaitStrategy(Wait.forHttp("/", 8025))
-      .start()
-    const databaseURL = (user, password) =>
-      `postgresql://${user}:${password}@${postgres.getHost()}:${postgres.getMappedPort(5432)}/enterprise_admin`
-    await promisify(execFile)(
-      process.execPath,
-      ["packages/database/src/migrate.ts"],
-      {
-        env: {
-          PATH: process.env.PATH,
-          MIGRATION_DATABASE_URL: databaseURL("app_migrator", passwords[1]),
-        },
-      }
-    )
-    const tenantPort = await reservePort()
-    const platformPort = await reservePort()
-    const apiPort = await reservePort()
-    tenantOrigin = `http://127.0.0.1:${tenantPort}`
-    platformOrigin = `http://127.0.0.1:${platformPort}`
-    const apiOrigin = `http://127.0.0.1:${apiPort}`
-    mailpitOrigin = `http://${mailpit.getHost()}:${mailpit.getMappedPort(8025)}`
-    // Better Auth 把 baseURL 写进验证/重置邮件链接；必须是浏览器真能打开的 API origin。
-    app = await createApplication(
-      {
-        databaseURL: databaseURL("app_runtime", passwords[2]),
-        baseURL: apiOrigin,
-        secret: randomBytes(32).toString("hex"),
-        trustedOrigins: [tenantOrigin, platformOrigin],
-        email: testEmailConfig({
-          smtp: {
-            host: mailpit.getHost(),
-            port: mailpit.getMappedPort(1025),
-            secure: false,
-          },
-          linkOrigin: tenantOrigin,
-        }),
-      },
-      { logger: false }
-    )
-    await app.listen(apiPort, "127.0.0.1")
-    app.get(AuthRuntime).startEmailDispatcher()
-    process.env.TENANT_API_PROXY_TARGET = apiOrigin
-    for (const { name, port } of [
-      { name: "tenant", port: tenantPort },
-      { name: "platform", port: platformPort },
-    ]) {
-      const server = await createServer({
-        root: resolve(`apps/${name}`),
-        configFile: resolve(`apps/${name}/vite.config.ts`),
-        server: {
-          host: "127.0.0.1",
-          port,
-          strictPort: true,
-          ...(name === "platform" ? { proxy: { "/api/auth": apiOrigin } } : {}),
-        },
-      })
-      frontends.push(server)
-      await server.listen()
-    }
-    browser = await chromium.launch()
+    environment = await startBrowserApplication({ mail: true })
+    ;({ browser, tenantOrigin, platformOrigin, mailpitOrigin } = environment)
   })
 
   beforeEach(async () => {
@@ -218,28 +102,7 @@ describe("email auth UI", () => {
   })
 
   afterAll(async () => {
-    try {
-      await browser?.close()
-    } finally {
-      try {
-        await Promise.all(frontends.map((server) => server.close()))
-      } finally {
-        try {
-          await app?.close()
-        } finally {
-          if (originalTenantApiProxyTarget === undefined) {
-            delete process.env.TENANT_API_PROXY_TARGET
-          } else {
-            process.env.TENANT_API_PROXY_TARGET = originalTenantApiProxyTarget
-          }
-          try {
-            await mailpit?.stop()
-          } finally {
-            await postgres?.stop()
-          }
-        }
-      }
-    }
+    await environment?.close()
   })
 
   it("注册后未验证邮箱不能登录", async () => {

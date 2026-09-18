@@ -1,24 +1,16 @@
-import { startAuthProbeDatabase } from "../setup/auth-probe-database.mjs"
-import { signUpVerified } from "../setup/complete-signup.mjs"
-import { testEmailConfig } from "../setup/email-config.ts"
-import { execFile } from "node:child_process"
-import { randomBytes, randomUUID } from "node:crypto"
-import { promisify } from "node:util"
 import { createRequire } from "node:module"
+import { startTestApplication } from "../setup/test-runtime.mjs"
+import { signUpVerified } from "../setup/complete-signup.mjs"
+import { randomUUID } from "node:crypto"
 import { beforeAll, afterAll, describe, expect, it } from "vitest"
-import { createDatabase } from "../../packages/database/dist/index.js"
 const databaseRequire = createRequire(
   new URL("../../packages/database/package.json", import.meta.url)
 )
 const { drizzle } = databaseRequire("drizzle-orm/node-postgres")
-const require = createRequire(import.meta.url)
-const {
-  createApplication,
-} = require("../../apps/api/dist/create-application.js")
-const { AuthRuntime } = require("../../apps/api/dist/auth-runtime.js")
 
 describe("S8: Organization integration invariants", () => {
-  let container, app, runtime, baseURL, migrator
+  let environment
+  let runtime, baseURL, migrator
   const origin = "http://localhost:3200"
   const versionedPaths = new Set([
     "organization/update-member-role",
@@ -54,38 +46,11 @@ describe("S8: Organization integration invariants", () => {
       body: { name: "S8 probe", slug: randomUUID() },
     })
   beforeAll(async () => {
-    const database = await startAuthProbeDatabase()
-    container = database.container
-    const { url, passwords } = database
-    await promisify(execFile)(
-      process.execPath,
-      ["packages/database/src/migrate.ts"],
-      {
-        env: {
-          PATH: process.env.PATH,
-          MIGRATION_DATABASE_URL: url("app_migrator", passwords[1]),
-        },
-      }
-    )
-    migrator = createDatabase(url("app_migrator", passwords[1])).pool
-    app = await createApplication(
-      {
-        databaseURL: url("app_runtime", passwords[2]),
-        baseURL: "http://localhost:3000",
-        secret: randomBytes(32).toString("hex"),
-        trustedOrigins: [origin],
-        email: testEmailConfig(),
-      },
-      { logger: ["error"] }
-    )
-    await app.listen(0, "127.0.0.1")
-    baseURL = await app.getUrl()
-    runtime = app.get(AuthRuntime)
+    environment = await startTestApplication({ origins: [origin] })
+    ;({ runtime, migrator, baseURL } = environment)
   })
   afterAll(async () => {
-    await app?.close()
-    await migrator?.end()
-    await container?.stop()
+    await environment?.close()
   })
 
   it("documents that a caller transaction does not own the auth lifecycle transaction", async () => {

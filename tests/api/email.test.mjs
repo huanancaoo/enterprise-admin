@@ -1,37 +1,11 @@
-import { createServer } from "node:net"
-import { execFile } from "node:child_process"
+import { startTestApplication } from "../setup/test-runtime.mjs"
 import { randomBytes, randomUUID } from "node:crypto"
-import { readFile } from "node:fs/promises"
-import { promisify } from "node:util"
-import { createRequire } from "node:module"
-import { GenericContainer, Wait } from "testcontainers"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
-import { startAuthProbeDatabase } from "../setup/auth-probe-database.mjs"
-import { testEmailConfig } from "../setup/email-config.ts"
 import { firstHttpUrl, waitForMail } from "../setup/mailpit.mjs"
 import { signUpVerified } from "../setup/complete-signup.mjs"
-import { createDatabase } from "../../packages/database/dist/index.js"
-
-const require = createRequire(import.meta.url)
-const {
-  createApplication,
-} = require("../../apps/api/dist/create-application.js")
-const { AuthRuntime } = require("../../apps/api/dist/auth-runtime.js")
-
-async function reservePort() {
-  const server = createServer()
-  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve))
-  const { port } = server.address()
-  await new Promise((resolve, reject) =>
-    server.close((error) => (error ? reject(error) : resolve()))
-  )
-  return port
-}
 
 describe("auth mail outbox → SMTP → Mailpit", () => {
-  let database
-  let mailpit
-  let app
+  let environment
   let runtime
   let migrator
   let baseURL
@@ -39,61 +13,12 @@ describe("auth mail outbox → SMTP → Mailpit", () => {
   const origin = "http://localhost:3200"
 
   beforeAll(async () => {
-    const versions = JSON.parse(
-      await readFile("docs/architecture/versions.json", "utf8")
-    )
-    database = await startAuthProbeDatabase()
-    mailpit = await new GenericContainer(versions.mailpit.image)
-      .withExposedPorts(1025, 8025)
-      .withWaitStrategy(Wait.forHttp("/", 8025))
-      .start()
-    const smtpPort = mailpit.getMappedPort(1025)
-    mailpitOrigin = `http://${mailpit.getHost()}:${mailpit.getMappedPort(8025)}`
-    await promisify(execFile)(
-      process.execPath,
-      ["packages/database/src/migrate.ts"],
-      {
-        env: {
-          PATH: process.env.PATH,
-          MIGRATION_DATABASE_URL: database.url(
-            "app_migrator",
-            database.passwords[1]
-          ),
-        },
-      }
-    )
-    migrator = createDatabase(
-      database.url("app_migrator", database.passwords[1])
-    ).pool
-    const apiPort = await reservePort()
-    baseURL = `http://127.0.0.1:${apiPort}`
-    app = await createApplication(
-      {
-        databaseURL: database.url("app_runtime", database.passwords[2]),
-        baseURL,
-        secret: randomBytes(32).toString("hex"),
-        trustedOrigins: [origin],
-        email: testEmailConfig({
-          smtp: {
-            host: mailpit.getHost(),
-            port: smtpPort,
-            secure: false,
-          },
-          linkOrigin: origin,
-        }),
-      },
-      { logger: ["error"] }
-    )
-    await app.listen(apiPort, "127.0.0.1")
-    runtime = app.get(AuthRuntime)
-    runtime.startEmailDispatcher()
+    environment = await startTestApplication({ origins: [origin], mail: true })
+    ;({ runtime, migrator, baseURL, mailpitOrigin } = environment)
   }, 180_000)
 
   afterAll(async () => {
-    await app?.close()
-    await migrator?.end()
-    await mailpit?.stop()
-    await database?.container.stop()
+    await environment?.close()
   })
 
   it("sends a verify-email message and the link verifies the user", async () => {

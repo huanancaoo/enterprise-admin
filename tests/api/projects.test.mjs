@@ -1,25 +1,16 @@
-import { execFile } from "node:child_process"
+import { startTestApplication } from "../setup/test-runtime.mjs"
 import { randomBytes } from "node:crypto"
-import { readFile } from "node:fs/promises"
 import { signUpVerified } from "../setup/complete-signup.mjs"
-import { testEmailConfig } from "../setup/email-config.ts"
-import { resolve } from "node:path"
-import { promisify } from "node:util"
-import { GenericContainer, Wait } from "testcontainers"
 import { beforeAll, afterAll, describe, expect, it } from "vitest"
 import { createRequire } from "node:module"
 const require = createRequire(import.meta.url)
 // Nest 注入令牌与生产 CJS 入口使用同一个模块实例。
-const {
-  createApplication,
-} = require("../../apps/api/dist/create-application.js")
+const { Projects } = require("../../apps/api/dist/projects.js")
 const { RequestLanguage } = require("../../apps/api/dist/request-language.js")
-const { AuthRuntime } = require("../../apps/api/dist/auth-runtime.js")
 const {
   TenantContextService,
 } = require("../../apps/api/dist/tenant-context.service.js")
 import { auditEvents } from "../../packages/database/dist/schema/audit.js"
-import { createDatabase } from "../../packages/database/dist/index.js"
 import { createTenantRunner } from "../../packages/database/dist/tenant.js"
 import { projectRepository } from "../../packages/database/dist/repositories/projects.js"
 import {
@@ -42,8 +33,8 @@ import {
 import { getGetProjectQueryKey } from "../../packages/api-client/src/generated/endpoints/projects/projects.ts"
 
 describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", () => {
-  let container,
-    app,
+  let environment
+  let app,
     runtime,
     baseURL,
     cookie,
@@ -135,58 +126,8 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
       }
     )
   beforeAll(async () => {
-    const versions = JSON.parse(
-      await readFile("docs/architecture/versions.json", "utf8")
-    )
-    const passwords = Array.from({ length: 4 }, () =>
-      randomBytes(24).toString("hex")
-    )
-    container = await new GenericContainer(versions.postgresql.image)
-      .withEnvironment({
-        POSTGRES_USER: "bootstrap_admin",
-        POSTGRES_DB: "enterprise_admin",
-        POSTGRES_PASSWORD: passwords[0],
-        APP_MIGRATOR_PASSWORD: passwords[1],
-        APP_RUNTIME_PASSWORD: passwords[2],
-        PLATFORM_RUNTIME_PASSWORD: passwords[3],
-      })
-      .withCopyFilesToContainer([
-        {
-          source: resolve("infra/postgres/bootstrap.sql"),
-          target: "/docker-entrypoint-initdb.d/001-bootstrap.sql",
-        },
-      ])
-      .withExposedPorts(5432)
-      .withWaitStrategy(
-        Wait.forLogMessage("database system is ready to accept connections", 2)
-      )
-      .start()
-    const url = (user, password) =>
-      `postgresql://${user}:${password}@${container.getHost()}:${container.getMappedPort(5432)}/enterprise_admin`
-    await promisify(execFile)(
-      process.execPath,
-      ["packages/database/src/migrate.ts"],
-      {
-        env: {
-          PATH: process.env.PATH,
-          MIGRATION_DATABASE_URL: url("app_migrator", passwords[1]),
-        },
-      }
-    )
-    migrator = createDatabase(url("app_migrator", passwords[1])).pool
-    app = await createApplication(
-      {
-        databaseURL: url("app_runtime", passwords[2]),
-        baseURL: "http://localhost:3000",
-        secret: randomBytes(32).toString("hex"),
-        trustedOrigins: [origin],
-        email: testEmailConfig(),
-      },
-      { logger: ["error"] }
-    )
-    await app.listen(0, "127.0.0.1")
-    baseURL = await app.getUrl()
-    runtime = app.get(AuthRuntime)
+    environment = await startTestApplication({ origins: [origin] })
+    ;({ app, runtime, migrator, baseURL } = environment)
     const account = await signUpVerified(baseURL, origin, migrator, {
       email: "projects@example.test",
       name: "Projects",
@@ -250,12 +191,69 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
     configureApiClient({ baseUrl: baseURL, getHeaders: () => ({ cookie }) })
   })
   afterAll(async () => {
-    try {
-      await app?.close()
-      await migrator?.end()
-    } finally {
-      await container?.stop()
-    }
+    await environment?.close()
+  })
+
+  it("项目 module 同一 interface 保持原始译文、数据不变量与组织隔离", async () => {
+    const headers = new Headers({ cookie })
+    const organization = await runtime.auth.api.createOrganization({
+      headers,
+      body: {
+        name: "Module contract",
+        slug: `module-${randomBytes(8).toString("hex")}`,
+      },
+    })
+    const moduleContext = await app
+      .get(TenantContextService)
+      .resolve(
+        headers,
+        organization.id,
+        { project: ["create"] },
+        "module-contract",
+        new RequestLanguage(null)
+      )
+    const module = app.get(Projects)
+    const project = await module.create(moduleContext, {
+      name: "原始名称",
+      description: null,
+      contentLocale: "zh-CN",
+    })
+    await module.update(
+      moduleContext,
+      project.id,
+      { translation: { locale: "en-US", name: "English name" } },
+      headers
+    )
+    expect(
+      await module.getTranslation(moduleContext, project.id, "zh-CN")
+    ).toEqual({
+      locale: "zh-CN",
+      name: "原始名称",
+      description: null,
+    })
+    expect(
+      await module.getTranslation(moduleContext, project.id, "en-US")
+    ).toEqual({
+      locale: "en-US",
+      name: "English name",
+      description: null,
+    })
+    await expect(
+      module.update(
+        moduleContext,
+        project.id,
+        { translation: { locale: "ar", description: "missing name" } },
+        headers
+      )
+    ).rejects.toThrow("New translations require a name")
+    await expect(
+      module.getTranslation(moduleContext, project.id, "ar")
+    ).rejects.toThrow("Not Found")
+    await expect(module.get(contextB, project.id)).rejects.toThrow("Not Found")
+    await module.delete(moduleContext, project.id)
+    await expect(module.get(moduleContext, project.id)).rejects.toThrow(
+      "Not Found"
+    )
   })
 
   it("SDK读取整条译文，null描述不混入基础译文，租户隔离", async () => {

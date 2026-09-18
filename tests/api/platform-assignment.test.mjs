@@ -1,21 +1,13 @@
-import { startAuthProbeDatabase } from "../setup/auth-probe-database.mjs"
+import { startTestApplication } from "../setup/test-runtime.mjs"
 import { signUpVerified } from "../setup/complete-signup.mjs"
-import { testEmailConfig } from "../setup/email-config.ts"
 import { execFile } from "node:child_process"
 import { randomBytes, randomUUID } from "node:crypto"
 import { promisify } from "node:util"
-import { createRequire } from "node:module"
 import { beforeAll, afterAll, describe, expect, it } from "vitest"
-import { createDatabase } from "../../packages/database/dist/index.js"
-
-const require = createRequire(import.meta.url)
-const {
-  createApplication,
-} = require("../../apps/api/dist/create-application.js")
-const { AuthRuntime } = require("../../apps/api/dist/auth-runtime.js")
 
 describe("platform assignment access boundary", () => {
-  let container, app, runtime, migrator, baseURL
+  let environment
+  let runtime, migrator, baseURL
   const origin = "http://localhost:3201"
   const signup = () =>
     signUpVerified(baseURL, origin, migrator, { name: "Member" })
@@ -26,38 +18,61 @@ describe("platform assignment access boundary", () => {
     })
 
   beforeAll(async () => {
-    const database = await startAuthProbeDatabase()
-    container = database.container
-    const { url, passwords } = database
-    await promisify(execFile)(
+    environment = await startTestApplication({ origins: [origin] })
+    ;({ runtime, migrator, baseURL } = environment)
+  })
+  afterAll(async () => {
+    await environment?.close()
+  })
+
+  it("真实 CLI 不需要邮件配置即可创建可登录的平台管理员", async () => {
+    const email = `${randomUUID()}@example.test`
+    const password = randomBytes(24).toString("hex")
+    const config = environment.config
+    const { stdout } = await promisify(execFile)(
       process.execPath,
-      ["packages/database/src/migrate.ts"],
+      [
+        "apps/api/dist/console.js",
+        "platform",
+        "admin",
+        "create",
+        "--email",
+        email,
+        "--password",
+        password,
+        "--name",
+        "CLI 管理员",
+      ],
       {
         env: {
           PATH: process.env.PATH,
-          MIGRATION_DATABASE_URL: url("app_migrator", passwords[1]),
+          DATABASE_URL: config.databaseURL,
+          BETTER_AUTH_URL: config.baseURL,
+          BETTER_AUTH_SECRET: config.secret,
+          BETTER_AUTH_TRUSTED_ORIGINS: origin,
         },
       }
     )
-    migrator = createDatabase(url("app_migrator", passwords[1])).pool
-    app = await createApplication(
-      {
-        databaseURL: url("app_runtime", passwords[2]),
-        baseURL: "http://localhost:3000",
-        secret: randomBytes(32).toString("hex"),
-        trustedOrigins: [origin],
-        email: testEmailConfig(),
-      },
-      { logger: ["error"] }
+    expect(stdout).toMatch(/[0-9a-f]{8}-[0-9a-f-]{27}/)
+    const login = await fetch(`${baseURL}/api/auth/sign-in/email`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin },
+      body: JSON.stringify({ email, password }),
+    })
+    expect(login.status).toBe(200)
+    const cookie = login.headers
+      .getSetCookie()
+      .map((value) => value.split(";")[0])
+      .join("; ")
+    expect((await platformAccess(cookie)).status).toBe(200)
+    const organizations = await fetch(`${baseURL}/api/v1/me/organizations`, {
+      headers: { cookie },
+    })
+    expect(await organizations.json()).toEqual([])
+    const messages = await migrator.query(
+      "SELECT count(*)::int AS count FROM email_messages"
     )
-    await app.listen(0, "127.0.0.1")
-    baseURL = await app.getUrl()
-    runtime = app.get(AuthRuntime)
-  })
-  afterAll(async () => {
-    await app?.close()
-    await migrator?.end()
-    await container?.stop()
+    expect(messages.rows[0].count).toBe(0)
   })
 
   it("rejects anonymous and organization members, then admits only a current assignment", async () => {

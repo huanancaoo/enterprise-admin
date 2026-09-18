@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import { useTranslation } from "react-i18next"
 import { ConfirmDangerAction } from "@workspace/admin"
-import { deleteProject, projectKeys } from "@workspace/api-client"
+import { createProjectMutations } from "@workspace/api-client"
 import { useUiLocale } from "@workspace/i18n/react"
 
 type ProjectDeleteProps = {
@@ -20,6 +20,7 @@ export function ProjectDelete({
   const { t } = useTranslation(["projects", "common"])
   const locale = useUiLocale()
   const queryClient = useQueryClient()
+  const mutations = createProjectMutations(queryClient, organizationId, locale)
   const navigate = useNavigate()
   const [pending, setPending] = useState(false)
   const [failed, setFailed] = useState(false)
@@ -29,20 +30,8 @@ export function ProjectDelete({
       setFailed(false)
       setPending(true)
       try {
-        await deleteProject(organizationId, projectId, {
-          headers: { "Accept-Language": locale },
-        })
-        // 详情按请求语言缓存；删除后不能让任一语言继续展示已不存在的资源。
-        queryClient.removeQueries({
-          queryKey: projectKeys.details(organizationId, projectId),
-        })
-        queryClient.removeQueries({
-          queryKey: projectKeys.translations(organizationId, projectId),
-        })
-        await queryClient.invalidateQueries({
-          queryKey: projectKeys.lists(organizationId),
-          refetchType: "all",
-        })
+        const committed = await mutations.delete(projectId)
+        await committed.refreshed
         await navigate({
           to: "/app/projects/$organizationId",
           params: { organizationId },

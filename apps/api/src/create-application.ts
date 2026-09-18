@@ -4,25 +4,32 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { toNodeHandler } from 'better-auth/node';
 import { runWithAuthRequestContext } from '@workspace/database/auth';
 import { AppModule } from './app.module';
-import { AuthRuntime, type AuthConfig } from './auth-runtime';
+import { AuthRuntime } from './auth-runtime';
+import type { ApplicationConfig } from './application-config';
+import { EmailRuntime } from './email/email-runtime';
 import { configureApp } from './configure-app';
 import { setupSwagger } from './openapi/setup-swagger';
 import { IdentityService } from './identity.service';
 import { AuthorizationService } from './authorization.service';
 import { TenantContextService } from './tenant-context.service';
 import { TenantGuard } from './tenant.guard';
-import { ProjectPolicy } from './project.policy';
+import { Projects } from './projects';
 import { ProjectsController } from './projects.controller';
 import { OrganizationsController } from './organizations.controller';
 import { PlatformController } from './platform.controller';
 import { PlatformGuard } from './platform.guard';
 
 export async function createApplication(
-  config: AuthConfig,
+  config: ApplicationConfig,
   options: NestApplicationOptions = {},
 ): Promise<NestExpressApplication> {
-  const runtime = new AuthRuntime(config);
+  let email: EmailRuntime | undefined;
+  let runtime: AuthRuntime | undefined;
   try {
+    runtime = new AuthRuntime(config, (pool) => {
+      email = new EmailRuntime(pool, config);
+      return email.hooks;
+    });
     const app = await NestFactory.create<NestExpressApplication>(
       {
         module: AppModule,
@@ -33,12 +40,13 @@ export async function createApplication(
         ],
         providers: [
           { provide: AuthRuntime, useValue: runtime },
+          { provide: EmailRuntime, useValue: email },
           IdentityService,
           AuthorizationService,
           TenantContextService,
           TenantGuard,
           PlatformGuard,
-          ProjectPolicy,
+          Projects,
         ],
         exports: [
           IdentityService,
@@ -46,7 +54,7 @@ export async function createApplication(
           TenantContextService,
           TenantGuard,
           PlatformGuard,
-          ProjectPolicy,
+          Projects,
         ],
       },
       { ...options, bodyParser: false, abortOnError: false },
@@ -81,7 +89,8 @@ export async function createApplication(
     app.enableShutdownHooks();
     return app;
   } catch (error) {
-    await runtime.onApplicationShutdown();
+    email?.onModuleDestroy();
+    await runtime?.onApplicationShutdown();
     throw error;
   }
 }

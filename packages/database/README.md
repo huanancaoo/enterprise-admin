@@ -59,7 +59,7 @@ API / Worker 启动脚本不运行迁移。运行账号、平台账号、迁移�
 
 ## 创建平台管理员
 
-平台后台没有注册。用与 API 相同的 runtime 连接和认证配置创建用户并写入平台任职；创建后将邮箱标为已验证，不入队验证邮件。邮箱已被占用时失败，不会改已有用户。
+平台后台没有注册。用与 API 相同的 runtime 连接和认证配置创建用户并写入平台任职；创建后将邮箱标为已验证，不入队验证邮件。邮箱已被占用时失败，不会改已有用户。命令只读取 `DATABASE_URL` 和 `BETTER_AUTH_*` 身份配置，不要求 SMTP 或 `EMAIL_*` 配置；HTTP 运行时仍要求完整邮件配置。
 
 ```sh
 ea platform admin create --email admin@example.test --password 'your-password' --name 平台管理员

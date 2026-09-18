@@ -5,8 +5,7 @@ import { useTranslation } from "react-i18next"
 import {
   ApiClientError,
   getProjectTranslationOptions,
-  projectKeys,
-  updateProject,
+  createProjectMutations,
 } from "@workspace/api-client"
 import {
   ProjectStatusSchema,
@@ -128,6 +127,11 @@ export function ProjectEditForm({
   const { t } = useTranslation(["projects", "common", "validation"])
   const uiLocale = useUiLocale()
   const queryClient = useQueryClient()
+  const mutations = createProjectMutations(
+    queryClient,
+    organizationId,
+    uiLocale
+  )
   const [failed, setFailed] = useState(false)
   const schema = editSchema(initial, t("validation:projectName"))
   const form = useForm({
@@ -148,37 +152,25 @@ export function ProjectEditForm({
         return
       }
       setFailed(false)
-      let response: Awaited<ReturnType<typeof updateProject>>
+      let committed: Awaited<ReturnType<typeof mutations.update>>
       try {
-        response = await updateProject(
-          organizationId,
-          project.id,
-          {
-            ...(statusChanged ? { status: value.status } : {}),
-            ...(translationChanged
-              ? {
-                  translation: {
-                    locale: value.targetLocale,
-                    name: value.name.trim(),
-                    description,
-                  },
-                }
-              : {}),
-          },
-          { "Accept-Language": uiLocale }
-        )
+        committed = await mutations.update(project.id, {
+          ...(statusChanged ? { status: value.status } : {}),
+          ...(translationChanged
+            ? {
+                translation: {
+                  locale: value.targetLocale,
+                  name: value.name.trim(),
+                  description,
+                },
+              }
+            : {}),
+        })
       } catch {
         setFailed(true)
         return
       }
-      // 保存后必须重新读取所有语言的列表、详情和原始译文，不能把表单草稿写入缓存。
-      queryClient.setQueryData(
-        projectKeys.detail(organizationId, project.id, uiLocale),
-        response
-      )
-      await queryClient.invalidateQueries({
-        queryKey: projectKeys.all(organizationId),
-      })
+      await committed.refreshed
       onOpenChange(false)
     },
   })

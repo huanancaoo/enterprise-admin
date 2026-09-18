@@ -1,13 +1,11 @@
 import {
   Body,
-  BadRequestException,
   Controller,
   Delete,
   Get,
   Headers,
   HttpCode,
   HttpStatus,
-  NotFoundException,
   Param,
   Patch,
   Post,
@@ -35,26 +33,14 @@ import {
   type ProjectListQuery,
   type ProjectPage,
 } from '@workspace/contracts';
-import {
-  createTenantRunner,
-  type TenantContext,
-} from '@workspace/database/tenant';
-import { runTenantWrite } from './tenant-write';
-import { projectRepository } from '@workspace/database/repositories/projects';
-import { auditRepository } from '@workspace/database/repositories/audit';
-import { AuthRuntime } from './auth-runtime';
-import { AuthorizationService } from './authorization.service';
-import { ProjectPolicy } from './project.policy';
+import type { TenantContext } from '@workspace/database/tenant';
+import { Projects } from './projects';
 import { CurrentTenant, RequireTenant, RequireTenantAny } from './tenant.guard';
 
 @ApiTags('projects')
 @Controller('organizations/:organizationId/projects')
 export class ProjectsController {
-  constructor(
-    private readonly runtime: AuthRuntime,
-    private readonly authorization: AuthorizationService,
-    private readonly projectPolicy: ProjectPolicy,
-  ) {}
+  constructor(private readonly projects: Projects) {}
 
   @Post()
   @RequireTenant({ project: ['create'] })
@@ -75,28 +61,7 @@ export class ProjectsController {
     @Body({ schema: CreateProjectSchema }) input: CreateProject,
     @CurrentTenant() context: TenantContext,
   ): Promise<ProjectResponse> {
-    return runTenantWrite(this.runtime.pool, context, async (tx) => {
-      const contentLocale =
-        input.contentLocale ?? (await projectRepository.defaultLocale(tx));
-      const project = await projectRepository.create(tx, {
-        ...input,
-        contentLocale,
-      });
-      // 与项目和基础译文共用 TenantTx，审计失败必须回滚整个创建。
-      await auditRepository.record(tx, {
-        eventCode: 'project.created',
-        resourceId: project.id,
-        fields: { status: project.status, contentLocale },
-      });
-      return {
-        ...project,
-        name: input.name,
-        description: input.description,
-        resolvedLocale: contentLocale,
-        createdAt: project.createdAt.toISOString(),
-        updatedAt: project.updatedAt.toISOString(),
-      };
-    });
+    return this.projects.create(context, input);
   }
 
   @Get()
@@ -119,17 +84,7 @@ export class ProjectsController {
     @Query({ schema: ProjectListQuerySchema }) query: ProjectListQuery,
     @CurrentTenant() context: TenantContext,
   ): Promise<ProjectPage> {
-    const page = await createTenantRunner(this.runtime.pool)(context, (tx) =>
-      projectRepository.listPage(tx, query),
-    );
-    return {
-      ...page,
-      items: page.items.map((item) => ({
-        ...item,
-        createdAt: item.createdAt.toISOString(),
-        updatedAt: item.updatedAt.toISOString(),
-      })),
-    };
+    return this.projects.list(context, query);
   }
 
   @Get(':projectId')
@@ -153,15 +108,7 @@ export class ProjectsController {
     @Param('projectId', { schema: ProjectIdSchema }) projectId: string,
     @CurrentTenant() context: TenantContext,
   ): Promise<ProjectResponse> {
-    const project = await createTenantRunner(this.runtime.pool)(context, (tx) =>
-      projectRepository.findLocalized(tx, projectId),
-    );
-    if (!project) throw new NotFoundException();
-    return {
-      ...project,
-      createdAt: project.createdAt.toISOString(),
-      updatedAt: project.updatedAt.toISOString(),
-    };
+    return this.projects.get(context, projectId);
   }
 
   @Delete(':projectId')
@@ -180,23 +127,7 @@ export class ProjectsController {
     @Param('projectId', { schema: ProjectIdSchema }) projectId: string,
     @CurrentTenant() context: TenantContext,
   ): Promise<void> {
-    await runTenantWrite(this.runtime.pool, context, async (tx) => {
-      const project = await this.projectPolicy.requireForMutation(
-        tx,
-        projectId,
-      );
-      const [deleted] = await projectRepository.delete(tx, project.id);
-      if (!deleted) throw new NotFoundException();
-      // 删除与审计共用事务；审计未写入时，级联删除的项目及全部译文必须回滚。
-      await auditRepository.record(tx, {
-        eventCode: 'project.deleted',
-        resourceId: deleted.id,
-        fields: {
-          status: deleted.status,
-          contentLocale: deleted.contentLocale,
-        },
-      });
-    });
+    return this.projects.delete(context, projectId);
   }
 
   @Get(':projectId/translations/:locale')
@@ -217,28 +148,7 @@ export class ProjectsController {
     @Param('locale', { schema: SupportedLocaleSchema }) locale: SupportedLocale,
     @CurrentTenant() context: TenantContext,
   ): Promise<ProjectTranslationResponse> {
-    const translation = await createTenantRunner(this.runtime.pool)(
-      context,
-      async (tx) => {
-        const project = await projectRepository.find(tx, projectId);
-        if (!project) return undefined;
-        const record = await projectRepository.findTranslation(
-          tx,
-          projectId,
-          locale,
-        );
-        // 基础译文是数据不变量；不能把缺失基础译文误报为可新建的目标语言。
-        if (!record && project.contentLocale === locale)
-          throw new Error('Project base translation is missing');
-        return record;
-      },
-    );
-    if (!translation) throw new NotFoundException();
-    return {
-      locale: translation.locale,
-      name: translation.name,
-      description: translation.description,
-    };
+    return this.projects.getTranslation(context, projectId, locale);
   }
 
   @Patch(':projectId')
@@ -264,68 +174,11 @@ export class ProjectsController {
     @Headers() headers: IncomingHttpHeaders,
     @CurrentTenant() context: TenantContext,
   ): Promise<ProjectResponse> {
-    // translate 只授予内容维护；一旦请求包含状态，必须在写入前重新验证 update。
-    if (input.status !== undefined)
-      await this.authorization.requirePermission(
-        fromNodeHeaders(headers),
-        context.organizationId,
-        { project: ['update'] },
-      );
-    const project = await runTenantWrite(
-      this.runtime.pool,
+    return this.projects.update(
       context,
-      async (tx) => {
-        const current = await this.projectPolicy.requireForMutation(
-          tx,
-          projectId,
-        );
-        let statusChanged = false;
-        if (input.status !== undefined && input.status !== current.status) {
-          await projectRepository.updateStatus(tx, projectId, input.status);
-          statusChanged = true;
-          await auditRepository.record(tx, {
-            eventCode: 'project.updated',
-            resourceId: projectId,
-            fields: { status: input.status },
-          });
-        }
-        if (input.translation) {
-          const existing = await projectRepository.findTranslation(
-            tx,
-            projectId,
-            input.translation.locale,
-          );
-          if (!existing && current.contentLocale === input.translation.locale)
-            throw new Error('Project base translation is missing');
-          const name = input.translation.name ?? existing?.name;
-          if (!name)
-            throw new BadRequestException('New translations require a name');
-          const description =
-            input.translation.description === undefined
-              ? (existing?.description ?? null)
-              : input.translation.description;
-          await projectRepository.upsertTranslation(tx, {
-            projectId,
-            locale: input.translation.locale,
-            name,
-            description,
-          });
-          // 译文本身不带更新时间，必须触及项目才能让列表的更新时间与内容事实一致。
-          if (!statusChanged) await projectRepository.touch(tx, projectId);
-          await auditRepository.record(tx, {
-            eventCode: 'project.translation.updated',
-            resourceId: projectId,
-            fields: { locale: input.translation.locale },
-          });
-        }
-        return projectRepository.findLocalized(tx, projectId);
-      },
+      projectId,
+      input,
+      fromNodeHeaders(headers),
     );
-    if (!project) throw new NotFoundException();
-    return {
-      ...project,
-      createdAt: project.createdAt.toISOString(),
-      updatedAt: project.updatedAt.toISOString(),
-    };
   }
 }

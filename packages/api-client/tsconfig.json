@@ -1,5 +1,5 @@
 {
   "extends": "@workspace/typescript-config/react-library.json",
-  "include": ["src"],
+  "include": ["src", "tests"],
   "exclude": ["node_modules", "dist"]
 }

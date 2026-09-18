@@ -1,21 +1,11 @@
-import { startAuthProbeDatabase } from "../setup/auth-probe-database.mjs"
+import { startTestApplication } from "../setup/test-runtime.mjs"
 import { signUpVerified } from "../setup/complete-signup.mjs"
-import { testEmailConfig } from "../setup/email-config.ts"
-import { execFile } from "node:child_process"
-import { randomBytes, randomUUID } from "node:crypto"
-import { promisify } from "node:util"
-import { createRequire } from "node:module"
+import { randomUUID } from "node:crypto"
 import { beforeAll, afterAll, describe, expect, it } from "vitest"
-import { createDatabase } from "../../packages/database/dist/index.js"
-
-const require = createRequire(import.meta.url)
-const {
-  createApplication,
-} = require("../../apps/api/dist/create-application.js")
-const { AuthRuntime } = require("../../apps/api/dist/auth-runtime.js")
 
 describe("S8-02: organization status access boundary", () => {
-  let container, app, runtime, baseURL, migrator
+  let environment
+  let runtime, baseURL, migrator
   const origin = "http://localhost:3200"
   const post = (path, body, cookie) =>
     fetch(`${baseURL}/api/auth/${path}`, {
@@ -42,38 +32,11 @@ describe("S8-02: organization status access boundary", () => {
   const json = (response) => response.json()
 
   beforeAll(async () => {
-    const database = await startAuthProbeDatabase()
-    container = database.container
-    const { url, passwords } = database
-    await promisify(execFile)(
-      process.execPath,
-      ["packages/database/src/migrate.ts"],
-      {
-        env: {
-          PATH: process.env.PATH,
-          MIGRATION_DATABASE_URL: url("app_migrator", passwords[1]),
-        },
-      }
-    )
-    migrator = createDatabase(url("app_migrator", passwords[1])).pool
-    app = await createApplication(
-      {
-        databaseURL: url("app_runtime", passwords[2]),
-        baseURL: "http://localhost:3000",
-        secret: randomBytes(32).toString("hex"),
-        trustedOrigins: [origin],
-        email: testEmailConfig(),
-      },
-      { logger: ["error"] }
-    )
-    await app.listen(0, "127.0.0.1")
-    baseURL = await app.getUrl()
-    runtime = app.get(AuthRuntime)
+    environment = await startTestApplication({ origins: [origin] })
+    ;({ runtime, migrator, baseURL } = environment)
   })
   afterAll(async () => {
-    await app?.close()
-    await migrator?.end()
-    await container?.stop()
+    await environment?.close()
   })
 
   it("lists membership organizations with status and allows access only when ACTIVE", async () => {

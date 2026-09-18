@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { createPlatformAdmin } from '@workspace/database/platform-admin';
 import { CommandRunner, Option, SubCommand } from 'nest-commander';
 import { AuthRuntime, readAuthConfig } from './auth-runtime';
+import { noopAuthEmailHooks } from '@workspace/database/auth';
 
 interface PlatformAdminCreateOptions {
   email: string;
@@ -27,7 +28,10 @@ export class PlatformAdminCreateCommand extends CommandRunner {
     _passedParams: string[],
     options: PlatformAdminCreateOptions,
   ): Promise<void> {
-    const runtime = new AuthRuntime(readAuthConfig(process.env));
+    const runtime = new AuthRuntime(
+      readAuthConfig(process.env),
+      () => noopAuthEmailHooks,
+    );
     try {
       const { userId } = await createPlatformAdmin(
         runtime.auth,
