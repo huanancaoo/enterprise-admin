@@ -1,12 +1,12 @@
 import { useState } from "react"
 import { useParams } from "@tanstack/react-router"
 import { useForm } from "@tanstack/react-form"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import type { TFunction } from "@workspace/i18n"
 import { ConfirmDangerAction, FormDialog, PageHeader } from "@workspace/admin"
-import { useAuthenticatedSession, useAuthAction } from "@workspace/admin/auth"
-import { useGetOrganizationAccessQueryOptions } from "@workspace/api-client"
+import { useAuthenticatedSession } from "@workspace/admin/auth"
+import { getOrganizationAccessOptions } from "@workspace/api-client"
 import { Button } from "@workspace/ui/components/button"
 import {
   Field,
@@ -24,22 +24,9 @@ import {
 } from "@workspace/ui/components/select"
 import * as z from "zod"
 import { authClient } from "@/lib/auth-client"
+import { getOrganizationDirectoryOptions } from "@/query/organization-directory"
 
 const membersPath = "/app/members/$organizationId"
-
-type MemberRow = {
-  id: string
-  userId: string
-  role: string
-  user: { name: string; email: string }
-}
-
-type InvitationRow = {
-  id: string
-  email: string
-  role: string
-  status: string
-}
 
 function inviteSchema(
   t: TFunction<["organization", "common", "validation", "auth"]>
@@ -48,10 +35,6 @@ function inviteSchema(
     email: z.email(t("validation:email")),
     role: z.enum(["member", "admin"]),
   })
-}
-
-function membersQueryKey(organizationId: string) {
-  return ["organization-members", organizationId] as const
 }
 
 function roleLabel(
@@ -64,70 +47,25 @@ function roleLabel(
   throw new Error(`unknown role: ${role}`)
 }
 
+function mutationErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : undefined
+}
+
 export function MembersRoute() {
   const { organizationId } = useParams({ from: membersPath })
   const { t } = useTranslation(["organization", "common", "validation", "auth"])
   const session = useAuthenticatedSession()!
   const queryClient = useQueryClient()
-  const action = useAuthAction()
   const [inviteOpen, setInviteOpen] = useState(false)
-  const access = useQuery(useGetOrganizationAccessQueryOptions(organizationId))
-  const directory = useQuery({
-    queryKey: membersQueryKey(organizationId),
-    queryFn: async () => {
-      const [members, invitations] = await Promise.all([
-        authClient.organization.listMembers({
-          query: { organizationId },
-        }),
-        authClient.organization.listInvitations({
-          query: { organizationId },
-        }),
-      ])
-      if (members.error) throw new Error(members.error.message)
-      if (invitations.error) throw new Error(invitations.error.message)
-      const memberRows = members.data.members as MemberRow[]
-      const invitationRows = invitations.data as InvitationRow[]
-      return {
-        members: memberRows,
-        invitations: invitationRows.filter(
-          (invitation) => invitation.status === "pending"
-        ),
-      }
-    },
-    retry: false,
-  })
+  const directoryOptions = getOrganizationDirectoryOptions(organizationId)
+  const access = useQuery(getOrganizationAccessOptions(organizationId))
+  const directory = useQuery(directoryOptions)
   const actor = directory.data?.members.find(
     (member) => member.userId === session.user.id
   )
   const actorRole = actor?.role ?? ""
   const canInvite = actorRole === "owner" || actorRole === "admin"
   const canInviteAdmin = actorRole === "owner"
-  const form = useForm({
-    defaultValues: { email: "", role: "member" as "member" | "admin" },
-    validators: { onSubmit: inviteSchema(t) },
-    onSubmit: async ({ value, formApi }) => {
-      const ok = await action.run(() =>
-        authClient.organization.inviteMember({
-          email: value.email.trim(),
-          role: canInviteAdmin ? value.role : "member",
-          organizationId,
-        })
-      )
-      if (!ok) return
-      formApi.reset()
-      setInviteOpen(false)
-      await queryClient.invalidateQueries({
-        queryKey: membersQueryKey(organizationId),
-      })
-    },
-  })
-
-  async function refresh() {
-    await queryClient.invalidateQueries({
-      queryKey: membersQueryKey(organizationId),
-    })
-  }
-
   const versionHeader = access.data
     ? {
         fetchOptions: {
@@ -139,6 +77,82 @@ export function MembersRoute() {
         },
       }
     : {}
+
+  const invite = useMutation({
+    mutationFn: async (input: { email: string; role: "member" | "admin" }) => {
+      const result = await authClient.organization.inviteMember({
+        email: input.email,
+        role: input.role,
+        organizationId,
+      })
+      if (result.error) throw new Error(result.error.message)
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: directoryOptions.queryKey }),
+  })
+  const updateRole = useMutation({
+    mutationFn: async (input: {
+      memberId: string
+      role: "member" | "admin"
+    }) => {
+      const result = await authClient.organization.updateMemberRole({
+        memberId: input.memberId,
+        role: input.role,
+        organizationId,
+        ...versionHeader,
+      })
+      if (result.error) throw new Error(result.error.message)
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: directoryOptions.queryKey }),
+  })
+  const removeMember = useMutation({
+    mutationFn: async (memberId: string) => {
+      const result = await authClient.organization.removeMember({
+        memberIdOrEmail: memberId,
+        organizationId,
+      })
+      if (result.error) throw new Error(result.error.message)
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: directoryOptions.queryKey }),
+  })
+  const resendInvitation = useMutation({
+    mutationFn: async (input: { email: string; role: string }) => {
+      const result = await authClient.organization.inviteMember({
+        email: input.email,
+        role: input.role,
+        organizationId,
+        resend: true,
+      })
+      if (result.error) throw new Error(result.error.message)
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: directoryOptions.queryKey }),
+  })
+  const cancelInvitation = useMutation({
+    mutationFn: async (invitationId: string) => {
+      const result = await authClient.organization.cancelInvitation({
+        invitationId,
+      })
+      if (result.error) throw new Error(result.error.message)
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: directoryOptions.queryKey }),
+  })
+
+  const form = useForm({
+    defaultValues: { email: "", role: "member" as "member" | "admin" },
+    validators: { onSubmit: inviteSchema(t) },
+    onSubmit: async ({ value, formApi }) => {
+      await invite.mutateAsync({
+        email: value.email.trim(),
+        role: canInviteAdmin ? value.role : "member",
+      })
+      formApi.reset()
+      setInviteOpen(false)
+    },
+  })
 
   return (
     <section className="space-y-8">
@@ -157,11 +171,6 @@ export function MembersRoute() {
       {directory.error && (
         <p role="alert" className="text-sm text-destructive">
           {directory.error.message}
-        </p>
-      )}
-      {action.error && (
-        <p role="alert" className="text-sm text-destructive">
-          {action.error}
         </p>
       )}
       {directory.data && (
@@ -189,26 +198,24 @@ export function MembersRoute() {
                     {canChangeRole ? (
                       <Select
                         value={member.role}
+                        items={{
+                          member: t("organization:role_member"),
+                          admin: t("organization:role_admin"),
+                        }}
                         onValueChange={(value) => {
                           if (value !== "member" && value !== "admin") {
                             throw new Error(`unknown role: ${value}`)
                           }
-                          void action.run(async () => {
-                            const result =
-                              await authClient.organization.updateMemberRole({
-                                memberId: member.id,
-                                role: value,
-                                organizationId,
-                                ...versionHeader,
-                              })
-                            if (!result.error) await refresh()
-                            return result
+                          updateRole.mutate({
+                            memberId: member.id,
+                            role: value,
                           })
                         }}
                       >
                         <SelectTrigger
                           aria-label={t("organization:updateRole")}
                           className="w-36"
+                          disabled={updateRole.isPending}
                         >
                           <SelectValue />
                         </SelectTrigger>
@@ -234,18 +241,10 @@ export function MembersRoute() {
                         cancelLabel={t("common:cancel")}
                         confirmLabel={t("organization:removeMember")}
                         pendingLabel={t("organization:removing")}
-                        pending={action.pending}
-                        error={action.error}
+                        pending={removeMember.isPending}
+                        error={mutationErrorMessage(removeMember.error)}
                         onConfirm={() => {
-                          void action.run(async () => {
-                            const result =
-                              await authClient.organization.removeMember({
-                                memberIdOrEmail: member.id,
-                                organizationId,
-                              })
-                            if (!result.error) await refresh()
-                            return result
-                          })
+                          removeMember.mutate(member.id)
                         }}
                       />
                     )}
@@ -254,13 +253,18 @@ export function MembersRoute() {
               )
             })}
           </ul>
+          {updateRole.error && (
+            <p role="alert" className="text-sm text-destructive">
+              {updateRole.error.message}
+            </p>
+          )}
           <section className="space-y-3">
             <h2 className="text-lg font-semibold">
               {t("organization:pendingInvitations")}
             </h2>
             {directory.data.invitations.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                {t("common:emptyTitle")}
+                {t("organization:noPendingInvitations")}
               </p>
             ) : (
               <ul className="divide-y rounded-xl border">
@@ -279,18 +283,11 @@ export function MembersRoute() {
                       <div className="flex flex-wrap gap-2">
                         <Button
                           variant="outline"
-                          disabled={action.pending}
+                          disabled={resendInvitation.isPending}
                           onClick={() => {
-                            void action.run(async () => {
-                              const result =
-                                await authClient.organization.inviteMember({
-                                  email: invitation.email,
-                                  role: invitation.role,
-                                  organizationId,
-                                  resend: true,
-                                })
-                              if (!result.error) await refresh()
-                              return result
+                            resendInvitation.mutate({
+                              email: invitation.email,
+                              role: invitation.role,
                             })
                           }}
                         >
@@ -306,17 +303,10 @@ export function MembersRoute() {
                           cancelLabel={t("common:cancel")}
                           confirmLabel={t("organization:cancelInvitation")}
                           pendingLabel={t("organization:cancelling")}
-                          pending={action.pending}
-                          error={action.error}
+                          pending={cancelInvitation.isPending}
+                          error={mutationErrorMessage(cancelInvitation.error)}
                           onConfirm={() => {
-                            void action.run(async () => {
-                              const result =
-                                await authClient.organization.cancelInvitation({
-                                  invitationId: invitation.id,
-                                })
-                              if (!result.error) await refresh()
-                              return result
-                            })
+                            cancelInvitation.mutate(invitation.id)
                           }}
                         />
                       </div>
@@ -324,6 +314,11 @@ export function MembersRoute() {
                   </li>
                 ))}
               </ul>
+            )}
+            {resendInvitation.error && (
+              <p role="alert" className="text-sm text-destructive">
+                {resendInvitation.error.message}
+              </p>
             )}
           </section>
         </>
@@ -336,8 +331,8 @@ export function MembersRoute() {
             title={t("organization:invite")}
             description={t("organization:inviteDescription")}
             onSubmit={() => void form.handleSubmit()}
-            pending={action.pending || submitting}
-            error={action.error}
+            pending={invite.isPending || submitting}
+            error={mutationErrorMessage(invite.error)}
             submitLabel={t("organization:inviteSubmit")}
           >
             <FieldGroup>
@@ -379,6 +374,10 @@ export function MembersRoute() {
                       </FieldLabel>
                       <Select
                         value={field.state.value}
+                        items={{
+                          member: t("organization:role_member"),
+                          admin: t("organization:role_admin"),
+                        }}
                         onValueChange={(value) => {
                           if (value !== "member" && value !== "admin") {
                             throw new Error(`unknown role: ${value}`)
@@ -386,7 +385,10 @@ export function MembersRoute() {
                           field.handleChange(value)
                         }}
                       >
-                        <SelectTrigger id="invite-role">
+                        <SelectTrigger
+                          id="invite-role"
+                          onBlur={field.handleBlur}
+                        >
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>

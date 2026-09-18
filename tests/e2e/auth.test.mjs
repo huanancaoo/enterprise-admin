@@ -443,7 +443,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await expectUI(page.locator("html")).toHaveAttribute("dir", "rtl")
     // 目标内容语言与界面语言分离；这里必须切到不同语言，才能证明界面刷新没有篡改英文草稿。
     await expectUI(dialog.locator("#project-edit-content-locale")).toHaveText(
-      /en-US/
+      /English/
     )
     await expectUI(dialog.locator("#project-edit-name")).toHaveValue(
       "English draft"
@@ -684,7 +684,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await expectUI(page.locator("html")).toHaveAttribute("dir", "rtl")
     await expectUI(
       editDialog.locator("#project-edit-content-locale")
-    ).toHaveText(/en-US/)
+    ).toHaveText(/English/)
     await expectUI(editDialog.locator("#project-edit-name")).toHaveValue(
       "Core Workflow Project"
     )

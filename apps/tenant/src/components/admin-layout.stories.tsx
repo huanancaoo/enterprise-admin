@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import {
   createMemoryHistory,
   createRouter,
@@ -6,6 +7,7 @@ import {
 } from "@tanstack/react-router"
 import type { Meta, StoryObj } from "@storybook/react-vite"
 import { expect, userEvent, waitFor, within } from "storybook/test"
+import { useUiLocale } from "@workspace/i18n/react"
 import {
   createWorkspaceSessionHandlers,
   createProjectsHandler,
@@ -14,16 +16,34 @@ import {
 } from "@workspace/mocks"
 import { router as applicationRouter } from "../router"
 
+const storyUser = {
+  id: "layout-user",
+  name: "布局测试用户",
+  email: "layout@example.com",
+}
+
 function AdminLayoutStory() {
+  const queryClient = useQueryClient()
+  const locale = useUiLocale()
   const [router] = useState(() =>
     createRouter({
       routeTree: applicationRouter.routeTree,
       history: createMemoryHistory({
         initialEntries: [`/app/projects/${organizations[0].id}`],
       }),
+      context: {
+        user: storyUser,
+        queryClient,
+        locale,
+      },
     })
   )
-  return <RouterProvider router={router} />
+  return (
+    <RouterProvider
+      router={router}
+      context={{ user: storyUser, queryClient, locale }}
+    />
+  )
 }
 
 const meta = {
@@ -79,6 +99,9 @@ export const PersistentSidebar: Story = {
     await userEvent.click(
       await screen.findByRole("menuitem", { name: /South workspace/ })
     )
+    await waitFor(() =>
+      expect(screen.queryByRole("menuitem")).not.toBeInTheDocument()
+    )
     await expect(
       await canvas.findByRole("link", { name: "办公空间 2-26" })
     ).toBeVisible()
@@ -112,6 +135,9 @@ export const SuspendedOrganization: Story = {
     )
     await userEvent.click(
       await screen.findByRole("menuitem", { name: /South workspace/ })
+    )
+    await waitFor(() =>
+      expect(screen.queryByRole("menuitem")).not.toBeInTheDocument()
     )
     await expect(await canvas.findByRole("table")).toBeVisible()
     await expect(canvas.queryByRole("alert")).toBeNull()

@@ -20,6 +20,7 @@
   "memberStatus_invited": "مدعو",
   "memberStatus_suspended": "معلق",
   "name": "اسم المؤسسة",
+  "noPendingInvitations": "لا توجد دعوات معلقة",
   "pendingInvitations": "الدعوات المعلقة",
   "removeMember": "إزالة العضو",
   "removeMemberDescription": "إزالة {{name}} من المؤسسة.",

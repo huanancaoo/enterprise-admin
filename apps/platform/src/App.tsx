@@ -1,5 +1,10 @@
 import { useTranslation } from "react-i18next"
-import { Link, Outlet, useSearch } from "@tanstack/react-router"
+import {
+  Link,
+  Outlet,
+  useRouteContext,
+  useSearch,
+} from "@tanstack/react-router"
 import { AppShell } from "@workspace/admin"
 import {
   Breadcrumb,
@@ -8,7 +13,8 @@ import {
   BreadcrumbPage,
 } from "@workspace/ui/components/breadcrumb"
 import {
-  AuthSession,
+  AuthenticatedSessionProvider,
+  CredentialsPage,
   EmailVerifiedPage,
   ForgotPasswordPage,
   ResetPasswordPage,
@@ -18,16 +24,19 @@ import { LayoutDashboardIcon } from "lucide-react"
 import { authClient } from "./lib/auth-client"
 
 export function App() {
-  const { t } = useTranslation("auth")
+  const { user } = useRouteContext({ from: "__root__" })
+  const outlet = <Outlet />
+  if (!user) return outlet
   return (
-    <AuthSession
-      client={authClient}
-      title={t("platformTitle")}
-      authenticatedPath="/platform/"
-    >
-      <Outlet />
-    </AuthSession>
+    <AuthenticatedSessionProvider client={authClient} user={user}>
+      <section key={user.id}>{outlet}</section>
+    </AuthenticatedSessionProvider>
   )
+}
+
+export function PlatformLoginPage() {
+  const { t } = useTranslation("auth")
+  return <CredentialsPage title={t("platformTitle")} />
 }
 
 export function PlatformLayout() {
@@ -65,7 +74,7 @@ export function PlatformLayout() {
               title: t("auth:platformTitle"),
               icon: <LayoutDashboardIcon />,
               isActive: true,
-              render: <Link to="/platform/" />,
+              render: <Link to="/platform" />,
             },
           ],
         },

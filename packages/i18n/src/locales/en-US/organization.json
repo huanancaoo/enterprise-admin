@@ -20,6 +20,7 @@
   "memberStatus_invited": "Invited",
   "memberStatus_suspended": "Suspended",
   "name": "Organization name",
+  "noPendingInvitations": "No pending invitations",
   "pendingInvitations": "Pending invitations",
   "removeMember": "Remove member",
   "removeMemberDescription": "Remove {{name}} from the organization.",

@@ -1,23 +1,36 @@
 import {
-  createRootRoute,
+  createRootRouteWithContext,
   createRoute,
   createRouter,
   redirect,
 } from "@tanstack/react-router"
+import {
+  LoadingState,
+  NotFoundState,
+  RouterErrorComponent,
+} from "@workspace/admin"
 import { ForgotPasswordPage } from "@workspace/admin/auth"
+import type { WorkspaceRouterContext } from "@workspace/admin/auth"
 import {
   App,
   PlatformAuthTitlePage,
   PlatformEmailVerifiedPage,
   PlatformHome,
   PlatformLayout,
+  PlatformLoginPage,
   PlatformResetPasswordPage,
 } from "./App"
 
-const rootRoute = createRootRoute({ component: App })
+const rootRoute = createRootRouteWithContext<WorkspaceRouterContext>()({
+  component: App,
+})
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/login",
+  beforeLoad: ({ context }) => {
+    if (context.user) throw redirect({ to: "/platform" })
+  },
+  component: PlatformLoginPage,
 })
 const forgotPasswordRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -43,6 +56,9 @@ const emailVerifiedRoute = createRoute({
 const platformRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/platform",
+  beforeLoad: ({ context }) => {
+    if (!context.user) throw redirect({ to: "/login" })
+  },
   component: PlatformLayout,
 })
 const platformIndexRoute = createRoute({
@@ -54,7 +70,7 @@ const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
   beforeLoad: () => {
-    throw redirect({ to: "/platform/" })
+    throw redirect({ to: "/platform" })
   },
 })
 
@@ -67,4 +83,19 @@ export const router = createRouter({
     emailVerifiedRoute,
     platformRoute.addChildren([platformIndexRoute]),
   ]),
+  context: {
+    user: null,
+    queryClient: undefined!,
+    locale: "zh-CN",
+  },
+  defaultPreload: "intent",
+  defaultNotFoundComponent: NotFoundState,
+  defaultErrorComponent: RouterErrorComponent,
+  defaultPendingComponent: LoadingState,
 })
+
+declare module "@tanstack/react-router" {
+  interface Register {
+    router: typeof router
+  }
+}

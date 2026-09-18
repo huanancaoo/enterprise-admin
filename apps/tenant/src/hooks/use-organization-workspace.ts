@@ -1,22 +1,14 @@
 import { authClient } from "@/lib/auth-client"
 import {
   dropOrganizationQueries,
-  listMyOrganizations,
-  listMyOrganizationsKey,
+  getWorkspaceOrganizationsOptions,
 } from "@workspace/api-client"
-import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useAuthAction } from "@workspace/admin/auth"
 import { useEffect, useRef } from "react"
 
-// QueryClient 由 AuthSession 按账号隔离；此 Key 仅持有当前账号的组织事实。
-const workspaceQuery = queryOptions({
-  queryKey: listMyOrganizationsKey(),
-  queryFn: async () => {
-    const result = await listMyOrganizations()
-    return result.data
-  },
-  retry: false,
-})
+// QueryClient 由 AuthGate 按账号隔离；此 Key 仅持有当前账号的组织事实。
+const workspaceQuery = getWorkspaceOrganizationsOptions()
 
 export function useOrganizationWorkspace() {
   const workspace = useQuery(workspaceQuery)

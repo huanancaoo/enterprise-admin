@@ -9,6 +9,12 @@
         "dev"
       ],
       "port": 3200
+    },
+    {
+      "name": "tenant",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "tenant", "dev"],
+      "port": 3200
     }
   ]
 }

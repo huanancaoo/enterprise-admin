@@ -3,7 +3,7 @@ import type { TFunction } from "@workspace/i18n"
 import { useState, type ReactNode } from "react"
 import { useForm } from "@tanstack/react-form"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { Link, Navigate, useLocation } from "@tanstack/react-router"
+import { Link } from "@tanstack/react-router"
 import { Eye, EyeOff } from "lucide-react"
 import { cn } from "cn"
 import { Button } from "@workspace/ui/components/button"
@@ -21,18 +21,14 @@ import {
   AuthenticatedSessionContext,
   type AuthenticatedSession,
 } from "./authenticated-session"
-import { AuthClientContext } from "./auth-client-context"
+import {
+  AuthClientContext,
+  useWorkspaceAuthClient,
+} from "./auth-client-context"
 import { AuthPageShell } from "./auth-page-shell"
 import type { WorkspaceAuthClient } from "./client"
 import { useAuthAction } from "./use-auth-action"
-
-type AuthSessionProps = {
-  client: WorkspaceAuthClient
-  title: string
-  allowSignUp?: boolean
-  authenticatedPath: string
-  children: ReactNode
-}
+import { createSessionQueryClient } from "./workspace-router"
 
 function createCredentialsSchemas(
   t: TFunction<["auth", "common", "validation"]>
@@ -57,38 +53,33 @@ function createCredentialsSchemas(
   return { signInSchema, signUpSchema }
 }
 
-function isAnonymousAuthPath(pathname: string) {
-  return (
-    pathname === "/login" ||
-    pathname === "/forgot-password" ||
-    pathname === "/reset-password" ||
-    pathname === "/auth/verified" ||
-    pathname.startsWith("/accept-invitation/")
-  )
-}
-
-function invitationRedirect(searchStr: string) {
-  const query = searchStr.startsWith("?") ? searchStr.slice(1) : searchStr
-  const redirect = new URLSearchParams(query).get("redirect")
-  if (redirect && /^\/accept-invitation\/[0-9a-f-]+$/.test(redirect)) {
-    return redirect
-  }
-}
-
-export function AuthSession({
+export function AuthGate({
   client,
-  title,
-  allowSignUp = false,
-  authenticatedPath,
+  restoreTitle,
   children,
-}: AuthSessionProps) {
-  const { t } = useTranslation(["auth", "common", "validation"])
+}: {
+  client: WorkspaceAuthClient
+  restoreTitle: string
+  children: (input: {
+    user: AuthenticatedSession["user"] | null
+    queryClient: QueryClient
+  }) => ReactNode
+}) {
+  const { t } = useTranslation(["auth", "common"])
   const session = client.useSession()
-  const pathname = useLocation({ select: (location) => location.pathname })
-  const searchStr = useLocation({ select: (location) => location.searchStr })
   // Better Auth 在匿名 refetch（含注册成功）会把 isPending 设回 true；不能卸载入口，否则查收邮件等本地状态会丢。
   const [sessionSettled, setSessionSettled] = useState(false)
   if (!session.isPending && !sessionSettled) setSessionSettled(true)
+
+  const user = session.data?.user ?? null
+  const userId = user?.id ?? "anonymous"
+  const [queryUserId, setQueryUserId] = useState(userId)
+  const [queryClient, setQueryClient] = useState(createSessionQueryClient)
+  // 每个账号使用独立 QueryClient；登出或换账号后不复用旧组织缓存。
+  if (queryUserId !== userId) {
+    setQueryUserId(userId)
+    setQueryClient(createSessionQueryClient())
+  }
 
   if (session.isPending && !sessionSettled) {
     return (
@@ -100,7 +91,7 @@ export function AuthSession({
   if (session.error) {
     return (
       <main className="mx-auto max-w-md space-y-4 p-8">
-        <h1 className="text-xl font-semibold">{title}</h1>
+        <h1 className="text-xl font-semibold">{restoreTitle}</h1>
         <p role="alert">{t("auth:restoreFailed")}</p>
         <Button onClick={() => void session.refetch()}>
           {t("common:retry")}
@@ -108,42 +99,28 @@ export function AuthSession({
       </main>
     )
   }
-  if (!session.data) {
-    if (!isAnonymousAuthPath(pathname)) return <Navigate to="/login" replace />
-    return (
-      <AuthClientContext.Provider value={client}>
-        <SessionQueryProvider key="anonymous">
-          {pathname === "/login" ? (
-            <AuthEntry
-              client={client}
-              title={title}
-              allowSignUp={allowSignUp}
-            />
-          ) : (
-            children
-          )}
-        </SessionQueryProvider>
-      </AuthClientContext.Provider>
-    )
-  }
-  if (pathname === "/login") {
-    const redirect = invitationRedirect(searchStr)
-    if (redirect) return <Navigate to={redirect as never} replace />
-    return <Navigate to={authenticatedPath} replace />
-  }
+
   return (
     <AuthClientContext.Provider value={client}>
-      <SessionQueryProvider key={session.data.user.id}>
-        <AuthenticatedSessionProvider client={client} user={session.data.user}>
-          {/* 用户变化时卸载组织页面，避免将前一个用户的表单状态带入新会话。 */}
-          <section key={session.data.user.id}>{children}</section>
-        </AuthenticatedSessionProvider>
-      </SessionQueryProvider>
+      <QueryClientProvider client={queryClient}>
+        {children({ user, queryClient })}
+      </QueryClientProvider>
     </AuthClientContext.Provider>
   )
 }
 
-function AuthenticatedSessionProvider({
+export function CredentialsPage({
+  title,
+  allowSignUp = false,
+}: {
+  title: string
+  allowSignUp?: boolean
+}) {
+  const client = useWorkspaceAuthClient()
+  return <AuthEntry client={client} title={title} allowSignUp={allowSignUp} />
+}
+
+export function AuthenticatedSessionProvider({
   client,
   user,
   children,
@@ -167,19 +144,15 @@ function AuthenticatedSessionProvider({
   )
 }
 
-function SessionQueryProvider({ children }: { children: ReactNode }) {
-  // 每个账号使用独立 QueryClient；登出或换账号后不复用旧组织缓存。
-  const [queryClient] = useState(() => new QueryClient())
-  return (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  )
-}
-
 function AuthEntry({
   client,
   title,
   allowSignUp = false,
-}: Pick<AuthSessionProps, "client" | "title" | "allowSignUp">) {
+}: {
+  client: WorkspaceAuthClient
+  title: string
+  allowSignUp?: boolean
+}) {
   const [signUp, setSignUp] = useState(false)
   const [checkEmail, setCheckEmail] = useState(false)
   // 请求状态由入口持有，模式切换不能卸载提交锁并启动竞争会话的第二个请求。

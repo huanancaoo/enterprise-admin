@@ -146,6 +146,12 @@ export function ProjectCreate({ organizationId }: { organizationId: string }) {
                       </FieldLabel>
                       <Select
                         value={field.state.value}
+                        items={{
+                          default: t("projects:organizationDefault"),
+                          "zh-CN": localeMeta["zh-CN"].label,
+                          "en-US": localeMeta["en-US"].label,
+                          ar: localeMeta.ar.label,
+                        }}
                         onValueChange={(value) =>
                           field.handleChange(
                             value === "default"

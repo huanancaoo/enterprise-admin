@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { useTranslation } from "react-i18next"
@@ -9,6 +10,7 @@ import {
   LoadingState,
   PageHeader,
   PermissionDeniedState,
+  useDocumentTitle,
 } from "@workspace/admin"
 import { Badge } from "@workspace/ui/components/badge"
 import { buttonVariants } from "@workspace/ui/components/button"
@@ -39,6 +41,13 @@ export function ProjectDetail({
   const project = query.data?.data
   const errorCode =
     query.error instanceof ApiClientError ? query.error.body.code : undefined
+  useDocumentTitle(
+    project
+      ? project.name
+      : errorCode === "NOT_FOUND"
+        ? t("projects:notFoundTitle")
+        : t("projects:detail")
+  )
 
   return (
     <>
@@ -150,4 +159,3 @@ function DetailField({
     </div>
   )
 }
-import type { ReactNode } from "react"

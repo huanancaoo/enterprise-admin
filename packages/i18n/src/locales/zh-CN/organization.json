@@ -20,6 +20,7 @@
   "memberStatus_invited": "已邀请",
   "memberStatus_suspended": "已暂停",
   "name": "组织名称",
+  "noPendingInvitations": "暂无待处理邀请",
   "pendingInvitations": "待处理邀请",
   "removeMember": "移除成员",
   "removeMemberDescription": "将 {{name}} 移出组织。",

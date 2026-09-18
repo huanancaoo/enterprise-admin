@@ -19,6 +19,7 @@ import {
 import { DataTableSelectionActions } from "./data-table/selection"
 import { DataTablePresentationContext } from "./data-table/presentation"
 import { DataTableFeedback } from "./data-table/feedback"
+import { DataTableEmpty } from "./data-table/empty"
 import type { DataTableProps } from "./data-table/types"
 
 export type { DataTableProps, DataTableStatus } from "./data-table/types"
@@ -96,6 +97,8 @@ export function DataTable<TData extends RowData>({
   const showSelection =
     (status === "ready" || isActionPending) &&
     table.getFilteredSelectedRowModel().rows.length > 0
+  const isCollectionEmpty =
+    status === "ready" && table.getRowCount() === 0 && !hasFilters
 
   return (
     <table.AppTable>
@@ -117,7 +120,7 @@ export function DataTable<TData extends RowData>({
               hasData={data.length > 0}
             />
           )}
-          {status !== "forbidden" && (
+          {status !== "forbidden" && !isCollectionEmpty && (
             <DataTableToolbar>
               {showSelection ? (
                 <DataTableSelectionActions<TData>
@@ -152,16 +155,23 @@ export function DataTable<TData extends RowData>({
               )}
             </DataTableToolbar>
           )}
-          {status !== "forbidden" && (
-            <DataTableContent
-              empty={empty}
-              error={error}
-              onRetry={onRetry}
-              renderExpandedRow={renderExpandedRow}
-              hasFilters={hasFilters}
-              onResetFilters={clearFilters}
-            />
-          )}
+          {status !== "forbidden" &&
+            (isCollectionEmpty ? (
+              <DataTableEmpty
+                empty={empty}
+                hasFilters={false}
+                onResetFilters={clearFilters}
+              />
+            ) : (
+              <DataTableContent
+                empty={empty}
+                error={error}
+                onRetry={onRetry}
+                renderExpandedRow={renderExpandedRow}
+                hasFilters={hasFilters}
+                onResetFilters={clearFilters}
+              />
+            ))}
           {status !== "forbidden" &&
             (table.getRowCount() > 0 || status === "loading") && (
               <Pagination

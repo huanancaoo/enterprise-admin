@@ -93,48 +93,50 @@ export function TeamSwitcher({
             </span>
             {!disabled && <ChevronsUpDownIcon className="ms-auto" />}
           </DropdownMenuTrigger>
-          {!disabled && (
-            <DropdownMenuContent
-              className="min-w-56 rounded-lg"
-              align="start"
-              side={isMobile ? "bottom" : "right"}
-              sideOffset={4}
-            >
-              <DropdownMenuGroup>
-                <DropdownMenuLabel className="text-xs text-muted-foreground">
-                  {label}
-                </DropdownMenuLabel>
-                {teams.map((team) => (
-                  <DropdownMenuItem
-                    key={team.id}
-                    onClick={() => onSelect(team.id)}
-                    className="gap-2 p-2"
-                  >
-                    <span className="flex size-6 items-center justify-center rounded-md border text-xs font-medium">
-                      {team.logo ?? team.name.slice(0, 1)}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate">{team.name}</span>
-                    {team.id === activeTeam?.id && (
-                      <CheckIcon className="size-4" />
-                    )}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuGroup>
-              {onCreate && createLabel && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={onCreate} className="gap-2 p-2">
-                    <span className="flex size-6 items-center justify-center rounded-md border">
-                      <PlusIcon className="size-4" />
-                    </span>
-                    <span className="min-w-0 flex-1 truncate">
-                      {createLabel}
-                    </span>
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          )}
+          {/* 忙碌时只禁用项，不能卸掉 Popup：否则关闭动画被打断，aria-hidden 焦点守卫会留在树上。 */}
+          <DropdownMenuContent
+            className="min-w-56 rounded-lg"
+            align="start"
+            side={isMobile ? "bottom" : "right"}
+            sideOffset={4}
+          >
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="text-xs text-muted-foreground">
+                {label}
+              </DropdownMenuLabel>
+              {teams.map((team) => (
+                <DropdownMenuItem
+                  key={team.id}
+                  disabled={disabled}
+                  onClick={() => onSelect(team.id)}
+                  className="gap-2 p-2"
+                >
+                  <span className="flex size-6 items-center justify-center rounded-md border text-xs font-medium">
+                    {team.logo ?? team.name.slice(0, 1)}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">{team.name}</span>
+                  {team.id === activeTeam?.id && (
+                    <CheckIcon className="size-4" />
+                  )}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
+            {onCreate && createLabel && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  disabled={disabled}
+                  onClick={onCreate}
+                  className="gap-2 p-2"
+                >
+                  <span className="flex size-6 items-center justify-center rounded-md border">
+                    <PlusIcon className="size-4" />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">{createLabel}</span>
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
     </SidebarMenu>

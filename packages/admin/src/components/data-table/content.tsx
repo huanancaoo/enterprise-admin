@@ -68,7 +68,7 @@ export function DataTableContent<TData extends RowData>({
   return (
     <div
       data-slot="data-table-content"
-      className="overflow-hidden rounded-2xl border"
+      className="overflow-x-auto rounded-2xl border"
     >
       <Table
         aria-busy={isLoading || status === "refreshing" || isActionPending}

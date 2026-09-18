@@ -5,6 +5,8 @@ export const organizationKeys = {
   scope: (organizationId: string) => ["organizations", organizationId] as const,
   access: (organizationId: string) =>
     [...organizationKeys.scope(organizationId), "access"] as const,
+  directory: (organizationId: string) =>
+    [...organizationKeys.scope(organizationId), "directory"] as const,
 }
 
 export function listMyOrganizationsKey() {

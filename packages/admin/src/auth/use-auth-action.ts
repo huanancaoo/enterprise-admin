@@ -1,34 +1,35 @@
+import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { useMutation } from "@tanstack/react-query"
 
 export function useAuthAction() {
   const { t } = useTranslation("common")
-  const mutation = useMutation({
-    mutationFn: async (
-      action: () => Promise<{ error: { message?: string } | null }>
-    ) => {
-      const result = await action()
-      if (result.error)
-        throw new Error(result.error.message || t("operationFailed"))
-    },
-    retry: false,
-  })
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string>()
 
   async function run(
     action: () => Promise<{ error: { message?: string } | null }>
   ) {
+    setPending(true)
+    setError(undefined)
     try {
-      await mutation.mutateAsync(action)
+      const result = await action()
+      if (result.error) {
+        setError(result.error.message || t("operationFailed"))
+        return false
+      }
       return true
-    } catch {
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : t("operationFailed"))
       return false
+    } finally {
+      setPending(false)
     }
   }
 
   return {
-    pending: mutation.isPending,
-    error: mutation.error?.message,
+    pending,
+    error,
     run,
-    reset: mutation.reset,
+    reset: () => setError(undefined),
   }
 }

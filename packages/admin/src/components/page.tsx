@@ -1,5 +1,6 @@
 import { useId, type ReactNode } from "react"
 import { useTranslation } from "react-i18next"
+import { useDocumentTitle } from "../hooks/use-document-title"
 import { AppSidebar, type AppSidebarProps } from "./app-sidebar"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -27,6 +28,7 @@ export function PageHeader({
   description?: string
   actions?: ReactNode
 }) {
+  useDocumentTitle(title)
   return (
     <header className="flex min-w-0 flex-wrap items-start justify-between gap-4">
       <div className="min-w-0 flex-1 space-y-2">
@@ -55,9 +57,16 @@ export function AppShell({
   actions,
   children,
 }: AppShellProps) {
+  const { t } = useTranslation("common")
   return (
     <TooltipProvider>
-      <SidebarProvider>
+      <SidebarProvider
+        labels={{
+          toggle: t("toggleSidebar"),
+          mobileTitle: t("sidebar"),
+          mobileDescription: t("sidebarDescription"),
+        }}
+      >
         <AppSidebar {...sidebar} />
         <SidebarInset>
           <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
@@ -121,6 +130,32 @@ export function ErrorState({
     </div>
   )
 }
+export function NotFoundState() {
+  const { t } = useTranslation("common")
+  useDocumentTitle(t("notFoundTitle"))
+  return (
+    <main className="space-y-2 p-8">
+      <h1 className="text-xl font-semibold">{t("notFoundTitle")}</h1>
+      <p>{t("notFoundDescription")}</p>
+    </main>
+  )
+}
+
+export function RouterErrorComponent({
+  error,
+  reset,
+}: {
+  error: unknown
+  reset: () => void
+}) {
+  return (
+    <ErrorState
+      message={error instanceof Error ? error.message : undefined}
+      onRetry={reset}
+    />
+  )
+}
+
 export function PermissionDeniedState() {
   const { t } = useTranslation("common")
   return (

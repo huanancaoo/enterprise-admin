@@ -22,7 +22,7 @@ import { FolderKanbanIcon, UsersIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import {
   ApiClientError,
-  useGetOrganizationAccessQueryOptions,
+  getOrganizationAccessOptions,
   projectKeys,
 } from "@workspace/api-client"
 import {
@@ -49,9 +49,8 @@ export function AdminLayout() {
   const onMembers = pathname.startsWith("/app/members/")
   useDropStaleOrganizationQueries(organizationId)
   const access = useQuery({
-    ...useGetOrganizationAccessQueryOptions(organizationId ?? ""),
+    ...getOrganizationAccessOptions(organizationId ?? ""),
     enabled: Boolean(organizationId),
-    retry: false,
   })
   useEffect(() => {
     if (

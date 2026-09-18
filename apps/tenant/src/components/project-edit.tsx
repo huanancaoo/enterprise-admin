@@ -201,6 +201,12 @@ export function ProjectEditForm({
                     </FieldLabel>
                     <Select
                       value={field.state.value}
+                      items={Object.fromEntries(
+                        contentLocales.map((locale) => [
+                          locale,
+                          localeMeta[locale].label,
+                        ])
+                      )}
                       onValueChange={(value) => {
                         const locale = SupportedLocaleSchema.parse(value)
                         field.handleChange(locale)
@@ -209,6 +215,7 @@ export function ProjectEditForm({
                     >
                       <SelectTrigger
                         id="project-edit-content-locale"
+                        onBlur={field.handleBlur}
                         aria-invalid={invalid}
                       >
                         <SelectValue />
@@ -237,12 +244,18 @@ export function ProjectEditForm({
                     </FieldLabel>
                     <Select
                       value={field.state.value}
+                      items={{
+                        draft: t("projects:draft"),
+                        active: t("projects:active"),
+                        archived: t("projects:archived"),
+                      }}
                       onValueChange={(value) =>
                         field.handleChange(ProjectStatusSchema.parse(value))
                       }
                     >
                       <SelectTrigger
                         id="project-edit-status"
+                        onBlur={field.handleBlur}
                         aria-invalid={invalid}
                       >
                         <SelectValue />

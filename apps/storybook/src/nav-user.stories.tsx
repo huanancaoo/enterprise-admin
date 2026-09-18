@@ -8,7 +8,13 @@ const meta = {
   component: NavUser,
   decorators: [
     (Story) => (
-      <SidebarProvider>
+      <SidebarProvider
+        labels={{
+          toggle: "切换侧栏",
+          mobileTitle: "侧栏",
+          mobileDescription: "显示移动端导航。",
+        }}
+      >
         <div className="w-72 bg-sidebar p-2 text-sidebar-foreground">
           <Story />
         </div>

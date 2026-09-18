@@ -3,8 +3,8 @@ export type { ApiClientConfig } from "./http/client"
 export {
   listMyOrganizations,
   getOrganizationAccess,
-  useGetOrganizationAccessQueryOptions,
 } from "./generated/endpoints/organizations/organizations"
+export { getOrganizationAccessOptions } from "./query/organization-access"
 export {
   listProjects,
   createProject,
@@ -21,6 +21,7 @@ export {
   organizationAccessKey,
   dropOrganizationQueries,
 } from "./query/organizations"
+export { getWorkspaceOrganizationsOptions } from "./query/workspace"
 export {
   useProjectsList,
   getProjectsListOptions,

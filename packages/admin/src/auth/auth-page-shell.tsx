@@ -1,5 +1,6 @@
 import type { ReactNode } from "react"
 import { GalleryVerticalEnd } from "lucide-react"
+import { useDocumentTitle } from "../hooks/use-document-title"
 import { LocaleSwitcher } from "../components/workspace"
 
 export function AuthPageShell({
@@ -9,6 +10,7 @@ export function AuthPageShell({
   title: string
   children: ReactNode
 }) {
+  useDocumentTitle(title)
   return (
     <main className="grid min-h-svh lg:grid-cols-2">
       <div className="flex flex-col gap-4 p-6 md:p-10">

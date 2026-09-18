@@ -14,7 +14,13 @@ const meta = {
   component: TeamSwitcher,
   decorators: [
     (Story) => (
-      <SidebarProvider>
+      <SidebarProvider
+        labels={{
+          toggle: "切换侧栏",
+          mobileTitle: "侧栏",
+          mobileDescription: "显示移动端导航。",
+        }}
+      >
         <div className="flex min-h-96 w-[32rem] bg-sidebar p-2 text-sidebar-foreground">
           <Story />
         </div>

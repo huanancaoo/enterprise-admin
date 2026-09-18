@@ -4,7 +4,7 @@ import type { TFunction } from "@workspace/i18n"
 import type { OrganizationSummary } from "@workspace/contracts"
 import { useOrganizationWorkspace } from "@/hooks/use-organization-workspace"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
-import { FormDialog, LocaleSwitcher } from "@workspace/admin"
+import { FormDialog, LocaleSwitcher, useDocumentTitle } from "@workspace/admin"
 import { useForm } from "@tanstack/react-form"
 import { Link, Navigate } from "@tanstack/react-router"
 import { GalleryVerticalEnd } from "lucide-react"
@@ -90,25 +90,6 @@ export function OrganizationUnavailable({
       )}
     </div>
   )
-}
-
-export function WorkspaceEntry() {
-  const { workspace } = useOrganizationWorkspace()
-  if (workspace.isPending || workspace.isError)
-    return <WorkspaceQueryStatus workspace={workspace} />
-
-  const organizations = workspace.data ?? []
-  const only = organizations.length === 1 ? organizations[0] : undefined
-  if (only?.status === "ACTIVE") {
-    return (
-      <Navigate
-        to="/app/projects/$organizationId"
-        params={{ organizationId: only.id }}
-        replace
-      />
-    )
-  }
-  return <Navigate to="/app/select-organization" replace />
 }
 
 function useCreateOrganizationForm(
@@ -248,8 +229,8 @@ function IdentityPage({
   children: ReactNode
 }) {
   return (
-    <main className="grid min-h-svh lg:grid-cols-2">
-      <div className="flex flex-col gap-4 p-6 md:p-10">
+    <main className="flex min-h-svh flex-col">
+      <div className="flex flex-1 flex-col gap-4 p-6 md:p-10">
         <header className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 font-medium">
             <div className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
@@ -264,14 +245,6 @@ function IdentityPage({
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-xs">{children}</div>
         </div>
-      </div>
-      <div className="relative hidden bg-muted lg:block">
-        <img
-          src="/placeholder.svg"
-          alt=""
-          aria-hidden="true"
-          className="absolute inset-0 h-full w-full object-cover"
-        />
       </div>
     </main>
   )
@@ -290,6 +263,14 @@ export function OrganizationGate() {
     useOrganizationWorkspace()
   // 进入门只根据已读回的组织数量跳转。创建成功但读回失败时停在查询错误，不能用返回的 id 抢先进入工作区。
   const form = useCreateOrganizationForm(createOrganization)
+  const organizations = workspace.data ?? []
+  useDocumentTitle(
+    workspace.isPending || workspace.isError
+      ? t("organization:management")
+      : organizations.length === 0
+        ? t("organization:create")
+        : t("organization:select")
+  )
   const sessionFooter = (
     <div className="mt-6 flex flex-col items-center gap-2">
       {session.user.email && (
@@ -319,7 +300,6 @@ export function OrganizationGate() {
     )
   }
 
-  const organizations = workspace.data ?? []
   const only = organizations.length === 1 ? organizations[0] : undefined
   if (only?.status === "ACTIVE") {
     return (

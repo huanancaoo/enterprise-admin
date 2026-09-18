@@ -334,12 +334,10 @@ export const Empty: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await expect(canvas.getByText("No data yet")).toBeVisible()
+    await expect(canvas.queryByRole("table")).not.toBeInTheDocument()
     await expect(
-      canvas.getByRole("columnheader", { name: /Name/ })
-    ).toBeVisible()
-    await expect(
-      canvas.getByRole("checkbox", { name: "Select page" })
-    ).toHaveAttribute("aria-disabled", "true")
+      canvas.queryByRole("checkbox", { name: "Select page" })
+    ).not.toBeInTheDocument()
   },
 }
 

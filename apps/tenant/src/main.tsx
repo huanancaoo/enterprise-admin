@@ -6,9 +6,8 @@ import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 
 import "./styles.css"
-import { RouterProvider } from "@tanstack/react-router"
-import { router } from "./router"
 import { ThemeProvider } from "@/components/theme-provider.tsx"
+import { TenantRouter } from "./tenant-router"
 
 const uiI18n = createUiI18n()
 
@@ -20,7 +19,7 @@ createRoot(document.getElementById("root")!).render(
     <UiI18nProvider instance={uiI18n}>
       <AdminDirectionProvider>
         <ThemeProvider>
-          <RouterProvider router={router} />
+          <TenantRouter />
         </ThemeProvider>
       </AdminDirectionProvider>
     </UiI18nProvider>

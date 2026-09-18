@@ -1,8 +1,15 @@
 import { useTranslation } from "react-i18next"
-import { Outlet, useParams, useSearch } from "@tanstack/react-router"
+import {
+  Outlet,
+  useNavigate,
+  useParams,
+  useRouteContext,
+  useSearch,
+} from "@tanstack/react-router"
 import {
   AcceptInvitationPage,
-  AuthSession,
+  AuthenticatedSessionProvider,
+  CredentialsPage,
   EmailVerifiedPage,
   ForgotPasswordPage,
   ResetPasswordPage,
@@ -10,17 +17,20 @@ import {
 import { authClient } from "@/lib/auth-client"
 
 export function App() {
-  const { t } = useTranslation(["organization", "auth"])
+  const { user } = useRouteContext({ from: "__root__" })
+  const outlet = <Outlet />
+  if (!user) return outlet
   return (
-    <AuthSession
-      client={authClient}
-      title={t("organization:management")}
-      authenticatedPath="/app"
-      allowSignUp
-    >
-      <Outlet />
-    </AuthSession>
+    <AuthenticatedSessionProvider client={authClient} user={user}>
+      {/* 用户变化时卸载组织页面，避免将前一个用户的表单状态带入新会话。 */}
+      <section key={user.id}>{outlet}</section>
+    </AuthenticatedSessionProvider>
   )
+}
+
+export function TenantLoginPage() {
+  const { t } = useTranslation("organization")
+  return <CredentialsPage title={t("management")} allowSignUp />
 }
 
 export function TenantAuthTitlePage({
@@ -46,10 +56,15 @@ export function TenantEmailVerifiedPage() {
 
 export function TenantAcceptInvitationPage() {
   const { t } = useTranslation("organization")
+  const navigate = useNavigate()
   const { invitationId } = useParams({
     from: "/accept-invitation/$invitationId",
   })
   return (
-    <AcceptInvitationPage title={t("management")} invitationId={invitationId} />
+    <AcceptInvitationPage
+      title={t("management")}
+      invitationId={invitationId}
+      onAccepted={() => void navigate({ to: "/app" })}
+    />
   )
 }

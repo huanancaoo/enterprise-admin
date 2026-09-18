@@ -5,6 +5,6 @@ export const AuthClientContext = createContext<WorkspaceAuthClient | null>(null)
 
 export function useWorkspaceAuthClient() {
   const client = useContext(AuthClientContext)
-  if (!client) throw new Error("AuthSession is required")
+  if (!client) throw new Error("AuthGate is required")
   return client
 }

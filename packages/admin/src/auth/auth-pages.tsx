@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import type { TFunction } from "@workspace/i18n"
 import { useForm } from "@tanstack/react-form"
-import { Link, useNavigate } from "@tanstack/react-router"
+import { useQuery } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
 import { Button } from "@workspace/ui/components/button"
 import {
   Field,
@@ -331,44 +332,35 @@ export function EmailVerifiedPage({
 export function AcceptInvitationPage({
   title,
   invitationId,
+  onAccepted,
 }: {
   title: string
   invitationId: string
+  onAccepted: () => void
 }) {
   const { t } = useTranslation(["auth", "common"])
   const client = useWorkspaceAuthClient()
   const session = useAuthenticatedSession()
   const action = useAuthAction()
-  const navigate = useNavigate()
-  const [organizationName, setOrganizationName] = useState<string | null>(null)
-  const [invalid, setInvalid] = useState(false)
   const userId = session?.user.id
-
-  useEffect(() => {
-    // getInvitation 要求已登录且邮箱与受邀人一致；匿名阶段只提示登录，不请求。
-    if (!userId) return
-    let cancelled = false
-    void client.organization
-      .getInvitation({ query: { id: invitationId } })
-      .then((result) => {
-        if (cancelled) return
-        if (result.error || !result.data?.organizationName) {
-          setInvalid(true)
-          return
-        }
-        setOrganizationName(result.data.organizationName)
+  // getInvitation 要求已登录且邮箱与受邀人一致；匿名阶段只提示登录，不请求。
+  const invitation = useQuery({
+    queryKey: ["invitations", invitationId] as const,
+    queryFn: async ({ signal }) => {
+      const result = await client.organization.getInvitation({
+        query: { id: invitationId },
+        fetchOptions: { signal },
       })
-      .catch(() => {
-        if (!cancelled) setInvalid(true)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [client, invitationId, userId])
-
-  const signInSearch = {
-    redirect: `/accept-invitation/${invitationId}`,
-  } as never
+      if (result.error || !result.data?.organizationName) {
+        throw new Error("invalid")
+      }
+      return result.data.organizationName
+    },
+    enabled: Boolean(userId),
+    retry: false,
+  })
+  const organizationName = invitation.data
+  const invalid = invitation.isError
 
   return (
     <AuthPageShell title={title}>
@@ -399,7 +391,12 @@ export function AcceptInvitationPage({
         {!session && !invalid && (
           <Button
             nativeButton={false}
-            render={<Link to="/login" search={signInSearch} />}
+            render={
+              <Link
+                to="/login"
+                search={{ redirect: `/accept-invitation/${invitationId}` }}
+              />
+            }
           >
             {t("auth:signIn")}
           </Button>
@@ -412,7 +409,7 @@ export function AcceptInvitationPage({
                 const result = await client.organization.acceptInvitation({
                   invitationId,
                 })
-                if (!result.error) await navigate({ to: "/app" as never })
+                if (!result.error) onAccepted()
                 return result
               })
             }}
