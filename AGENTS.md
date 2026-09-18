@@ -16,7 +16,7 @@
 
 多租户企业应用基础框架，使用 pnpm workspace 与 Turborepo，主要技术为 TypeScript、React/Vite、NestJS、PostgreSQL/Drizzle 和 Better Auth。
 
-理解整体设计、追溯选型理由或设计跨模块能力时，阅读 [多租户基础架构原文](docs/architecture/multi-tenant-foundation.md) 的相关章节。该文档是归档研究；实施决策以用户确认和已接受 ADR 为准，精确版本以当前配置为准，原文建议不自动成为任务范围。
+理解整体设计、追溯选型理由或设计跨模块能力时，阅读 [多租户基础架构原文](docs/architecture/multi-tenant-foundation.md) 的相关章节。邮件能力另见 [Email 基础设施原文](docs/architecture/email-infrastructure.md)。这些文档是归档研究；实施决策以用户确认和已接受 ADR 为准，精确版本以当前配置为准，原文建议不自动成为任务范围。
 
 - `apps/tenant` / `apps/platform`：租户后台与平台后台；`apps/api`：HTTP 服务；`apps/storybook`：公共组件工作台。
 - `packages/ui` 放通用 UI，`packages/admin` 放业务无关后台组件；具体业务留在应用内。
