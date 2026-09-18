@@ -2,12 +2,10 @@
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
-import { useUiLocale } from "@workspace/i18n/react"
-import { localeMeta } from "@workspace/i18n"
-import type { RowData } from "@tanstack/react-table"
+import type { RowData, TableState } from "@tanstack/react-table"
 import { cn } from "cn"
 import { Button } from "@workspace/ui/components/button"
-import { useDataTable } from "../hooks/use-data-table"
+import { useDataTable, type DataTableFeatures } from "../hooks/use-data-table"
 import { configureColumns } from "../lib/data-table-columns"
 import { Pagination } from "./pagination"
 import { DataTableContent } from "./data-table/content"
@@ -24,6 +22,18 @@ import type { DataTableProps } from "./data-table/types"
 
 export type { DataTableProps, DataTableStatus } from "./data-table/types"
 export { DataTableColumnHeader } from "./data-table/column-header"
+
+const EMPTY_DATA: never[] = []
+
+function selectDataTableChromeState(state: TableState<DataTableFeatures>) {
+  return {
+    globalFilter: state.globalFilter,
+    columnFilters: state.columnFilters,
+    pagination: state.pagination,
+    sorting: state.sorting,
+    rowSelection: state.rowSelection,
+  }
+}
 
 export function DataTable<TData extends RowData>({
   columns,
@@ -43,22 +53,23 @@ export function DataTable<TData extends RowData>({
   ...options
 }: DataTableProps<TData>) {
   const { t } = useTranslation("common")
-  const locale = useUiLocale()
   const configuredColumns = React.useMemo(
     () => configureColumns(columns),
     [columns]
   )
-  const table = useDataTable({
-    columns: configuredColumns,
-    // 无权限时不把缓存数据交给行模型，选择、展开和固定行也不能泄漏旧内容。
-    data: status === "forbidden" ? [] : data,
-    initialState: {
-      pagination: { pageIndex: 0, pageSize: 10 },
-      ...initialState,
+  const table = useDataTable(
+    {
+      columns: configuredColumns,
+      // 无权限时不把缓存数据交给行模型，选择、展开和固定行也不能泄漏旧内容。
+      data: status === "forbidden" ? EMPTY_DATA : data,
+      initialState: {
+        pagination: { pageIndex: 0, pageSize: 10 },
+        ...initialState,
+      },
+      ...options,
     },
-    ...options,
-    columnResizeDirection: localeMeta[locale].direction,
-  })
+    selectDataTableChromeState
+  )
   const searchValue = (table.state.globalFilter as string | undefined) ?? ""
   const hasFilters =
     Boolean(searchValue) || table.state.columnFilters.length > 0

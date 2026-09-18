@@ -14,7 +14,6 @@ export function createDataTableSelectColumn<TData extends RowData>() {
   return createDataTableColumnHelper<TData>().display({
     id: "select",
     size: 48,
-    enableResizing: false,
     meta: { label: "Selection", configurable: false },
     header: ({ table }) =>
       createElement(DataTableSelectAllCheckbox<TData>, { table }),
@@ -33,7 +32,6 @@ export function createDataTableRowControlsColumn<TData extends RowData>() {
       createElement("span", { className: "sr-only" }, "Row controls"),
     cell: ({ row }) => createElement(DataTableRowControls<TData>, { row }),
     size: 88,
-    enableResizing: false,
     enableHiding: false,
     meta: {
       label: "Row controls",

@@ -228,7 +228,6 @@ export function MembersTable() {
         status={isLoading ? "loading" : "ready"}
         searchPlaceholder={t("organization:searchMembers")}
         getRowCanExpand={() => true}
-        columnResizeMode="onChange"
         defaultColumn={{ size: 180, minSize: 48 }}
         initialState={{
           columnPinning: { start: ["row-controls", "select", "name"], end: [] },

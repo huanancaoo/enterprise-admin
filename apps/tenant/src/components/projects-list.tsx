@@ -28,6 +28,7 @@ import {
 import { ProjectCreate } from "./project-create"
 
 const columnsHelper = createDataTableColumnHelper<ProjectResponse>()
+const EMPTY_PROJECTS: ProjectResponse[] = []
 const statusBadgeVariant = {
   draft: "secondary",
   active: "default",
@@ -143,7 +144,7 @@ export function ProjectsList({
       <DataTable
         key={organizationId}
         columns={columns}
-        data={page?.items ?? []}
+        data={page?.items ?? EMPTY_PROJECTS}
         getRowId={(row) => row.id}
         rowCount={page?.total ?? 0}
         status={tableStatus}

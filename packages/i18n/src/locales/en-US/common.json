@@ -53,7 +53,6 @@
   "removeLink": "Remove",
   "reorderColumn": "Drag to reorder {{title}}",
   "resetColumns": "Reset columns",
-  "resizeColumn": "Resize {{title}}",
   "retry": "Retry",
   "rows": "{{total}} rows",
   "rowsPerPage": "Rows per page",

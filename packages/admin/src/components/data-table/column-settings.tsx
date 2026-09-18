@@ -17,7 +17,7 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
-import type { Column, RowData } from "@tanstack/react-table"
+import { type Column, type RowData } from "@tanstack/react-table"
 import { cn } from "cn"
 import { GripVerticalIcon, Settings2Icon, RotateCcwIcon } from "lucide-react"
 import { Button } from "@workspace/ui/components/button"
@@ -49,142 +49,169 @@ export function DataTableViewOptions({ className }: { className?: string }) {
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
-  const columns = [
-    ...table.getStartLeafColumns(),
-    ...table.getCenterLeafColumns(),
-    ...table.getEndLeafColumns(),
-  ].filter((column) => column.columnDef.meta?.configurable !== false)
-
-  function moveColumnBefore(sourceId: string, targetId: string) {
-    if (sourceId === targetId) return
-
-    const source = columns.find((column) => column.id === sourceId)
-    const target = columns.find((column) => column.id === targetId)
-    if (!source || !target || source.getIsPinned() !== target.getIsPinned())
-      return
-
-    const pinned = source.getIsPinned()
-    const regionOrder = columns
-      .filter((column) => column.getIsPinned() === pinned)
-      .map((column) => column.id)
-    const nextOrder = arrayMove(
-      regionOrder,
-      regionOrder.indexOf(sourceId),
-      regionOrder.indexOf(targetId)
-    )
-    const configurableIds = new Set(regionOrder)
-    let index = 0
-    // 控制列不参与拖动，但始终占据原来的位置；固定区域也保留这些列的 pinning。
-    const fullOrder = pinned
-      ? table.state.columnPinning[pinned]
-      : table.getAllLeafColumns().map((column) => column.id)
-    const reordered = fullOrder.map((id) =>
-      configurableIds.has(id) ? nextOrder[index++]! : id
-    )
-    if (pinned) {
-      table.setColumnPinning((state) => ({ ...state, [pinned]: reordered }))
-    } else {
-      table.setColumnOrder(reordered)
-    }
-  }
-
-  function handleDragEnd({ active, over }: DragEndEvent) {
-    if (over) moveColumnBefore(String(active.id), String(over.id))
-  }
-
-  const columnGroups = [
-    {
-      id: "start",
-      label: t("pinnedStart"),
-      columns: columns.filter((column) => column.getIsPinned() === "start"),
-    },
-    {
-      id: "center",
-      label: t("columns"),
-      columns: columns.filter((column) => !column.getIsPinned()),
-    },
-    {
-      id: "end",
-      label: t("pinnedEnd"),
-      columns: columns.filter((column) => column.getIsPinned() === "end"),
-    },
-  ].filter((group) => group.columns.length > 0)
 
   return (
-    <Popover>
-      <PopoverTrigger
-        render={
-          <Button
-            variant="outline"
-            disabled={isActionPending}
-            size="sm"
-            className={className}
-          />
+    <table.Subscribe
+      selector={(state) => ({
+        columnVisibility: state.columnVisibility,
+        columnOrder: state.columnOrder,
+        columnPinning: state.columnPinning,
+      })}
+    >
+      {(layout) => {
+        const columns = [
+          ...table.getStartLeafColumns(),
+          ...table.getCenterLeafColumns(),
+          ...table.getEndLeafColumns(),
+        ].filter((column) => column.columnDef.meta?.configurable !== false)
+
+        function moveColumnBefore(sourceId: string, targetId: string) {
+          if (sourceId === targetId) return
+
+          const source = columns.find((column) => column.id === sourceId)
+          const target = columns.find((column) => column.id === targetId)
+          if (
+            !source ||
+            !target ||
+            source.getIsPinned() !== target.getIsPinned()
+          )
+            return
+
+          const pinned = source.getIsPinned()
+          const regionOrder = columns
+            .filter((column) => column.getIsPinned() === pinned)
+            .map((column) => column.id)
+          const nextOrder = arrayMove(
+            regionOrder,
+            regionOrder.indexOf(sourceId),
+            regionOrder.indexOf(targetId)
+          )
+          const configurableIds = new Set(regionOrder)
+          let index = 0
+          // 控制列不参与拖动，但始终占据原来的位置；固定区域也保留这些列的 pinning。
+          const fullOrder = pinned
+            ? layout.columnPinning[pinned]
+            : table.getAllLeafColumns().map((column) => column.id)
+          const reordered = fullOrder.map((id) =>
+            configurableIds.has(id) ? nextOrder[index++]! : id
+          )
+          if (pinned) {
+            table.setColumnPinning((state) => ({
+              ...state,
+              [pinned]: reordered,
+            }))
+          } else {
+            table.setColumnOrder(reordered)
+          }
         }
-      >
-        <Settings2Icon data-icon="inline-start" />
-        {t("view")}
-      </PopoverTrigger>
-      <PopoverContent
-        align="end"
-        className="w-96 max-w-[calc(100vw-2rem)]"
-        aria-label={t("columnSettings")}
-      >
-        <p className="text-sm font-medium">{t("columns")}</p>
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <div className="max-h-80 space-y-3 overflow-y-auto">
-            {columnGroups.map((group) => (
-              <div key={group.id} className="space-y-1">
-                {columnGroups.length > 1 ? (
-                  <p className="px-1 text-xs text-muted-foreground">
-                    {group.label}
-                  </p>
-                ) : null}
-                <SortableContext
-                  items={group.columns.map((column) => column.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {group.columns.map((column) => (
-                    <DataTableColumnSettingsItem
-                      key={column.id}
-                      column={column}
-                    />
+
+        function handleDragEnd({ active, over }: DragEndEvent) {
+          if (over) moveColumnBefore(String(active.id), String(over.id))
+        }
+
+        const columnGroups = [
+          {
+            id: "start",
+            label: t("pinnedStart"),
+            columns: columns.filter(
+              (column) => column.getIsPinned() === "start"
+            ),
+          },
+          {
+            id: "center",
+            label: t("columns"),
+            columns: columns.filter((column) => !column.getIsPinned()),
+          },
+          {
+            id: "end",
+            label: t("pinnedEnd"),
+            columns: columns.filter((column) => column.getIsPinned() === "end"),
+          },
+        ].filter((group) => group.columns.length > 0)
+
+        return (
+          <Popover>
+            <PopoverTrigger
+              render={
+                <Button
+                  variant="outline"
+                  disabled={isActionPending}
+                  size="sm"
+                  className={className}
+                />
+              }
+            >
+              <Settings2Icon data-icon="inline-start" />
+              {t("view")}
+            </PopoverTrigger>
+            <PopoverContent
+              align="end"
+              className="w-96 max-w-[calc(100vw-2rem)]"
+              aria-label={t("columnSettings")}
+            >
+              <p className="text-sm font-medium">{t("columns")}</p>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <div className="max-h-80 space-y-3 overflow-y-auto">
+                  {columnGroups.map((group) => (
+                    <div key={group.id} className="space-y-1">
+                      {columnGroups.length > 1 ? (
+                        <p className="px-1 text-xs text-muted-foreground">
+                          {group.label}
+                        </p>
+                      ) : null}
+                      <SortableContext
+                        items={group.columns.map((column) => column.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {group.columns.map((column) => (
+                          <DataTableColumnSettingsItem
+                            key={column.id}
+                            column={column}
+                            isVisible={column.getIsVisible()}
+                            pinned={column.getIsPinned()}
+                          />
+                        ))}
+                      </SortableContext>
+                    </div>
                   ))}
-                </SortableContext>
+                </div>
+              </DndContext>
+              <div className="mt-3 border-t pt-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  disabled={isActionPending}
+                  onClick={() => {
+                    table.resetColumnVisibility()
+                    table.resetColumnOrder()
+                    table.resetColumnPinning()
+                  }}
+                >
+                  <RotateCcwIcon data-icon="inline-start" />
+                  {t("resetColumns")}
+                </Button>
               </div>
-            ))}
-          </div>
-        </DndContext>
-        <div className="mt-3 border-t pt-3">
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full"
-            disabled={isActionPending}
-            onClick={() => {
-              table.resetColumnVisibility()
-              table.resetColumnOrder()
-              table.resetColumnPinning()
-              table.resetColumnSizing()
-            }}
-          >
-            <RotateCcwIcon data-icon="inline-start" />
-            {t("resetColumns")}
-          </Button>
-        </div>
-      </PopoverContent>
-    </Popover>
+            </PopoverContent>
+          </Popover>
+        )
+      }}
+    </table.Subscribe>
   )
 }
 
 function DataTableColumnSettingsItem({
   column,
+  isVisible,
+  pinned,
 }: {
   column: Column<DataTableFeatures, RowData, unknown>
+  isVisible: boolean
+  pinned: false | "start" | "end"
 }) {
   const { t } = useTranslation("common")
   const { isActionPending } = useDataTablePresentation()
@@ -223,7 +250,7 @@ function DataTableColumnSettingsItem({
       </Button>
       <Checkbox
         aria-label={t("showColumn", { title: getColumnLabel(column) })}
-        checked={column.getIsVisible()}
+        checked={isVisible}
         disabled={isActionPending || !column.getCanHide()}
         onCheckedChange={(checked) => column.toggleVisibility(checked)}
       />
@@ -232,7 +259,7 @@ function DataTableColumnSettingsItem({
       </span>
       <Select
         items={{ none: t("unpinned"), start: t("start"), end: t("end") }}
-        value={column.getIsPinned() || "none"}
+        value={pinned || "none"}
         disabled={isActionPending || !column.getCanPin()}
         onValueChange={(value) => {
           if (value !== null)

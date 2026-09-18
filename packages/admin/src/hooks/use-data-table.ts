@@ -3,7 +3,6 @@
 import type { ComponentType } from "react"
 import {
   columnSizingFeature,
-  columnResizingFeature,
   columnPinningFeature,
   columnOrderingFeature,
   rowExpandingFeature,
@@ -47,7 +46,6 @@ export type DataTableColumnMeta = {
 
 export const dataTableFeatures = tableFeatures({
   columnSizingFeature,
-  columnResizingFeature,
   columnPinningFeature,
   columnOrderingFeature,
   rowExpandingFeature,

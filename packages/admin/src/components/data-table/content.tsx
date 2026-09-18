@@ -2,12 +2,15 @@
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
-import type { Column, RowData } from "@tanstack/react-table"
+import {
+  type Column,
+  type RowData,
+  type TableState,
+} from "@tanstack/react-table"
 import { cn } from "cn"
 import { Button } from "@workspace/ui/components/button"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -18,39 +21,71 @@ import {
   useDataTableContext,
   type DataTableFeatures,
 } from "../../hooks/use-data-table"
-import { getColumnLabel } from "../../lib/data-table-columns"
 import { useDataTablePresentation } from "./presentation"
 import { DataTableEmpty } from "./empty"
 import { DataTableFeedback } from "./feedback"
 import type { DataTableProps } from "./types"
+
+function selectDataTableGridState(state: TableState<DataTableFeatures>) {
+  return {
+    columnVisibility: state.columnVisibility,
+    columnOrder: state.columnOrder,
+    columnPinning: state.columnPinning,
+    expanded: state.expanded,
+    rowPinning: state.rowPinning,
+    rowSelection: state.rowSelection,
+    sorting: state.sorting,
+    pagination: state.pagination,
+    columnFilters: state.columnFilters,
+    globalFilter: state.globalFilter,
+  }
+}
 
 function getColumnStyle<TData extends RowData, TValue>(
   column: Column<DataTableFeatures, TData, TValue>
 ): React.CSSProperties {
   const pinned = column.getIsPinned()
   return {
-    width: column.getSize(),
+    width: `${column.getSize()}px`,
     position: pinned ? "sticky" : "relative",
-    insetInlineStart: pinned === "start" ? column.getStart("start") : undefined,
-    insetInlineEnd: pinned === "end" ? column.getAfter("end") : undefined,
+    insetInlineStart:
+      pinned === "start" ? `${column.getStart("start")}px` : undefined,
+    insetInlineEnd:
+      pinned === "end" ? `${column.getAfter("end")}px` : undefined,
     zIndex: pinned ? 10 : undefined,
   }
 }
 
-export function DataTableContent<TData extends RowData>({
-  hasFilters,
-  onResetFilters,
-  empty,
-  error,
-  onRetry,
-  renderExpandedRow,
-}: {
+type DataTableContentProps<TData extends RowData> = {
   hasFilters: boolean
   onResetFilters: () => void
   empty?: React.ReactNode
   error?: string
   onRetry?: () => void
   renderExpandedRow?: DataTableProps<TData>["renderExpandedRow"]
+}
+
+export function DataTableContent<TData extends RowData>(
+  props: DataTableContentProps<TData>
+) {
+  const table = useDataTableContext<TData>()
+  return (
+    <table.Subscribe selector={selectDataTableGridState}>
+      {(gridState) => <DataTableGrid gridState={gridState} {...props} />}
+    </table.Subscribe>
+  )
+}
+
+function DataTableGrid<TData extends RowData>({
+  gridState,
+  hasFilters,
+  onResetFilters,
+  empty,
+  error,
+  onRetry,
+  renderExpandedRow,
+}: DataTableContentProps<TData> & {
+  gridState: ReturnType<typeof selectDataTableGridState>
 }) {
   const { t } = useTranslation("common")
   const table = useDataTableContext<TData>()
@@ -63,21 +98,22 @@ export function DataTableContent<TData extends RowData>({
   ]
   const visibleColumns = table.getVisibleLeafColumns()
   const columnCount = Math.max(visibleColumns.length, 1)
-  const skeletonRows = Math.min(table.state.pagination.pageSize, 10)
+  const skeletonRows = Math.min(gridState.pagination.pageSize, 10)
 
   return (
     <div
       data-slot="data-table-content"
       className="overflow-x-auto rounded-2xl border"
     >
-      <Table
+      <table
+        data-slot="table"
         aria-busy={isLoading || status === "refreshing" || isActionPending}
-        className="table-fixed"
-        style={{ minWidth: table.getTotalSize() }}
+        className="w-full table-fixed caption-bottom text-sm"
+        style={{ minWidth: `${table.getTotalSize()}px` }}
       >
         <colgroup>
           {visibleColumns.map((column) => (
-            <col key={column.id} style={{ width: column.getSize() }} />
+            <col key={column.id} style={{ width: `${column.getSize()}px` }} />
           ))}
         </colgroup>
         <TableHeader>
@@ -93,7 +129,7 @@ export function DataTableContent<TData extends RowData>({
                     key={header.id}
                     colSpan={header.colSpan}
                     style={getColumnStyle(header.column)}
-                    className="relative bg-background"
+                    className="bg-background"
                     aria-sort={
                       sorted === "asc"
                         ? "ascending"
@@ -107,47 +143,6 @@ export function DataTableContent<TData extends RowData>({
                     {header.isPlaceholder ? null : (
                       <table.FlexRender header={header} />
                     )}
-                    {header.column.getCanResize() &&
-                    !header.isPlaceholder &&
-                    !isActionPending ? (
-                      <div
-                        role="separator"
-                        aria-label={t("resizeColumn", {
-                          title: getColumnLabel(header.column),
-                        })}
-                        aria-orientation="vertical"
-                        aria-valuenow={header.column.getSize()}
-                        tabIndex={0}
-                        onMouseDown={header.getResizeHandler()}
-                        onTouchStart={header.getResizeHandler()}
-                        onDoubleClick={() => header.column.resetSize()}
-                        onKeyDown={(event) => {
-                          if (
-                            event.key !== "ArrowLeft" &&
-                            event.key !== "ArrowRight"
-                          )
-                            return
-                          event.preventDefault()
-                          const delta =
-                            (event.key === "ArrowRight" ? 10 : -10) *
-                            (table.options.columnResizeDirection === "rtl"
-                              ? -1
-                              : 1)
-                          const {
-                            minSize = 20,
-                            maxSize = Number.MAX_SAFE_INTEGER,
-                          } = header.column.columnDef
-                          table.setColumnSizing((sizes) => ({
-                            ...sizes,
-                            [header.column.id]: Math.max(
-                              minSize,
-                              Math.min(maxSize, header.column.getSize() + delta)
-                            ),
-                          }))
-                        }}
-                        className="absolute inset-y-0 end-0 z-20 w-1 cursor-col-resize touch-none bg-border/50 hover:bg-primary focus-visible:bg-primary"
-                      />
-                    ) : null}
                   </TableHead>
                 )
               })}
@@ -252,7 +247,7 @@ export function DataTableContent<TData extends RowData>({
             </TableRow>
           )}
         </TableBody>
-      </Table>
+      </table>
     </div>
   )
 }

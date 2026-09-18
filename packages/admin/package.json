@@ -42,5 +42,10 @@
     "zod": "4.6.5",
     "@workspace/i18n": "workspace:*",
     "react-i18next": "17.0.14"
+  },
+  "intent": {
+    "skills": [
+      "@tanstack/react-table"
+    ]
   }
 }

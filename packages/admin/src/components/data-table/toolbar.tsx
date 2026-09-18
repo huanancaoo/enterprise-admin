@@ -6,7 +6,7 @@ import { z } from "zod"
 import { useTranslation } from "react-i18next"
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
-import type { Column, RowData } from "@tanstack/react-table"
+import { Subscribe, type Column, type RowData } from "@tanstack/react-table"
 import { cn } from "cn"
 import { CirclePlusIcon, SearchIcon } from "lucide-react"
 import { Badge } from "@workspace/ui/components/badge"
@@ -139,104 +139,111 @@ export function DataTableFacetedFilter<TData extends RowData>({
   const table = useDataTableContext()
   const format = createFormatter(useUiLocale())
   const facetMode = column.columnDef.meta?.facetMode ?? "multiple"
-  const filterValue = column.getFilterValue()
-  const selectedValues =
-    facetMode === "single"
-      ? new Set(typeof filterValue === "string" ? [filterValue] : [])
-      : new Set((filterValue as string[] | undefined) ?? [])
-  // 服务端分页只持有当前页，不能把页内计数展示为筛选总数。
-  const facets =
-    table.options.manualFiltering || table.options.manualPagination
-      ? undefined
-      : column.getFacetedUniqueValues()
 
   return (
-    <Popover>
-      <PopoverTrigger
-        render={
-          <Button
-            variant="outline"
-            disabled={isActionPending}
-            size="sm"
-            className="h-auto min-h-8 flex-wrap border-dashed"
-          />
-        }
-      >
-        <CirclePlusIcon data-icon="inline-start" />
-        {title}
-        {options
-          .filter((option) => selectedValues.has(option.value))
-          .map((option) => (
-            <Badge key={option.value} variant="secondary">
-              {option.label}
-            </Badge>
-          ))}
-      </PopoverTrigger>
-      <PopoverContent
-        className="w-56 gap-0 p-0"
-        align="start"
-        aria-label={t("filterColumn", { title: title })}
-      >
-        <Command>
-          <CommandInput
-            placeholder={title}
-            aria-label={t("searchOptions", { title: title })}
-          />
-          <CommandList>
-            <CommandEmpty>{t("emptyTitle")}</CommandEmpty>
-            <CommandGroup>
-              {options.map((option) => {
-                const isSelected = selectedValues.has(option.value)
-                const count = facets?.get(option.value)
-                const Icon = option.icon
+    <Subscribe source={table.atoms.columnFilters}>
+      {() => {
+        const filterValue = column.getFilterValue()
+        const selectedValues =
+          facetMode === "single"
+            ? new Set(typeof filterValue === "string" ? [filterValue] : [])
+            : new Set((filterValue as string[] | undefined) ?? [])
+        // 服务端分页只持有当前页，不能把页内计数展示为筛选总数。
+        const facets =
+          table.options.manualFiltering || table.options.manualPagination
+            ? undefined
+            : column.getFacetedUniqueValues()
 
-                return (
-                  <CommandItem
-                    disabled={isActionPending}
-                    key={option.value}
-                    data-checked={isSelected}
-                    onSelect={() => {
-                      if (facetMode === "single") {
-                        column.setFilterValue(
-                          isSelected ? undefined : option.value
-                        )
-                        return
-                      }
-                      const next = new Set(selectedValues)
-                      if (isSelected) {
-                        next.delete(option.value)
-                      } else {
-                        next.add(option.value)
-                      }
-                      column.setFilterValue(
-                        next.size > 0 ? Array.from(next) : undefined
-                      )
-                    }}
-                  >
-                    {Icon ? <Icon /> : null}
-                    <span className="flex-1">{option.label}</span>
-                    {count != null ? (
-                      <span className="text-xs text-foreground tabular-nums">
-                        {format.number(count)}
-                      </span>
-                    ) : null}
-                  </CommandItem>
-                )
-              })}
-            </CommandGroup>
-            {selectedValues.size > 0 ? (
-              <CommandGroup>
-                <CommandItem
+        return (
+          <Popover>
+            <PopoverTrigger
+              render={
+                <Button
+                  variant="outline"
                   disabled={isActionPending}
-                  onSelect={() => column.setFilterValue(undefined)}
-                >
-                  {t("clearFilters")}
-                </CommandItem>
-              </CommandGroup>
-            ) : null}
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+                  size="sm"
+                  className="h-auto min-h-8 flex-wrap border-dashed"
+                />
+              }
+            >
+              <CirclePlusIcon data-icon="inline-start" />
+              {title}
+              {options
+                .filter((option) => selectedValues.has(option.value))
+                .map((option) => (
+                  <Badge key={option.value} variant="secondary">
+                    {option.label}
+                  </Badge>
+                ))}
+            </PopoverTrigger>
+            <PopoverContent
+              className="w-56 gap-0 p-0"
+              align="start"
+              aria-label={t("filterColumn", { title: title })}
+            >
+              <Command>
+                <CommandInput
+                  placeholder={title}
+                  aria-label={t("searchOptions", { title: title })}
+                />
+                <CommandList>
+                  <CommandEmpty>{t("emptyTitle")}</CommandEmpty>
+                  <CommandGroup>
+                    {options.map((option) => {
+                      const isSelected = selectedValues.has(option.value)
+                      const count = facets?.get(option.value)
+                      const Icon = option.icon
+
+                      return (
+                        <CommandItem
+                          disabled={isActionPending}
+                          key={option.value}
+                          data-checked={isSelected}
+                          onSelect={() => {
+                            if (facetMode === "single") {
+                              column.setFilterValue(
+                                isSelected ? undefined : option.value
+                              )
+                              return
+                            }
+                            const next = new Set(selectedValues)
+                            if (isSelected) {
+                              next.delete(option.value)
+                            } else {
+                              next.add(option.value)
+                            }
+                            column.setFilterValue(
+                              next.size > 0 ? Array.from(next) : undefined
+                            )
+                          }}
+                        >
+                          {Icon ? <Icon /> : null}
+                          <span className="flex-1">{option.label}</span>
+                          {count != null ? (
+                            <span className="text-xs text-foreground tabular-nums">
+                              {format.number(count)}
+                            </span>
+                          ) : null}
+                        </CommandItem>
+                      )
+                    })}
+                  </CommandGroup>
+                  {selectedValues.size > 0 ? (
+                    <CommandGroup>
+                      <CommandItem
+                        disabled={isActionPending}
+                        onSelect={() => column.setFilterValue(undefined)}
+                      >
+                        {t("clearFilters")}
+                      </CommandItem>
+                    </CommandGroup>
+                  ) : null}
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+        )
+      }}
+    </Subscribe>
   )
 }

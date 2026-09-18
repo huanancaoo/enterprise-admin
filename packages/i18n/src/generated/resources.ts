@@ -104,7 +104,6 @@ export default interface Resources {
     "removeLink": "移除链接",
     "reorderColumn": "拖动以调整 {{title}} 顺序",
     "resetColumns": "重置列",
-    "resizeColumn": "调整 {{title}} 宽度",
     "retry": "重试",
     "rows": "共 {{total}} 条",
     "rowsPerPage": "每页条数",

@@ -7,7 +7,7 @@ export type DataTableStatus =
 
 export type DataTableOptions<TData extends RowData> = Omit<
   TableOptions<DataTableFeatures, TData>,
-  "features" | "columnResizeDirection" | "manualFiltering" | "getRowId"
+  "features" | "manualFiltering" | "getRowId"
 >
 
 export type DataTableProps<TData extends RowData> = DataTableOptions<TData> & {

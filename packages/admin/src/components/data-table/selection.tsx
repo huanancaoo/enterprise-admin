@@ -28,37 +28,43 @@ export function DataTableSelectionActions<TData extends RowData>({
   const table = useDataTableContext<TData>()
   const { isActionPending } = useDataTablePresentation()
   const locale = useUiLocale()
-  const rows = table.getFilteredSelectedRowModel().rows
-
-  if (rows.length === 0) return null
 
   return (
-    <div
-      data-slot="data-table-selection-actions"
-      role="region"
-      aria-label={t("selectionActions")}
-      className="flex flex-wrap items-center gap-2"
-    >
-      <span role="status" className="text-sm font-medium">
-        {t("selectedRows", {
-          total: createFormatter(locale).number(rows.length),
-        })}
-      </span>
-      <Button
-        disabled={isActionPending}
-        variant="outline"
-        size="sm"
-        onClick={() => table.resetRowSelection(true)}
-      >
-        <XIcon data-icon="inline-start" aria-hidden="true" />
-        {t("clearSelection")}
-      </Button>
-      {renderActions ? (
-        <div className="flex flex-wrap items-center gap-2 border-s ps-2">
-          {renderActions(rows)}
-        </div>
-      ) : null}
-    </div>
+    <Subscribe source={table.atoms.rowSelection}>
+      {() => {
+        const rows = table.getFilteredSelectedRowModel().rows
+        if (rows.length === 0) return null
+
+        return (
+          <div
+            data-slot="data-table-selection-actions"
+            role="region"
+            aria-label={t("selectionActions")}
+            className="flex flex-wrap items-center gap-2"
+          >
+            <span role="status" className="text-sm font-medium">
+              {t("selectedRows", {
+                total: createFormatter(locale).number(rows.length),
+              })}
+            </span>
+            <Button
+              disabled={isActionPending}
+              variant="outline"
+              size="sm"
+              onClick={() => table.resetRowSelection(true)}
+            >
+              <XIcon data-icon="inline-start" aria-hidden="true" />
+              {t("clearSelection")}
+            </Button>
+            {renderActions ? (
+              <div className="flex flex-wrap items-center gap-2 border-s ps-2">
+                {renderActions(rows)}
+              </div>
+            ) : null}
+          </div>
+        )
+      }}
+    </Subscribe>
   )
 }
 
