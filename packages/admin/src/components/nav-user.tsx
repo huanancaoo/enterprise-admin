@@ -20,7 +20,7 @@ import {
 } from "@workspace/ui/components/sidebar"
 import { ChevronsUpDownIcon, LogOutIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
-import { LocaleSwitcher } from "./workspace"
+import { LocaleSwitcher, ThemeSwitcher } from "./workspace"
 
 export interface SidebarUser {
   name: string
@@ -86,6 +86,7 @@ export function NavUser({ user, signingOut, error, onSignOut }: NavUserProps) {
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
+              <ThemeSwitcher variant="submenu" />
               <LocaleSwitcher variant="submenu" />
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

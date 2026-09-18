@@ -68,3 +68,32 @@ export const LanguageMenu: Story = {
     )
   },
 }
+
+export const ThemeMenu: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const screen = within(canvasElement.ownerDocument.body)
+
+    await userEvent.click(canvas.getByRole("button", { name: /测试用户/ }))
+    await userEvent.click(await screen.findByRole("menuitem", { name: "主题" }))
+    await userEvent.click(
+      await screen.findByRole("menuitemradio", { name: "深色" })
+    )
+
+    await waitFor(() => expect(document.documentElement).toHaveClass("dark"))
+    await waitFor(() =>
+      expect(screen.queryByRole("menuitemradio")).not.toBeInTheDocument()
+    )
+
+    await userEvent.click(canvas.getByRole("button", { name: /测试用户/ }))
+    await userEvent.click(await screen.findByRole("menuitem", { name: "主题" }))
+    await userEvent.click(
+      await screen.findByRole("menuitemradio", { name: "浅色" })
+    )
+
+    await waitFor(() => expect(document.documentElement).toHaveClass("light"))
+    await waitFor(() =>
+      expect(screen.queryByRole("menuitemradio")).not.toBeInTheDocument()
+    )
+  },
+}

@@ -18,10 +18,17 @@ export type {
 export {
   AdminDirectionProvider,
   LocaleSwitcher,
+  ThemeSwitcher,
   TenantSwitcher,
   PermissionGate,
+  ThemeProvider,
 } from "./components/workspace"
-export type { LocaleSwitcherProps } from "./components/workspace"
+export { useTheme } from "@workspace/ui/components/theme-provider"
+export type {
+  LocaleSwitcherProps,
+  ThemeSwitcherProps,
+  Theme,
+} from "./components/workspace"
 export { AppSidebar } from "./components/app-sidebar"
 export type { AppShellProps } from "./components/page"
 export type { AppSidebarProps } from "./components/app-sidebar"

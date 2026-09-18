@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { createUiI18n, type SupportedLocale } from "@workspace/i18n"
 import { UiI18nProvider } from "@workspace/i18n/react"
-import { AdminDirectionProvider } from "@workspace/admin"
+import { AdminDirectionProvider, ThemeProvider } from "@workspace/admin"
 
 export function StoryProviders({
   locale,
@@ -19,9 +19,11 @@ export function StoryProviders({
   return (
     <UiI18nProvider instance={instance}>
       <AdminDirectionProvider>
-        <QueryClientProvider client={queryClient}>
-          {children}
-        </QueryClientProvider>
+        <ThemeProvider>
+          <QueryClientProvider client={queryClient}>
+            {children}
+          </QueryClientProvider>
+        </ThemeProvider>
       </AdminDirectionProvider>
     </UiI18nProvider>
   )

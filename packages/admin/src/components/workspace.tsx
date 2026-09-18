@@ -22,8 +22,25 @@ import {
   DropdownMenuSubTrigger,
 } from "@workspace/ui/components/dropdown-menu"
 import { Button } from "@workspace/ui/components/button"
-import { GlobeIcon, ChevronDownIcon } from "lucide-react"
+import {
+  GlobeIcon,
+  ChevronDownIcon,
+  SunIcon,
+  MoonIcon,
+  MonitorIcon,
+} from "lucide-react"
+import {
+  ThemeProvider,
+  useTheme,
+  type Theme,
+  type ResolvedTheme,
+  type ThemeProviderProps,
+  type ThemeProviderState,
+} from "@workspace/ui/components/theme-provider"
 import { cn } from "cn"
+
+export { ThemeProvider }
+export type { Theme, ResolvedTheme, ThemeProviderProps, ThemeProviderState }
 
 export function AdminDirectionProvider({ children }: { children: ReactNode }) {
   const locale = useUiLocale()
@@ -145,6 +162,147 @@ export function LocaleSwitcher({
               {localeMeta[value].label}
             </DropdownMenuRadioItem>
           ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+export type ThemeSwitcherProps = {
+  variant?: "dropdown" | "icon" | "select" | "submenu"
+  align?: "start" | "end" | "center"
+  className?: string
+}
+
+export function ThemeSwitcher({
+  variant = "dropdown",
+  align = "end",
+  className,
+}: ThemeSwitcherProps = {}) {
+  const { t } = useTranslation("common")
+  const { theme, setTheme } = useTheme()
+  const id = useId()
+
+  const currentThemeLabel =
+    theme === "light"
+      ? t("themeLight")
+      : theme === "dark"
+        ? t("themeDark")
+        : t("themeSystem")
+
+  const CurrentThemeIcon =
+    theme === "light" ? SunIcon : theme === "dark" ? MoonIcon : MonitorIcon
+
+  if (variant === "submenu") {
+    return (
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger className={className}>
+          <CurrentThemeIcon aria-hidden="true" />
+          <span>{t("theme")}</span>
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent>
+          <DropdownMenuRadioGroup
+            value={theme}
+            onValueChange={(value) => {
+              if (value) setTheme(value as Theme)
+            }}
+          >
+            <DropdownMenuRadioItem value="light" closeOnClick>
+              <SunIcon aria-hidden="true" />
+              <span>{t("themeLight")}</span>
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="dark" closeOnClick>
+              <MoonIcon aria-hidden="true" />
+              <span>{t("themeDark")}</span>
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="system" closeOnClick>
+              <MonitorIcon aria-hidden="true" />
+              <span>{t("themeSystem")}</span>
+            </DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
+    )
+  }
+
+  if (variant === "select") {
+    return (
+      <Field
+        orientation="horizontal"
+        className={cn("w-fit max-w-full", className)}
+      >
+        <FieldLabel htmlFor={id}>{t("theme")}</FieldLabel>
+        <Select
+          value={theme}
+          items={{
+            light: t("themeLight"),
+            dark: t("themeDark"),
+            system: t("themeSystem"),
+          }}
+          onValueChange={(value) => {
+            if (value !== null) setTheme(value as Theme)
+          }}
+        >
+          <SelectTrigger id={id} className="min-w-32">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="light">{t("themeLight")}</SelectItem>
+            <SelectItem value="dark">{t("themeDark")}</SelectItem>
+            <SelectItem value="system">{t("themeSystem")}</SelectItem>
+          </SelectContent>
+        </Select>
+      </Field>
+    )
+  }
+
+  const isIconOnly = variant === "icon"
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="outline"
+            size={isIconOnly ? "icon-sm" : "sm"}
+            className={cn("cursor-pointer", className)}
+            aria-label={t("theme")}
+          />
+        }
+      >
+        <CurrentThemeIcon
+          className="size-4 shrink-0"
+          data-icon={isIconOnly ? undefined : "inline-start"}
+          aria-hidden="true"
+        />
+        {!isIconOnly && <span>{currentThemeLabel}</span>}
+        {!isIconOnly && (
+          <ChevronDownIcon
+            className="size-3.5 shrink-0 opacity-60"
+            data-icon="inline-end"
+            aria-hidden="true"
+          />
+        )}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align={align}>
+        <DropdownMenuRadioGroup
+          value={theme}
+          onValueChange={(value) => {
+            if (value) setTheme(value as Theme)
+          }}
+        >
+          <DropdownMenuRadioItem value="light" closeOnClick>
+            <SunIcon aria-hidden="true" />
+            <span>{t("themeLight")}</span>
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="dark" closeOnClick>
+            <MoonIcon aria-hidden="true" />
+            <span>{t("themeDark")}</span>
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="system" closeOnClick>
+            <MonitorIcon aria-hidden="true" />
+            <span>{t("themeSystem")}</span>
+          </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>
