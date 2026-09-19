@@ -296,11 +296,48 @@ describe(suiteName, { concurrent: false }, () => {
       'UPDATE public."user" SET email_verified = true WHERE id = $1',
       [registered.user.id]
     )
+    assert.equal(
+      (
+        await runtime.query(
+          'SELECT last_login_method FROM public."user" WHERE id = $1',
+          [registered.user.id]
+        )
+      ).rows[0].last_login_method,
+      "email"
+    )
+    const failedSignIn = await auth.api.signInEmail({
+      body: { email: "s2@example.test", password: "wrong-password-not-used" },
+      asResponse: true,
+    })
+    assert.notEqual(failedSignIn.status, 200)
+    assert.equal(
+      failedSignIn.headers
+        .getSetCookie()
+        .some((item) => item.includes("last_used_login_method=")),
+      false
+    )
+    assert.equal(
+      (
+        await runtime.query(
+          'SELECT last_login_method FROM public."user" WHERE id = $1',
+          [registered.user.id]
+        )
+      ).rows[0].last_login_method,
+      "email"
+    )
     const response = await auth.api.signInEmail({
       body: { email: "s2@example.test", password: "S2-database-test-password" },
       asResponse: true,
     })
     assert.equal(response.status, 200)
+    assert.equal(
+      response.headers
+        .getSetCookie()
+        .some((item) =>
+          item.startsWith("better-auth.last_used_login_method=email")
+        ),
+      true
+    )
     const cookie = response.headers
       .getSetCookie()
       .map((item) => item.split(";")[0])
@@ -308,6 +345,16 @@ describe(suiteName, { concurrent: false }, () => {
     const headers = new Headers({ cookie })
     const session = await auth.api.getSession({ headers })
     assert.equal(session?.user.id, registered.user.id)
+    assert.equal(session?.user.lastLoginMethod, "email")
+    assert.equal(
+      (
+        await runtime.query(
+          'SELECT last_login_method FROM public."user" WHERE id = $1',
+          [registered.user.id]
+        )
+      ).rows[0].last_login_method,
+      "email"
+    )
     const org = await auth.api.createOrganization({
       headers,
       body: { name: "S2 Org", slug: "s2-org" },

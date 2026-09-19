@@ -246,12 +246,29 @@ describe(
         'UPDATE public."user" SET email_verified = true WHERE id = $1',
         [registered.data!.user.id],
       );
+      expect(
+        (
+          await migratorDatabase!.pool.query(
+            'SELECT last_login_method FROM public."user" WHERE id = $1',
+            [registered.data!.user.id],
+          )
+        ).rows[0].last_login_method,
+      ).toBe('email');
+      expect(cookie).not.toContain('last_used_login_method=');
       const signedIn = await client.signIn.email(credentials);
       expect(signedIn.error).toBeNull();
       expect(cookie).toContain('session_token=');
+      expect(cookie).toContain('last_used_login_method=email');
       expect((await client.getSession()).data?.user.id).toBe(
         registered.data?.user.id,
       );
+      expect(
+        (
+          await app!.get(AuthRuntime).auth.api.getSession({
+            headers: new Headers({ cookie }),
+          })
+        )?.user.lastLoginMethod,
+      ).toBe('email');
       expect((await client.organization.list()).data).toEqual([]);
       revokedCookie = cookie;
     });

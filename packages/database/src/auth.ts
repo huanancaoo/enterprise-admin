@@ -1,5 +1,5 @@
 import { betterAuth } from "better-auth"
-import { organization } from "better-auth/plugins"
+import { lastLoginMethod, organization } from "better-auth/plugins"
 import { createAccessControl } from "better-auth/plugins/access"
 import {
   defaultStatements,
@@ -311,6 +311,10 @@ export function createAuth(
         await assertActiveOrganization(organizationQuery, organizationId)
       }),
     },
-    plugins: [organizationPlugin],
+    plugins: [
+      organizationPlugin,
+      // 登录页读 cookie；已登录会话从 user.lastLoginMethod 展示，必须写库。
+      lastLoginMethod({ storeInDatabase: true }),
+    ],
   })
 }

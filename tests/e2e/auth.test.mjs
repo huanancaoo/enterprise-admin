@@ -984,14 +984,30 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
       password: credentials.password,
     }
     await page.goto(tenantOrigin + "/" + "app/")
+    await expectUI(page.getByText("上次使用", { exact: true })).toHaveCount(0)
     await registerAccount(page, account)
     await page.getByLabel("组织名称", { exact: true }).fill("唯一组织")
     await page.getByLabel("组织标识", { exact: true }).fill("only-org")
     await page.getByRole("button", { name: "创建组织", exact: true }).click()
     await expectUI(page).toHaveURL(/\/app\/projects\/[0-9a-f-]+(?:\?.*)?$/)
     await expectUI(page.getByRole("button", { name: /唯一组织/ })).toBeVisible()
+    const lastUsedCookie = (await context.cookies()).find(
+      (item) => item.name === "better-auth.last_used_login_method"
+    )
+    expect(lastUsedCookie?.value).toBe("email")
+    expect(lastUsedCookie?.httpOnly).toBe(false)
     await signOutFromAppShell(page, account.name)
     await page.getByRole("heading", { name: "登录", exact: true }).waitFor()
+    await expectUI(
+      page
+        .getByRole("button", { name: "登录", exact: true })
+        .getByText("上次使用", { exact: true })
+    ).toBeVisible()
+    await expectUI(
+      page
+        .getByRole("button", { name: "使用 GitHub 登录", exact: true })
+        .getByText("上次使用", { exact: true })
+    ).toHaveCount(0)
     await signInAccount(page, account)
     await expectUI(page).toHaveURL(/\/app\/projects\/[0-9a-f-]+(?:\?.*)?$/)
     await expectUI(
@@ -999,8 +1015,51 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     ).toBeVisible()
     await expectUI(page.getByText("还没有项目", { exact: true })).toBeVisible()
     await expectUI(
+      page.getByText("上次登录：邮箱", { exact: true })
+    ).toBeVisible()
+    await expectUI(
       page.getByRole("heading", { name: "创建组织", exact: true })
     ).toHaveCount(0)
+  })
+
+  it("上次登录方式 cookie 为 github 时高亮 GitHub，注册页不展示，登录按钮可访问名不变", async () => {
+    await context.addCookies([
+      {
+        name: "better-auth.last_used_login_method",
+        value: "github",
+        url: tenantOrigin,
+      },
+    ])
+    await page.goto(tenantOrigin + "/" + "app/")
+    await expectUI(
+      page.getByRole("heading", { name: "登录", exact: true })
+    ).toBeVisible()
+    await expectUI(
+      page.getByRole("button", { name: "登录", exact: true })
+    ).toBeVisible()
+    await expectUI(
+      page
+        .getByRole("button", { name: "登录", exact: true })
+        .getByText("上次使用", { exact: true })
+    ).toHaveCount(0)
+    await expectUI(
+      page
+        .getByRole("button", { name: "使用 GitHub 登录", exact: true })
+        .getByText("上次使用", { exact: true })
+    ).toBeVisible()
+    await page.getByRole("button", { name: "创建账号", exact: true }).click()
+    await expectUI(
+      page.getByRole("button", { name: "注册", exact: true })
+    ).toBeVisible()
+    await expectUI(page.getByText("上次使用", { exact: true })).toHaveCount(0)
+    await page
+      .getByRole("button", { name: "已有账号，去登录", exact: true })
+      .click()
+    await expectUI(
+      page
+        .getByRole("button", { name: "使用 GitHub 登录", exact: true })
+        .getByText("上次使用", { exact: true })
+    ).toBeVisible()
   })
 
   it("已有多个组织的用户登录后选择已有组织进入", async () => {
@@ -1109,9 +1168,15 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await expectUI(
       page.getByRole("heading", { name: "账户已登录", exact: true })
     ).toBeVisible()
+    await expectUI(
+      page.getByText("上次登录：邮箱", { exact: true })
+    ).toBeVisible()
     await page.reload()
     await expectUI(
       page.getByText("platform-login@example.test", { exact: true })
+    ).toBeVisible()
+    await expectUI(
+      page.getByText("上次登录：邮箱", { exact: true })
     ).toBeVisible()
     await page.screenshot({
       path: "test-results/s4-02/platform.png",

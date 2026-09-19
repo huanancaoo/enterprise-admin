@@ -160,6 +160,7 @@ export function AdminLayout() {
             name: session.user.name,
             email: session.user.email,
             avatar: session.user.image ?? undefined,
+            lastLoginMethod: session.user.lastLoginMethod,
           },
           signingOut: session.signingOut,
           error: session.signOutError,

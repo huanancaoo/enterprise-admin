@@ -6,6 +6,7 @@ export type AuthenticatedSession = {
     name: string
     email: string
     image?: string | null
+    lastLoginMethod?: string | null
   }
   signOut: () => void
   signingOut: boolean

@@ -20,12 +20,20 @@ import {
 } from "@workspace/ui/components/sidebar"
 import { ChevronsUpDownIcon, LogOutIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
+import type { TFunction } from "@workspace/i18n"
 import { LocaleSwitcher, ThemeSwitcher } from "./workspace"
+
+function lastLoginMethodLabel(method: string, t: TFunction<"auth">) {
+  if (method === "email") return t("loginMethod_email")
+  if (method === "github") return t("loginMethod_github")
+  throw new Error(`unknown login method: ${method}`)
+}
 
 export interface SidebarUser {
   name: string
   email: string
   avatar?: string
+  lastLoginMethod?: string | null
 }
 
 export interface NavUserProps {
@@ -57,6 +65,13 @@ export function NavUser({ user, signingOut, error, onSignOut }: NavUserProps) {
             <div className="grid flex-1 text-start text-sm leading-tight">
               <span className="truncate font-medium">{user.name}</span>
               <span className="truncate text-xs">{user.email}</span>
+              {user.lastLoginMethod ? (
+                <span className="truncate text-xs text-muted-foreground">
+                  {t("lastLoginMethod", {
+                    method: lastLoginMethodLabel(user.lastLoginMethod, t),
+                  })}
+                </span>
+              ) : null}
             </div>
             <ChevronsUpDownIcon className="ms-auto size-4" />
           </DropdownMenuTrigger>
@@ -80,6 +95,13 @@ export function NavUser({ user, signingOut, error, onSignOut }: NavUserProps) {
                   <div className="grid flex-1 text-start text-sm leading-tight">
                     <span className="truncate font-medium">{user.name}</span>
                     <span className="truncate text-xs">{user.email}</span>
+                    {user.lastLoginMethod ? (
+                      <span className="truncate text-xs text-muted-foreground">
+                        {t("lastLoginMethod", {
+                          method: lastLoginMethodLabel(user.lastLoginMethod, t),
+                        })}
+                      </span>
+                    ) : null}
                   </div>
                 </div>
               </DropdownMenuLabel>

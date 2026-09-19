@@ -21,6 +21,7 @@ export const user = pgTable("user", {
     .defaultNow()
     .$onUpdate(() => /* @__PURE__ */ new Date())
     .notNull(),
+  lastLoginMethod: text("last_login_method"),
   preferredLocale: text("preferred_locale", { enum: ["zh-CN", "en-US", "ar"] }),
 });
 
