@@ -106,7 +106,8 @@ export function createAuth(
   baseURL: string,
   secret: string,
   trustedOrigins: string[] = [],
-  emailHooks: AuthEmailHooks
+  emailHooks: AuthEmailHooks,
+  github: { clientId: string; clientSecret: string }
 ) {
   const transactionalAdapter = createTransactionalAuthAdapter(pool)
   const organizationPlugin = wrapTransactionalOrganizationEndpoints(
@@ -201,6 +202,12 @@ export function createAuth(
     secret,
     trustedOrigins,
     database: transactionalAdapter.adapterFactory,
+    socialProviders: {
+      github: {
+        clientId: github.clientId,
+        clientSecret: github.clientSecret,
+      },
+    },
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: true,

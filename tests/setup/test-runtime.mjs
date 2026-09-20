@@ -73,6 +73,10 @@ export async function startTestApplication({
       baseURL,
       secret: randomBytes(32).toString("hex"),
       trustedOrigins: origins,
+      github: {
+        clientId: "test-github-client-id",
+        clientSecret: "test-github-client-secret",
+      },
       email: testEmailConfig({
         linkOrigin: origins[0],
         ...(smtp ? { smtp } : {}),

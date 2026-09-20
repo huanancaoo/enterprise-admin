@@ -11,6 +11,10 @@ async function exportOpenApi(): Promise<void> {
       baseURL: 'http://localhost:3000',
       secret: 'openapi-metadata-only-not-a-runtime-secret',
       trustedOrigins: [],
+      github: {
+        clientId: 'openapi-metadata-only',
+        clientSecret: 'openapi-metadata-only',
+      },
       email: {
         smtp: { host: '127.0.0.1', port: 1025, secure: false },
         from: { email: 'noreply@example.test', name: 'OpenAPI' },

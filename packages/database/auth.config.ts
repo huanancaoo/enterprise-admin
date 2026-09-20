@@ -7,5 +7,9 @@ export const auth = createAuth(
   "http://localhost:3000",
   "schema-generation-only-not-a-runtime-secret",
   [],
-  noopAuthEmailHooks
+  noopAuthEmailHooks,
+  {
+    clientId: "schema-generation-only",
+    clientSecret: "schema-generation-only",
+  }
 )

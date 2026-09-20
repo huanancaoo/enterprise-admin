@@ -1062,6 +1062,29 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     ).toBeVisible()
   })
 
+  it("租户登录可发起 GitHub OAuth", async () => {
+    await page.goto(tenantOrigin + "/" + "app/")
+    await expectUI(
+      page.getByRole("heading", { name: "登录", exact: true })
+    ).toBeVisible()
+    const authorize = page.waitForRequest((request) => {
+      const url = new URL(request.url())
+      return (
+        url.origin === "https://github.com" &&
+        url.pathname === "/login/oauth/authorize"
+      )
+    })
+    await page
+      .getByRole("button", { name: "使用 GitHub 登录", exact: true })
+      .click()
+    const request = await authorize
+    const url = new URL(request.url())
+    expect(url.searchParams.get("client_id")).toBe("test-github-client-id")
+    expect(url.searchParams.get("scope")?.split(/[+\s]/)).toEqual(
+      expect.arrayContaining(["user:email"])
+    )
+  })
+
   it("已有多个组织的用户登录后选择已有组织进入", async () => {
     const account = {
       name: "多组织用户",
@@ -1159,6 +1182,9 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     ).toBeVisible()
     await expectUI(
       page.getByRole("button", { name: "创建账号", exact: true })
+    ).toHaveCount(0)
+    await expectUI(
+      page.getByRole("button", { name: "使用 GitHub 登录", exact: true })
     ).toHaveCount(0)
     await page
       .getByLabel("邮箱", { exact: true })

@@ -113,12 +113,21 @@ export function AuthGate({
 export function CredentialsPage({
   title,
   allowSignUp = false,
+  allowGithub = false,
 }: {
   title: string
   allowSignUp?: boolean
+  allowGithub?: boolean
 }) {
   const client = useWorkspaceAuthClient()
-  return <AuthEntry client={client} title={title} allowSignUp={allowSignUp} />
+  return (
+    <AuthEntry
+      client={client}
+      title={title}
+      allowSignUp={allowSignUp}
+      allowGithub={allowGithub}
+    />
+  )
 }
 
 export function AuthenticatedSessionProvider({
@@ -149,10 +158,12 @@ function AuthEntry({
   client,
   title,
   allowSignUp = false,
+  allowGithub = false,
 }: {
   client: WorkspaceAuthClient
   title: string
   allowSignUp?: boolean
+  allowGithub?: boolean
 }) {
   const [signUp, setSignUp] = useState(false)
   const [checkEmail, setCheckEmail] = useState(false)
@@ -184,6 +195,7 @@ function AuthEntry({
           signUp={signUp}
           action={action}
           allowSignUp={allowSignUp}
+          allowGithub={allowGithub}
           onSignedUp={() => setCheckEmail(true)}
           onToggleSignUp={() => {
             action.reset()
@@ -200,6 +212,7 @@ function CredentialsForm({
   signUp,
   action,
   allowSignUp,
+  allowGithub,
   onToggleSignUp,
   onSignedUp,
 }: {
@@ -207,6 +220,7 @@ function CredentialsForm({
   signUp: boolean
   action: ReturnType<typeof useAuthAction>
   allowSignUp: boolean
+  allowGithub: boolean
   onToggleSignUp: () => void
   onSignedUp: () => void
 }) {
@@ -404,17 +418,22 @@ function CredentialsForm({
               )}
             </Button>
           </Field>
-          {!signUp && (
+          {allowGithub && !signUp && (
             <>
               <FieldSeparator>{t("auth:orContinueWith")}</FieldSeparator>
               <Field>
                 <Button
                   variant={lastLoginMethod === "github" ? "default" : "outline"}
                   type="button"
-                  className="w-full cursor-not-allowed opacity-80"
-                  title={t("auth:featureUnavailable")}
-                  onClick={(event) => event.preventDefault()}
-                  aria-disabled="true"
+                  className="w-full"
+                  onClick={() => {
+                    void action.run(() =>
+                      client.signIn.social({
+                        provider: "github",
+                        callbackURL: `${window.location.origin}${window.location.pathname}${window.location.search}`,
+                      })
+                    )
+                  }}
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"

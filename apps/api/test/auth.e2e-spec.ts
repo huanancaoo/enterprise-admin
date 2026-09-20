@@ -197,6 +197,10 @@ describe(
           baseURL: 'http://localhost:3000',
           secret: randomBytes(32).toString('hex'),
           trustedOrigins: [origin],
+          github: {
+            clientId: 'test-github-client-id',
+            clientSecret: 'test-github-client-secret',
+          },
           email: emailConfig,
         },
         { logger: false },
@@ -232,6 +236,38 @@ describe(
           path.startsWith('/api/auth'),
         ),
       ).toBe(false);
+    });
+
+    it('GitHub 登录返回 GitHub authorize URL', async () => {
+      const response = await fetch(`${baseURL}/api/auth/sign-in/social`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          origin,
+        },
+        body: JSON.stringify({
+          provider: 'github',
+          callbackURL: `${origin}/app`,
+        }),
+      });
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as {
+        redirect: boolean;
+        url: string;
+      };
+      expect(body.redirect).toBe(true);
+      const authorize = new URL(body.url);
+      expect(authorize.origin).toBe('https://github.com');
+      expect(authorize.pathname).toBe('/login/oauth/authorize');
+      expect(authorize.searchParams.get('client_id')).toBe(
+        'test-github-client-id',
+      );
+      expect(authorize.searchParams.get('scope')?.split(/[+\s]/)).toEqual(
+        expect.arrayContaining(['user:email']),
+      );
+      expect(authorize.searchParams.get('redirect_uri')).toBe(
+        'http://localhost:3000/api/auth/callback/github',
+      );
     });
 
     it('客户端通过 JSON 注册、登录、Cookie 恢复会话并访问组织插件', async () => {

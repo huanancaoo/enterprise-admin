@@ -30,7 +30,7 @@ export function App() {
 
 export function TenantLoginPage() {
   const { t } = useTranslation("organization")
-  return <CredentialsPage title={t("management")} allowSignUp />
+  return <CredentialsPage title={t("management")} allowSignUp allowGithub />
 }
 
 export function TenantAuthTitlePage({

@@ -282,7 +282,11 @@ describe(suiteName, { concurrent: false }, () => {
       "http://localhost:3000",
       randomBytes(32).toString("hex"),
       [],
-      noopAuthEmailHooks
+      noopAuthEmailHooks,
+      {
+        clientId: "test-github-client-id",
+        clientSecret: "test-github-client-secret",
+      }
     )
     const registered = await auth.api.signUpEmail({
       body: {
@@ -426,7 +430,11 @@ describe(suiteName, { concurrent: false }, () => {
       "http://localhost:3000",
       randomBytes(32).toString("hex"),
       [],
-      noopAuthEmailHooks
+      noopAuthEmailHooks,
+      {
+        clientId: "test-github-client-id",
+        clientSecret: "test-github-client-secret",
+      }
     )
     const email = "platform-admin@example.test"
     const password = "platform-admin-test-password"

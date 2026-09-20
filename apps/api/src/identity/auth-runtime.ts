@@ -11,6 +11,10 @@ export interface AuthConfig {
   baseURL: string;
   secret: string;
   trustedOrigins: string[];
+  github: {
+    clientId: string;
+    clientSecret: string;
+  };
 }
 
 export function readAuthConfig(env: NodeJS.ProcessEnv): AuthConfig {
@@ -29,6 +33,10 @@ export function readAuthConfig(env: NodeJS.ProcessEnv): AuthConfig {
     trustedOrigins: required('BETTER_AUTH_TRUSTED_ORIGINS')
       .split(',')
       .map((origin) => origin.trim()),
+    github: {
+      clientId: required('GITHUB_CLIENT_ID'),
+      clientSecret: required('GITHUB_CLIENT_SECRET'),
+    },
   };
 }
 
@@ -66,6 +74,7 @@ export class AuthRuntime implements OnApplicationShutdown {
         config.secret,
         config.trustedOrigins,
         suppressable(emailHooks(this.pool)),
+        config.github,
       );
     } catch (error) {
       void this.pool.end();

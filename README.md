@@ -106,6 +106,8 @@ cp apps/api/.env.example apps/api/.env
 | ------------------------------ | ----------------------------------------------------------- |
 | `DATABASE_URL`                 | `app_runtime` 连接串，密码与初始化文件中的 runtime 密码一致 |
 | `BETTER_AUTH_SECRET`           | 至少 32 字符的随机密钥，不可暴露给前端                      |
+| `GITHUB_CLIENT_ID`             | GitHub OAuth App Client ID                                  |
+| `GITHUB_CLIENT_SECRET`         | GitHub OAuth App Client Secret，不可暴露给前端              |
 | `EMAIL_PAYLOAD_ENCRYPTION_KEY` | 32 字节的 64 位十六进制                                     |
 
 ```sh
