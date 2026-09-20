@@ -211,6 +211,7 @@ export function createAuth(
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: true,
+      minPasswordLength: 12,
       resetPasswordTokenExpiresIn: 3600,
       revokeSessionsOnPasswordReset: true,
       sendResetPassword: async ({ user, url }) => {

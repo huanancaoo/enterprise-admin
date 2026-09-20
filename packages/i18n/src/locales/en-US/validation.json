@@ -4,7 +4,7 @@
   "organizationName": "Enter the organization name.",
   "organizationSlug": "Enter the organization identifier.",
   "passwordMax": "Use at most 128 characters.",
-  "passwordMin": "Use at least 8 characters.",
+  "passwordMin": "Use at least 12 characters.",
   "passwordMismatch": "Passwords do not match.",
   "passwordRequired": "Enter your password.",
   "projectName": "Enter the project name."

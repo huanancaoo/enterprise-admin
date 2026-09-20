@@ -141,7 +141,7 @@ function resetPasswordSchema(t: TFunction<["auth", "validation"]>) {
     .object({
       password: z
         .string()
-        .min(8, t("validation:passwordMin"))
+        .min(12, t("validation:passwordMin"))
         .max(128, t("validation:passwordMax")),
       confirmPassword: z.string(),
     })
@@ -232,7 +232,7 @@ export function ResetPasswordPage({
                         onBlur={field.handleBlur}
                         type="password"
                         autoComplete="new-password"
-                        minLength={8}
+                        minLength={12}
                         maxLength={128}
                         aria-invalid={isInvalid}
                         required
@@ -266,7 +266,7 @@ export function ResetPasswordPage({
                         onBlur={field.handleBlur}
                         type="password"
                         autoComplete="new-password"
-                        minLength={8}
+                        minLength={12}
                         maxLength={128}
                         aria-invalid={isInvalid}
                         required

@@ -47,7 +47,7 @@ function createCredentialsSchemas(
     name: z.string().trim().min(1, t("validation:nameRequired")),
     password: z
       .string()
-      .min(8, t("validation:passwordMin"))
+      .min(12, t("validation:passwordMin"))
       .max(128, t("validation:passwordMax")),
   })
 
@@ -359,7 +359,7 @@ function CredentialsForm({
                       autoComplete={
                         signUp ? "new-password" : "current-password"
                       }
-                      minLength={signUp ? 8 : undefined}
+                      minLength={signUp ? 12 : undefined}
                       maxLength={128}
                       aria-invalid={isInvalid}
                       required

@@ -270,6 +270,23 @@ describe(
       );
     });
 
+    it('注册密码短于 12 个字符被拒绝', async () => {
+      const response = await fetch(`${baseURL}/api/auth/sign-up/email`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          origin,
+          'x-real-ip': `10.${[...randomBytes(3)].join('.')}`,
+        },
+        body: JSON.stringify({
+          email: `${randomBytes(8).toString('hex')}@example.test`,
+          password: 'elevenchars',
+          name: 'Short password',
+        }),
+      });
+      expect(response.status).toBe(400);
+    });
+
     it('客户端通过 JSON 注册、登录、Cookie 恢复会话并访问组织插件', async () => {
       expect((await client.getSession()).data).toBeNull();
       const registered = await client.signUp.email({

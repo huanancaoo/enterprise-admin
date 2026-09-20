@@ -31,7 +31,7 @@ export default interface Resources {
     "noAccountPrompt": "还没有账号？",
     "orContinueWith": "或通过以下方式继续",
     "password": "密码",
-    "passwordHint": "密码需为 8–128 个字符。",
+    "passwordHint": "密码需为 12–128 个字符。",
     "platformTitle": "平台后台",
     "platformUnavailable": "平台功能尚未开放。",
     "register": "注册",
@@ -235,7 +235,7 @@ export default interface Resources {
     "organizationName": "请输入组织名称。",
     "organizationSlug": "请输入组织标识。",
     "passwordMax": "密码不能超过 128 个字符。",
-    "passwordMin": "密码至少需要 8 个字符。",
+    "passwordMin": "密码至少需要 12 个字符。",
     "passwordMismatch": "两次输入的密码不一致。",
     "passwordRequired": "请输入密码。",
     "projectName": "请输入项目名称。"
