@@ -1,0 +1,34 @@
+---
+title: Getting Started
+description: Run the workspace locally and open the tenant console, platform console, and API.
+category: getting-started
+tags:
+  - setup
+  - local
+locale: en-US
+status: published
+---
+
+You need **Node 26.8.2**, **pnpm 12.4.1**, and Docker. Versions are pinned in the repository root `package.json` `engines` / `packageManager` fields.
+
+## Path
+
+1. [Install](./install.mdx) dependencies, PostgreSQL, Mailpit, and migrations
+2. [Configure](./configure.mdx) API secrets and GitHub OAuth
+3. Start the apps from the repository root
+
+```bash
+pnpm dev
+```
+
+| App        | URL                           | Filter                          |
+| ---------- | ----------------------------- | ------------------------------- |
+| Tenant     | http://localhost:3200         | `pnpm --filter tenant dev`      |
+| Platform   | http://localhost:3201         | `pnpm --filter platform dev`    |
+| API        | http://localhost:3000/api/v1  | `pnpm --filter api dev`         |
+| Storybook  | http://localhost:6006         | `pnpm --filter storybook dev`   |
+| Docs       | http://localhost:3300         | `pnpm --filter docs dev`        |
+
+The tenant console can register, verify email, create an organization, and use Projects. Auth mail appears in Mailpit at http://127.0.0.1:8025.
+
+The platform console has no registration. Create a platform admin with the API CLI after the API is built.

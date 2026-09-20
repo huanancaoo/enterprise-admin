@@ -30,6 +30,7 @@
 apps/tenant          租户后台（组织成员操作面）
 apps/platform        平台后台（平台管理员操作面）
 apps/api             NestJS API Host 与 ea CLI
+apps/docs            开发者文档站（Fumadocs）
 apps/storybook       公共组件工作台
 apps/worker          规划位置，未启用
 packages/ui          通用 UI primitives
@@ -48,6 +49,7 @@ flowchart LR
   Platform["平台后台 :3201"] -->|/api/auth| API
   API --> PG[("PostgreSQL 18.6")]
   API --> Mail["SMTP / Mailpit"]
+  Docs["文档 :3300"]
   Storybook["Storybook :6006"]
 ```
 
@@ -127,6 +129,7 @@ pnpm dev
 | 租户后台  | http://localhost:3200        | `pnpm --filter tenant dev`    |
 | 平台后台  | http://localhost:3201        | `pnpm --filter platform dev`  |
 | API       | http://localhost:3000/api/v1 | `pnpm --filter api dev`       |
+| 文档站    | http://localhost:3300        | `pnpm --filter docs dev`      |
 | Storybook | http://localhost:6006        | `pnpm --filter storybook dev` |
 
 租户后台可注册、验证邮箱、创建组织，并在 `/app/projects/:organizationId` 使用 Projects。认证邮件在 Mailpit 收件箱中查看。
@@ -153,6 +156,7 @@ pnpm --filter api exec node --env-file=.env dist/console.js platform admin creat
 | 文件                                                     | 用途                                                     |
 | -------------------------------------------------------- | -------------------------------------------------------- |
 | `apps/tenant/.env.example`、`apps/platform/.env.example` | 公开前端配置；复制为应用目录 `.env.local` 后由 Vite 加载 |
+| `apps/docs/.env.example`                                 | 文档站 Algolia / OpenRouter 配置；`NEXT_PUBLIC_` 会进入浏览器 |
 | `apps/api/.env.example`                                  | API 进程变量                                             |
 | `infra/postgres/.env.example`                            | PostgreSQL 首次初始化，不注入 API                        |
 | `packages/database/.env.example`                         | 仅迁移进程                                               |
@@ -184,7 +188,7 @@ pnpm --filter storybook exec playwright install chromium
 pnpm verify
 ```
 
-`pnpm verify` 顺序执行 peer 检查、依赖边界与 lint、typecheck、i18n、单元、API HTTP、Storybook、浏览器 E2E、数据库 Schema 漂移、数据库测试、生产构建和 API 生成物检查。GitHub Actions 使用同一入口，并额外运行 `pnpm --filter @workspace/database test:compose`。
+`pnpm verify` 顺序执行 peer 检查、依赖边界与 lint、typecheck、i18n、文档内容门禁、单元、API HTTP、Storybook、浏览器 E2E、数据库 Schema 漂移、数据库测试、生产构建和 API 生成物检查。GitHub Actions 使用同一入口，并额外运行 `pnpm --filter @workspace/database test:compose`。
 
 | 范围                 | 入口                                        |
 | -------------------- | ------------------------------------------- |
@@ -200,6 +204,7 @@ pnpm verify
 
 ## 文档
 
+- 公开开发者文档站：`apps/docs`，本地 http://localhost:3300
 - [代理工作约定](AGENTS.md)：本地开发、包边界、验证入口
 - [领域上下文](CONTEXT-MAP.md)：身份与组织、租户后台、平台后台
 - [数据库说明](packages/database/README.md)：分权、迁移链、TenantTx

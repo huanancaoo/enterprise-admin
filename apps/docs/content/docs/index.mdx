@@ -1,0 +1,36 @@
+---
+title: Tenaro
+description: Open-source TypeScript foundation for self-hosted multi-tenant enterprise apps.
+category: getting-started
+tags:
+  - introduction
+  - overview
+locale: en-US
+status: published
+---
+
+Tenaro is a self-hosted multi-tenant application foundation. It is not an admin UI template and not a marketing SaaS boilerplate. It is a TypeScript skeleton for teams that need a tenant console, a platform console, one API host, PostgreSQL isolation, and a repeatable business-module pattern.
+
+## What you get
+
+- Tenant console for organization members and platform console for platform admins
+- One API host: business APIs under `/api/v1`, auth under `/api/auth`
+- Better Auth organizations: email/password, email verification, invites, roles
+- Database-layer tenant isolation with `TenantTx` and PostgreSQL RLS
+- Contract-first HTTP: `packages/contracts` → OpenAPI → Orval client
+- Docs-as-Code on this site: Markdown/MDX in Git is the only documentation source
+
+## Who this documentation is for
+
+- People adopting the open-source project
+- Teams building on top of it
+- Contributors
+- Operators who self-host it
+
+This site is developer documentation. It is not the product website, a CMS, an enterprise wiki, or an AI agent platform.
+
+## Next
+
+1. [Install](./getting-started/install.mdx) the workspace
+2. Read [multi-tenant architecture](./architecture/multi-tenant.mdx)
+3. Follow the [Projects guide](./guides/projects.mdx) as the reference domain

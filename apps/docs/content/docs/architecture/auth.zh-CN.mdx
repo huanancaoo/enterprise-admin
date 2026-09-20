@@ -1,0 +1,27 @@
+---
+title: 认证
+description: Better Auth 组织、邮件流程、GitHub 登录与平台管理员。
+category: architecture
+tags:
+  - auth
+  - organization
+locale: zh-CN
+status: published
+---
+
+认证是单一 API Host 上的 Better Auth Organization。
+
+## 租户用户
+
+- 邮箱密码登录
+- 邮箱验证与密码重置
+- 租户后台的 GitHub 社交登录
+- 组织创建/选择、成员邀请与组织角色
+
+认证邮件先写入 durable outbox，再经 SMTP 投递。本地开发使用 Mailpit。
+
+## 平台管理员
+
+平台后台没有注册。平台管理员是可登录身份加上平台任职表中的一行。CLI 用邮箱和密码创建该用户，把邮箱标为已验证，不入队验证邮件。
+
+组织 owner 不是平台管理员。见 [ADR 0002](../adr/0002-platform-assignment.mdx)。

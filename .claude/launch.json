@@ -15,6 +15,12 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "tenant", "dev"],
       "port": 3200
+    },
+    {
+      "name": "docs",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "docs", "dev"],
+      "port": 3300
     }
   ]
 }

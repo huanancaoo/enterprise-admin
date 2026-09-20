@@ -1,0 +1,4 @@
+{
+  "title": "ADR",
+  "pages": ["index", "0001-tenant-app-directory", "0002-platform-assignment"]
+}

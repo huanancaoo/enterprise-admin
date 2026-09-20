@@ -1,0 +1,33 @@
+---
+title: Projects
+description: Use the Projects module as the template for a new tenant business domain.
+category: guides
+tags:
+  - projects
+  - contracts
+locale: en-US
+status: published
+---
+
+Projects is the reference tenant domain. Copy this chain; do not invent a parallel stack.
+
+## Chain
+
+1. HTTP schema in `packages/contracts`
+2. Drizzle schema and tenant repository in `packages/database`
+3. NestJS handlers in `apps/api`
+4. OpenAPI snapshot at `apps/api/openapi/openapi.json`
+5. Orval client in `packages/api-client`
+6. Tenant pages in `apps/tenant`
+7. Browser E2E in `tests/e2e`
+
+After contract changes:
+
+```bash
+pnpm api:openapi
+pnpm api:generate
+```
+
+Review the OpenAPI snapshot and generated client diff. Generated directories are reproduced from the source definition.
+
+The list lives at `/app/projects/:organizationId` in the tenant console. Translations are a separate content language from the UI language.

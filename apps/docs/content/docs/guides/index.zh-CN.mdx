@@ -1,0 +1,16 @@
+---
+title: 指南
+description: 以 Projects 参考领域为范本扩展骨架。
+category: guides
+tags:
+  - guides
+  - extension
+locale: zh-CN
+status: published
+---
+
+指南说明如何在当前架构内工作，不是第二套产品面。
+
+从 [Projects](./projects.mdx) 开始：它是已经覆盖 Schema → Repository → API → OpenAPI/Orval → 页面 → E2E 的参考领域。
+
+新增 React 表单时使用 TanStack Form、Zod 与共享 `Field` 结构。修改 HTTP 契约后运行 `pnpm api:openapi`，再运行 `pnpm api:generate`。

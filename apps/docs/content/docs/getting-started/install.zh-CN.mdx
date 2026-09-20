@@ -1,0 +1,50 @@
+---
+title: 安装
+description: 克隆仓库、安装依赖、启动 PostgreSQL 并执行迁移。
+category: getting-started
+tags:
+  - install
+  - docker
+  - postgres
+locale: zh-CN
+status: published
+---
+
+```bash
+git clone https://github.com/huanancaoo/enterprise-admin.git
+cd enterprise-admin
+npm install --global pnpm@12.4.1
+pnpm install --frozen-lockfile
+```
+
+## PostgreSQL 与 Mailpit
+
+```bash
+cp infra/postgres/.env.example infra/postgres/.env
+```
+
+填写四个互不相同的密码。它们只在首次初始化空数据卷时生效。
+
+```bash
+docker compose --env-file infra/postgres/.env up -d
+```
+
+PostgreSQL 绑定 `127.0.0.1:5432`。Mailpit SMTP 为 `127.0.0.1:1025`，收件箱为 http://127.0.0.1:8025。
+
+## 迁移
+
+```bash
+cp packages/database/.env.example packages/database/.env
+```
+
+将 `MIGRATION_DATABASE_URL` 换成 `app_migrator` 与上一步的迁移密码。特殊字符必须 URL 编码。
+
+```bash
+cd packages/database
+node --env-file=.env src/migrate.ts
+cd ../..
+```
+
+不要把这份文件注入 API。角色、授权和 `TenantTx` 约束见数据库包 README。
+
+接着做 [配置](./configure.mdx)。

@@ -1,0 +1,27 @@
+---
+title: Authentication
+description: Better Auth organizations, email flows, GitHub login, and platform admins.
+category: architecture
+tags:
+  - auth
+  - organization
+locale: en-US
+status: published
+---
+
+Authentication is Better Auth Organization on the single API host.
+
+## Tenant users
+
+- Email/password login
+- Email verification and password reset
+- GitHub social login for the tenant app
+- Organization create/select, member invite, and organization roles
+
+Auth emails are written to a durable outbox, then delivered over SMTP. Local development uses Mailpit.
+
+## Platform admins
+
+The platform console has no registration. A platform admin is a login identity plus a row in the platform assignment table. The CLI creates that user with email and password, marks the email verified, and does not enqueue verification mail.
+
+Organization owner is not a platform admin. See [ADR 0002](../adr/0002-platform-assignment.mdx).

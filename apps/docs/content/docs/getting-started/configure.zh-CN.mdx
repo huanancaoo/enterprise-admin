@@ -1,0 +1,38 @@
+---
+title: 配置
+description: 配置 API 密钥、GitHub OAuth 和前端公开变量。
+category: getting-started
+tags:
+  - env
+  - auth
+locale: zh-CN
+status: published
+---
+
+环境文件放在真正加载它的进程旁边。仓库根目录 `.env.example` 只做索引，不是统一凭据文件。
+
+```bash
+cp apps/api/.env.example apps/api/.env
+```
+
+API 至少需要：
+
+| 变量                           | 说明                                           |
+| ------------------------------ | ---------------------------------------------- |
+| `DATABASE_URL`                 | `app_runtime` 连接串                           |
+| `BETTER_AUTH_SECRET`           | 至少 32 字符的随机密钥，不可暴露给浏览器       |
+| `GITHUB_CLIENT_ID`             | GitHub OAuth App Client ID                     |
+| `GITHUB_CLIENT_SECRET`         | GitHub OAuth App Client Secret，不可暴露给浏览器 |
+| `EMAIL_PAYLOAD_ENCRYPTION_KEY` | 32 字节的 64 位十六进制                        |
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+`start` / `dev` / `start:debug` 由 Nest CLI 加载 `apps/api/.env`，已有进程环境变量优先。生产 `start:prod` 使用部署环境注入的变量。
+
+前端使用 `apps/tenant/.env.example` 和 `apps/platform/.env.example`，复制为 `.env.local`。任何 `VITE_` 变量都可能进入浏览器，只放公开配置。
+
+文档站变量见 `apps/docs/.env.example`。`NEXT_PUBLIC_` 会进入浏览器。Algolia 写入密钥和 OpenRouter 密钥留在服务端。
+
+runtime、migrator 与 bootstrap 凭据不得共享同一份环境文件。

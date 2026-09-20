@@ -1,7 +1,12 @@
 .git
-**/node_modules
-**/.env*
+.claude
+.remember
+node_modules
+**/.next
+**/.source
 **/.turbo
 **/dist
 **/coverage
-**/.artifacts
+**/.env
+**/.env.*
+!**/.env.example

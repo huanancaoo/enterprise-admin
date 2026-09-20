@@ -1,0 +1,23 @@
+---
+title: Docker
+description: 用 Next.js standalone 镜像自托管文档站。
+category: deployment
+tags:
+  - docker
+  - self-host
+locale: zh-CN
+status: published
+---
+
+文档镜像使用 Next.js `output: "standalone"`。从仓库根目录构建：
+
+```bash
+docker build -f apps/docs/Dockerfile -t enterprise-admin-docs .
+docker run --rm -p 3300:3300 \
+  --env NEXT_PUBLIC_ALGOLIA_APP_ID \
+  --env NEXT_PUBLIC_ALGOLIA_SEARCH_KEY \
+  --env OPENROUTER_API_KEY \
+  enterprise-admin-docs
+```
+
+容器监听 3300。运行时传入 Algolia 搜索密钥和 OpenRouter 密钥。Algolia 索引不是镜像构建的一部分；对生产构建产物执行 `pnpm --filter docs search:sync`，并提供 `ALGOLIA_WRITE_KEY`。

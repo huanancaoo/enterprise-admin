@@ -1,0 +1,31 @@
+---
+title: 0002 Platform assignment
+description: Platform admins come only from the assignment table and are created by CLI.
+category: adr
+tags:
+  - adr
+  - platform
+locale: en-US
+status: published
+---
+
+- Status: Accepted
+- Date: 2026-09-18
+
+## Context
+
+The platform console has no registration. A platform admin must be able to log in. Organization roles, opening the platform route, cookies, or headers must not create that identity.
+
+## Decision
+
+Record the fact in a dedicated platform assignment table. The CLI creates a user with email and password and writes the assignment. It does not verify email and does not send mail. The API re-reads the current session and assignment on every request.
+
+## Alternatives
+
+- First publicly registered user becomes platform admin: the platform console has no registration. Rejected.
+- CLI only grants users who already exist with a verified email: first boot has nobody who can log in. Rejected.
+- Organization owner automatically becomes platform admin: the two assignments would derive from each other. Rejected.
+
+## Consequences
+
+Platform identity is independent from organization roles. Bootstrapping production requires the CLI.

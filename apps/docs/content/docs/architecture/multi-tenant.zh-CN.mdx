@@ -1,0 +1,32 @@
+---
+title: 多租户隔离
+description: PostgreSQL RLS、角色分权，以及 TenantTx 作为唯一业务数据路径。
+category: architecture
+tags:
+  - tenancy
+  - postgres
+  - rls
+locale: zh-CN
+status: published
+---
+
+租户隔离在数据库层执行，不按请求来自哪个 SPA 执行。
+
+## 角色
+
+PostgreSQL 角色分权：
+
+- `app_migrator` 执行迁移
+- `app_runtime` 是 API 运行时角色
+
+租户业务表 ENABLE/FORCE RLS。触及租户数据的运行时查询必须走 `TenantTx`，它在查询前设置租户上下文。
+
+不要把连接工厂导入租户 Repository。事务由参数传入。
+
+## 授权边界
+
+- 组织角色不能产生平台任职
+- 平台任职使用独立表
+- API 每次请求重查当前会话和任职
+
+Schema、授权和 Repository 约束见 `packages/database/README.md`。

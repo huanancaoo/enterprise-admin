@@ -32,6 +32,10 @@ dist-ssr
 # typescript
 *.tsbuildinfo
 
+# Next.js docs app
+.next/
+.source/
+
 !.env.example
 
 # Test reports

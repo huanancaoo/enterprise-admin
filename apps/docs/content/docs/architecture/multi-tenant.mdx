@@ -1,0 +1,32 @@
+---
+title: Multi-tenant isolation
+description: PostgreSQL RLS, role separation, and TenantTx as the only business data path.
+category: architecture
+tags:
+  - tenancy
+  - postgres
+  - rls
+locale: en-US
+status: published
+---
+
+Tenant isolation is enforced in the database, not by which SPA sent the request.
+
+## Roles
+
+PostgreSQL roles are split:
+
+- `app_migrator` runs migrations
+- `app_runtime` is the API runtime role
+
+Tenant business tables enable and force RLS. Runtime queries that touch tenant data must go through `TenantTx`, which sets the tenant context before the query.
+
+Do not import a connection factory into a tenant repository. The transaction is passed in.
+
+## Authorization boundary
+
+- Organization roles never produce platform assignment
+- Platform assignment lives in its own table
+- The API re-reads the current session and assignment on every request
+
+Details for schema, grants, and repository constraints are in `packages/database/README.md`.

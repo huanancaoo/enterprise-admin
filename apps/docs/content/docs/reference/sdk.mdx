@@ -1,0 +1,45 @@
+---
+title: TypeScript SDK
+description: Use the generated TanStack Query client from packages/api-client.
+category: reference
+tags:
+  - sdk
+  - api-client
+locale: en-US
+status: published
+---
+
+The TypeScript SDK is `@workspace/api-client`. Orval generates it from the OpenAPI snapshot. Do not edit files under `packages/api-client/src/generated`.
+
+## Configure
+
+```ts
+import { configureApiClient } from "@workspace/api-client"
+
+configureApiClient({
+  baseUrl: "/api",
+})
+```
+
+`ApiClientError` is thrown for unsuccessful HTTP responses.
+
+## Queries
+
+Organization and Projects hooks are the public surface:
+
+```ts
+import {
+  getOrganizationAccessOptions,
+  getProjectsListOptions,
+  getProjectDetailOptions,
+  createProjectMutations,
+} from "@workspace/api-client"
+```
+
+Use them with TanStack Query in the tenant console. Query keys live next to the hooks so cache invalidation stays in the client package.
+
+## Models
+
+Generated document types are re-exported from `@workspace/api-client`. After an OpenAPI change, regenerate with `pnpm api:generate` and typecheck the app that imports the client.
+
+Endpoint, request, and response contracts are in the [API reference](./index.mdx).

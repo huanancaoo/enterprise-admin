@@ -1,0 +1,33 @@
+---
+title: Projects
+description: 把 Projects 模块当作新租户业务领域的模板。
+category: guides
+tags:
+  - projects
+  - contracts
+locale: zh-CN
+status: published
+---
+
+Projects 是参考租户领域。复制这条链，不要另起一套栈。
+
+## 链路
+
+1. `packages/contracts` 中的 HTTP Schema
+2. `packages/database` 中的 Drizzle Schema 与租户 Repository
+3. `apps/api` 中的 NestJS handlers
+4. `apps/api/openapi/openapi.json` 的 OpenAPI 快照
+5. `packages/api-client` 中的 Orval 客户端
+6. `apps/tenant` 中的租户页面
+7. `tests/e2e` 中的浏览器 E2E
+
+修改契约后：
+
+```bash
+pnpm api:openapi
+pnpm api:generate
+```
+
+审查 OpenAPI 快照与生成客户端差异。生成目录通过源定义重新生成。
+
+列表在租户后台的 `/app/projects/:organizationId`。内容语言与界面语言分离。

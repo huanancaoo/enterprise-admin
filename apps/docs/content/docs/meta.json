@@ -1,0 +1,20 @@
+{
+  "title": "Documentation",
+  "pages": [
+    "---Getting Started---",
+    "index",
+    "getting-started",
+    "---Architecture---",
+    "architecture",
+    "---Guides---",
+    "guides",
+    "---Reference---",
+    "reference",
+    "---Deployment---",
+    "deployment",
+    "---Contributing---",
+    "contributing",
+    "adr",
+    "release-notes"
+  ]
+}

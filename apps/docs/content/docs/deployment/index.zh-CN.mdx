@@ -1,0 +1,31 @@
+---
+title: 部署
+description: 官方文档托管在 Vercel，构建为静态与动态混合。
+category: deployment
+tags:
+  - vercel
+  - hosting
+locale: zh-CN
+status: published
+---
+
+官方文档托管在 Vercel。自托管使用 [Docker](./docker.mdx)。
+
+## 构建
+
+站点是 Next.js 混合渲染：
+
+- 静态：文档页面
+- 动态：AI Chat、API Routes、MCP
+
+用本仓库创建 Vercel 项目：
+
+- Install：`pnpm install --frozen-lockfile`
+- Build：`pnpm --filter docs build`
+- 生产 Algolia 索引：生产构建后运行 `pnpm --filter docs search:sync`，并提供 `ALGOLIA_WRITE_KEY`
+
+在 Vercel 项目中设置 `NEXT_PUBLIC_ALGOLIA_APP_ID`、`NEXT_PUBLIC_ALGOLIA_SEARCH_KEY` 和 `OPENROUTER_API_KEY`。分析只使用 Vercel Analytics。
+
+## Preview
+
+Pull Request 应获得 Vercel Preview。合并前 GitHub Actions 跑质量门禁：Markdown/MDX、元数据、翻译配对、链接、lint、typecheck 和 build。

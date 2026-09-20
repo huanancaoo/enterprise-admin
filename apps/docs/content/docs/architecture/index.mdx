@@ -1,0 +1,46 @@
+---
+title: Architecture
+description: Dual consoles, one API host, contract-first HTTP, and workspace boundaries.
+category: architecture
+tags:
+  - architecture
+  - monorepo
+locale: en-US
+status: published
+---
+
+```mermaid
+flowchart LR
+  Tenant["Tenant console :3200"] -->|/api| API["API Host :3000"]
+  Platform["Platform console :3201"] -->|/api/auth| API
+  API --> PG[("PostgreSQL 18.6")]
+  API --> Mail["SMTP / Mailpit"]
+  Docs["Docs :3300"]
+```
+
+## Applications
+
+| Path             | Role                                      |
+| ---------------- | ----------------------------------------- |
+| `apps/tenant`    | Organization-member console               |
+| `apps/platform`  | Platform-admin console                    |
+| `apps/api`       | NestJS API host and `ea` CLI              |
+| `apps/docs`      | This documentation site                   |
+| `apps/storybook` | Shared component workbench                |
+| `apps/worker`    | Planned; not in the start graph           |
+
+Opening the other console's route is not proof of authorization. `activeOrganizationId` is a workspace preference, not an authorization input.
+
+## Packages
+
+- `packages/ui`: generic UI primitives
+- `packages/admin`: business-agnostic admin composition
+- `packages/contracts`: HTTP schema
+- `packages/api-client`: generated TanStack Query client
+- `packages/database`: schema, migrations, `TenantTx` (server-only)
+- `packages/permissions`: static permission declarations
+- `packages/i18n`: translation catalogs and runtime
+
+Frontend packages cannot depend on `database` or the API server. `contracts` cannot depend on Drizzle.
+
+See [multi-tenant isolation](./multi-tenant.mdx) and [authentication](./auth.mdx).

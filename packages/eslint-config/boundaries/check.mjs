@@ -33,6 +33,7 @@ const allowed = {
     "packages/i18n",
     "packages/mocks",
   ],
+  "apps/docs": [],
   "apps/api": [
     "packages/contracts",
     "packages/database",
@@ -77,7 +78,11 @@ function discoverWorkspace(root) {
 
 function* files(dir, packageRoots) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (["node_modules", "dist", ".turbo", "coverage"].includes(entry.name))
+    if (
+      ["node_modules", "dist", ".turbo", "coverage", ".next", ".source"].includes(
+        entry.name
+      )
+    )
       continue
     const path = resolve(dir, entry.name)
     if (entry.isDirectory()) {

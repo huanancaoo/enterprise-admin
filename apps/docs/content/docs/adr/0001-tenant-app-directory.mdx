@@ -1,0 +1,32 @@
+---
+title: 0001 Tenant app directory
+description: Name the tenant console tenant; keep packages/admin as the shared composition layer.
+category: adr
+tags:
+  - adr
+  - tenant
+locale: en-US
+status: published
+---
+
+- Status: Accepted
+- Date: 2026-09-18
+
+## Context
+
+Calling both the tenant console and the shared admin composition layer `admin` made `apps/platform` depending on `@workspace/admin` read as a dependency on the tenant app.
+
+## Decision
+
+Use `apps/tenant` for the tenant console. Keep `packages/admin`. The package name is the shared composition layer; the app name is the tenant surface. Route `/app` does not change with the directory.
+
+## Alternatives
+
+- Rename `packages/admin` to `panel` / `backoffice`: the collision came from the app name, not the composition layer. Rejected.
+- Merge into `packages/ui`: primitives and admin composition have different dependency graphs; `ui` cannot take workspace dependencies. Rejected.
+- Keep `apps/admin`: `admin` is asymmetric against platform, and it collides with the composition package. Rejected.
+- Use `web` / `studio` / `portal`: those names do not pair tenant operators with the platform console. Rejected.
+
+## Consequences
+
+New tenant-console work lands in `apps/tenant`. Shared admin UI stays in `packages/admin`.

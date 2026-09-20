@@ -1,0 +1,34 @@
+---
+title: 开始使用
+description: 在本地运行工作区，打开租户后台、平台后台和 API。
+category: getting-started
+tags:
+  - setup
+  - local
+locale: zh-CN
+status: published
+---
+
+需要 **Node 26.8.2**、**pnpm 12.4.1** 和 Docker。版本以仓库根目录 `package.json` 的 `engines` / `packageManager` 为准。
+
+## 路径
+
+1. [安装](./install.mdx) 依赖、PostgreSQL、Mailpit 和迁移
+2. [配置](./configure.mdx) API 密钥和 GitHub OAuth
+3. 从仓库根目录启动应用
+
+```bash
+pnpm dev
+```
+
+| 应用     | 地址                          | 单独启动                        |
+| -------- | ----------------------------- | ------------------------------- |
+| 租户后台 | http://localhost:3200         | `pnpm --filter tenant dev`      |
+| 平台后台 | http://localhost:3201         | `pnpm --filter platform dev`    |
+| API      | http://localhost:3000/api/v1  | `pnpm --filter api dev`         |
+| Storybook| http://localhost:6006         | `pnpm --filter storybook dev`   |
+| 文档     | http://localhost:3300         | `pnpm --filter docs dev`        |
+
+租户后台可注册、验证邮箱、创建组织，并使用 Projects。认证邮件在 Mailpit 收件箱查看：http://127.0.0.1:8025。
+
+平台后台没有注册。API 构建完成后，用 API CLI 创建平台管理员。

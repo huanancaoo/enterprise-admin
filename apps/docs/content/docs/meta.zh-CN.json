@@ -1,0 +1,20 @@
+{
+  "title": "文档",
+  "pages": [
+    "---开始使用---",
+    "index",
+    "getting-started",
+    "---架构---",
+    "architecture",
+    "---指南---",
+    "guides",
+    "---参考---",
+    "reference",
+    "---部署---",
+    "deployment",
+    "---贡献---",
+    "contributing",
+    "adr",
+    "release-notes"
+  ]
+}

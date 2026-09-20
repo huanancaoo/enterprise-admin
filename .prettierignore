@@ -2,6 +2,8 @@ dist/
 node_modules/
 .turbo/
 coverage/
+.next/
+.source/
 pnpm-lock.yaml
 .pnpm-store/
 apps/api/openapi/openapi.json

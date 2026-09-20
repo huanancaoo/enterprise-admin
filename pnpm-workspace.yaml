@@ -40,6 +40,11 @@ minimumReleaseAgeExclude:
   - "@better-auth/prisma-adapter@1.7.5"
   - "@better-auth/telemetry@1.7.5"
   - i18next-cli@1.73.3
+  - "@fumadocs/base-ui@16.15.12"
+  - "@fumadocs/json-schema@0.2.0"
+  - fumadocs-core@16.15.12
+  - fumadocs-mdx@15.4.2
+  - fumadocs-openapi@12.0.0
 
 engineStrict: true
 saveExact: true

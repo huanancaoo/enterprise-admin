@@ -1,0 +1,36 @@
+---
+title: Tenaro
+description: 开源自托管的多租户企业应用 TypeScript 基础框架。
+category: getting-started
+tags:
+  - introduction
+  - overview
+locale: zh-CN
+status: published
+---
+
+Tenaro 是开源自托管的多租户企业应用基础框架。它不是后台 UI 模板，也不是以营销落地页为中心的 SaaS boilerplate，而是给二次开发用的 TypeScript 骨架：租户后台、平台后台、唯一 API Host、PostgreSQL 隔离，以及可复制的业务模块范式。
+
+## 你将得到
+
+- 组织成员使用租户后台，平台管理员使用平台后台
+- 单一 API Host：业务接口在 `/api/v1`，认证在 `/api/auth`
+- Better Auth Organization：邮箱密码、邮箱验证、邀请与角色
+- 数据库层租户隔离：`TenantTx` 与 PostgreSQL RLS
+- 契约先于页面：`packages/contracts` → OpenAPI → Orval 客户端
+- 本站采用 Docs-as-Code：Git 中的 Markdown/MDX 是唯一文档来源
+
+## 文档服务对象
+
+- 开源项目使用者
+- 二次开发团队
+- Contributor
+- 企业自托管用户
+
+本站是开发者文档，不是产品官网、CMS、企业知识库或 AI Agent 平台。
+
+## 下一步
+
+1. [安装](./getting-started/install.mdx) 工作区
+2. 阅读 [多租户架构](./architecture/multi-tenant.mdx)
+3. 以 [Projects 指南](./guides/projects.mdx) 作为参考领域

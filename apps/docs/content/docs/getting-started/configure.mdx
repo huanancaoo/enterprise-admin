@@ -1,0 +1,38 @@
+---
+title: Configure
+description: Configure API secrets, GitHub OAuth, and frontend public variables.
+category: getting-started
+tags:
+  - env
+  - auth
+locale: en-US
+status: published
+---
+
+Copy environment examples next to the process that loads them. The repository root `.env.example` is an index, not a shared credential file.
+
+```bash
+cp apps/api/.env.example apps/api/.env
+```
+
+Required API variables:
+
+| Variable                       | Purpose                                                         |
+| ------------------------------ | --------------------------------------------------------------- |
+| `DATABASE_URL`                 | `app_runtime` connection string                                 |
+| `BETTER_AUTH_SECRET`           | At least 32 random characters; never expose to the browser      |
+| `GITHUB_CLIENT_ID`             | GitHub OAuth App client ID                                      |
+| `GITHUB_CLIENT_SECRET`         | GitHub OAuth App client secret; never expose to the browser     |
+| `EMAIL_PAYLOAD_ENCRYPTION_KEY` | 32 bytes as 64 hex characters                                   |
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+`start` / `dev` / `start:debug` load `apps/api/.env` through Nest CLI. Existing process environment wins. Production `start:prod` uses injected environment variables.
+
+Frontend apps use `apps/tenant/.env.example` and `apps/platform/.env.example`. Copy to `.env.local`. Any `VITE_` variable may reach the browser; store only public values.
+
+Docs site variables are in `apps/docs/.env.example`. `NEXT_PUBLIC_` values are public. Algolia write keys and OpenRouter keys stay server-side.
+
+Runtime, migrator, and bootstrap credentials must not share one file.

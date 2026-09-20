@@ -1,0 +1,34 @@
+---
+title: Contributing
+description: GitHub pull request workflow for documentation changes.
+category: contributing
+tags:
+  - contributing
+  - github
+locale: en-US
+status: published
+---
+
+Documentation changes follow Docs-as-Code.
+
+```text
+GitHub PR → Docs preview → Quality gate → Review → Merge
+```
+
+## Rules
+
+- English is the source locale. `zh-CN` is a reviewed translation of the same page.
+- Put new pages next to their section folder and list them in that folder's `meta.json`.
+- Frontmatter must include `title`, `description`, `category`, `tags`, `locale`, and `status: published`.
+- Use Markdown for prose. Use MDX for diagrams and custom components.
+- Keep terms aligned with the [glossary](./glossary.mdx).
+- Do not add a CMS, an in-browser editor, or a second content source.
+
+Run from the repository root:
+
+```bash
+pnpm --filter docs check:content
+pnpm --filter docs lint
+pnpm --filter docs typecheck
+pnpm --filter docs build
+```

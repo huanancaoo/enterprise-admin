@@ -18,7 +18,7 @@
 
 理解整体设计、追溯选型理由或设计跨模块能力时，阅读 [多租户基础架构原文](docs/architecture/multi-tenant-foundation.md) 的相关章节。邮件能力另见 [Email 基础设施原文](docs/architecture/email-infrastructure.md)。这些文档是归档研究；实施决策以用户确认和已接受 ADR 为准，精确版本以当前配置为准，原文建议不自动成为任务范围。
 
-- `apps/tenant` / `apps/platform`：租户后台与平台后台；`apps/api`：HTTP 服务；`apps/storybook`：公共组件工作台。
+- `apps/tenant` / `apps/platform`：租户后台与平台后台；`apps/api`：HTTP 服务；`apps/docs`：开发者文档站；`apps/storybook`：公共组件工作台。
 - `packages/ui` 放通用 UI，`packages/admin` 放业务无关后台组件；具体业务留在应用内。
 - `packages/contracts` 定义 HTTP Schema，`packages/api-client` 承载客户端；数据库能力位于仅供服务端使用的 `packages/database`。
 - 修改跨包依赖时运行 `pnpm lint:boundaries`。边界规则以 `packages/eslint-config/boundaries/check.mjs` 为准。
@@ -32,7 +32,7 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-单独启动使用 `pnpm --filter tenant dev`、`pnpm --filter platform dev`、`pnpm --filter api dev` 或 `pnpm --filter storybook dev`。其他包命令先查对应 `package.json`，过滤名称使用其 `name` 字段。
+单独启动使用 `pnpm --filter tenant dev`、`pnpm --filter platform dev`、`pnpm --filter api dev`、`pnpm --filter docs dev` 或 `pnpm --filter storybook dev`。其他包命令先查对应 `package.json`，过滤名称使用其 `name` 字段。文档站端口为 3300。
 
 - 配置前端时查看对应应用的 `.env.example`；`VITE_` 变量会暴露给浏览器，只存公开配置。
 - 本地运行 API 前按 `apps/api/.env.example` 配置 `apps/api/.env`；`start`、`dev`、`start:debug` 通过 Nest CLI 加载它，已有进程环境变量优先。生产 `start:prod` 使用部署环境注入的变量。认证流程需要数据库与认证密钥，不能依据早期 S1 的无数据库说明验收当前流程。
@@ -52,7 +52,7 @@ pnpm dev
 
 | 改动范围             | 验证入口                                                  |
 | -------------------- | --------------------------------------------------------- |
-| 文档                 | `pnpm exec prettier --check <文件路径>`，检查相对链接目标 |
+| 文档                 | `pnpm --filter docs check:content`；`pnpm exec prettier --check <文件路径>` |
 | 类型或源码           | `pnpm lint`、`pnpm typecheck`，再运行受影响测试           |
 | 工程边界 / API 单元  | `pnpm test:unit`                                          |
 | API HTTP             | `pnpm test:api`                                           |

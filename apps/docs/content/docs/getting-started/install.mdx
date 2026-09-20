@@ -1,0 +1,50 @@
+---
+title: Install
+description: Clone the repository, install dependencies, start PostgreSQL, and run migrations.
+category: getting-started
+tags:
+  - install
+  - docker
+  - postgres
+locale: en-US
+status: published
+---
+
+```bash
+git clone https://github.com/huanancaoo/enterprise-admin.git
+cd enterprise-admin
+npm install --global pnpm@12.4.1
+pnpm install --frozen-lockfile
+```
+
+## PostgreSQL and Mailpit
+
+```bash
+cp infra/postgres/.env.example infra/postgres/.env
+```
+
+Fill four distinct passwords. They take effect only when initializing an empty volume.
+
+```bash
+docker compose --env-file infra/postgres/.env up -d
+```
+
+PostgreSQL binds `127.0.0.1:5432`. Mailpit SMTP is `127.0.0.1:1025`, inbox http://127.0.0.1:8025.
+
+## Migrations
+
+```bash
+cp packages/database/.env.example packages/database/.env
+```
+
+Set `MIGRATION_DATABASE_URL` to the `app_migrator` user and the migration password from the previous step. URL-encode special characters.
+
+```bash
+cd packages/database
+node --env-file=.env src/migrate.ts
+cd ../..
+```
+
+Do not inject this file into the API process. Roles, grants, and `TenantTx` rules are in the database package README.
+
+Continue with [configuration](./configure.mdx).

@@ -1,0 +1,45 @@
+---
+title: TypeScript SDK
+description: 使用 packages/api-client 中生成的 TanStack Query 客户端。
+category: reference
+tags:
+  - sdk
+  - api-client
+locale: zh-CN
+status: published
+---
+
+TypeScript SDK 是 `@workspace/api-client`。Orval 从 OpenAPI 快照生成它。不要修改 `packages/api-client/src/generated` 下的文件。
+
+## 配置
+
+```ts
+import { configureApiClient } from "@workspace/api-client"
+
+configureApiClient({
+  baseUrl: "/api",
+})
+```
+
+不成功的 HTTP 响应会抛出 `ApiClientError`。
+
+## 查询
+
+组织和 Projects 的 hooks 是公开面：
+
+```ts
+import {
+  getOrganizationAccessOptions,
+  getProjectsListOptions,
+  getProjectDetailOptions,
+  createProjectMutations,
+} from "@workspace/api-client"
+```
+
+在租户后台与 TanStack Query 一起使用。Query Key 与 hooks 放在一起，缓存失效留在客户端包内。
+
+## 模型
+
+生成的文档类型从 `@workspace/api-client` 再导出。OpenAPI 变更后运行 `pnpm api:generate`，并对导入该客户端的应用做 typecheck。
+
+Endpoint、Request 和 Response 契约见 [API 参考](./index.mdx)。

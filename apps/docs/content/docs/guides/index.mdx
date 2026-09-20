@@ -1,0 +1,16 @@
+---
+title: Guides
+description: How to extend the skeleton using the Projects reference domain.
+category: guides
+tags:
+  - guides
+  - extension
+locale: en-US
+status: published
+---
+
+Guides explain how to work inside the current architecture. They are not a second product surface.
+
+Start with [Projects](./projects.mdx): it is the reference domain that already spans Schema → Repository → API → OpenAPI/Orval → page → E2E.
+
+When you add a React form, use TanStack Form, Zod, and the shared `Field` structure. When you change HTTP contracts, run `pnpm api:openapi` then `pnpm api:generate`.

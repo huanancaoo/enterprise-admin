@@ -1,0 +1,31 @@
+---
+title: Deployment
+description: Official docs hosting on Vercel and the hybrid static/dynamic build.
+category: deployment
+tags:
+  - vercel
+  - hosting
+locale: en-US
+status: published
+---
+
+The official docs host is Vercel. Self-hosting uses [Docker](./docker.mdx).
+
+## Build
+
+The site is a Next.js hybrid:
+
+- Static: documentation pages
+- Dynamic: AI chat, API routes, MCP
+
+Create a Vercel project against this repository:
+
+- Install: `pnpm install --frozen-lockfile`
+- Build: `pnpm --filter docs build`
+- Production Algolia index: `pnpm --filter docs search:sync` after a production build, with `ALGOLIA_WRITE_KEY`
+
+Set `NEXT_PUBLIC_ALGOLIA_APP_ID`, `NEXT_PUBLIC_ALGOLIA_SEARCH_KEY`, and `OPENROUTER_API_KEY` in the Vercel project. Analytics is Vercel Analytics only.
+
+## Preview
+
+Pull requests should get a Vercel preview deployment. Quality gates run in GitHub Actions before merge: Markdown/MDX, metadata, translation pairs, links, lint, typecheck, and build.

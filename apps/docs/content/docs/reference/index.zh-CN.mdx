@@ -1,0 +1,24 @@
+---
+title: 参考
+description: 来自 OpenAPI 快照的 HTTP API，以及 Orval 生成的 TypeScript SDK。
+category: reference
+tags:
+  - api
+  - sdk
+locale: zh-CN
+status: published
+---
+
+参考分两层：
+
+- **HTTP API**：由 fumadocs-openapi 渲染 `apps/api/openapi/openapi.json`。覆盖 Endpoint、Request、Response、Schema 和 Error。不包含源码链接或 Try It。
+- **TypeScript SDK**：`packages/api-client` 中的生成客户端。见 [SDK 指南](./sdk.mdx)。
+
+流水线：
+
+```text
+NestJS → OpenAPI Generate → CI Artifact → Docs Build → API Reference
+OpenAPI → Orval → api-client → SDK Docs
+```
+
+文档构建读取 OpenAPI 快照，不指向运行中的 `/api/docs-json`。

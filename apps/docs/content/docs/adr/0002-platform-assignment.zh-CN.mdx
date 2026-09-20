@@ -1,0 +1,31 @@
+---
+title: 0002 平台任职
+description: 平台管理员只来自任职表，由 CLI 创建可登录用户。
+category: adr
+tags:
+  - adr
+  - platform
+locale: zh-CN
+status: published
+---
+
+- 状态：Accepted
+- 日期：2026-09-18
+
+## Context
+
+平台后台没有注册。平台管理员必须能登录，但组织角色、打开平台后台的路由、Cookie 或 Header 都不能产生这个身份。
+
+## Decision
+
+用独立的平台任职表记录事实。CLI 用邮箱和密码创建用户并写入任职，不验证邮箱、不发邮件。API 每次请求重查当前会话和任职。
+
+## Alternatives
+
+- 公开注册的首位用户自动成为平台管理员：平台后台没有注册；否决。
+- CLI 只给已有且已验证邮箱的用户授权：初次启动没有可登录的人；否决。
+- 组织 owner 自动成为平台管理员：两个任职会互相推导；否决。
+
+## Consequences
+
+平台身份与组织角色独立。生产环境的首次引导必须使用 CLI。

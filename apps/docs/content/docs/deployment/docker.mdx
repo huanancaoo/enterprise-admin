@@ -1,0 +1,23 @@
+---
+title: Docker
+description: Self-host the documentation site with the Next.js standalone image.
+category: deployment
+tags:
+  - docker
+  - self-host
+locale: en-US
+status: published
+---
+
+The docs image uses Next.js `output: "standalone"`. Build from the repository root:
+
+```bash
+docker build -f apps/docs/Dockerfile -t enterprise-admin-docs .
+docker run --rm -p 3300:3300 \
+  --env NEXT_PUBLIC_ALGOLIA_APP_ID \
+  --env NEXT_PUBLIC_ALGOLIA_SEARCH_KEY \
+  --env OPENROUTER_API_KEY \
+  enterprise-admin-docs
+```
+
+The container serves port 3300. Pass Algolia search keys and the OpenRouter key at runtime. Indexing Algolia is not part of the image build; run `pnpm --filter docs search:sync` against a production build artifact with `ALGOLIA_WRITE_KEY`.

@@ -1,0 +1,22 @@
+@import "tailwindcss";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+@import "fumadocs-openapi/css/preset.css";
+
+html {
+  scrollbar-gutter: stable;
+}
+
+html > body[data-scroll-locked] {
+  margin-right: 0px !important;
+  --removed-body-scroll-bar-size: 0px !important;
+}
+
+/*
+  fumadocs-openapi AccordionContent 给响应面板加了 border + rounded-xl，
+  但只有 ps/pe、没有 py。TypeScript 定义卡片自己也是 rounded-xl，
+  贴在面板上沿时内外圆角错位。
+*/
+[role="region"][data-orientation="vertical"].border.rounded-xl {
+  padding-block: 0.75rem;
+}

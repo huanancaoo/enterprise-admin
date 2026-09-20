@@ -1,0 +1,34 @@
+---
+title: 贡献
+description: 文档变更的 GitHub Pull Request 流程。
+category: contributing
+tags:
+  - contributing
+  - github
+locale: zh-CN
+status: published
+---
+
+文档变更遵循 Docs-as-Code。
+
+```text
+GitHub PR → Docs Preview → Quality Gate → Review → Merge
+```
+
+## 规则
+
+- English 是源语言。`zh-CN` 是同一页面经过人工审阅的译文。
+- 新页面放在所属章节目录，并写入该目录的 `meta.json`。
+- Frontmatter 必须包含 `title`、`description`、`category`、`tags`、`locale` 和 `status: published`。
+- 普通叙述用 Markdown。图表和自定义组件用 MDX。
+- 术语与 [术语表](./glossary.mdx) 保持一致。
+- 不增加 CMS、在线编辑器或第二套内容来源。
+
+从仓库根目录运行：
+
+```bash
+pnpm --filter docs check:content
+pnpm --filter docs lint
+pnpm --filter docs typecheck
+pnpm --filter docs build
+```
