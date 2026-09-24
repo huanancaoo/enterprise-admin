@@ -221,6 +221,30 @@ describe(
       }
     }, 60_000);
 
+    it('认证错误文案按 Accept-Language 完整标签本地化', async () => {
+      const signIn = (locale: string) =>
+        fetch(`${baseURL}/api/auth/sign-in/email`, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            origin,
+            'accept-language': locale,
+          },
+          body: JSON.stringify({
+            email: 'missing@example.test',
+            password: 'wrong-password-value',
+          }),
+        });
+      const zh = (await (await signIn('zh-CN')).json()) as { message: string };
+      const en = (await (await signIn('en-US')).json()) as { message: string };
+      const fallback = (await (await signIn('fr')).json()) as {
+        message: string;
+      };
+      expect(zh.message).toBe('邮箱或密码无效');
+      expect(en.message).toBe('Invalid email or password');
+      expect(fallback.message).toBe('邮箱或密码无效');
+    });
+
     it('认证路径独立于业务前缀，保留 requestId 和 Swagger', async () => {
       const response = await fetch(`${baseURL}/api/auth/ok`);
       expect(await response.json()).toEqual({ ok: true });

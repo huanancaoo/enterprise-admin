@@ -5,7 +5,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import type { TFunction } from "@workspace/i18n"
 import { ConfirmDangerAction, FormDialog, PageHeader } from "@workspace/admin"
-import { useAuthenticatedSession } from "@workspace/admin/auth"
+import {
+  authErrorMessage,
+  useAuthenticatedSession,
+} from "@workspace/admin/auth"
 import { getOrganizationAccessOptions } from "@workspace/api-client"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -85,7 +88,10 @@ export function MembersRoute() {
         role: input.role,
         organizationId,
       })
-      if (result.error) throw new Error(result.error.message)
+      if (result.error)
+        throw new Error(
+          authErrorMessage(result.error, t("common:operationFailed"))
+        )
     },
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: directoryOptions.queryKey }),
@@ -101,7 +107,10 @@ export function MembersRoute() {
         organizationId,
         ...versionHeader,
       })
-      if (result.error) throw new Error(result.error.message)
+      if (result.error)
+        throw new Error(
+          authErrorMessage(result.error, t("common:operationFailed"))
+        )
     },
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: directoryOptions.queryKey }),
@@ -112,7 +121,10 @@ export function MembersRoute() {
         memberIdOrEmail: memberId,
         organizationId,
       })
-      if (result.error) throw new Error(result.error.message)
+      if (result.error)
+        throw new Error(
+          authErrorMessage(result.error, t("common:operationFailed"))
+        )
     },
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: directoryOptions.queryKey }),
@@ -125,7 +137,10 @@ export function MembersRoute() {
         organizationId,
         resend: true,
       })
-      if (result.error) throw new Error(result.error.message)
+      if (result.error)
+        throw new Error(
+          authErrorMessage(result.error, t("common:operationFailed"))
+        )
     },
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: directoryOptions.queryKey }),
@@ -135,7 +150,10 @@ export function MembersRoute() {
       const result = await authClient.organization.cancelInvitation({
         invitationId,
       })
-      if (result.error) throw new Error(result.error.message)
+      if (result.error)
+        throw new Error(
+          authErrorMessage(result.error, t("common:operationFailed"))
+        )
     },
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: directoryOptions.queryKey }),

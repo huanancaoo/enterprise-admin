@@ -10,6 +10,8 @@ export type { WorkspaceRouterContext } from "./workspace-router"
 export { useAuthenticatedSession } from "./authenticated-session"
 export type { AuthenticatedSession } from "./authenticated-session"
 export { useAuthAction } from "./use-auth-action"
+export { authErrorMessage } from "./auth-error"
+export type { AuthClientError } from "./auth-error"
 export { bindWorkspaceRequestLocale } from "./request-locale"
 export { useWorkspaceAuthClient } from "./auth-client-context"
 export {
