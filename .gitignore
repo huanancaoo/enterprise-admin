@@ -41,6 +41,7 @@ dist-ssr
 # Test reports
 coverage/
 test-results/
+.playwright-mcp/
 
 # Local clones of upstream source used for implementation reference
 .reference/
