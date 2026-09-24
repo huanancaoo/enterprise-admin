@@ -26,7 +26,11 @@ describe("auth mail outbox → SMTP → Mailpit", () => {
     const password = randomBytes(24).toString("hex")
     const signup = await fetch(`${baseURL}/api/auth/sign-up/email`, {
       method: "POST",
-      headers: { "content-type": "application/json", origin },
+      headers: {
+        "content-type": "application/json",
+        origin,
+        "x-real-ip": `10.${[...randomBytes(3)].join(".")}`,
+      },
       body: JSON.stringify({
         email,
         password,
@@ -45,7 +49,11 @@ describe("auth mail outbox → SMTP → Mailpit", () => {
     expect(verified.headers.get("location")).toBe(`${origin}/auth/verified`)
     const signIn = await fetch(`${baseURL}/api/auth/sign-in/email`, {
       method: "POST",
-      headers: { "content-type": "application/json", origin },
+      headers: {
+        "content-type": "application/json",
+        origin,
+        "x-real-ip": `10.${[...randomBytes(3)].join(".")}`,
+      },
       body: JSON.stringify({ email, password }),
     })
     expect(signIn.status).toBe(200)
@@ -57,7 +65,11 @@ describe("auth mail outbox → SMTP → Mailpit", () => {
     })
     const reset = await fetch(`${baseURL}/api/auth/request-password-reset`, {
       method: "POST",
-      headers: { "content-type": "application/json", origin },
+      headers: {
+        "content-type": "application/json",
+        origin,
+        "x-real-ip": `10.${[...randomBytes(3)].join(".")}`,
+      },
       body: JSON.stringify({
         email: account.email,
         redirectTo: `${origin}/reset-password`,

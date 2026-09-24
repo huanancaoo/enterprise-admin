@@ -4,9 +4,15 @@ export async function signUpVerified(baseURL, origin, migrator, body = {}) {
   const email = body.email ?? `${randomUUID()}@example.test`
   const password = body.password ?? randomBytes(24).toString("hex")
   const name = body.name ?? "User"
+  // 限流按客户端 IP 分桶；同进程用例必须使用不同地址，否则会互相耗尽配额。
+  const clientIp = `10.${[...randomBytes(3)].join(".")}`
   const signup = await fetch(`${baseURL}/api/auth/sign-up/email`, {
     method: "POST",
-    headers: { "content-type": "application/json", origin },
+    headers: {
+      "content-type": "application/json",
+      origin,
+      "x-real-ip": clientIp,
+    },
     body: JSON.stringify({ email, password, name }),
   })
   if (signup.status !== 200) {
@@ -19,7 +25,11 @@ export async function signUpVerified(baseURL, origin, migrator, body = {}) {
   )
   const signIn = await fetch(`${baseURL}/api/auth/sign-in/email`, {
     method: "POST",
-    headers: { "content-type": "application/json", origin },
+    headers: {
+      "content-type": "application/json",
+      origin,
+      "x-real-ip": clientIp,
+    },
     body: JSON.stringify({ email, password }),
   })
   if (signIn.status !== 200) {

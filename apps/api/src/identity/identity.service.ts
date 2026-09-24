@@ -27,10 +27,16 @@ export class IdentityService {
       query: { disableCookieCache: true },
     });
     if (!result) return null;
+    const user = await this.runtime.pool.query<{
+      preferred_locale: string | null;
+    }>('SELECT preferred_locale FROM public."user" WHERE id = $1', [
+      result.user.id,
+    ]);
     return {
       userId: result.user.id,
       sessionId: result.session.id,
-      preferredLocale: result.user.preferredLocale,
+      // secondary storage 里的 user 是登录快照；界面语言以当前 user 行为准。
+      preferredLocale: user.rows[0].preferred_locale,
     };
   }
 

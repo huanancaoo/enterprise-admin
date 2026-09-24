@@ -47,6 +47,7 @@ describe("platform assignment access boundary", () => {
         env: {
           PATH: process.env.PATH,
           DATABASE_URL: config.databaseURL,
+          REDIS_URL: config.redisURL,
           BETTER_AUTH_URL: config.baseURL,
           BETTER_AUTH_SECRET: config.secret,
           BETTER_AUTH_TRUSTED_ORIGINS: origin,
@@ -60,7 +61,11 @@ describe("platform assignment access boundary", () => {
     expect(stdout).toMatch(/[0-9a-f]{8}-[0-9a-f-]{27}/)
     const login = await fetch(`${baseURL}/api/auth/sign-in/email`, {
       method: "POST",
-      headers: { "content-type": "application/json", origin },
+      headers: {
+        "content-type": "application/json",
+        origin,
+        "x-real-ip": `10.${[...randomBytes(3)].join(".")}`,
+      },
       body: JSON.stringify({ email, password }),
     })
     expect(login.status).toBe(200)

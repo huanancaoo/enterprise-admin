@@ -20,11 +20,52 @@ import {
   type StartedTestContainer,
 } from "testcontainers"
 import { Pool } from "pg"
+import type { SecondaryStorage } from "better-auth"
 import { createAuth, noopAuthEmailHooks } from "../src/auth.ts"
 import { createDatabase } from "../src/index.ts"
 import { createPlatformAdmin } from "../src/platform-admin.ts"
 
 const exec = promisify(execFile)
+
+function memorySecondaryStorage(): SecondaryStorage {
+  const store = new Map<string, { value: string; expiresAt?: number }>()
+  const live = (key: string) => {
+    const item = store.get(key)
+    if (!item) return undefined
+    if (item.expiresAt !== undefined && item.expiresAt <= Date.now()) {
+      store.delete(key)
+      return undefined
+    }
+    return item
+  }
+  return {
+    get: async (key) => live(key)?.value ?? null,
+    getAndDelete: async (key) => {
+      const value = live(key)?.value ?? null
+      store.delete(key)
+      return value
+    },
+    set: async (key, value, ttl) => {
+      store.set(key, {
+        value,
+        ...(ttl !== undefined ? { expiresAt: Date.now() + ttl * 1000 } : {}),
+      })
+    },
+    delete: async (key) => {
+      store.delete(key)
+    },
+    increment: async (key, ttl) => {
+      const item = live(key)
+      const next = Number(item?.value ?? 0) + 1
+      store.set(key, {
+        value: String(next),
+        expiresAt: item?.expiresAt ?? Date.now() + ttl * 1000,
+      })
+      return next
+    },
+  }
+}
+
 const tables = [
   "account",
   "email_messages",
@@ -283,6 +324,8 @@ describe(suiteName, { concurrent: false }, () => {
       randomBytes(32).toString("hex"),
       [],
       noopAuthEmailHooks,
+      memorySecondaryStorage(),
+      [],
       {
         clientId: "test-github-client-id",
         clientSecret: "test-github-client-secret",
@@ -431,6 +474,8 @@ describe(suiteName, { concurrent: false }, () => {
       randomBytes(32).toString("hex"),
       [],
       noopAuthEmailHooks,
+      memorySecondaryStorage(),
+      [],
       {
         clientId: "test-github-client-id",
         clientSecret: "test-github-client-secret",

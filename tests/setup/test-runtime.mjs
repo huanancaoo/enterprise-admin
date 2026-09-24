@@ -35,8 +35,16 @@ export async function startTestApplication({
   // 每取得一个资源立即登记释放；启动中途失败和正常结束使用同一条逆序清理链。
   const resources = new AsyncDisposableStack()
   try {
+    const versions = JSON.parse(
+      await readFile("docs/architecture/versions.json", "utf8")
+    )
     const database = await startAuthProbeDatabase()
     resources.defer(() => database.container.stop())
+    const redis = await new GenericContainer(versions.redis.image)
+      .withExposedPorts(6379)
+      .withWaitStrategy(Wait.forLogMessage("Ready to accept connections"))
+      .start()
+    resources.defer(() => redis.stop())
     const runtimeURL = database.url("app_runtime", database.passwords[2])
     const migrationURL = database.url("app_migrator", database.passwords[1])
     await promisify(execFile)(
@@ -51,9 +59,6 @@ export async function startTestApplication({
     let mailpitOrigin
     let smtp
     if (mail) {
-      const versions = JSON.parse(
-        await readFile("docs/architecture/versions.json", "utf8")
-      )
       const mailpit = await new GenericContainer(versions.mailpit.image)
         .withExposedPorts(1025, 8025)
         .withWaitStrategy(Wait.forHttp("/", 8025))
@@ -70,9 +75,11 @@ export async function startTestApplication({
     const baseURL = `http://127.0.0.1:${port}`
     const config = {
       databaseURL: runtimeURL,
+      redisURL: `redis://${redis.getHost()}:${redis.getMappedPort(6379)}`,
       baseURL,
       secret: randomBytes(32).toString("hex"),
       trustedOrigins: origins,
+      trustedProxies: [],
       github: {
         clientId: "test-github-client-id",
         clientSecret: "test-github-client-secret",

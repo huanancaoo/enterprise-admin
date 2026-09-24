@@ -48,6 +48,7 @@ flowchart LR
   Tenant["租户后台 :3200"] -->|/api| API["API Host :3000"]
   Platform["平台后台 :3201"] -->|/api/auth| API
   API --> PG[("PostgreSQL 18.6")]
+  API --> Redis[("Redis 7.4.5")]
   API --> Mail["SMTP / Mailpit"]
   Docs["文档 :3300"]
   Storybook["Storybook :6006"]
@@ -66,7 +67,7 @@ npm install --global pnpm@12.4.1
 pnpm install --frozen-lockfile
 ```
 
-### 1. 启动 PostgreSQL 与 Mailpit
+### 1. 启动 PostgreSQL、Redis 与 Mailpit
 
 ```sh
 cp infra/postgres/.env.example infra/postgres/.env
@@ -78,7 +79,7 @@ cp infra/postgres/.env.example infra/postgres/.env
 docker compose --env-file infra/postgres/.env up -d
 ```
 
-PostgreSQL 绑定 `127.0.0.1:5432`，Mailpit SMTP 为 `127.0.0.1:1025`，收件箱为 <http://127.0.0.1:8025>。
+PostgreSQL 绑定 `127.0.0.1:5432`，Redis 绑定 `127.0.0.1:6379`，Mailpit SMTP 为 `127.0.0.1:1025`，收件箱为 <http://127.0.0.1:8025>。
 
 ### 2. 执行迁移
 
@@ -104,13 +105,16 @@ cp apps/api/.env.example apps/api/.env
 
 至少填写：
 
-| 变量                           | 说明                                                        |
-| ------------------------------ | ----------------------------------------------------------- |
-| `DATABASE_URL`                 | `app_runtime` 连接串，密码与初始化文件中的 runtime 密码一致 |
-| `BETTER_AUTH_SECRET`           | 至少 32 字符的随机密钥，不可暴露给前端                      |
-| `GITHUB_CLIENT_ID`             | GitHub OAuth App Client ID                                  |
-| `GITHUB_CLIENT_SECRET`         | GitHub OAuth App Client Secret，不可暴露给前端              |
-| `EMAIL_PAYLOAD_ENCRYPTION_KEY` | 32 字节的 64 位十六进制                                     |
+| 变量                           | 说明                                                         |
+| ------------------------------ | ------------------------------------------------------------ |
+| `DATABASE_URL`                 | `app_runtime` 连接串，密码与初始化文件中的 runtime 密码一致  |
+| `REDIS_URL`                    | Better Auth secondary storage，本地 `redis://127.0.0.1:6379` |
+| `BETTER_AUTH_SECRET`           | 至少 32 字符的随机密钥，不可暴露给前端                       |
+| `GITHUB_CLIENT_ID`             | GitHub OAuth App Client ID                                   |
+| `GITHUB_CLIENT_SECRET`         | GitHub OAuth App Client Secret，不可暴露给前端               |
+| `EMAIL_PAYLOAD_ENCRYPTION_KEY` | 32 字节的 64 位十六进制                                      |
+
+`BETTER_AUTH_TRUSTED_PROXIES` 为反代 IP 或 CIDR（逗号分隔）。留空时只接受单值 `X-Real-IP` / `X-Forwarded-For`；多跳转发头必须列出实际反代地址。源站仍须只对反代可达。
 
 ```sh
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
@@ -147,7 +151,7 @@ pnpm --filter api exec node --env-file=.env dist/console.js platform admin creat
 该命令把邮箱标为已验证，不入队验证邮件。邮箱已被占用时失败，不会改已有用户。
 
 > [!IMPORTANT]
-> Worker 只有规划目录，未加入启动任务。未出现明确异步需求前，核心流程不依赖 Redis。
+> Redis 是认证运行时的 secondary storage，限流与会话缓存依赖它。Worker 仍只有规划目录，未加入启动任务。
 
 ## 环境配置
 

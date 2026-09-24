@@ -18,6 +18,15 @@ services:
       interval: 2s
       timeout: 5s
       retries: 30
+  redis:
+    image: redis:7.4.5-bookworm@sha256:90e7a336d044f1abc9e9dbc05d65566850896d11453bbd1dd0fb7e5059f0e8fb
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
   mailpit:
     image: axllent/mailpit:v1.27.10
     ports:

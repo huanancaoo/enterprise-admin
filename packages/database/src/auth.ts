@@ -1,4 +1,4 @@
-import { betterAuth } from "better-auth"
+import { betterAuth, type SecondaryStorage } from "better-auth"
 import { lastLoginMethod, organization } from "better-auth/plugins"
 import { createAccessControl } from "better-auth/plugins/access"
 import {
@@ -108,6 +108,8 @@ export function createAuth(
   secret: string,
   trustedOrigins: string[] = [],
   emailHooks: AuthEmailHooks,
+  secondaryStorage: SecondaryStorage,
+  trustedProxies: string[],
   github: { clientId: string; clientSecret: string }
 ) {
   const transactionalAdapter = createTransactionalAuthAdapter(pool)
@@ -257,7 +259,13 @@ export function createAuth(
         },
       },
     },
+    verification: {
+      // 邮箱验证与密码重置令牌必须落库；Redis 只缓存。与 session 同一约束。
+      storeInDatabase: true,
+    },
     session: {
+      // 接受邀请等组织写路径与 session 同行事务；Redis 只缓存，不取消 session 表。
+      storeSessionInDatabase: true,
       additionalFields: {
         // activeOrganizationId 是工作区偏好，但仍引用同一个 UUID 组织标识。
         activeOrganizationId: {
@@ -272,11 +280,24 @@ export function createAuth(
         },
       },
     },
+    secondaryStorage,
+    // 不依赖 NODE_ENV；计数必须走 secondary storage，禁止回退到进程内存。
+    rateLimit: {
+      enabled: true,
+      storage: "secondary-storage",
+    },
     advanced: {
       database: { generateId: "uuid" },
       // Better Auth 在 test 环境默认跳过 Origin 校验；保持各环境的 HTTP 安全语义一致。
       disableOriginCheck: false,
       disableCSRFCheck: false,
+      // 不强制所有环境 Secure。本地 HTTP 必须能带会话 cookie；生产由 Better Auth 按 production 加 Secure。
+      useSecureCookies: false,
+      ipAddress: {
+        // x-real-ip 优先。trustedProxies 为空时只接受单值头；非空则按官方规则从右跳过受信任跳。
+        ipAddressHeaders: ["x-real-ip", "x-forwarded-for"],
+        trustedProxies,
+      },
     },
     hooks: {
       before: createAuthMiddleware(async (ctx) => {

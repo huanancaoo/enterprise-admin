@@ -74,6 +74,10 @@ describe("email auth UI", () => {
   beforeEach(async () => {
     context = await browser.newContext({
       viewport: { width: 1280, height: 800 },
+      // 限流按客户端 IP 分桶；同进程用例必须使用不同地址，否则会互相耗尽配额。
+      extraHTTPHeaders: {
+        "x-real-ip": `10.${[...randomBytes(3)].join(".")}`,
+      },
     })
     page = await context.newPage()
     pageErrors = []
@@ -192,6 +196,9 @@ describe("email auth UI", () => {
 
     const inviteeContext = await browser.newContext({
       viewport: { width: 1280, height: 800 },
+      extraHTTPHeaders: {
+        "x-real-ip": `10.${[...randomBytes(3)].join(".")}`,
+      },
     })
     const inviteePage = await inviteeContext.newPage()
     try {

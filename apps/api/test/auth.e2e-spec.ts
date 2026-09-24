@@ -84,6 +84,7 @@ describe(
   { concurrent: false },
   () => {
     let container: StartedTestContainer | undefined;
+    let redis: StartedTestContainer | undefined;
     let app: NestExpressApplication | undefined;
     let platformDatabase: ReturnType<typeof createDatabase> | undefined;
     let migratorDatabase: ReturnType<typeof createDatabase> | undefined;
@@ -116,6 +117,8 @@ describe(
           customFetchImpl: async (input, init) => {
             const headers = new Headers(init?.headers);
             headers.set('origin', origin);
+            // 限流按客户端 IP 分桶；同进程用例必须使用不同地址，否则会互相耗尽配额。
+            headers.set('x-real-ip', `10.${[...randomBytes(3)].join('.')}`);
             if (cookie) headers.set('cookie', cookie);
             const requestURL =
               input instanceof Request ? input.url : input.toString();
@@ -150,33 +153,39 @@ describe(
     beforeAll(async () => {
       const versions = JSON.parse(
         await readFile('../../docs/architecture/versions.json', 'utf8'),
-      ) as { postgresql: { image: string } };
+      ) as { postgresql: { image: string }; redis: { image: string } };
       const passwords = Array.from({ length: 4 }, () =>
         randomBytes(24).toString('hex'),
       );
-      container = await new GenericContainer(versions.postgresql.image)
-        .withEnvironment({
-          POSTGRES_USER: 'bootstrap_admin',
-          POSTGRES_DB: 'enterprise_admin',
-          POSTGRES_PASSWORD: passwords[0],
-          APP_MIGRATOR_PASSWORD: passwords[1],
-          APP_RUNTIME_PASSWORD: passwords[2],
-          PLATFORM_RUNTIME_PASSWORD: passwords[3],
-        })
-        .withCopyFilesToContainer([
-          {
-            source: resolve('../../infra/postgres/bootstrap.sql'),
-            target: '/docker-entrypoint-initdb.d/001-bootstrap.sql',
-          },
-        ])
-        .withExposedPorts(5432)
-        .withWaitStrategy(
-          Wait.forLogMessage(
-            'database system is ready to accept connections',
-            2,
-          ),
-        )
-        .start();
+      [container, redis] = await Promise.all([
+        new GenericContainer(versions.postgresql.image)
+          .withEnvironment({
+            POSTGRES_USER: 'bootstrap_admin',
+            POSTGRES_DB: 'enterprise_admin',
+            POSTGRES_PASSWORD: passwords[0],
+            APP_MIGRATOR_PASSWORD: passwords[1],
+            APP_RUNTIME_PASSWORD: passwords[2],
+            PLATFORM_RUNTIME_PASSWORD: passwords[3],
+          })
+          .withCopyFilesToContainer([
+            {
+              source: resolve('../../infra/postgres/bootstrap.sql'),
+              target: '/docker-entrypoint-initdb.d/001-bootstrap.sql',
+            },
+          ])
+          .withExposedPorts(5432)
+          .withWaitStrategy(
+            Wait.forLogMessage(
+              'database system is ready to accept connections',
+              2,
+            ),
+          )
+          .start(),
+        new GenericContainer(versions.redis.image)
+          .withExposedPorts(6379)
+          .withWaitStrategy(Wait.forLogMessage('Ready to accept connections'))
+          .start(),
+      ]);
       const url = (user: string, password: string) =>
         `postgresql://${user}:${password}@${container!.getHost()}:${container!.getMappedPort(5432)}/enterprise_admin`;
       await promisify(execFile)(
@@ -194,9 +203,11 @@ describe(
       app = await createApplication(
         {
           databaseURL: url('app_runtime', passwords[2]),
+          redisURL: `redis://${redis.getHost()}:${redis.getMappedPort(6379)}`,
           baseURL: 'http://localhost:3000',
           secret: randomBytes(32).toString('hex'),
           trustedOrigins: [origin],
+          trustedProxies: ['192.0.2.1'],
           github: {
             clientId: 'test-github-client-id',
             clientSecret: 'test-github-client-secret',
@@ -218,6 +229,7 @@ describe(
         await migratorDatabase?.pool.end();
         await platformDatabase?.pool.end();
         await container?.stop();
+        await redis?.stop();
       }
     }, 60_000);
 
@@ -229,6 +241,7 @@ describe(
             'content-type': 'application/json',
             origin,
             'accept-language': locale,
+            'x-real-ip': `10.${[...randomBytes(3)].join('.')}`,
           },
           body: JSON.stringify({
             email: 'missing@example.test',
@@ -268,6 +281,7 @@ describe(
         headers: {
           'content-type': 'application/json',
           origin,
+          'x-real-ip': `10.${[...randomBytes(3)].join('.')}`,
         },
         body: JSON.stringify({
           provider: 'github',
@@ -292,6 +306,52 @@ describe(
       expect(authorize.searchParams.get('redirect_uri')).toBe(
         'http://localhost:3000/api/auth/callback/github',
       );
+    });
+
+    it('同一客户端 IP 的注册超过限流阈值被拒绝', async () => {
+      const clientIp = '203.0.113.10';
+      const signUp = () =>
+        fetch(`${baseURL}/api/auth/sign-up/email`, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            origin,
+            'x-real-ip': clientIp,
+          },
+          body: JSON.stringify({
+            email: `${randomBytes(8).toString('hex')}@example.test`,
+            password: randomBytes(24).toString('hex'),
+            name: 'Rate limited',
+          }),
+        });
+      expect((await signUp()).status).toBe(200);
+      expect((await signUp()).status).toBe(200);
+      expect((await signUp()).status).toBe(200);
+      expect((await signUp()).status).toBe(429);
+    });
+
+    it('多跳 X-Forwarded-For 按 trustedProxies 识别客户端', async () => {
+      const clientIp = '203.0.113.20';
+      const signUp = (forwardedFor: string) =>
+        fetch(`${baseURL}/api/auth/sign-up/email`, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            origin,
+            'x-forwarded-for': forwardedFor,
+          },
+          body: JSON.stringify({
+            email: `${randomBytes(8).toString('hex')}@example.test`,
+            password: randomBytes(24).toString('hex'),
+            name: 'Rate limited chain',
+          }),
+        });
+      const chain = `${clientIp}, 192.0.2.1`;
+      expect((await signUp(chain)).status).toBe(200);
+      expect((await signUp(chain)).status).toBe(200);
+      expect((await signUp(chain)).status).toBe(200);
+      expect((await signUp(chain)).status).toBe(429);
+      expect((await signUp('203.0.113.21, 192.0.2.1')).status).toBe(200);
     });
 
     it('注册密码短于 12 个字符被拒绝', async () => {
