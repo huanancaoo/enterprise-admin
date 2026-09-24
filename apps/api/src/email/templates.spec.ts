@@ -3,15 +3,9 @@ import {
   renderInvitationEmail,
   renderPasswordResetEmail,
   renderVerifyEmail,
-  resolveEmailLocale,
 } from './templates';
 
 describe('email templates', () => {
-  it('falls back to the configured locale when the request is not zh-CN or en-US', () => {
-    expect(resolveEmailLocale('ar', 'zh-CN')).toBe('zh-CN');
-    expect(resolveEmailLocale('en-US', 'zh-CN')).toBe('en-US');
-  });
-
   it('escapes HTML in names and keeps the raw URL in both html and text', () => {
     const rendered = renderVerifyEmail('zh-CN', {
       name: '<script>alert(1)</script>',

@@ -1,5 +1,6 @@
 import { createUiI18n } from "@workspace/i18n"
 import { UiI18nProvider } from "@workspace/i18n/react"
+import { bindWorkspaceRequestLocale } from "@workspace/admin/auth"
 import {
   AdminDirectionProvider,
   ThemeProvider,
@@ -10,6 +11,7 @@ import "@workspace/ui/globals.css"
 import { PlatformRouter } from "./platform-router"
 
 const uiI18n = createUiI18n()
+bindWorkspaceRequestLocale(uiI18n)
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

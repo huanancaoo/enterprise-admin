@@ -1,9 +1,19 @@
 {
   "AUTHORIZATION_UNAVAILABLE": "حالة التفويض غير متاحة",
+  "AUTHORIZATION_VERSION_CONFLICT": "تغير التفويض. حدّث الصفحة ثم أعد المحاولة.",
+  "EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION": "يرجى التحقق من بريدك الإلكتروني قبل معالجة الدعوة.",
   "FORBIDDEN": "الوصول غير مسموح",
   "INTERNAL_ERROR": "خطأ داخلي في الخادم",
   "NOT_FOUND": "المورد غير موجود",
+  "ORGANIZATION_ALREADY_EXISTS": "هذه المؤسسة موجودة بالفعل",
+  "ORGANIZATION_NOT_FOUND": "المؤسسة غير موجودة",
+  "ORGANIZATION_SLUG_ALREADY_TAKEN": "معرّف المؤسسة مستخدم بالفعل",
   "ORGANIZATION_SUSPENDED": "هذه المؤسسة موقوفة",
   "UNAUTHENTICATED": "يرجى تسجيل الدخول",
-  "VALIDATION_ERROR": "معلمات الطلب غير صالحة"
+  "USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION": "هذا المستخدم عضو بالفعل",
+  "USER_IS_ALREADY_INVITED_TO_THIS_ORGANIZATION": "تمت دعوة هذا المستخدم بالفعل",
+  "VALIDATION_ERROR": "معلمات الطلب غير صالحة",
+  "YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION": "سجّل الدخول بالبريد المدعو لقبول الدعوة.",
+  "YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER": "لا يمكنك المغادرة وأنت المالك الوحيد",
+  "YOU_CANNOT_LEAVE_THE_ORGANIZATION_WITHOUT_AN_OWNER": "يجب أن يكون للمؤسسة مالك واحد على الأقل"
 }

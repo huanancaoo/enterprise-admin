@@ -1,5 +1,6 @@
 import { createDatabase } from '@workspace/database';
 import type { AuthEmailHooks } from '@workspace/database/auth';
+import { resolveEmailLocale } from '@workspace/i18n';
 import type { EmailConfig } from './email-config';
 
 type RuntimePool = ReturnType<typeof createDatabase>['pool'];
@@ -14,7 +15,6 @@ import {
   renderInvitationEmail,
   renderPasswordResetEmail,
   renderVerifyEmail,
-  resolveEmailLocale,
   type EmailTemplateKey,
 } from './templates';
 
@@ -28,10 +28,14 @@ type EmailPayload = {
 type EnqueueInput = {
   organizationId: string | null;
   templateKey: EmailTemplateKey;
-  locale: string | null | undefined;
+  requestedLocale: string | null | undefined;
   to: string;
   idempotencyKey: string;
-  rendered: { subject: string; html: string; text: string };
+  render: (locale: ReturnType<typeof resolveEmailLocale>) => {
+    subject: string;
+    html: string;
+    text: string;
+  };
   replaceOnConflict: boolean;
 };
 
@@ -60,20 +64,17 @@ export class EmailService {
     url: string;
   }): Promise<void> {
     const url = assertAllowedEmailUrl(data.url, this.allowedOrigins);
-    const locale = resolveEmailLocale(
-      data.user.preferredLocale,
-      this.config.defaultLocale,
-    );
     await this.enqueue({
       organizationId: null,
       templateKey: 'verify-email',
-      locale: data.user.preferredLocale,
+      requestedLocale: data.user.preferredLocale,
       to: data.user.email,
       idempotencyKey: `auth.verify-email/${data.user.id}/${hashEmailUrl(url.href)}`,
-      rendered: renderVerifyEmail(locale, {
-        name: data.user.name,
-        verifyUrl: url.href,
-      }),
+      render: (locale) =>
+        renderVerifyEmail(locale, {
+          name: data.user.name,
+          verifyUrl: url.href,
+        }),
       replaceOnConflict: true,
     });
   }
@@ -88,20 +89,17 @@ export class EmailService {
     url: string;
   }): Promise<void> {
     const url = assertAllowedEmailUrl(data.url, this.allowedOrigins);
-    const locale = resolveEmailLocale(
-      data.user.preferredLocale,
-      this.config.defaultLocale,
-    );
     await this.enqueue({
       organizationId: null,
       templateKey: 'password-reset',
-      locale: data.user.preferredLocale,
+      requestedLocale: data.user.preferredLocale,
       to: data.user.email,
       idempotencyKey: `auth.reset-password/${data.user.id}/${hashEmailUrl(url.href)}`,
-      rendered: renderPasswordResetEmail(locale, {
-        name: data.user.name,
-        resetUrl: url.href,
-      }),
+      render: (locale) =>
+        renderPasswordResetEmail(locale, {
+          name: data.user.name,
+          resetUrl: url.href,
+        }),
       replaceOnConflict: true,
     });
   }
@@ -116,10 +114,6 @@ export class EmailService {
       `${this.config.linkOrigin}/accept-invitation/${data.invitation.id}`,
       this.allowedOrigins,
     );
-    const locale = resolveEmailLocale(
-      data.organization.defaultLocale,
-      this.config.defaultLocale,
-    );
     const version = await this.nextInvitationSendVersion(
       data.organization.id,
       data.invitation.id,
@@ -127,14 +121,15 @@ export class EmailService {
     await this.enqueue({
       organizationId: data.organization.id,
       templateKey: 'organization.invitation',
-      locale: data.organization.defaultLocale,
+      requestedLocale: data.organization.defaultLocale,
       to: data.email,
       idempotencyKey: `organization/${data.organization.id}/invitation/${data.invitation.id}/send/${version}`,
-      rendered: renderInvitationEmail(locale, {
-        inviterName: data.inviter.user.name,
-        organizationName: data.organization.name,
-        acceptUrl: acceptUrl.href,
-      }),
+      render: (locale) =>
+        renderInvitationEmail(locale, {
+          inviterName: data.inviter.user.name,
+          organizationName: data.organization.name,
+          acceptUrl: acceptUrl.href,
+        }),
       replaceOnConflict: false,
     });
   }
@@ -154,12 +149,16 @@ export class EmailService {
   }
 
   private async enqueue(input: EnqueueInput): Promise<void> {
-    const locale = resolveEmailLocale(input.locale, this.config.defaultLocale);
+    const locale = resolveEmailLocale(
+      input.requestedLocale,
+      this.config.defaultLocale,
+    );
+    const rendered = input.render(locale);
     const payload: EmailPayload = {
       to: input.to,
-      subject: input.rendered.subject,
-      html: input.rendered.html,
-      text: input.rendered.text,
+      subject: rendered.subject,
+      html: rendered.html,
+      text: rendered.text,
     };
     const ciphertext = encryptEmailPayload(
       JSON.stringify(payload),

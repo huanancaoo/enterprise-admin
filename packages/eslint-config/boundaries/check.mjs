@@ -50,7 +50,7 @@ const allowed = {
   ],
   "packages/contracts": [],
   "packages/api-client": ["packages/contracts"],
-  "packages/database": ["packages/permissions"],
+  "packages/database": ["packages/permissions", "packages/i18n"],
   "packages/permissions": [],
   "packages/i18n": [],
   "packages/mocks": ["packages/contracts"],
@@ -79,9 +79,14 @@ function discoverWorkspace(root) {
 function* files(dir, packageRoots) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (
-      ["node_modules", "dist", ".turbo", "coverage", ".next", ".source"].includes(
-        entry.name
-      )
+      [
+        "node_modules",
+        "dist",
+        ".turbo",
+        "coverage",
+        ".next",
+        ".source",
+      ].includes(entry.name)
     )
       continue
     const path = resolve(dir, entry.name)

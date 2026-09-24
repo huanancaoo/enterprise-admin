@@ -1,6 +1,10 @@
 import { createInstance, type i18n } from "i18next"
 import { resources } from "./resources.js"
-import type { SupportedLocale } from "./index.js"
+import {
+  matchSupportedLocale,
+  platformDefaultLocale,
+  type SupportedLocale,
+} from "./locale.js"
 
 export const localeMeta = {
   "zh-CN": { label: "简体中文", direction: "ltr" },
@@ -25,7 +29,8 @@ export function createUiI18n(locale: SupportedLocale = "zh-CN"): i18n {
 
 export function syncDocumentLanguage(instance: i18n, document: Document) {
   const sync = () => {
-    const locale = instance.language as SupportedLocale
+    const locale =
+      matchSupportedLocale(instance.language) ?? platformDefaultLocale
     document.documentElement.lang = locale
     document.documentElement.dir = localeMeta[locale].direction
   }

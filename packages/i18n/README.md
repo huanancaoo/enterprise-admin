@@ -4,7 +4,7 @@
 
 ## 运行时
 
-- 根入口供浏览器和服务端使用：Locale 协商、静态资源、`createUiI18n`、`createFormatter`。
+- 根入口供浏览器和服务端使用：Locale 协商、静态资源、`createUiI18n`、`createFormatter`。`resolveLocale` 是唯一协商；邮件子集走 `resolveEmailLocale`。认证错误码在 `errors` 词条里，由 `@workspace/i18n/catalog` 读出。邮件正文在 `emailCatalog`，不含 `ar`。
 - `getTranslator(locale)` 返回服务端固定语言 translator；不会调用服务器共享实例的 `changeLanguage`。
 - `@workspace/i18n/react` 提供 `UiI18nProvider` 和 `useUiLocale`。每个 SPA 创建一个 UI 实例，Provider 订阅语言变化并同步 `html.lang/dir`，卸载时解除监听。
 - UI locale 只由 i18next 持有，不写入 Router state 或后台 URL。S8 的用户/组织语言偏好持久化尚未实现；重新加载使用初始语言。

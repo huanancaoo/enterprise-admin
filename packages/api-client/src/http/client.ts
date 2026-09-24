@@ -1,4 +1,5 @@
 import { ApiErrorSchema, type ApiError } from "@workspace/contracts"
+import { boundRequestLocale, requestLanguageHeader } from "./request-locale"
 
 export type ApiClientConfig = {
   baseUrl: string
@@ -53,6 +54,10 @@ export async function apiClient<T>(
   }
 
   const headers = new Headers(await apiClientConfig.getHeaders?.())
+  const boundLocale = boundRequestLocale()
+  if (boundLocale && !headers.has(requestLanguageHeader)) {
+    headers.set(requestLanguageHeader, boundLocale)
+  }
   new Headers(requestHeaders).forEach((value, key) => {
     headers.set(key, value)
   })

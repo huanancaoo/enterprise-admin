@@ -1,6 +1,7 @@
 import { createUiI18n } from "@workspace/i18n"
 import { UiI18nProvider } from "@workspace/i18n/react"
 import { AdminDirectionProvider } from "@workspace/admin/workspace"
+import { bindWorkspaceRequestLocale } from "@workspace/admin/auth"
 import { configureApiClient } from "@workspace/api-client"
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
@@ -10,6 +11,7 @@ import { ThemeProvider } from "@/components/theme-provider.tsx"
 import { TenantRouter } from "./tenant-router"
 
 const uiI18n = createUiI18n()
+bindWorkspaceRequestLocale(uiI18n)
 
 // 浏览器只访问同源代理；生成 SDK 的路径已含 /api/v1，不能把后端主机写进构建产物。
 configureApiClient({ baseUrl: window.location.origin })

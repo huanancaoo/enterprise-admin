@@ -143,12 +143,22 @@ export default interface Resources {
   },
   "errors": {
     "AUTHORIZATION_UNAVAILABLE": "授权状态不可用",
+    "AUTHORIZATION_VERSION_CONFLICT": "授权已变更，请刷新后重试",
+    "EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION": "请先验证邮箱再处理邀请",
     "FORBIDDEN": "无权访问此资源",
     "INTERNAL_ERROR": "服务器内部错误",
     "NOT_FOUND": "资源不存在",
+    "ORGANIZATION_ALREADY_EXISTS": "组织已存在",
+    "ORGANIZATION_NOT_FOUND": "组织不存在",
+    "ORGANIZATION_SLUG_ALREADY_TAKEN": "该组织标识已被使用",
     "ORGANIZATION_SUSPENDED": "该组织已停用",
     "UNAUTHENTICATED": "请先登录",
-    "VALIDATION_ERROR": "请求参数无效"
+    "USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION": "该用户已是组织成员",
+    "USER_IS_ALREADY_INVITED_TO_THIS_ORGANIZATION": "该用户已被邀请",
+    "VALIDATION_ERROR": "请求参数无效",
+    "YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION": "请使用受邀邮箱账号接受邀请",
+    "YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER": "不能以唯一所有者身份退出组织",
+    "YOU_CANNOT_LEAVE_THE_ORGANIZATION_WITHOUT_AN_OWNER": "组织必须保留至少一位所有者"
   },
   "organization": {
     "activate": "激活",

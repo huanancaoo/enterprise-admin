@@ -1,6 +1,11 @@
 export { ApiClientError, configureApiClient } from "./http/client"
 export type { ApiClientConfig } from "./http/client"
 export {
+  bindRequestLocale,
+  requestLanguageHeader,
+  requestLocale,
+} from "./http/request-locale"
+export {
   listMyOrganizations,
   getOrganizationAccess,
 } from "./generated/endpoints/organizations/organizations"

@@ -7,6 +7,7 @@ import type {
   ListProjectsHeaders,
   ListProjectsParams,
 } from "../generated/models"
+import { requestLanguageHeader } from "../http/request-locale"
 
 export const projectKeys = {
   all: (organizationId: string) =>
@@ -53,7 +54,7 @@ export function listProjectsKey(input: {
   return projectKeys.list(
     input.organizationId,
     input.params,
-    input.headers?.["Accept-Language"] ?? null
+    input.headers?.[requestLanguageHeader] ?? null
   )
 }
 
@@ -65,7 +66,7 @@ export function getProjectKey(input: {
   return projectKeys.detail(
     input.organizationId,
     input.projectId,
-    input.headers?.["Accept-Language"] ?? null
+    input.headers?.[requestLanguageHeader] ?? null
   )
 }
 

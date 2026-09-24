@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest"
-import { resolveLocale, getTranslator } from "../../packages/i18n/src/index"
+import {
+  resolveLocale,
+  resolveEmailLocale,
+  getTranslator,
+} from "../../packages/i18n/src/index"
 
 describe("Locale negotiation", () => {
   it("Header → user → organization → platform", () => {
@@ -25,6 +29,21 @@ describe("Locale negotiation", () => {
       resolveLocale({ acceptLanguage: "zh-CN;q=0.2,ar;q=0.8,en-US;q=0.8" })
     ).toBe("ar")
     expect(resolveLocale({ acceptLanguage: "EN-us" })).toBe("en-US")
+    expect(
+      resolveLocale({
+        acceptLanguage: "fr,en-US;q=0.8",
+        preferredLocale: "zh-CN",
+      })
+    ).toBe("en-US")
+    expect(
+      resolveLocale({
+        preferredLocale: "ar",
+        defaultLocale: "en-US",
+        allowed: ["zh-CN", "en-US"],
+      })
+    ).toBe("en-US")
+    expect(resolveEmailLocale("ar", "zh-CN")).toBe("zh-CN")
+    expect(resolveEmailLocale("EN-us", "zh-CN")).toBe("en-US")
     expect(
       resolveLocale({
         acceptLanguage: "ar;q=0,en-US;q=2,*,en-GB",

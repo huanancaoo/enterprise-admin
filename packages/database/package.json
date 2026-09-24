@@ -55,6 +55,8 @@
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "1.7.5",
+    "@better-auth/i18n": "1.7.5",
+    "@workspace/i18n": "workspace:*",
     "better-auth": "1.7.5",
     "drizzle-orm": "0.45.2",
     "pg": "8.23.0",
