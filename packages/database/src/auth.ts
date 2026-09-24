@@ -28,6 +28,11 @@ import {
 } from "./auth-transaction.ts"
 import { getAuthRequestContext } from "./auth-request-context.ts"
 import { createAuthI18n } from "./auth-i18n.ts"
+import {
+  assertMemberDirectoryRead,
+  normalizeMemberListQuery,
+  searchOrganizationMembers,
+} from "./member-directory.ts"
 
 export {
   getAuthRequestContext,
@@ -69,6 +74,7 @@ export const noopAuthEmailHooks: AuthEmailHooks = {
 const ac = createAccessControl({
   ...defaultStatements,
   ...permissionStatements,
+  member: [...defaultStatements.member, "read"],
 })
 
 const versionedOrganizationWritePaths = new Set([
@@ -131,13 +137,19 @@ export function createAuth(
       roles: {
         owner: ac.newRole({
           ...ownerAc.statements,
+          member: [...ownerAc.statements.member, "read"],
           project: [...projectActions],
         }),
         admin: ac.newRole({
           ...adminAc.statements,
+          member: [...adminAc.statements.member, "read"],
           project: [...projectActions],
         }),
-        member: ac.newRole({ ...memberAc.statements, project: ["read"] }),
+        member: ac.newRole({
+          ...memberAc.statements,
+          member: ["read"],
+          project: ["read"],
+        }),
       },
       dynamicAccessControl: { enabled: true },
       invitationExpiresIn: 60 * 60 * 48,
@@ -339,6 +351,41 @@ export function createAuth(
         )
           return
         await assertActiveOrganization(organizationQuery, organizationId)
+        if (
+          ctx.path === "/organization/list-members" ||
+          ctx.path === "/organization/get-full-organization"
+        ) {
+          await assertMemberDirectoryRead(
+            organizationQuery,
+            organizationId,
+            userId
+          )
+        }
+        if (ctx.path !== "/organization/list-members") return
+        const normalized = normalizeMemberListQuery(
+          (ctx.query ?? {}) as Parameters<typeof normalizeMemberListQuery>[0]
+        )
+        if (normalized.q) {
+          return searchOrganizationMembers(
+            organizationQuery,
+            organizationId,
+            normalized
+          )
+        }
+        return {
+          context: {
+            query: {
+              organizationId,
+              limit: normalized.limit,
+              offset: normalized.offset,
+              sortBy: normalized.sortBy,
+              sortDirection: normalized.sortDirection,
+              filterField: normalized.role ? "role" : undefined,
+              filterOperator: normalized.role ? "eq" : undefined,
+              filterValue: normalized.role,
+            },
+          },
+        }
       }),
     },
     plugins: [

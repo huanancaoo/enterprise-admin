@@ -726,4 +726,152 @@ describe(suiteName, { concurrent: false }, () => {
     )
     await runMigration()
   })
+
+  test("成员目录按姓名搜索并拒绝越权与非法排序", async () => {
+    await runMigration()
+    const auth = createAuth(
+      runtime,
+      "http://localhost:3000",
+      randomBytes(32).toString("hex"),
+      [],
+      noopAuthEmailHooks,
+      memorySecondaryStorage(),
+      [],
+      {
+        clientId: "test-github-client-id",
+        clientSecret: "test-github-client-secret",
+      }
+    )
+    async function signIn(email: string, password: string) {
+      const response = await auth.api.signInEmail({
+        body: { email, password },
+        asResponse: true,
+      })
+      assert.equal(response.status, 200)
+      return new Headers({
+        cookie: response.headers
+          .getSetCookie()
+          .map((item) => item.split(";")[0])
+          .join("; "),
+      })
+    }
+    async function register(name: string, email: string, password: string) {
+      const created = await auth.api.signUpEmail({
+        body: { name, email, password },
+      })
+      await runtime.query(
+        'UPDATE public."user" SET email_verified = true WHERE id = $1',
+        [created.user.id]
+      )
+      return created.user.id
+    }
+    const ownerPassword = "member-directory-owner-password"
+    const ownerId = await register(
+      "Directory Owner",
+      "directory-owner@example.test",
+      ownerPassword
+    )
+    const ownerHeaders = await signIn(
+      "directory-owner@example.test",
+      ownerPassword
+    )
+    const org = await auth.api.createOrganization({
+      headers: ownerHeaders,
+      body: { name: "Directory Org", slug: "directory-org" },
+    })
+    assert.ok(org?.id)
+    const adaId = await register(
+      "Searchable Ada",
+      "ada-directory@example.test",
+      "member-directory-ada-password"
+    )
+    await auth.api.addMember({
+      headers: ownerHeaders,
+      body: { userId: adaId, role: "member", organizationId: org.id },
+    })
+    const found = await auth.api.listMembers({
+      headers: ownerHeaders,
+      query: {
+        organizationId: org.id,
+        limit: 20,
+        q: "Searchable",
+      } as { organizationId: string; limit: number; q: string },
+    })
+    assert.equal(found.total, 1)
+    assert.equal(found.members.length, 1)
+    assert.equal(found.members[0]?.user.email, "ada-directory@example.test")
+    assert.equal("invitations" in found, false)
+    await assert.rejects(
+      auth.api.listMembers({
+        headers: ownerHeaders,
+        query: { organizationId: org.id, sortBy: "email" },
+      }),
+      { status: "BAD_REQUEST" }
+    )
+    const otherId = await register(
+      "Other Owner",
+      "other-directory@example.test",
+      "member-directory-other-password"
+    )
+    const otherHeaders = await signIn(
+      "other-directory@example.test",
+      "member-directory-other-password"
+    )
+    const otherOrg = await auth.api.createOrganization({
+      headers: otherHeaders,
+      body: { name: "Other Directory", slug: "other-directory" },
+    })
+    await assert.rejects(
+      auth.api.listMembers({
+        headers: ownerHeaders,
+        query: { organizationId: otherOrg!.id, q: "Owner" } as {
+          organizationId: string
+          q: string
+        },
+      })
+    )
+    assert.notEqual(ownerId, otherId)
+    await auth.api.createOrgRole({
+      headers: ownerHeaders,
+      body: {
+        organizationId: org.id,
+        role: "translator",
+        permission: { project: ["read"] },
+      },
+    })
+    const readerId = await register(
+      "No Directory",
+      "no-directory@example.test",
+      "member-directory-reader-password"
+    )
+    await auth.api.addMember({
+      headers: ownerHeaders,
+      body: {
+        userId: readerId,
+        role: "translator" as "member",
+        organizationId: org.id,
+      },
+    })
+    const readerHeaders = await signIn(
+      "no-directory@example.test",
+      "member-directory-reader-password"
+    )
+    await auth.api.setActiveOrganization({
+      headers: readerHeaders,
+      body: { organizationId: org.id },
+    })
+    await assert.rejects(
+      auth.api.listMembers({
+        headers: readerHeaders,
+        query: { organizationId: org.id },
+      }),
+      { status: "FORBIDDEN" }
+    )
+    await assert.rejects(
+      auth.api.getFullOrganization({ headers: readerHeaders }),
+      {
+        status: "FORBIDDEN",
+      }
+    )
+  })
 })

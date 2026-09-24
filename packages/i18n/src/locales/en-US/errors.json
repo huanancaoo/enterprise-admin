@@ -4,6 +4,7 @@
   "EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION": "Verify your email before handling this invitation.",
   "FORBIDDEN": "Access denied",
   "INTERNAL_ERROR": "Internal server error",
+  "INVALID_MEMBER_QUERY": "Invalid member directory query",
   "NOT_FOUND": "Resource not found",
   "ORGANIZATION_ALREADY_EXISTS": "This organization already exists",
   "ORGANIZATION_NOT_FOUND": "Organization not found",

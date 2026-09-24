@@ -30,7 +30,11 @@ import { ProjectsRoute } from "./components/projects-route"
 import { ProjectDetailRoute } from "./components/project-detail-route"
 import { AdminLayout } from "./components/admin-layout"
 import { MembersRoute } from "./components/members-route"
-import { getOrganizationDirectoryOptions } from "./query/organization-directory"
+import {
+  getInvitationDirectoryOptions,
+  getMemberDirectoryOptions,
+  memberDirectorySearchSchema,
+} from "./query/organization-directory"
 import { OrganizationGate } from "./components/organization-workspace"
 
 const rootRoute = createRootRouteWithContext<WorkspaceRouterContext>()({
@@ -182,11 +186,19 @@ const membersLayoutRoute = createRoute({
 const membersRoute = createRoute({
   getParentRoute: () => membersLayoutRoute,
   path: "/$organizationId",
-  loader: ({ context, params }) =>
-    context.queryClient.query({
-      ...getOrganizationDirectoryOptions(params.organizationId),
-      staleTime: "static",
-    }),
+  validateSearch: memberDirectorySearchSchema,
+  loaderDeps: ({ search }) => search,
+  loader: ({ context, params, deps }) =>
+    Promise.all([
+      context.queryClient.query({
+        ...getMemberDirectoryOptions(params.organizationId, deps),
+        staleTime: "static",
+      }),
+      context.queryClient.query({
+        ...getInvitationDirectoryOptions(params.organizationId),
+        staleTime: "static",
+      }),
+    ]),
   component: MembersRoute,
 })
 
