@@ -50,6 +50,10 @@ describe("platform assignment access boundary", () => {
           BETTER_AUTH_URL: config.baseURL,
           BETTER_AUTH_SECRET: config.secret,
           BETTER_AUTH_TRUSTED_ORIGINS: origin,
+          // readAuthConfig 对所有环境要求 GitHub 社交登录凭据；CLI 创建
+          // 管理员不触达 GitHub，与 auth.e2e-spec 相同使用测试假凭据。
+          GITHUB_CLIENT_ID: "test-github-client-id",
+          GITHUB_CLIENT_SECRET: "test-github-client-secret",
         },
       }
     )

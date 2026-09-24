@@ -301,10 +301,11 @@ describe(
       );
       expect(
         (
-          await migratorDatabase!.pool.query(
-            'SELECT last_login_method FROM public."user" WHERE id = $1',
-            [registered.data!.user.id],
-          )
+          await migratorDatabase!.pool.query<{
+            last_login_method: string | null;
+          }>('SELECT last_login_method FROM public."user" WHERE id = $1', [
+            registered.data!.user.id,
+          ])
         ).rows[0].last_login_method,
       ).toBe('email');
       expect(cookie).not.toContain('last_used_login_method=');
