@@ -120,6 +120,13 @@
       "when": 1789759868848,
       "tag": "0016_sturdy_miracleman",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790390845900,
+      "tag": "0017_member-management-audit",
+      "breakpoints": true
     }
   ]
 }

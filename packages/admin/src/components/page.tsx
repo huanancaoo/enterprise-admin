@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from "react"
+import { useId, type ComponentProps, type ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 import { useDocumentTitle } from "../hooks/use-document-title"
 import { AppSidebar, type AppSidebarProps } from "./app-sidebar"
@@ -57,7 +57,7 @@ export function AppShell({
   actions,
   children,
 }: AppShellProps) {
-  const { t } = useTranslation("common")
+  const { t, i18n } = useTranslation("common")
   return (
     <TooltipProvider>
       <SidebarProvider
@@ -67,7 +67,10 @@ export function AppShell({
           mobileDescription: t("sidebarDescription"),
         }}
       >
-        <AppSidebar {...sidebar} />
+        <AppSidebar
+          {...sidebar}
+          side={i18n.dir() === "rtl" ? "right" : "left"}
+        />
         <SidebarInset>
           <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
             <div className="flex items-center gap-2 px-4">
@@ -232,6 +235,9 @@ export function FormDialog({
   pending = false,
   error,
   submitLabel,
+  submitDisabled = false,
+  finalFocus,
+  onOpenChangeComplete,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -242,17 +248,21 @@ export function FormDialog({
   pending?: boolean
   error?: string
   submitLabel?: string
+  submitDisabled?: boolean
+  finalFocus?: ComponentProps<typeof DialogContent>["finalFocus"]
+  onOpenChangeComplete?: (open: boolean) => void
 }) {
   const { t } = useTranslation("common")
   const formId = useId()
   return (
     <Dialog
       open={open}
+      onOpenChangeComplete={onOpenChangeComplete}
       onOpenChange={(value) => {
         if (!pending) onOpenChange(value)
       }}
     >
-      <DialogContent showCloseButton={false}>
+      <DialogContent showCloseButton={false} finalFocus={finalFocus}>
         <DialogHeader>
           <DialogTitle className="wrap-anywhere">{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
@@ -282,7 +292,11 @@ export function FormDialog({
           >
             {t("cancel")}
           </Button>
-          <Button type="submit" form={formId} disabled={pending}>
+          <Button
+            type="submit"
+            form={formId}
+            disabled={pending || submitDisabled}
+          >
             {pending ? t("submitting") : (submitLabel ?? t("save"))}
           </Button>
         </div>

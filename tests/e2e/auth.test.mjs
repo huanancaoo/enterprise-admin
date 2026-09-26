@@ -1,4 +1,5 @@
 import { startBrowserApplication } from "../setup/test-runtime.mjs"
+import { signUpVerified } from "../setup/complete-signup.mjs"
 import { randomBytes } from "node:crypto"
 import { mkdir } from "node:fs/promises"
 import { createRequire } from "node:module"
@@ -238,6 +239,317 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
       .click()
     await expectUI(page.locator("html")).toHaveAttribute("dir", "ltr")
     expect(page.url()).toBe(originalURL)
+  })
+
+  it("成员目录筛选提交后，刷新仍保留查询", async () => {
+    await page.goto(tenantOrigin + "/app/")
+    await registerAccount(page, {
+      name: "成员目录用户",
+      email: "members-directory-browser@example.test",
+      password: credentials.password,
+    })
+    await page.getByLabel("组织名称", { exact: true }).fill("成员目录组织")
+    await page.getByLabel("组织标识", { exact: true }).fill("members-directory")
+    await page.getByRole("button", { name: "创建组织", exact: true }).click()
+    await page.getByRole("link", { name: "成员", exact: true }).click()
+    const search = page.getByLabel("搜索成员…", { exact: true })
+    await search.fill("成员目录用户")
+    await search.press("Enter")
+    await expectUI(page).toHaveURL(/[?&]q=/)
+    const url = page.url()
+    await page.reload()
+    await expectUI(page).toHaveURL(url)
+    await expectUI(search).toHaveValue("成员目录用户")
+    await expectUI(
+      page
+        .getByRole("list", { name: "成员", exact: true })
+        .locator("li")
+        .filter({ hasText: "members-directory-browser@example.test" })
+    ).toBeVisible()
+    await search.fill("没有匹配的成员")
+    await search.press("Enter")
+    await expectUI(
+      page.getByText("没有匹配的成员", { exact: true })
+    ).toBeVisible()
+    await page.goBack()
+    await expectUI(search).toHaveValue("成员目录用户")
+    await expectUI(page).toHaveURL(url)
+    for (const role of ["translator", "all"]) {
+      const customRoleUrl = new URL(url)
+      customRoleUrl.searchParams.set("role", role)
+      await page.goto(customRoleUrl.href)
+      await expectUI(page.getByLabel("角色", { exact: true })).toContainText(
+        role
+      )
+      await search.fill("动态角色搜索")
+      await search.press("Enter")
+      await expectUI(page).toHaveURL(
+        (current) =>
+          current.searchParams.get("role") === role &&
+          current.searchParams.get("q") === "动态角色搜索"
+      )
+    }
+    await page.goto(url)
+    await selectAdminLocale(page, "成员目录用户", "语言", "English")
+    await expectUI(
+      page.getByRole("heading", { name: "Members", exact: true })
+    ).toBeVisible()
+    await selectAdminLocale(page, "成员目录用户", "Language", "العربية")
+    await expectUI(page.locator("html")).toHaveAttribute("dir", "rtl")
+    await expectUI(
+      page.getByRole("heading", { name: "الأعضاء", exact: true })
+    ).toBeVisible()
+    await mkdir("test-results/s8", { recursive: true })
+    await page.screenshot({
+      path: "test-results/s8/member-directory-rtl.png",
+      fullPage: true,
+    })
+  })
+
+  it("成员目录读权限撤回后，刷新清除旧筛选页数据", async () => {
+    const owner = await signUpVerified(
+      environment.baseURL,
+      tenantOrigin,
+      environment.migrator,
+      { name: "目录所有者" }
+    )
+    const reader = await signUpVerified(
+      environment.baseURL,
+      tenantOrigin,
+      environment.migrator,
+      { name: "目录读取者" }
+    )
+    const org = await runtime.auth.api.createOrganization({
+      headers: owner.headers,
+      body: { name: "目录权限组织", slug: "member-directory-permission" },
+    })
+    const versionHeaders = async () => {
+      const version = await environment.migrator.query(
+        "SELECT authorization_version FROM organization_status WHERE organization_id = $1",
+        [org.id]
+      )
+      const headers = new Headers(owner.headers)
+      headers.set(
+        "X-Expected-Authz-Version",
+        String(version.rows[0].authorization_version)
+      )
+      return headers
+    }
+    for (const [role, permission] of [
+      ["directory-reader", { project: ["read"], member: ["read"] }],
+      ["project-reader", { project: ["read"] }],
+    ]) {
+      await runtime.auth.api.createOrgRole({
+        headers: await versionHeaders(),
+        body: { organizationId: org.id, role, permission },
+      })
+    }
+    const member = await runtime.auth.api.addMember({
+      headers: owner.headers,
+      body: {
+        organizationId: org.id,
+        userId: reader.user.id,
+        role: "directory-reader",
+      },
+    })
+    await page.goto(tenantOrigin + "/app/")
+    await signInAccount(page, reader)
+    await page.getByRole("link", { name: "成员", exact: true }).click()
+    const list = page.getByRole("list", { name: "成员", exact: true })
+    await expectUI(list.getByText(owner.email, { exact: true })).toBeVisible()
+    const search = page.getByLabel("搜索成员…", { exact: true })
+    await search.fill("目录所有者")
+    await search.press("Enter")
+    await expectUI(page).toHaveURL(/[?&]q=/)
+    await expectUI(list.getByText(owner.email, { exact: true })).toBeVisible()
+    await runtime.auth.api.updateMemberRole({
+      headers: await versionHeaders(),
+      body: {
+        organizationId: org.id,
+        memberId: member.id,
+        role: "project-reader",
+      },
+    })
+    const denied = page.waitForResponse(
+      (response) =>
+        response.url().includes("/organization/list-members") &&
+        response.status() === 403
+    )
+    // 模拟页面重新可见，触发与用户切回页面相同的后台刷新。
+    await page.evaluate(() =>
+      window.dispatchEvent(new Event("visibilitychange"))
+    )
+    await denied
+    await expectUI(list).toHaveCount(0)
+    await expectUI(page.getByRole("alert")).toBeVisible()
+    await page.goBack()
+    await expectUI(list).toHaveCount(0)
+    await expectUI(page.getByText(owner.email, { exact: true })).toHaveCount(0)
+  })
+
+  it("成员管理：先交接所有权，再降级、移除和退出；冲突保留草稿", async () => {
+    const owner = await signUpVerified(
+      environment.baseURL,
+      tenantOrigin,
+      environment.migrator,
+      { name: "成员管理用户" }
+    )
+    const successor = await signUpVerified(
+      environment.baseURL,
+      tenantOrigin,
+      environment.migrator,
+      { name: "继任所有者" }
+    )
+    const removable = await signUpVerified(
+      environment.baseURL,
+      tenantOrigin,
+      environment.migrator,
+      { name: "待移除成员" }
+    )
+    const org = await runtime.auth.api.createOrganization({
+      headers: owner.headers,
+      body: { name: "成员管理组织", slug: "member-management-browser" },
+    })
+    for (const account of [successor, removable]) {
+      await runtime.auth.api.addMember({
+        headers: owner.headers,
+        body: {
+          organizationId: org.id,
+          userId: account.user.id,
+          role: "member",
+        },
+      })
+    }
+    await page.goto(tenantOrigin + "/app/")
+    await signInAccount(page, owner)
+    await page.getByRole("link", { name: "成员", exact: true }).click()
+    const list = page.getByRole("list", { name: "成员", exact: true })
+    const row = (account) =>
+      list.getByRole("listitem").filter({ hasText: account.email })
+    const dialog = page.getByRole("dialog")
+    await page.getByRole("button", { name: "退出组织", exact: true }).click()
+    await dialog.getByRole("button", { name: "退出组织", exact: true }).click()
+    await expectUI(dialog.getByRole("alert")).toContainText("至少一位所有者")
+    await dialog.getByRole("button", { name: "取消", exact: true }).click()
+    await expectUI(dialog).toHaveCount(0)
+
+    await selectAdminLocale(page, "成员管理用户", "语言", "English")
+    await page
+      .getByRole("button", { name: "Leave organization", exact: true })
+      .click()
+    await expectUI(dialog).toHaveAccessibleName("Leave this organization?")
+    await dialog.press("Escape")
+    await expectUI(dialog).toHaveCount(0)
+    await selectAdminLocale(page, "成员管理用户", "Language", "العربية")
+    await expectUI(page.locator("html")).toHaveAttribute("dir", "rtl")
+    await page
+      .getByRole("list", { name: "الأعضاء", exact: true })
+      .getByRole("listitem")
+      .filter({ hasText: successor.email })
+      .getByRole("button", { name: "تغيير الدور", exact: true })
+      .click()
+    await expectUI(dialog).toHaveAccessibleName("تغيير الدور")
+    await expectUI(dialog.getByLabel("الدور", { exact: true })).toBeVisible()
+    await mkdir("test-results/s8", { recursive: true })
+    await page.screenshot({
+      path: "test-results/s8/member-role-rtl.png",
+      fullPage: true,
+      animations: "disabled",
+    })
+    await dialog.press("Escape")
+    await expectUI(dialog).toHaveCount(0)
+    await selectAdminLocale(page, "成员管理用户", "اللغة", "简体中文")
+
+    await row(successor)
+      .getByRole("button", { name: "更改角色", exact: true })
+      .focus()
+    await page.keyboard.press("Enter")
+    await dialog.getByLabel("角色", { exact: true }).click()
+    await page.getByRole("option", { name: "所有者", exact: true }).click()
+    // 外部管理变更使确认窗口的版本失效，提交必须由服务端拒绝而不是自动重试。
+    const concurrent = await signUpVerified(
+      environment.baseURL,
+      tenantOrigin,
+      environment.migrator,
+      { name: "并发加入成员" }
+    )
+    await runtime.auth.api.addMember({
+      headers: owner.headers,
+      body: {
+        organizationId: org.id,
+        userId: concurrent.user.id,
+        role: "member",
+      },
+    })
+    await dialog.getByRole("button", { name: "保存", exact: true }).click()
+    await expectUI(dialog.getByRole("alert")).toContainText("成员权限已变更")
+    await expectUI(
+      dialog.getByRole("button", { name: "保存", exact: true })
+    ).toBeDisabled()
+    await expectUI(dialog.getByLabel("角色", { exact: true })).toContainText(
+      "所有者"
+    )
+    await dialog.getByRole("button", { name: "取消", exact: true }).click()
+    await expectUI(dialog).toHaveCount(0)
+    await row(successor)
+      .getByRole("button", { name: "更改角色", exact: true })
+      .click()
+    await dialog.getByLabel("角色", { exact: true }).click()
+    await page.getByRole("option", { name: "所有者", exact: true }).click()
+    await dialog.getByRole("button", { name: "保存", exact: true }).click()
+    await expectUI(dialog).toBeHidden()
+    await expectUI(
+      row(successor).getByText("所有者", { exact: true })
+    ).toBeVisible()
+    await expectUI(
+      row(successor).getByRole("button", { name: "更改角色", exact: true })
+    ).toBeFocused()
+
+    await page.getByLabel("角色", { exact: true }).click()
+    await page.getByRole("option", { name: "成员", exact: true }).click()
+    await page.getByLabel("搜索成员…", { exact: true }).press("Enter")
+    await expectUI(page).toHaveURL(/[?&]role=member/)
+    await row(removable)
+      .getByRole("button", { name: "更改角色", exact: true })
+      .click()
+    await dialog.getByLabel("角色", { exact: true }).click()
+    await page.getByRole("option", { name: "管理员", exact: true }).click()
+    await dialog.getByRole("button", { name: "保存", exact: true }).click()
+    await expectUI(row(removable)).toHaveCount(0)
+    await expectUI(page.getByLabel("搜索成员…", { exact: true })).toBeFocused()
+    await page.getByLabel("角色", { exact: true }).click()
+    await page.getByRole("option", { name: "全部角色", exact: true }).click()
+    await page.getByLabel("搜索成员…", { exact: true }).press("Enter")
+    await expectUI(
+      row(removable).getByText("管理员", { exact: true })
+    ).toBeVisible()
+
+    await row(removable)
+      .getByRole("button", { name: "移除成员", exact: true })
+      .click()
+    await dialog.getByRole("button", { name: "取消", exact: true }).click()
+    await expectUI(row(removable)).toBeVisible()
+    await row(removable)
+      .getByRole("button", { name: "移除成员", exact: true })
+      .click()
+    await dialog.getByRole("button", { name: "移除成员", exact: true }).click()
+    await expectUI(row(removable)).toHaveCount(0)
+    await expectUI(page.getByLabel("搜索成员…", { exact: true })).toBeFocused()
+    await row(owner)
+      .getByRole("button", { name: "更改角色", exact: true })
+      .click()
+    await dialog.getByLabel("角色", { exact: true }).click()
+    await page.getByRole("option", { name: "成员", exact: true }).click()
+    await dialog.getByRole("button", { name: "保存", exact: true }).click()
+    await expectUI(dialog).toBeHidden()
+    await expectUI(
+      row(owner).getByRole("button", { name: "更改角色", exact: true })
+    ).toHaveCount(0)
+    await expectUI(page.getByLabel("搜索成员…", { exact: true })).toBeFocused()
+    await page.getByRole("button", { name: "退出组织", exact: true }).click()
+    await dialog.getByRole("button", { name: "退出组织", exact: true }).click()
+    await expectUI(page).toHaveURL(/\/app\/select-organization/)
+    await expectUI(list).toHaveCount(0)
   })
 
   describe("S7：项目列表", () => {

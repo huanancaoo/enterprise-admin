@@ -66,7 +66,31 @@ export function createTransactionalAuthAdapter(pool: Pool) {
       return result
     } catch (error) {
       await client.query("ROLLBACK")
-      if (databaseErrorCode(error) === "40001")
+      const databaseCode = databaseErrorCode(error)
+      const authCode = error instanceof APIError ? error.body?.code : undefined
+      if (
+        databaseCode === "ORG07" ||
+        authCode === "YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER" ||
+        authCode === "YOU_CANNOT_LEAVE_THE_ORGANIZATION_WITHOUT_AN_OWNER"
+      ) {
+        throw new APIError("CONFLICT", {
+          code: "LAST_OWNER_REQUIRED",
+          message: "LAST_OWNER_REQUIRED",
+        })
+      }
+      if (databaseCode === "ORS01") {
+        throw new APIError(503, {
+          code: "AUTHORIZATION_UNAVAILABLE",
+          message: "AUTHORIZATION_UNAVAILABLE",
+        })
+      }
+      if (databaseCode === "ORS02") {
+        throw new APIError("FORBIDDEN", {
+          code: "ORGANIZATION_SUSPENDED",
+          message: "ORGANIZATION_SUSPENDED",
+        })
+      }
+      if (databaseCode === "40001")
         throw new APIError("CONFLICT", {
           code: "AUTHORIZATION_VERSION_CONFLICT",
           message: "AUTHORIZATION_VERSION_CONFLICT",

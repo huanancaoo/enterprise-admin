@@ -89,8 +89,8 @@ function likePattern(value: string) {
 }
 
 const orderBy = {
-  "createdAt:asc": "m.created_at ASC, m.id ASC",
-  "createdAt:desc": "m.created_at DESC, m.id ASC",
+  "createdAt:asc": 'm."createdAt" ASC, m.id ASC',
+  "createdAt:desc": 'm."createdAt" DESC, m.id ASC',
   "role:asc": "m.role ASC, m.id ASC",
   "role:desc": "m.role DESC, m.id ASC",
 } as const
@@ -130,11 +130,10 @@ type MemberRow = {
   organizationId: string
   userId: string
   role: string
-  createdAt: Date
+  createdAt: string
   name: string
   email: string
   image: string | null
-  total: number
 }
 
 export async function searchOrganizationMembers(
@@ -142,23 +141,29 @@ export async function searchOrganizationMembers(
   organizationId: string,
   query: NormalizedMemberListQuery
 ) {
-  const result = await pool.query<MemberRow>(
-    `SELECT m.id,
+  // 总数与分页共用同一快照；空页也必须保留总数，才能从过期页码返回有效页。
+  const result = await pool.query<{ total: number; members: MemberRow[] }>(
+    `WITH filtered AS MATERIALIZED (
+       SELECT m.id,
             m.organization_id AS "organizationId",
             m.user_id AS "userId",
             m.role,
-            m.created_at AS "createdAt",
+            m.created_at AT TIME ZONE 'UTC' AS "createdAt",
             u.name,
             u.email,
-            u.image,
-            COUNT(*) OVER()::int AS total
+            u.image
      FROM member m
      JOIN public."user" u ON u.id = m.user_id
      WHERE m.organization_id = $1
        AND ($2::text IS NULL OR m.role = $2)
        AND (u.name ILIKE $3 ESCAPE '\\' OR u.email ILIKE $3 ESCAPE '\\')
-     ORDER BY ${orderBy[`${query.sortBy}:${query.sortDirection}`]}
-     LIMIT $4 OFFSET $5`,
+     ), page AS (
+       SELECT * FROM filtered m
+       ORDER BY ${orderBy[`${query.sortBy}:${query.sortDirection}`]}
+       LIMIT $4 OFFSET $5
+     )
+     SELECT (SELECT COUNT(*)::int FROM filtered) AS total,
+            COALESCE((SELECT json_agg(page) FROM page), '[]'::json) AS members`,
     [
       organizationId,
       query.role ?? null,
@@ -167,8 +172,9 @@ export async function searchOrganizationMembers(
       query.offset,
     ]
   )
+  const page = result.rows[0]
   return {
-    members: result.rows.map((row) => ({
+    members: page.members.map((row) => ({
       id: row.id,
       organizationId: row.organizationId,
       userId: row.userId,
@@ -181,6 +187,6 @@ export async function searchOrganizationMembers(
         image: row.image,
       },
     })),
-    total: result.rows[0]?.total ?? 0,
+    total: page.total,
   }
 }

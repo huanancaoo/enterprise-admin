@@ -77,7 +77,15 @@ const ac = createAccessControl({
   member: [...defaultStatements.member, "read"],
 })
 
+const memberManagementWritePaths = new Set([
+  "/organization/update-member-role",
+  "/organization/remove-member",
+  "/organization/leave",
+])
+
 const versionedOrganizationWritePaths = new Set([
+  "/organization/remove-member",
+  "/organization/leave",
   "/organization/update-member-role",
   "/organization/update-role",
   "/organization/delete-role",
@@ -104,6 +112,31 @@ async function assertActiveOrganization(
     throw new APIError("FORBIDDEN", {
       code: "ORGANIZATION_SUSPENDED",
       message: "ORGANIZATION_SUSPENDED",
+    })
+  }
+}
+
+async function assertMemberRoleManagement(
+  pool: QueryExecutor,
+  organizationId: string,
+  previousRole: string,
+  nextRole?: string
+) {
+  const actor = await pool.query<{ role: string }>(
+    `SELECT role FROM member
+     WHERE organization_id = $1
+       AND user_id = current_setting('app.auth_actor_id')::uuid`,
+    [organizationId]
+  )
+  // member:update/delete 只赋予动作权限，不包含管理 owner/admin 身份的资格。
+  if (
+    actor.rows[0]?.role !== "owner" &&
+    ([previousRole, nextRole].includes("owner") ||
+      [previousRole, nextRole].includes("admin"))
+  ) {
+    throw new APIError("FORBIDDEN", {
+      code: "MEMBER_ROLE_MANAGEMENT_FORBIDDEN",
+      message: "MEMBER_ROLE_MANAGEMENT_FORBIDDEN",
     })
   }
 }
@@ -172,10 +205,34 @@ export function createAuth(
         })
       },
       organizationHooks: {
+        beforeUpdateMemberRole: async ({ newRole, user }) => {
+          if (newRole === "owner" && !user.emailVerified) {
+            throw new APIError("BAD_REQUEST", {
+              code: "MEMBER_EMAIL_UNVERIFIED",
+              message: "MEMBER_EMAIL_UNVERIFIED",
+            })
+          }
+        },
         beforeAddMember: async ({ member }) => {
-          await assertActiveOrganization(
+          await transactionalAdapter.query(
+            "SELECT public.require_active_organization($1)",
+            [member.organizationId]
+          )
+          const operation = await transactionalAdapter.query<{ path: string }>(
+            "SELECT current_setting('app.auth_organization_operation') AS path"
+          )
+          // 新组织的首位 owner 由原生创建流程初始化；既有组织必须先入组再晋升。
+          if (operation.rows[0].path === "/organization/create") return
+          if (member.role.split(",").includes("owner")) {
+            throw new APIError("FORBIDDEN", {
+              code: "MEMBER_ROLE_MANAGEMENT_FORBIDDEN",
+              message: "MEMBER_ROLE_MANAGEMENT_FORBIDDEN",
+            })
+          }
+          await assertMemberRoleManagement(
             { query: transactionalAdapter.query },
-            member.organizationId
+            member.organizationId,
+            member.role
           )
         },
       },
@@ -184,14 +241,34 @@ export function createAuth(
     async (context) => {
       const endpointContext = context as Parameters<
         typeof getAuthoritativeSessionFromCtx
-      >[0] & { path?: string }
+      >[0] & {
+        path?: string
+        body?: {
+          organizationId?: string
+          memberId?: string
+          memberIdOrEmail?: string
+          role?: string | string[]
+        }
+      }
       const session = await getAuthoritativeSessionFromCtx(endpointContext)
       if (!session) throw new APIError("UNAUTHORIZED")
       const request = getAuthRequestContext()
+      // 原生 HTTP 与 auth.api 都从同一 Header 读取版本；内部调用不能跳过并发检查。
+      const rawVersion = endpointContext.headers?.get(
+        "X-Expected-Authz-Version"
+      )
+      const parsedVersion = rawVersion ? Number(rawVersion) : undefined
+      const expectedAuthorizationVersion =
+        parsedVersion !== undefined &&
+        Number.isSafeInteger(parsedVersion) &&
+        parsedVersion > 0 &&
+        parsedVersion <= 2_147_483_647
+          ? parsedVersion
+          : undefined
       if (
         endpointContext.path &&
         versionedOrganizationWritePaths.has(endpointContext.path) &&
-        request?.expectedAuthorizationVersion === undefined
+        expectedAuthorizationVersion === undefined
       )
         throw new APIError("CONFLICT", {
           code: "AUTHORIZATION_VERSION_CONFLICT",
@@ -201,13 +278,83 @@ export function createAuth(
         `SELECT
            set_config('app.auth_actor_id', $1, true),
            set_config('app.auth_request_id', $2, true),
-           set_config('app.expected_authorization_version', $3, true)`,
+           set_config('app.expected_authorization_version', $3, true),
+           set_config('app.auth_organization_operation', $4, true)`,
         [
           session.user.id,
           request?.requestId ?? randomUUID(),
-          request?.expectedAuthorizationVersion?.toString() ?? "",
+          expectedAuthorizationVersion?.toString() ?? "",
+          endpointContext.path ?? "",
         ]
       )
+      if (
+        endpointContext.path &&
+        memberManagementWritePaths.has(endpointContext.path)
+      ) {
+        const organizationId =
+          endpointContext.body?.organizationId ??
+          session.session.activeOrganizationId
+        if (
+          !organizationId ||
+          !(await isOrganizationMember(
+            { query: transactionalAdapter.query },
+            organizationId,
+            session.user.id
+          ))
+        ) {
+          throw new APIError("FORBIDDEN", {
+            code: "MEMBER_ROLE_MANAGEMENT_FORBIDDEN",
+            message: "MEMBER_ROLE_MANAGEMENT_FORBIDDEN",
+          })
+        }
+        // 先取得组织锁，后由原生入口重读成员和权限，避免等待写锁期间身份已被撤销。
+        await transactionalAdapter.query(
+          "SELECT public.require_active_organization($1)",
+          [organizationId]
+        )
+        if (endpointContext.path !== "/organization/leave") {
+          const isRoleUpdate =
+            endpointContext.path === "/organization/update-member-role"
+          const role = endpointContext.body?.role
+          if (
+            isRoleUpdate &&
+            (Array.isArray(role) ||
+              (typeof role === "string" && role.includes(",")))
+          ) {
+            throw new APIError("BAD_REQUEST", {
+              code: "SINGLE_ROLE_REQUIRED",
+              message: "SINGLE_ROLE_REQUIRED",
+            })
+          }
+          const target = await transactionalAdapter.query<{ role: string }>(
+            `SELECT m.role FROM member m
+             INNER JOIN public."user" u ON u.id = m.user_id
+             WHERE m.organization_id = $1
+               AND CASE WHEN $3::boolean AND strpos($2, '@') > 0
+                 THEN u.email = lower($2) ELSE m.id = $2::uuid END`,
+            [
+              organizationId,
+              isRoleUpdate
+                ? endpointContext.body?.memberId
+                : endpointContext.body?.memberIdOrEmail,
+              !isRoleUpdate,
+            ]
+          )
+          // 不让原生入口先读取其他组织成员的角色再报错；不存在与跨组织目标一致拒绝。
+          if (!target.rows[0]) {
+            throw new APIError("FORBIDDEN", {
+              code: "MEMBER_ROLE_MANAGEMENT_FORBIDDEN",
+              message: "MEMBER_ROLE_MANAGEMENT_FORBIDDEN",
+            })
+          }
+          await assertMemberRoleManagement(
+            { query: transactionalAdapter.query },
+            organizationId,
+            target.rows[0].role,
+            isRoleUpdate && typeof role === "string" ? role.trim() : undefined
+          )
+        }
+      }
     }
   )
 

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useRef, useState, type RefObject } from "react"
 import { useParams, useSearch, useNavigate } from "@tanstack/react-router"
 import { useForm } from "@tanstack/react-form"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
@@ -9,7 +9,10 @@ import {
   authErrorMessage,
   useAuthenticatedSession,
 } from "@workspace/admin/auth"
-import { getOrganizationAccessOptions } from "@workspace/api-client"
+import {
+  getOrganizationAccessOptions,
+  organizationKeys,
+} from "@workspace/api-client"
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
 import {
@@ -40,8 +43,11 @@ import {
   getMemberDirectoryOptions,
   invitationDirectoryKey,
   memberDirectoryKey,
+  MemberDirectoryError,
   type MemberDirectorySearch,
 } from "@/query/organization-directory"
+
+import { MemberActionDialog, type MemberAction } from "./member-action-dialog"
 
 const membersPath = "/app/members/$organizationId"
 
@@ -61,7 +67,7 @@ function roleLabel(
   if (role === "owner") return t("organization:role_owner")
   if (role === "admin") return t("organization:role_admin")
   if (role === "member") return t("organization:role_member")
-  throw new Error(`unknown role: ${role}`)
+  return role
 }
 
 function mutationErrorMessage(error: unknown) {
@@ -77,7 +83,23 @@ export function MembersRoute() {
   const session = useAuthenticatedSession()!
   const queryClient = useQueryClient()
   const [inviteOpen, setInviteOpen] = useState(false)
+  const [memberAction, setMemberAction] = useState<MemberAction | null>(null)
+  const directorySearchRef = useRef<HTMLInputElement>(null)
   const members = useQuery(getMemberDirectoryOptions(organizationId, search))
+  const directoryForbidden =
+    members.error instanceof MemberDirectoryError &&
+    members.error.status === 403
+  useEffect(() => {
+    if (!directoryForbidden) return
+    const filters = {
+      queryKey: [...organizationKeys.scope(organizationId), "members"],
+    }
+    // 读权限撤回会使所有筛选页失效；仅在仍有旧数据时重置，避免拒绝后反复请求。
+    if (
+      queryClient.getQueriesData(filters).some(([, data]) => data !== undefined)
+    )
+      void queryClient.resetQueries(filters)
+  }, [directoryForbidden, organizationId, queryClient])
   const invitations = useQuery(getInvitationDirectoryOptions(organizationId))
   const actorRoleQuery = useQuery({
     queryKey: ["organizations", organizationId, "active-member-role"],
@@ -93,54 +115,12 @@ export function MembersRoute() {
   const actorRole = actorRoleQuery.data ?? ""
   const canInvite = actorRole === "owner" || actorRole === "admin"
   const canInviteAdmin = actorRole === "owner"
-  const versionHeader = access.data
-    ? {
-        fetchOptions: {
-          headers: {
-            "X-Expected-Authz-Version": String(
-              access.data.data.authorizationVersion
-            ),
-          },
-        },
-      }
-    : {}
 
   const invite = useMutation({
     mutationFn: async (input: { email: string; role: "member" | "admin" }) => {
       const result = await authClient.organization.inviteMember({
         email: input.email,
         role: input.role,
-        organizationId,
-      })
-      if (result.error)
-        throw new Error(
-          authErrorMessage(result.error, t("common:operationFailed"))
-        )
-    },
-    onSuccess: () => invalidateDirectory(),
-  })
-  const updateRole = useMutation({
-    mutationFn: async (input: {
-      memberId: string
-      role: "member" | "admin"
-    }) => {
-      const result = await authClient.organization.updateMemberRole({
-        memberId: input.memberId,
-        role: input.role,
-        organizationId,
-        ...versionHeader,
-      })
-      if (result.error)
-        throw new Error(
-          authErrorMessage(result.error, t("common:operationFailed"))
-        )
-    },
-    onSuccess: () => invalidateDirectory(),
-  })
-  const removeMember = useMutation({
-    mutationFn: async (memberId: string) => {
-      const result = await authClient.organization.removeMember({
-        memberIdOrEmail: memberId,
         organizationId,
       })
       if (result.error)
@@ -214,11 +194,27 @@ export function MembersRoute() {
         title={t("organization:members")}
         description={t("organization:membersDescription")}
         actions={
-          canInvite ? (
-            <Button onClick={() => setInviteOpen(true)}>
-              {t("organization:invite")}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              disabled={!access.data}
+              onClick={(event) => {
+                if (access.data)
+                  setMemberAction({
+                    kind: "leave",
+                    trigger: event.currentTarget,
+                    authorizationVersion: access.data.data.authorizationVersion,
+                  })
+              }}
+            >
+              {t("organization:leave")}
             </Button>
-          ) : null
+            {canInvite && (
+              <Button onClick={() => setInviteOpen(true)}>
+                {t("organization:invite")}
+              </Button>
+            )}
+          </div>
         }
       />
       {members.isPending && <p role="status">{t("common:loading")}</p>}
@@ -227,22 +223,34 @@ export function MembersRoute() {
           {members.error.message}
         </p>
       )}
-      {members.data && (
+      {members.data && !directoryForbidden && (
         <>
-          <MemberDirectoryControls search={search} onSearchChange={setSearch} />
-          <ul className="divide-y rounded-xl border">
+          <MemberDirectoryControls
+            key={JSON.stringify([organizationId, search])}
+            search={search}
+            onSearchChange={setSearch}
+            inputRef={directorySearchRef}
+          />
+          <ul
+            aria-label={t("organization:members")}
+            className="divide-y rounded-xl border"
+          >
             {members.data.members.length === 0 ? (
               <li className="px-4 py-6 text-sm text-muted-foreground">
                 {t("organization:noMembers")}
               </li>
             ) : (
               members.data.members.map((member) => {
-                const canRemove =
-                  member.role !== "owner" &&
-                  (actorRole === "owner" ||
-                    (actorRole === "admin" && member.role === "member"))
+                const self = member.userId === session.user.id
+                const canManage =
+                  actorRole === "owner" ||
+                  (actorRole === "admin" &&
+                    member.role !== "owner" &&
+                    member.role !== "admin")
+                const canRemove = canManage && !self
                 const canChangeRole =
-                  actorRole === "owner" && member.role !== "owner"
+                  actorRole === "owner" ||
+                  (canManage && member.role !== "member")
                 return (
                   <li
                     key={member.id}
@@ -266,7 +274,10 @@ export function MembersRoute() {
                             </Badge>
                           ) : null}
                         </p>
-                        <p className="truncate text-sm text-muted-foreground">
+                        <p
+                          dir="ltr"
+                          className="truncate text-sm text-muted-foreground"
+                        >
                           {member.user.email}
                         </p>
                         <p className="text-sm text-muted-foreground">
@@ -283,61 +294,42 @@ export function MembersRoute() {
                       </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      {canChangeRole ? (
-                        <Select
-                          value={member.role}
-                          items={{
-                            member: t("organization:role_member"),
-                            admin: t("organization:role_admin"),
-                          }}
-                          onValueChange={(value) => {
-                            if (value !== "member" && value !== "admin") {
-                              throw new Error(`unknown role: ${value}`)
-                            }
-                            updateRole.mutate({
-                              memberId: member.id,
-                              role: value,
-                            })
+                      <p className="text-sm">{roleLabel(member.role, t)}</p>
+                      {canChangeRole && (
+                        <Button
+                          variant="outline"
+                          disabled={!access.data}
+                          onClick={(event) => {
+                            if (access.data)
+                              setMemberAction({
+                                kind: "role",
+                                trigger: event.currentTarget,
+                                member,
+                                authorizationVersion:
+                                  access.data.data.authorizationVersion,
+                              })
                           }}
                         >
-                          <SelectTrigger
-                            aria-label={t("organization:updateRole")}
-                            className="w-36"
-                            disabled={updateRole.isPending}
-                          >
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="member">
-                              {t("organization:role_member")}
-                            </SelectItem>
-                            <SelectItem value="admin">
-                              {t("organization:role_admin")}
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <p className="text-sm">{roleLabel(member.role, t)}</p>
+                          {t("organization:updateRole")}
+                        </Button>
                       )}
                       {canRemove && (
-                        <ConfirmDangerAction
-                          triggerLabel={t("organization:removeMember")}
-                          title={t("organization:removeMemberTitle")}
-                          description={t(
-                            "organization:removeMemberDescription",
-                            {
-                              name: member.user.name,
-                            }
-                          )}
-                          cancelLabel={t("common:cancel")}
-                          confirmLabel={t("organization:removeMember")}
-                          pendingLabel={t("organization:removing")}
-                          pending={removeMember.isPending}
-                          error={mutationErrorMessage(removeMember.error)}
-                          onConfirm={() => {
-                            removeMember.mutate(member.id)
+                        <Button
+                          variant="destructive"
+                          disabled={!access.data}
+                          onClick={(event) => {
+                            if (access.data)
+                              setMemberAction({
+                                kind: "remove",
+                                trigger: event.currentTarget,
+                                member,
+                                authorizationVersion:
+                                  access.data.data.authorizationVersion,
+                              })
                           }}
-                        />
+                        >
+                          {t("organization:removeMember")}
+                        </Button>
                       )}
                     </div>
                   </li>
@@ -353,11 +345,6 @@ export function MembersRoute() {
               setSearch((current) => ({ ...current, page }))
             }
           />
-          {updateRole.error && (
-            <p role="alert" className="text-sm text-destructive">
-              {updateRole.error.message}
-            </p>
-          )}
           <section className="space-y-3">
             <h2 className="text-lg font-semibold">
               {t("organization:pendingInvitations")}
@@ -422,6 +409,24 @@ export function MembersRoute() {
             )}
           </section>
         </>
+      )}
+      {memberAction && (
+        <MemberActionDialog
+          key={
+            memberAction.kind === "leave"
+              ? "leave"
+              : `${memberAction.kind}:${memberAction.member.id}`
+          }
+          organizationId={organizationId}
+          actorRole={actorRole}
+          action={memberAction}
+          successFocus={directorySearchRef}
+          onClose={() =>
+            setMemberAction((current) =>
+              current === memberAction ? null : current
+            )
+          }
+        />
       )}
       <form.Subscribe selector={(state) => state.isSubmitting}>
         {(submitting) => (
@@ -512,115 +517,245 @@ export function MembersRoute() {
   )
 }
 
+const memberDirectoryFormSchema = z.object({
+  q: z.string(),
+  role: z.string(),
+  sortBy: z.enum(["createdAt", "role"]),
+  sortOrder: z.enum(["asc", "desc"]),
+})
+
 function MemberDirectoryControls({
   search,
   onSearchChange,
+  inputRef,
 }: {
   search: MemberDirectorySearch
+  inputRef: RefObject<HTMLInputElement | null>
   onSearchChange: (
     updater: (current: MemberDirectorySearch) => MemberDirectorySearch
   ) => void
 }) {
-  const { t } = useTranslation(["organization", "common"])
+  const { t } = useTranslation(["organization"])
+  const customRole =
+    search.role && !["owner", "admin", "member"].includes(search.role)
+      ? search.role
+      : undefined
+  const form = useForm({
+    defaultValues: {
+      q: search.q ?? "",
+      role: search.role ?? "",
+      sortBy: search.sortBy,
+      sortOrder: search.sortOrder,
+    },
+    validators: { onSubmit: memberDirectoryFormSchema },
+    onSubmit: ({ value }) => {
+      onSearchChange((current) => ({
+        ...current,
+        page: 1,
+        q: value.q.trim() || undefined,
+        role: value.role || undefined,
+        sortBy: value.sortBy,
+        sortOrder: value.sortOrder,
+      }))
+    },
+  })
   return (
-    <div className="flex flex-wrap items-end gap-3">
-      <Field className="min-w-56">
-        <FieldLabel htmlFor="member-search">
-          {t("organization:searchMembers")}
-        </FieldLabel>
-        <Input
-          id="member-search"
-          value={search.q ?? ""}
-          onChange={(event) => {
-            const q = event.target.value.trim()
-            onSearchChange((current) => ({
-              ...current,
-              page: 1,
-              q: q || undefined,
-            }))
-          }}
-        />
-      </Field>
-      <Field>
-        <FieldLabel htmlFor="member-role">{t("organization:role")}</FieldLabel>
-        <Select
-          value={search.role ?? "all"}
-          items={{
-            all: t("organization:allRoles"),
-            owner: t("organization:role_owner"),
-            admin: t("organization:role_admin"),
-            member: t("organization:role_member"),
-          }}
-          onValueChange={(value) =>
-            onSearchChange((current) => ({
-              ...current,
-              page: 1,
-              role: value === "all" ? undefined : value,
-            }))
-          }
-        >
-          <SelectTrigger id="member-role">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("organization:allRoles")}</SelectItem>
-            <SelectItem value="owner">
-              {t("organization:role_owner")}
-            </SelectItem>
-            <SelectItem value="admin">
-              {t("organization:role_admin")}
-            </SelectItem>
-            <SelectItem value="member">
-              {t("organization:role_member")}
-            </SelectItem>
-          </SelectContent>
-        </Select>
-      </Field>
-      <Field>
-        <FieldLabel htmlFor="member-sort">
-          {t("organization:joinedAt")}
-        </FieldLabel>
-        <Select
-          value={`${search.sortBy}:${search.sortOrder}`}
-          items={{
-            "createdAt:desc": `${t("organization:joinedAt")} ↓`,
-            "createdAt:asc": `${t("organization:joinedAt")} ↑`,
-            "role:asc": `${t("organization:role")} ↑`,
-            "role:desc": `${t("organization:role")} ↓`,
-          }}
-          onValueChange={(value) => {
-            const [sortBy, sortOrder] = value.split(":")
-            if (
-              (sortBy !== "createdAt" && sortBy !== "role") ||
-              (sortOrder !== "asc" && sortOrder !== "desc")
-            )
-              return
-            onSearchChange((current) => ({
-              ...current,
-              page: 1,
-              sortBy,
-              sortOrder,
-            }))
-          }}
-        >
-          <SelectTrigger id="member-sort">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="createdAt:desc">
-              {t("organization:joinedAt")} ↓
-            </SelectItem>
-            <SelectItem value="createdAt:asc">
-              {t("organization:joinedAt")} ↑
-            </SelectItem>
-            <SelectItem value="role:asc">{t("organization:role")} ↑</SelectItem>
-            <SelectItem value="role:desc">
-              {t("organization:role")} ↓
-            </SelectItem>
-          </SelectContent>
-        </Select>
-      </Field>
-    </div>
+    <form
+      onSubmit={(event) => {
+        event.preventDefault()
+        void form.handleSubmit()
+      }}
+    >
+      <form.Subscribe selector={(state) => state.isSubmitting}>
+        {(pending) => (
+          <FieldGroup
+            className="flex-row flex-wrap items-end gap-3"
+            aria-busy={pending}
+          >
+            <form.Field name="q">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid
+                return (
+                  <Field
+                    className="w-auto min-w-56 flex-1"
+                    data-invalid={isInvalid}
+                  >
+                    <FieldLabel htmlFor="member-search">
+                      {t("organization:searchMembers")}
+                    </FieldLabel>
+                    <Input
+                      ref={inputRef}
+                      id="member-search"
+                      name={field.name}
+                      value={field.state.value}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      onBlur={field.handleBlur}
+                      type="search"
+                      autoComplete="off"
+                      aria-invalid={isInvalid}
+                    />
+                    {isInvalid && (
+                      <FieldError errors={field.state.meta.errors} />
+                    )}
+                  </Field>
+                )
+              }}
+            </form.Field>
+            <form.Field name="role">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid
+                return (
+                  <Field
+                    className="w-auto min-w-32 flex-1"
+                    data-invalid={isInvalid}
+                  >
+                    <FieldLabel htmlFor="member-role">
+                      {t("organization:role")}
+                    </FieldLabel>
+                    <Select
+                      value={field.state.value}
+                      items={{
+                        "": t("organization:allRoles"),
+                        owner: t("organization:role_owner"),
+                        admin: t("organization:role_admin"),
+                        member: t("organization:role_member"),
+                        ...(customRole ? { [customRole]: customRole } : {}),
+                      }}
+                      onValueChange={(value) => {
+                        if (typeof value === "string") field.handleChange(value)
+                      }}
+                    >
+                      <SelectTrigger id="member-role" aria-invalid={isInvalid}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">
+                          {t("organization:allRoles")}
+                        </SelectItem>
+                        <SelectItem value="owner">
+                          {t("organization:role_owner")}
+                        </SelectItem>
+                        <SelectItem value="admin">
+                          {t("organization:role_admin")}
+                        </SelectItem>
+                        <SelectItem value="member">
+                          {t("organization:role_member")}
+                        </SelectItem>
+                        {customRole && (
+                          <SelectItem value={customRole}>
+                            {customRole}
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {isInvalid && (
+                      <FieldError errors={field.state.meta.errors} />
+                    )}
+                  </Field>
+                )
+              }}
+            </form.Field>
+            <form.Field name="sortBy">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid
+                return (
+                  <Field
+                    className="w-auto min-w-32 flex-1"
+                    data-invalid={isInvalid}
+                  >
+                    <FieldLabel htmlFor="member-sort-by">
+                      {t("organization:sortBy")}
+                    </FieldLabel>
+                    <Select
+                      value={field.state.value}
+                      items={{
+                        createdAt: t("organization:joinedAt"),
+                        role: t("organization:role"),
+                      }}
+                      onValueChange={(value) => {
+                        if (value !== "createdAt" && value !== "role") return
+                        field.handleChange(value)
+                      }}
+                    >
+                      <SelectTrigger
+                        id="member-sort-by"
+                        aria-invalid={isInvalid}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="createdAt">
+                          {t("organization:joinedAt")}
+                        </SelectItem>
+                        <SelectItem value="role">
+                          {t("organization:role")}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {isInvalid && (
+                      <FieldError errors={field.state.meta.errors} />
+                    )}
+                  </Field>
+                )
+              }}
+            </form.Field>
+            <form.Field name="sortOrder">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid
+                return (
+                  <Field
+                    className="w-auto min-w-32 flex-1"
+                    data-invalid={isInvalid}
+                  >
+                    <FieldLabel htmlFor="member-sort-order">
+                      {t("organization:sortOrder")}
+                    </FieldLabel>
+                    <Select
+                      value={field.state.value}
+                      items={{
+                        desc: t("organization:sortDesc"),
+                        asc: t("organization:sortAsc"),
+                      }}
+                      onValueChange={(value) => {
+                        if (value !== "asc" && value !== "desc") return
+                        field.handleChange(value)
+                      }}
+                    >
+                      <SelectTrigger
+                        id="member-sort-order"
+                        aria-invalid={isInvalid}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="desc">
+                          {t("organization:sortDesc")}
+                        </SelectItem>
+                        <SelectItem value="asc">
+                          {t("organization:sortAsc")}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {isInvalid && (
+                      <FieldError errors={field.state.meta.errors} />
+                    )}
+                  </Field>
+                )
+              }}
+            </form.Field>
+            <Button type="submit" disabled={pending}>
+              {t("organization:applyMemberFilters")}
+            </Button>
+          </FieldGroup>
+        )}
+      </form.Subscribe>
+    </form>
   )
 }
 

@@ -30,21 +30,9 @@ export async function createApplication(
     const server = app.getHttpAdapter().getInstance();
     const authHandler = toNodeHandler(runtime.auth);
     server.all('/api/auth/*path', (request, response) => {
-      const rawVersion = request.get('X-Expected-Authz-Version');
-      const parsedVersion = rawVersion ? Number(rawVersion) : undefined;
-      const expectedAuthorizationVersion =
-        parsedVersion !== undefined &&
-        Number.isSafeInteger(parsedVersion) &&
-        parsedVersion > 0 &&
-        parsedVersion <= 2_147_483_647
-          ? parsedVersion
-          : undefined;
       return runWithAuthRequestContext(
         {
           requestId: response.locals.requestId as string,
-          ...(expectedAuthorizationVersion
-            ? { expectedAuthorizationVersion }
-            : {}),
         },
         () => authHandler(request, response),
       );

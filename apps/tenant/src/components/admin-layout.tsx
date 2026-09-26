@@ -23,7 +23,7 @@ import { useTranslation } from "react-i18next"
 import {
   ApiClientError,
   getOrganizationAccessOptions,
-  projectKeys,
+  organizationKeys,
 } from "@workspace/api-client"
 import {
   useDropStaleOrganizationQueries,
@@ -56,18 +56,36 @@ export function AdminLayout() {
     if (
       !organizationId ||
       !(access.error instanceof ApiClientError) ||
-      access.error.body.code !== "ORGANIZATION_SUSPENDED"
+      (access.error.body.code !== "ORGANIZATION_SUSPENDED" &&
+        access.error.body.code !== "FORBIDDEN")
     )
       return
-    const queryKey = projectKeys.all(organizationId)
-    void queryClient.cancelQueries({ queryKey })
-    queryClient.removeQueries({ queryKey })
+    // 保留访问拒绝本身，清掉该组织的业务数据，避免删除活跃 access 查询导致反复请求。
+    const filters = {
+      queryKey: organizationKeys.scope(organizationId),
+      predicate: (query: { queryKey: readonly unknown[] }) =>
+        query.queryKey[2] !== "access",
+    }
+    void queryClient.cancelQueries(filters)
+    queryClient.removeQueries(filters)
   }, [access.error, organizationId, queryClient])
+  const projectListSearch =
+    !onMembers &&
+    (search.sortBy === "createdAt" || search.sortBy === "updatedAt")
+      ? {
+          page: search.page,
+          pageSize: search.pageSize,
+          status: search.status,
+          name: search.name,
+          sortBy: search.sortBy,
+          sortOrder: search.sortOrder,
+        }
+      : {}
   const projectLink = organizationId ? (
     <Link
       to="/app/projects/$organizationId"
       params={{ organizationId }}
-      search={params.projectId ? {} : search}
+      search={params.projectId ? {} : projectListSearch}
     />
   ) : undefined
   const membersLink = organizationId ? (
@@ -92,7 +110,7 @@ export function AdminLayout() {
     await navigate({
       to: "/app/projects/$organizationId",
       params: { organizationId: nextOrganizationId },
-      search: params.projectId ? {} : { ...search, page: 1 },
+      search: params.projectId ? {} : { ...projectListSearch, page: 1 },
     })
   }
 

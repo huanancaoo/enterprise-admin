@@ -36,6 +36,15 @@ export type InvitationRow = {
   status: string
 }
 
+export class MemberDirectoryError extends Error {
+  constructor(error: { message?: string; status: number }) {
+    super(error.message)
+    this.status = error.status
+  }
+
+  readonly status: number
+}
+
 export function memberDirectoryKey(
   organizationId: string,
   search: MemberDirectorySearch
@@ -72,7 +81,7 @@ export function getMemberDirectoryOptions(
         },
         fetchOptions: { signal },
       })
-      if (result.error) throw new Error(result.error.message)
+      if (result.error) throw new MemberDirectoryError(result.error)
       return {
         members: result.data.members as MemberRow[],
         total: result.data.total,

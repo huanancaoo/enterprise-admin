@@ -123,7 +123,7 @@ describe(
             const requestURL =
               input instanceof Request ? input.url : input.toString();
             if (
-              /\/organization\/(update-member-role|update-role|delete-role)$/.test(
+              /\/organization\/(update-member-role|remove-member|leave|update-role|delete-role)$/.test(
                 requestURL,
               ) &&
               typeof init?.body === 'string'

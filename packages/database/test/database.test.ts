@@ -801,6 +801,104 @@ describe(suiteName, { concurrent: false }, () => {
     assert.equal(found.members.length, 1)
     assert.equal(found.members[0]?.user.email, "ada-directory@example.test")
     assert.equal("invitations" in found, false)
+    const byEmail = await auth.api.listMembers({
+      headers: ownerHeaders,
+      query: {
+        organizationId: org.id,
+        q: "ada-directory@",
+      } as { organizationId: string; q: string },
+    })
+    assert.equal(byEmail.total, 1)
+    assert.equal(byEmail.members[0]?.user.name, "Searchable Ada")
+    const owners = await auth.api.listMembers({
+      headers: ownerHeaders,
+      query: {
+        organizationId: org.id,
+        filterField: "role",
+        filterOperator: "eq",
+        filterValue: "owner",
+      },
+    })
+    assert.equal(owners.total, 1)
+    assert.equal(owners.members[0]?.userId, ownerId)
+    for (let index = 0; index < 21; index += 1) {
+      const inserted = await runtime.query<{ id: string }>(
+        `INSERT INTO public."user" (name, email, email_verified, created_at, updated_at)
+         VALUES ($1, $2, true, now(), now()) RETURNING id`,
+        [`Page Member ${index}`, `page-member-${index}@example.test`]
+      )
+      await auth.api.addMember({
+        headers: ownerHeaders,
+        body: {
+          userId: inserted.rows[0].id,
+          role: "member",
+          organizationId: org.id,
+        },
+      })
+    }
+    const firstPage = await auth.api.listMembers({
+      headers: ownerHeaders,
+      query: { organizationId: org.id },
+    })
+    assert.equal(firstPage.total, 23)
+    assert.equal(firstPage.members.length, 20)
+    const searchedOwner = await auth.api.listMembers({
+      headers: ownerHeaders,
+      query: { organizationId: org.id, q: "Directory Owner" } as {
+        organizationId: string
+        q: string
+      },
+    })
+    assert.equal(
+      new Date(searchedOwner.members[0]!.createdAt).toISOString(),
+      new Date(owners.members[0]!.createdAt).toISOString()
+    )
+    const secondPage = await auth.api.listMembers({
+      headers: ownerHeaders,
+      query: { organizationId: org.id, limit: 20, offset: 20 },
+    })
+    assert.equal(secondPage.members.length, 3)
+    const emptySearchPage = await auth.api.listMembers({
+      headers: ownerHeaders,
+      query: { organizationId: org.id, q: "Page Member", offset: 40 } as {
+        organizationId: string
+        q: string
+        offset: number
+      },
+    })
+    assert.equal(emptySearchPage.total, 21)
+    assert.equal(emptySearchPage.members.length, 0)
+    const sorted = await auth.api.listMembers({
+      headers: ownerHeaders,
+      query: { organizationId: org.id, sortBy: "role", sortDirection: "desc" },
+    })
+    assert.equal(sorted.members[0]?.role, "owner")
+    const searchSorted = await auth.api.listMembers({
+      headers: ownerHeaders,
+      query: {
+        organizationId: org.id,
+        q: "directory",
+        sortBy: "role",
+        sortDirection: "desc",
+      } as {
+        organizationId: string
+        q: string
+        sortBy: string
+        sortDirection: "desc"
+      },
+    })
+    assert.equal(searchSorted.total, 2)
+    assert.deepEqual(
+      searchSorted.members.map((member) => member.role),
+      ["owner", "member"]
+    )
+    await assert.rejects(
+      auth.api.listMembers({
+        headers: ownerHeaders,
+        query: { organizationId: org.id, limit: 101 },
+      }),
+      { status: "BAD_REQUEST" }
+    )
     await assert.rejects(
       auth.api.listMembers({
         headers: ownerHeaders,
@@ -821,6 +919,12 @@ describe(suiteName, { concurrent: false }, () => {
       headers: otherHeaders,
       body: { name: "Other Directory", slug: "other-directory" },
     })
+    await assert.rejects(
+      auth.api.listMembers({
+        headers: ownerHeaders,
+        query: { organizationId: otherOrg!.id },
+      })
+    )
     await assert.rejects(
       auth.api.listMembers({
         headers: ownerHeaders,
