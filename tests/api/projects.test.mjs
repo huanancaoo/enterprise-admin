@@ -1,5 +1,5 @@
 import { startTestApplication } from "../setup/test-runtime.mjs"
-import { randomBytes } from "node:crypto"
+import { randomBytes, randomUUID } from "node:crypto"
 import { signUpVerified } from "../setup/complete-signup.mjs"
 import { beforeAll, afterAll, describe, expect, it } from "vitest"
 import { createRequire } from "node:module"
@@ -98,6 +98,16 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
   ) =>
     fetch(
       `${baseURL}/api/v1/organizations/${organizationId}/projects/${projectId}/translations/${locale}`,
+      { headers: { cookie: session } }
+    )
+  const queryAuditEvents = (organizationId, suffix = "", session = cookie) =>
+    fetch(
+      `${baseURL}/api/v1/organizations/${organizationId}/audit-events${suffix}`,
+      { headers: { cookie: session } }
+    )
+  const queryAuditEvent = (organizationId, eventId, session = cookie) =>
+    fetch(
+      `${baseURL}/api/v1/organizations/${organizationId}/audit-events/${eventId}`,
       { headers: { cookie: session } }
     )
   const patchProject = (
@@ -745,6 +755,252 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
     expect(
       (await readAudit(contextB)).find((row) => row.id === event.id)
     ).toEqual(event)
+  })
+  it("租户审计经真实 HTTP 与 TenantTx 查询，固定游标、权限、详情及平台摘要投影", async () => {
+    const now = new Date()
+    const privateActor = "b86c7c8b-7269-46ab-af92-3d017e6e19e3"
+    const roleEvents = await createTenantRunner(runtime.pool)(contextA, (tx) =>
+      tx
+        .insert(auditEvents)
+        .values(
+          Array.from({ length: 5 }, (_, index) => ({
+            organizationId: orgA.id,
+            eventCode: "member.role_changed",
+            actorId: contextA.userId,
+            tenantVisible: true,
+            resourceType: "member",
+            resourceId: randomUUID(),
+            requestId: `audit-page-${index}`,
+            occurredAt: now,
+            fields: { oldRole: "member", newRole: `custom-${index}` },
+          }))
+        )
+        .returning()
+    )
+    const [platformEvent, hiddenEvent, implicitPrivatePlatformEvent] =
+      await createTenantRunner(runtime.pool)(contextA, (tx) =>
+        tx
+          .insert(auditEvents)
+          .values([
+            {
+              organizationId: orgA.id,
+              scope: "platform",
+              eventCode: "platform.organization_suspended",
+              actorType: "deployment_operator",
+              actorId: privateActor,
+              resourceType: "organization",
+              resourceId: orgA.id,
+              result: "succeeded",
+              reason: "private internal investigation marker",
+              publicSummary:
+                "Organization access was suspended by platform operations.",
+              requestId: "audit-visible-platform",
+              occurredAt: now,
+              tenantVisible: true,
+              fields: { internalCase: "private metadata marker" },
+            },
+            {
+              organizationId: orgA.id,
+              scope: "platform",
+              eventCode: "platform.internal_only",
+              actorType: "deployment_operator",
+              actorId: privateActor,
+              resourceType: "organization",
+              resourceId: orgA.id,
+              requestId: "audit-hidden-platform",
+              occurredAt: now,
+              tenantVisible: false,
+              fields: { internalCase: "hidden event marker" },
+            },
+            {
+              organizationId: orgA.id,
+              scope: "platform",
+              eventCode: "platform.default_private",
+              actorType: "deployment_operator",
+              actorId: privateActor,
+              resourceType: "organization",
+              resourceId: orgA.id,
+              requestId: "audit-implicit-private-platform",
+              occurredAt: now,
+              fields: { internalCase: "implicit private event marker" },
+            },
+          ])
+          .returning()
+      )
+    expect(implicitPrivatePlatformEvent.tenantVisible).toBe(false)
+    await expect(
+      createTenantRunner(runtime.pool)(contextA, (tx) =>
+        tx.insert(auditEvents).values({
+          organizationId: orgA.id,
+          scope: "platform",
+          eventCode: "platform.visible_without_summary",
+          actorType: "deployment_operator",
+          actorId: privateActor,
+          requestId: "audit-visible-platform-without-summary",
+          tenantVisible: true,
+          fields: {},
+        })
+      )
+    ).rejects.toThrow()
+    const oldEvent = await createTenantRunner(runtime.pool)(contextA, (tx) =>
+      tx
+        .insert(auditEvents)
+        .values({
+          organizationId: orgA.id,
+          eventCode: "member.role_changed",
+          actorId: contextA.userId,
+          tenantVisible: true,
+          resourceType: "member",
+          resourceId: randomUUID(),
+          requestId: "audit-old",
+          occurredAt: new Date(now.getTime() - 100 * 24 * 60 * 60 * 1000),
+          fields: { newRole: "old" },
+        })
+        .returning()
+        .then(([event]) => event)
+    )
+    await createTenantRunner(runtime.pool)(contextB, (tx) =>
+      tx.insert(auditEvents).values({
+        organizationId: orgB.id,
+        eventCode: "member.role_changed",
+        actorId: contextB.userId,
+        tenantVisible: true,
+        resourceType: "member",
+        resourceId: randomUUID(),
+        requestId: "audit-other-organization",
+        fields: { newRole: "other-org" },
+      })
+    )
+
+    const first = await queryAuditEvents(
+      orgA.id,
+      "?eventCode=member.role_changed&limit=2"
+    )
+    expect(first.status).toBe(200)
+    expect(first.headers.get("cache-control")).toBe("private, no-store")
+    const firstPage = await first.json()
+    expect(firstPage.items).toHaveLength(2)
+    expect(firstPage.items.map((event) => event.id)).toEqual(
+      [...roleEvents]
+        .sort((left, right) => right.id.localeCompare(left.id))
+        .slice(0, 2)
+        .map((event) => event.id)
+    )
+    const lateEvent = await createTenantRunner(runtime.pool)(contextA, (tx) =>
+      tx
+        .insert(auditEvents)
+        .values({
+          organizationId: orgA.id,
+          eventCode: "member.role_changed",
+          actorId: contextA.userId,
+          tenantVisible: true,
+          resourceType: "member",
+          resourceId: randomUUID(),
+          requestId: "audit-after-snapshot",
+          occurredAt: new Date(Date.now() + 60_000),
+          fields: { newRole: "late" },
+        })
+        .returning()
+        .then(([event]) => event)
+    )
+    const pageIds = [...firstPage.items.map((event) => event.id)]
+    let cursor = firstPage.nextCursor
+    while (cursor) {
+      const next = await queryAuditEvents(
+        orgA.id,
+        `?eventCode=member.role_changed&cursor=${encodeURIComponent(cursor)}`
+      )
+      expect(next.status).toBe(200)
+      const body = await next.json()
+      pageIds.push(...body.items.map((event) => event.id))
+      cursor = body.nextCursor
+    }
+    expect(pageIds).toEqual(
+      [...roleEvents]
+        .sort((left, right) => right.id.localeCompare(left.id))
+        .map((event) => event.id)
+    )
+    expect(pageIds).not.toContain(lateEvent.id)
+    expect(pageIds).not.toContain(oldEvent.id)
+
+    const filtered = await queryAuditEvents(
+      orgA.id,
+      `?eventCode=member.role_changed&actorId=${contextA.userId}&resourceType=member&resourceId=${roleEvents[0].resourceId}&result=succeeded`
+    )
+    expect(filtered.status).toBe(200)
+    expect((await filtered.json()).items.map((event) => event.id)).toEqual([
+      roleEvents[0].id,
+    ])
+
+    const defaultPage = await (await queryAuditEvents(orgA.id)).json()
+    const visiblePlatform = defaultPage.items.find(
+      (event) => event.id === platformEvent.id
+    )
+    expect(visiblePlatform).toMatchObject({
+      scope: "platform",
+      publicSummary:
+        "Organization access was suspended by platform operations.",
+      actorId: null,
+      resourceType: null,
+      resourceId: null,
+      metadata: {},
+    })
+    expect(JSON.stringify(defaultPage)).not.toContain(privateActor)
+    expect(JSON.stringify(defaultPage)).not.toContain(
+      "private internal investigation marker"
+    )
+    expect(JSON.stringify(defaultPage)).not.toContain("private metadata marker")
+    expect(defaultPage.items.map((event) => event.id)).not.toContain(
+      hiddenEvent.id
+    )
+    expect(defaultPage.items.map((event) => event.id)).not.toContain(
+      implicitPrivatePlatformEvent.id
+    )
+
+    const detail = await queryAuditEvent(orgA.id, platformEvent.id)
+    expect(detail.status).toBe(200)
+    expect(await detail.json()).toMatchObject(visiblePlatform)
+    expect((await queryAuditEvent(orgA.id, hiddenEvent.id)).status).toBe(404)
+    expect(
+      (await queryAuditEvent(orgA.id, implicitPrivatePlatformEvent.id)).status
+    ).toBe(404)
+    expect((await queryAuditEvent(orgA.id, roleEvents[0].id)).status).toBe(200)
+    const forgedVisibility = await queryAuditEvents(
+      orgA.id,
+      "?tenantVisible=false&scope=platform"
+    )
+    expect(forgedVisibility.status).toBe(400)
+    const changedCursor = await queryAuditEvents(
+      orgA.id,
+      `?eventCode=project.created&cursor=${encodeURIComponent(firstPage.nextCursor)}`
+    )
+    expect(changedCursor.status).toBe(400)
+
+    const noAuditAccess = await signUpVerified(baseURL, origin, migrator, {
+      email: "audit-no-permission@example.test",
+      name: "Audit reader without permission",
+    })
+    await runtime.auth.api.addMember({
+      headers: new Headers({ cookie }),
+      body: {
+        organizationId: orgA.id,
+        userId: noAuditAccess.user.id,
+        role: "member",
+      },
+    })
+    const organizationManagementEvents = await queryAuditEvents(
+      orgA.id,
+      "?eventCode=organization.member.insert"
+    ).then((response) => response.json())
+    expect(
+      organizationManagementEvents.items.some(
+        (event) => event.actorId === contextA.userId
+      )
+    ).toBe(true)
+    expect(
+      (await queryAuditEvents(orgA.id, "", noAuditAccess.cookie)).status
+    ).toBe(403)
+    expect((await queryAuditEvents(orgA.id, "", "")).status).toBe(401)
   })
   it("审计失败时项目和基础译文一起回滚", async () => {
     const counts = () =>

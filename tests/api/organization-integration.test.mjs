@@ -247,17 +247,17 @@ describe("S8: Organization integration invariants", () => {
       "ROLE_PERMISSION_NOT_DELEGABLE"
     )
 
-    const unregisteredAction = await post(
-      "organization/create-role",
-      {
-        ...body,
-        role: "settings-reader",
-        permission: { tenantSettings: ["read"] },
-      },
-      owner.cookie
-    )
-    expect(unregisteredAction.ok).toBe(false)
-    expect((await unregisteredAction.json()).code).toBe("INVALID_RESOURCE")
+    for (const [role, permission] of [
+      ["settings-reader", { tenantSettings: ["read"] }],
+      ["audit-reader", { audit: ["read"] }],
+    ]) {
+      const delegated = await post(
+        "organization/create-role",
+        { ...body, role, permission },
+        owner.cookie
+      )
+      expect(delegated.status).toBe(200)
+    }
 
     const created = await post("organization/create-role", body, owner.cookie)
     expect(created.status).toBe(200)

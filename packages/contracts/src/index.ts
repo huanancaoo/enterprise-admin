@@ -150,6 +150,70 @@ export const UpdateOrganizationSettingsSchema = z
 export type UpdateOrganizationSettings = z.infer<
   typeof UpdateOrganizationSettingsSchema
 >
+export const AuditResultSchema = z
+  .enum(["succeeded", "denied", "failed", "no_change"])
+  .meta({ id: "AuditResult" })
+export type AuditResult = z.infer<typeof AuditResultSchema>
+export const AuditScopeSchema = z
+  .enum(["tenant", "platform"])
+  .meta({ id: "AuditScope" })
+export type AuditScope = z.infer<typeof AuditScopeSchema>
+export const AuditEventIdSchema = z.uuid()
+export const AuditEventsQuerySchema = z
+  .strictObject({
+    from: z.iso.datetime().optional(),
+    to: z.iso.datetime().optional(),
+    actorId: z.uuid().optional(),
+    eventCode: z.string().trim().min(1).max(120).optional(),
+    resourceType: z.string().trim().min(1).max(80).optional(),
+    resourceId: z.uuid().optional(),
+    result: AuditResultSchema.optional(),
+    cursor: z.string().max(2048).optional(),
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+  })
+  .meta({ id: "AuditEventsQuery" })
+export type AuditEventsQuery = z.infer<typeof AuditEventsQuerySchema>
+export const AuditEventCursorSchema = z.strictObject({
+  filters: z.strictObject({
+    from: z.iso.datetime(),
+    to: z.iso.datetime(),
+    actorId: z.uuid().optional(),
+    eventCode: z.string().trim().min(1).max(120).optional(),
+    resourceType: z.string().trim().min(1).max(80).optional(),
+    resourceId: z.uuid().optional(),
+    result: AuditResultSchema.optional(),
+    limit: z.number().int().min(1).max(100),
+  }),
+  snapshotAt: z.iso.datetime(),
+  before: z.strictObject({
+    occurredAt: z.iso.datetime(),
+    id: z.uuid(),
+  }),
+})
+export type AuditEventCursor = z.infer<typeof AuditEventCursorSchema>
+export const AuditEventSchema = z
+  .strictObject({
+    id: z.uuid(),
+    occurredAt: z.iso.datetime(),
+    eventCode: z.string().min(1),
+    scope: AuditScopeSchema,
+    actorType: z.enum(["user", "deployment_operator", "system"]),
+    actorId: z.uuid().nullable(),
+    resourceType: z.string().nullable(),
+    resourceId: z.uuid().nullable(),
+    result: AuditResultSchema,
+    publicSummary: z.string().nullable(),
+    metadata: z.record(z.string(), z.unknown()),
+  })
+  .meta({ id: "AuditEvent" })
+export type AuditEvent = z.infer<typeof AuditEventSchema>
+export const AuditEventsPageSchema = z
+  .strictObject({
+    items: z.array(AuditEventSchema),
+    nextCursor: z.string().nullable(),
+  })
+  .meta({ id: "AuditEventsPage" })
+export type AuditEventsPage = z.infer<typeof AuditEventsPageSchema>
 export const PlatformAccessSchema = z
   .strictObject({
     userId: z.uuid(),

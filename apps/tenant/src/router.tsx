@@ -6,7 +6,10 @@ import {
   redirect,
   useParams,
 } from "@tanstack/react-router"
-import { ProjectListQuerySchema } from "@workspace/contracts"
+import {
+  AuditEventsQuerySchema,
+  ProjectListQuerySchema,
+} from "@workspace/contracts"
 import {
   LoadingState,
   NotFoundState,
@@ -32,6 +35,7 @@ import { ProjectDetailRoute } from "./components/project-detail-route"
 import { AdminLayout } from "./components/admin-layout"
 import { MembersRoute } from "./components/members-route"
 import { RolesRoute } from "./components/roles-route"
+import { AuditEventsRoute } from "./components/audit-events-route"
 import {
   getInvitationDirectoryOptions,
   getMemberDirectoryOptions,
@@ -42,6 +46,7 @@ import {
   OrganizationLocaleSettingsRoute,
   PersonalLocaleSettingsRoute,
 } from "./components/locale-settings"
+import { getOrganizationAuditEventsOptions } from "./query/organization-audit"
 
 const rootRoute = createRootRouteWithContext<WorkspaceRouterContext>()({
   component: App,
@@ -237,6 +242,19 @@ const personalSettingsRoute = createRoute({
   path: "/preferences",
   component: PersonalLocaleSettingsRoute,
 })
+const auditEventsRoute = createRoute({
+  getParentRoute: () => organizationSettingsLayoutRoute,
+  path: "/$organizationId/audit",
+  validateSearch: (search: Record<string, unknown>) =>
+    AuditEventsQuerySchema.parse(search),
+  loaderDeps: ({ search }) => search,
+  loader: ({ context, params, deps }) =>
+    context.queryClient.query({
+      ...getOrganizationAuditEventsOptions(params.organizationId, deps),
+      staleTime: "static",
+    }),
+  component: AuditEventsRoute,
+})
 
 export const router = createRouter({
   routeTree: rootRoute.addChildren([
@@ -254,6 +272,7 @@ export const router = createRouter({
       organizationSettingsLayoutRoute.addChildren([
         rolesRoute,
         organizationSettingsRoute,
+        auditEventsRoute,
       ]),
       personalSettingsLayoutRoute.addChildren([personalSettingsRoute]),
     ]),

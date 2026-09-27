@@ -21,13 +21,18 @@ export type ProjectPermission = `project:${ProjectAction}`
 export const builtInOrganizationRoleKeys = ["owner", "admin", "member"] as const
 
 // 只声明固定动作；角色及成员的实际授予仍由 Better Auth 管理。
+export const auditActions = ["read"] as const
+export type AuditAction = (typeof auditActions)[number]
+
 export const permissionStatements = {
   member: ["read"],
   project: projectActions,
   tenantSettings: tenantSettingsActions,
+  audit: auditActions,
 } as const
 export type PermissionRequest = {
   member?: (typeof permissionStatements.member)[number][]
   project?: ProjectAction[]
   tenantSettings?: (typeof tenantSettingsActions)[number][]
+  audit?: AuditAction[]
 }

@@ -20,6 +20,7 @@ import {
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import { useUiLocale } from "@workspace/i18n/react"
 import {
+  ClipboardListIcon,
   FolderKanbanIcon,
   SettingsIcon,
   ShieldCheckIcon,
@@ -77,6 +78,8 @@ export function AdminLayout() {
   const onOrganizationSettings =
     pathname.startsWith("/app/organizations/") && pathname.endsWith("/settings")
   const onPersonalSettings = pathname === "/app/settings/preferences"
+  const onAudit =
+    pathname.startsWith("/app/organizations/") && pathname.endsWith("/audit")
   useDropStaleOrganizationQueries(currentOrganizationId ?? undefined)
   const access = useQuery({
     ...getOrganizationAccessOptions(currentOrganizationId ?? ""),
@@ -125,6 +128,7 @@ export function AdminLayout() {
   const projectListSearch =
     !onMembers &&
     !onRoles &&
+    !onAudit &&
     (search.sortBy === "createdAt" || search.sortBy === "updatedAt")
       ? {
           page: search.page,
@@ -160,6 +164,13 @@ export function AdminLayout() {
       params={{ organizationId: currentOrganizationId }}
     />
   ) : undefined
+  const auditLink = organizationId ? (
+    <Link
+      to="/app/organizations/$organizationId/audit"
+      params={{ organizationId }}
+      search={{ limit: 20 }}
+    />
+  ) : undefined
   const suspended =
     access.error instanceof ApiClientError &&
     access.error.body.code === "ORGANIZATION_SUSPENDED"
@@ -190,6 +201,14 @@ export function AdminLayout() {
       })
       return
     }
+    if (onAudit) {
+      await navigate({
+        to: "/app/organizations/$organizationId/audit",
+        params: { organizationId: nextOrganizationId },
+        search: { limit: 20 },
+      })
+      return
+    }
     await navigate({
       to: "/app/projects/$organizationId",
       params: { organizationId: nextOrganizationId },
@@ -214,17 +233,19 @@ export function AdminLayout() {
             )}
             <BreadcrumbItem>
               <BreadcrumbPage>
-                {onMembers
-                  ? t("organization:members")
-                  : onRoles
-                    ? t("organization:roles")
-                    : onOrganizationSettings
-                      ? t("settings:organizationSettings")
-                      : onPersonalSettings
-                        ? t("settings:personalSettings")
-                        : params.projectId
-                          ? t("projects:detail")
-                          : t("projects:title")}
+                {onAudit
+                  ? t("organization:audit")
+                  : onMembers
+                    ? t("organization:members")
+                    : onRoles
+                      ? t("organization:roles")
+                      : onOrganizationSettings
+                        ? t("settings:organizationSettings")
+                        : onPersonalSettings
+                          ? t("settings:personalSettings")
+                          : params.projectId
+                            ? t("projects:detail")
+                            : t("projects:title")}
               </BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
@@ -284,6 +305,13 @@ export function AdminLayout() {
               isActive: pathname === "/app/settings/preferences",
               render: <Link to="/app/settings/preferences" />,
             },
+            {
+              title: t("organization:audit"),
+              icon: <ClipboardListIcon />,
+              isActive: onAudit,
+              disabled: !currentOrganizationId || suspended,
+              render: auditLink,
+            },
           ],
         },
         user: {
@@ -326,11 +354,15 @@ export function AdminLayout() {
         error={workspace.error}
         onCreated={(nextOrganizationId) => {
           void navigate({
-            to: onMembers
-              ? "/app/members/$organizationId"
-              : onOrganizationSettings
-                ? "/app/organizations/$organizationId/settings"
-                : "/app/projects/$organizationId",
+            to: onAudit
+              ? "/app/organizations/$organizationId/audit"
+              : onMembers
+                ? "/app/members/$organizationId"
+                : onRoles
+                  ? "/app/organizations/$organizationId/roles"
+                  : onOrganizationSettings
+                    ? "/app/organizations/$organizationId/settings"
+                    : "/app/projects/$organizationId",
             params: { organizationId: nextOrganizationId },
           })
         }}
