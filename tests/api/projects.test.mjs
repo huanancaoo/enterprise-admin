@@ -975,6 +975,43 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
       `?eventCode=project.created&cursor=${encodeURIComponent(firstPage.nextCursor)}`
     )
     expect(changedCursor.status).toBe(400)
+    const [cursorPayload, cursorSignature] = firstPage.nextCursor.split(".")
+    const forgeCursor = (mutate) => {
+      const payload = JSON.parse(
+        Buffer.from(cursorPayload, "base64url").toString()
+      )
+      mutate(payload)
+      return `${Buffer.from(JSON.stringify(payload)).toString("base64url")}.${cursorSignature}`
+    }
+    for (const mutate of [
+      (payload) => {
+        payload.snapshotAt = new Date(
+          Date.now() + 10 * 365 * 24 * 60 * 60 * 1000
+        ).toISOString()
+      },
+      (payload) => {
+        payload.before.occurredAt = new Date(
+          Date.now() + 10 * 365 * 24 * 60 * 60 * 1000
+        ).toISOString()
+      },
+      (payload) => {
+        payload.before.id = randomUUID()
+      },
+      (payload) => {
+        payload.filters.to = new Date(
+          Date.now() + 10 * 365 * 24 * 60 * 60 * 1000
+        ).toISOString()
+      },
+      (payload) => {
+        payload.filters.eventCode = "project.created"
+      },
+    ]) {
+      const forged = await queryAuditEvents(
+        orgA.id,
+        `?eventCode=member.role_changed&cursor=${encodeURIComponent(forgeCursor(mutate))}`
+      )
+      expect(forged.status).toBe(400)
+    }
 
     const noAuditAccess = await signUpVerified(baseURL, origin, migrator, {
       email: "audit-no-permission@example.test",

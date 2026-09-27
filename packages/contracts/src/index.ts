@@ -184,7 +184,6 @@ export const AuditEventCursorSchema = z.strictObject({
     result: AuditResultSchema.optional(),
     limit: z.number().int().min(1).max(100),
   }),
-  snapshotAt: z.iso.datetime(),
   before: z.strictObject({
     occurredAt: z.iso.datetime(),
     id: z.uuid(),

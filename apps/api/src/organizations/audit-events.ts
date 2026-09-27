@@ -18,7 +18,11 @@ import type {
   AuditResult,
 } from '@workspace/contracts';
 import { AuthRuntime } from '../identity/auth-runtime';
-import { auditEventCursorSchema, createAuditEventCursor } from './audit-cursor';
+import {
+  auditEventCursorSchema,
+  createAuditEventCursor,
+  parseAuditEventCursor,
+} from './audit-cursor';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_RANGE_DAYS = 90;
@@ -86,11 +90,13 @@ export class OrganizationAuditEvents {
     return {
       items: page.items.map(projectEvent),
       nextCursor: page.nextCursor
-        ? createAuditEventCursor({
-            filters: this.cursorFilters(filters),
-            snapshotAt: cursor?.snapshotAt ?? filters.to.toISOString(),
-            before: page.nextCursor,
-          })
+        ? createAuditEventCursor(
+            {
+              filters: this.cursorFilters(filters),
+              before: page.nextCursor,
+            },
+            this.runtime.auditCursorKey,
+          )
         : null,
     };
   }
@@ -143,7 +149,7 @@ export class OrganizationAuditEvents {
 
     return {
       from,
-      to: cursor ? new Date(cursor.snapshotAt) : upperBound,
+      to: upperBound,
       actorId: cursor?.filters.actorId ?? query.actorId,
       eventCode: cursor?.filters.eventCode ?? query.eventCode,
       resourceType: cursor?.filters.resourceType ?? query.resourceType,
@@ -168,10 +174,7 @@ export class OrganizationAuditEvents {
 
   private readCursor(encoded: string) {
     try {
-      const parsed = JSON.parse(
-        Buffer.from(encoded, 'base64url').toString(),
-      ) as unknown;
-      return auditEventCursorSchema.parse(parsed);
+      return parseAuditEventCursor(encoded, this.runtime.auditCursorKey);
     } catch {
       throw new BadRequestException('Invalid audit cursor');
     }

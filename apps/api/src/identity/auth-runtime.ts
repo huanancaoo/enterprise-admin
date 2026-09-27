@@ -6,6 +6,7 @@ import {
   getAuthRequestContext,
   type AuthEmailHooks,
 } from '@workspace/database/auth';
+import { createHmac } from 'node:crypto';
 import { isIP } from 'node:net';
 import Redis from 'ioredis';
 
@@ -91,12 +92,16 @@ function suppressable(hooks: AuthEmailHooks): AuthEmailHooks {
 export class AuthRuntime implements OnApplicationShutdown {
   readonly pool: ReturnType<typeof createDatabase>['pool'];
   readonly auth: ReturnType<typeof createAuth>;
+  readonly auditCursorKey: Buffer;
   private readonly redis: Redis;
 
   constructor(
     config: AuthConfig,
     emailHooks: (pool: AuthRuntime['pool']) => AuthEmailHooks,
   ) {
+    this.auditCursorKey = createHmac('sha256', config.secret)
+      .update('enterprise-admin:audit-event-cursor:v1')
+      .digest();
     this.pool = createDatabase(config.databaseURL).pool;
     // 与 Pool 一样延迟建连：OpenAPI 导出不触达 Redis。
     this.redis = new Redis(config.redisURL, { lazyConnect: true });
