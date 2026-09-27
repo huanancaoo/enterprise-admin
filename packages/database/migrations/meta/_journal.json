@@ -134,6 +134,13 @@
       "when": 1790531380901,
       "tag": "0018_thin_captain_stacy",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790533796534,
+      "tag": "0019_minor_boomerang",
+      "breakpoints": true
     }
   ]
 }

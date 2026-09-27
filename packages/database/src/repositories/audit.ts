@@ -1,4 +1,4 @@
-import { and, desc, eq, lt, or, sql } from "drizzle-orm"
+import { and, desc, eq, isNotNull, lt, or, sql } from "drizzle-orm"
 import { auditEvents } from "../schema/audit.ts"
 import type { TenantTx } from "../tenant.ts"
 
@@ -19,7 +19,10 @@ export type AuditEventCursor = {
 
 const visibleToTenant = and(
   eq(auditEvents.tenantVisible, true),
-  or(eq(auditEvents.scope, "tenant"), eq(auditEvents.scope, "platform")),
+  or(
+    eq(auditEvents.scope, "tenant"),
+    and(eq(auditEvents.scope, "platform"), isNotNull(auditEvents.publicSummary))
+  )
 )
 
 export const auditRepository = {
@@ -33,7 +36,9 @@ export const auditRepository = {
   ) {
     return tx.insert(auditEvents).values({
       ...input,
+      scope: "tenant",
       resourceType: "project",
+      tenantVisible: true,
       organizationId: tx.context.organizationId,
       actorId: tx.context.userId,
       requestId: tx.context.requestId,
@@ -46,21 +51,21 @@ export const auditRepository = {
       filter: AuditEventFilter
       cursor?: AuditEventCursor
       limit: number
-    },
+    }
   ) {
     const cursorFilter = input.cursor
       ? or(
           lt(
             auditEvents.occurredAt,
-            sql`${input.cursor.occurredAt}::timestamptz`,
+            sql`${input.cursor.occurredAt}::timestamptz`
           ),
           and(
             eq(
               auditEvents.occurredAt,
-              sql`${input.cursor.occurredAt}::timestamptz`,
+              sql`${input.cursor.occurredAt}::timestamptz`
             ),
-            lt(auditEvents.id, input.cursor.id),
-          ),
+            lt(auditEvents.id, input.cursor.id)
+          )
         )
       : undefined
     const rows = await tx
@@ -97,14 +102,16 @@ export const auditRepository = {
           input.filter.resourceId
             ? eq(auditEvents.resourceId, input.filter.resourceId)
             : undefined,
-          input.filter.actorId || input.filter.resourceType || input.filter.resourceId
+          input.filter.actorId ||
+            input.filter.resourceType ||
+            input.filter.resourceId
             ? eq(auditEvents.scope, "tenant")
             : undefined,
           input.filter.result
             ? eq(auditEvents.result, input.filter.result)
             : undefined,
-          cursorFilter,
-        ),
+          cursorFilter
+        )
       )
       .orderBy(desc(auditEvents.occurredAt), desc(auditEvents.id))
       .limit(input.limit + 1)
@@ -142,8 +149,8 @@ export const auditRepository = {
         and(
           eq(auditEvents.id, eventId),
           eq(auditEvents.organizationId, tx.context.organizationId),
-          visibleToTenant,
-        ),
+          visibleToTenant
+        )
       )
       .limit(1)
     return event

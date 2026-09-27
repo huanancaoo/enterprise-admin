@@ -709,53 +709,81 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
             organizationId: orgA.id,
             eventCode: "member.role_changed",
             actorId: contextA.userId,
+            tenantVisible: true,
             resourceType: "member",
             resourceId: randomUUID(),
             requestId: `audit-page-${index}`,
             occurredAt: now,
             fields: { oldRole: "member", newRole: `custom-${index}` },
-          })),
+          }))
         )
-        .returning(),
+        .returning()
     )
-    const [platformEvent, hiddenEvent] = await createTenantRunner(
-      runtime.pool,
-    )(contextA, (tx) =>
-      tx
-        .insert(auditEvents)
-        .values([
-          {
-            organizationId: orgA.id,
-            scope: "platform",
-            eventCode: "platform.organization_suspended",
-            actorType: "deployment_operator",
-            actorId: privateActor,
-            resourceType: "organization",
-            resourceId: orgA.id,
-            result: "succeeded",
-            reason: "private internal investigation marker",
-            publicSummary: "Organization access was suspended by platform operations.",
-            requestId: "audit-visible-platform",
-            occurredAt: now,
-            tenantVisible: true,
-            fields: { internalCase: "private metadata marker" },
-          },
-          {
-            organizationId: orgA.id,
-            scope: "platform",
-            eventCode: "platform.internal_only",
-            actorType: "deployment_operator",
-            actorId: privateActor,
-            resourceType: "organization",
-            resourceId: orgA.id,
-            requestId: "audit-hidden-platform",
-            occurredAt: now,
-            tenantVisible: false,
-            fields: { internalCase: "hidden event marker" },
-          },
-        ])
-        .returning(),
-    )
+    const [platformEvent, hiddenEvent, implicitPrivatePlatformEvent] =
+      await createTenantRunner(runtime.pool)(contextA, (tx) =>
+        tx
+          .insert(auditEvents)
+          .values([
+            {
+              organizationId: orgA.id,
+              scope: "platform",
+              eventCode: "platform.organization_suspended",
+              actorType: "deployment_operator",
+              actorId: privateActor,
+              resourceType: "organization",
+              resourceId: orgA.id,
+              result: "succeeded",
+              reason: "private internal investigation marker",
+              publicSummary:
+                "Organization access was suspended by platform operations.",
+              requestId: "audit-visible-platform",
+              occurredAt: now,
+              tenantVisible: true,
+              fields: { internalCase: "private metadata marker" },
+            },
+            {
+              organizationId: orgA.id,
+              scope: "platform",
+              eventCode: "platform.internal_only",
+              actorType: "deployment_operator",
+              actorId: privateActor,
+              resourceType: "organization",
+              resourceId: orgA.id,
+              requestId: "audit-hidden-platform",
+              occurredAt: now,
+              tenantVisible: false,
+              fields: { internalCase: "hidden event marker" },
+            },
+            {
+              organizationId: orgA.id,
+              scope: "platform",
+              eventCode: "platform.default_private",
+              actorType: "deployment_operator",
+              actorId: privateActor,
+              resourceType: "organization",
+              resourceId: orgA.id,
+              requestId: "audit-implicit-private-platform",
+              occurredAt: now,
+              fields: { internalCase: "implicit private event marker" },
+            },
+          ])
+          .returning()
+      )
+    expect(implicitPrivatePlatformEvent.tenantVisible).toBe(false)
+    await expect(
+      createTenantRunner(runtime.pool)(contextA, (tx) =>
+        tx.insert(auditEvents).values({
+          organizationId: orgA.id,
+          scope: "platform",
+          eventCode: "platform.visible_without_summary",
+          actorType: "deployment_operator",
+          actorId: privateActor,
+          requestId: "audit-visible-platform-without-summary",
+          tenantVisible: true,
+          fields: {},
+        })
+      )
+    ).rejects.toThrow()
     const oldEvent = await createTenantRunner(runtime.pool)(contextA, (tx) =>
       tx
         .insert(auditEvents)
@@ -763,6 +791,7 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
           organizationId: orgA.id,
           eventCode: "member.role_changed",
           actorId: contextA.userId,
+          tenantVisible: true,
           resourceType: "member",
           resourceId: randomUUID(),
           requestId: "audit-old",
@@ -770,21 +799,25 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
           fields: { newRole: "old" },
         })
         .returning()
-        .then(([event]) => event),
+        .then(([event]) => event)
     )
     await createTenantRunner(runtime.pool)(contextB, (tx) =>
       tx.insert(auditEvents).values({
         organizationId: orgB.id,
         eventCode: "member.role_changed",
         actorId: contextB.userId,
+        tenantVisible: true,
         resourceType: "member",
         resourceId: randomUUID(),
         requestId: "audit-other-organization",
         fields: { newRole: "other-org" },
-      }),
+      })
     )
 
-    const first = await queryAuditEvents(orgA.id, "?eventCode=member.role_changed&limit=2")
+    const first = await queryAuditEvents(
+      orgA.id,
+      "?eventCode=member.role_changed&limit=2"
+    )
     expect(first.status).toBe(200)
     expect(first.headers.get("cache-control")).toBe("private, no-store")
     const firstPage = await first.json()
@@ -793,7 +826,7 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
       [...roleEvents]
         .sort((left, right) => right.id.localeCompare(left.id))
         .slice(0, 2)
-        .map((event) => event.id),
+        .map((event) => event.id)
     )
     const lateEvent = await createTenantRunner(runtime.pool)(contextA, (tx) =>
       tx
@@ -802,6 +835,7 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
           organizationId: orgA.id,
           eventCode: "member.role_changed",
           actorId: contextA.userId,
+          tenantVisible: true,
           resourceType: "member",
           resourceId: randomUUID(),
           requestId: "audit-after-snapshot",
@@ -809,14 +843,14 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
           fields: { newRole: "late" },
         })
         .returning()
-        .then(([event]) => event),
+        .then(([event]) => event)
     )
     const pageIds = [...firstPage.items.map((event) => event.id)]
     let cursor = firstPage.nextCursor
     while (cursor) {
       const next = await queryAuditEvents(
         orgA.id,
-        `?eventCode=member.role_changed&cursor=${encodeURIComponent(cursor)}`,
+        `?eventCode=member.role_changed&cursor=${encodeURIComponent(cursor)}`
       )
       expect(next.status).toBe(200)
       const body = await next.json()
@@ -826,14 +860,14 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
     expect(pageIds).toEqual(
       [...roleEvents]
         .sort((left, right) => right.id.localeCompare(left.id))
-        .map((event) => event.id),
+        .map((event) => event.id)
     )
     expect(pageIds).not.toContain(lateEvent.id)
     expect(pageIds).not.toContain(oldEvent.id)
 
     const filtered = await queryAuditEvents(
       orgA.id,
-      `?eventCode=member.role_changed&actorId=${contextA.userId}&resourceType=member&resourceId=${roleEvents[0].resourceId}&result=succeeded`,
+      `?eventCode=member.role_changed&actorId=${contextA.userId}&resourceType=member&resourceId=${roleEvents[0].resourceId}&result=succeeded`
     )
     expect(filtered.status).toBe(200)
     expect((await filtered.json()).items.map((event) => event.id)).toEqual([
@@ -842,31 +876,45 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
 
     const defaultPage = await (await queryAuditEvents(orgA.id)).json()
     const visiblePlatform = defaultPage.items.find(
-      (event) => event.id === platformEvent.id,
+      (event) => event.id === platformEvent.id
     )
     expect(visiblePlatform).toMatchObject({
       scope: "platform",
-      publicSummary: "Organization access was suspended by platform operations.",
+      publicSummary:
+        "Organization access was suspended by platform operations.",
       actorId: null,
       resourceType: null,
       resourceId: null,
       metadata: {},
     })
     expect(JSON.stringify(defaultPage)).not.toContain(privateActor)
-    expect(JSON.stringify(defaultPage)).not.toContain("private internal investigation marker")
+    expect(JSON.stringify(defaultPage)).not.toContain(
+      "private internal investigation marker"
+    )
     expect(JSON.stringify(defaultPage)).not.toContain("private metadata marker")
-    expect(defaultPage.items.map((event) => event.id)).not.toContain(hiddenEvent.id)
+    expect(defaultPage.items.map((event) => event.id)).not.toContain(
+      hiddenEvent.id
+    )
+    expect(defaultPage.items.map((event) => event.id)).not.toContain(
+      implicitPrivatePlatformEvent.id
+    )
 
     const detail = await queryAuditEvent(orgA.id, platformEvent.id)
     expect(detail.status).toBe(200)
     expect(await detail.json()).toMatchObject(visiblePlatform)
     expect((await queryAuditEvent(orgA.id, hiddenEvent.id)).status).toBe(404)
+    expect(
+      (await queryAuditEvent(orgA.id, implicitPrivatePlatformEvent.id)).status
+    ).toBe(404)
     expect((await queryAuditEvent(orgA.id, roleEvents[0].id)).status).toBe(200)
-    const forgedVisibility = await queryAuditEvents(orgA.id, "?tenantVisible=false&scope=platform")
+    const forgedVisibility = await queryAuditEvents(
+      orgA.id,
+      "?tenantVisible=false&scope=platform"
+    )
     expect(forgedVisibility.status).toBe(400)
     const changedCursor = await queryAuditEvents(
       orgA.id,
-      `?eventCode=project.created&cursor=${encodeURIComponent(firstPage.nextCursor)}`,
+      `?eventCode=project.created&cursor=${encodeURIComponent(firstPage.nextCursor)}`
     )
     expect(changedCursor.status).toBe(400)
 
@@ -876,9 +924,24 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
     })
     await runtime.auth.api.addMember({
       headers: new Headers({ cookie }),
-      body: { organizationId: orgA.id, userId: noAuditAccess.user.id, role: "member" },
+      body: {
+        organizationId: orgA.id,
+        userId: noAuditAccess.user.id,
+        role: "member",
+      },
     })
-    expect((await queryAuditEvents(orgA.id, "", noAuditAccess.cookie)).status).toBe(403)
+    const organizationManagementEvents = await queryAuditEvents(
+      orgA.id,
+      "?eventCode=organization.member.insert"
+    ).then((response) => response.json())
+    expect(
+      organizationManagementEvents.items.some(
+        (event) => event.actorId === contextA.userId
+      )
+    ).toBe(true)
+    expect(
+      (await queryAuditEvents(orgA.id, "", noAuditAccess.cookie)).status
+    ).toBe(403)
     expect((await queryAuditEvents(orgA.id, "", "")).status).toBe(401)
   })
   it("审计失败时项目和基础译文一起回滚", async () => {
