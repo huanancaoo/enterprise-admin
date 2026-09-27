@@ -231,6 +231,7 @@ export const ApiErrorCodeSchema = z
     "NOT_FOUND",
     "ORGANIZATION_SUSPENDED",
     "AUTHORIZATION_UNAVAILABLE",
+    "AUDIT_UNAVAILABLE",
     "VERSION_CONFLICT",
     "INTERNAL_ERROR",
   ])

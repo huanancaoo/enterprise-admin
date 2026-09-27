@@ -1,4 +1,5 @@
 {
+  "AUDIT_UNAVAILABLE": "خدمة التدقيق غير متاحة. أعد المحاولة لاحقًا.",
   "AUTHORIZATION_UNAVAILABLE": "حالة التفويض غير متاحة",
   "AUTHORIZATION_VERSION_CONFLICT": "تغير التفويض. حدّث الصفحة ثم أعد المحاولة.",
   "EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION": "يرجى التحقق من بريدك الإلكتروني قبل معالجة الدعوة.",

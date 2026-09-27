@@ -14,8 +14,8 @@ export const auditEvents = pgTable(
   "audit_events",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    // 组织删除后仍需保留历史事实，因此审计组织标识不是生命周期外键。
-    organizationId: uuid("organization_id").notNull(),
+    // 平台身份拒绝不属于任何组织；组织历史标识也不能随组织删除而级联删除。
+    organizationId: uuid("organization_id"),
     scope: text("scope").notNull().default("tenant"),
     eventCode: text("event_code").notNull(),
     actorType: text("actor_type").notNull().default("user"),

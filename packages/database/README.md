@@ -135,3 +135,9 @@ TenantTx 品牌阻止普通 db/Pool 作为 Repository 参数；`pnpm lint:bounda
 迁移 0008/0009 建立 `audit_events` 及 ENABLE/FORCE RLS，只授予 `app_runtime` SELECT/INSERT。审计 Repository 接收 `TenantTx`，actorId、organizationId 和 requestId 来自可信事务上下文；资源 ID 和身份 ID 作为历史事实保存，不引用会级联删除的业务外键。
 
 正式创建接口将 Project、基础译文与 `project.created` 放入同一事务，审计写入失败全部回滚。未显式指定 contentLocale 时，在事务内读取组织 defaultLocale，不使用请求界面语言。
+
+## 平台访问拒绝审计
+
+迁移 `0023_platform-access-denial-audit.sql` 允许无组织归属的审计事实，并新增固定函数 `record_platform_access_denial(uuid, text, text)`。只有 `platform_runtime` 可调用；函数由受限 NOLOGIN `platform_executor` 执行，仅追加私有的 `platform.access_denied` 事件。`app_runtime`、部署身份和平台运行身份均不能通过该函数读取审计或写入任意事件。
+
+`PlatformGuard` 在身份、任职或会话 MFA 校验拒绝时独立写入事件，保存可信 actor、稳定拒绝分类和服务端 requestId；匿名请求的 actorId 为空。事件不关联组织，租户 RLS 不可见，不保存 Cookie、令牌或认证秘密。审计写入失败返回 `503 AUDIT_UNAVAILABLE`，由现有错误日志记录 requestId。

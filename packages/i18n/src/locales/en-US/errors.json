@@ -1,4 +1,5 @@
 {
+  "AUDIT_UNAVAILABLE": "Audit is unavailable. Try again later.",
   "AUTHORIZATION_UNAVAILABLE": "Authorization is unavailable",
   "AUTHORIZATION_VERSION_CONFLICT": "Authorization changed. Refresh and try again.",
   "EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION": "Verify your email before handling this invitation.",

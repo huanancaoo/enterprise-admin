@@ -158,6 +158,7 @@ export default interface Resources {
     "view": "视图"
   },
   "errors": {
+    "AUDIT_UNAVAILABLE": "审计服务不可用，请稍后重试",
     "AUTHORIZATION_UNAVAILABLE": "授权状态不可用",
     "AUTHORIZATION_VERSION_CONFLICT": "授权已变更，请刷新后重试",
     "EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION": "请先验证邮箱再处理邀请",

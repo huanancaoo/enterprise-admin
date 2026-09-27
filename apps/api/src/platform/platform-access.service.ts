@@ -11,6 +11,21 @@ export type PlatformPrincipal = Identity &
 export class PlatformAccessService {
   constructor(private readonly runtime: PlatformRuntime) {}
 
+  async recordDenial(
+    identity: Identity | undefined,
+    reason: 'UNAUTHENTICATED' | 'FORBIDDEN' | 'PLATFORM_MFA_REQUIRED',
+    requestId: string,
+  ): Promise<void> {
+    try {
+      await this.runtime.pool.query(
+        'SELECT public.record_platform_access_denial($1, $2, $3)',
+        [identity?.userId ?? null, reason, requestId],
+      );
+    } catch {
+      throw new ApiException(503, 'AUDIT_UNAVAILABLE');
+    }
+  }
+
   async requireAccess(
     identity: Identity,
     requireRecentMfa = false,

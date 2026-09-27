@@ -3,12 +3,14 @@ import {
   CanActivate,
   createParamDecorator,
   ExecutionContext,
+  HttpException,
   Injectable,
   InternalServerErrorException,
   UseGuards,
 } from '@nestjs/common';
 import { fromNodeHeaders } from 'better-auth/node';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
+import type { Identity } from '../identity/identity.service';
 import { IdentityService } from '../identity/identity.service';
 import {
   PlatformAccessService,
@@ -28,11 +30,40 @@ export class PlatformGuard implements CanActivate {
   async canActivate(execution: ExecutionContext): Promise<boolean> {
     const request = execution.switchToHttp().getRequest<PlatformRequest>();
     const headers = fromNodeHeaders(request.headers);
-    const actor = await this.identity.requireIdentity(headers);
-    request[trustedPlatform] = await this.access.requireAccess(
-      actor,
-      !['GET', 'HEAD', 'OPTIONS'].includes(request.method),
-    );
+    let actor: Identity | undefined;
+    try {
+      actor = await this.identity.requireIdentity(headers);
+      request[trustedPlatform] = await this.access.requireAccess(
+        actor,
+        !['GET', 'HEAD', 'OPTIONS'].includes(request.method),
+      );
+    } catch (error) {
+      if (
+        error instanceof HttpException &&
+        [401, 403].includes(error.getStatus())
+      ) {
+        const body = error.getResponse();
+        const requiresMfa =
+          typeof body === 'object' &&
+          body !== null &&
+          'code' in body &&
+          body.code === 'PLATFORM_MFA_REQUIRED';
+        const reason =
+          error.getStatus() === 401
+            ? 'UNAUTHENTICATED'
+            : requiresMfa
+              ? 'PLATFORM_MFA_REQUIRED'
+              : 'FORBIDDEN';
+        const response = execution.switchToHttp().getResponse<Response>();
+        // 拒绝事件独立提交，否则异常回滚会同时抹去拒绝事实。
+        await this.access.recordDenial(
+          actor,
+          reason,
+          response.locals.requestId as string,
+        );
+      }
+      throw error;
+    }
     return true;
   }
 }
