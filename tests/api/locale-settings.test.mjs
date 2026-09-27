@@ -173,5 +173,47 @@ describe("S8-09: personal and organization locale settings over HTTP", () => {
       effectiveLocale: "ar",
       effectiveLocaleSource: "organization",
     })
+
+    await migrator.query(
+      `INSERT INTO organization_role (id, organization_id, role, permission)
+       VALUES ($1, $2, 'locale_reader', $3)`,
+      [
+        randomUUID(),
+        organization.id,
+        JSON.stringify({ tenantSettings: ["read"] }),
+      ]
+    )
+    await migrator.query(
+      `UPDATE member SET role = 'locale_reader'
+       WHERE organization_id = $1 AND user_id = $2`,
+      [organization.id, member.user.id]
+    )
+    await expect(
+      runtime.auth.api.hasPermission({
+        headers: member.headers,
+        body: {
+          organizationId: organization.id,
+          permissions: { tenantSettings: ["read"] },
+        },
+      })
+    ).resolves.toMatchObject({ success: true })
+    await expect(
+      runtime.auth.api.hasPermission({
+        headers: member.headers,
+        body: {
+          organizationId: organization.id,
+          permissions: { tenantSettings: ["update"] },
+        },
+      })
+    ).resolves.toMatchObject({ success: false })
+    expect((await request(settingsPath, member)).status).toBe(200)
+    expect(
+      (
+        await request(settingsPath, member, {
+          defaultLocale: "en-US",
+          expectedVersion: 2,
+        })
+      ).status
+    ).toBe(403)
   })
 })

@@ -1,6 +1,7 @@
 import { createUiI18n } from "@workspace/i18n"
 import { UiI18nProvider } from "@workspace/i18n/react"
 import { bindWorkspaceRequestLocale } from "@workspace/admin/auth"
+import { configureApiClient } from "@workspace/api-client"
 import {
   AdminDirectionProvider,
   ThemeProvider,
@@ -11,6 +12,7 @@ import "@workspace/ui/globals.css"
 import { PlatformRouter } from "./platform-router"
 
 const uiI18n = createUiI18n()
+configureApiClient({ baseUrl: window.location.origin })
 bindWorkspaceRequestLocale(uiI18n)
 
 createRoot(document.getElementById("root")!).render(

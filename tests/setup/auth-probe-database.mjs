@@ -8,7 +8,7 @@ export async function startAuthProbeDatabase() {
   const versions = JSON.parse(
     await readFile("docs/architecture/versions.json", "utf8")
   )
-  const passwords = Array.from({ length: 4 }, () =>
+  const passwords = Array.from({ length: 5 }, () =>
     randomBytes(24).toString("hex")
   )
   const container = await new GenericContainer(versions.postgresql.image)
@@ -19,6 +19,7 @@ export async function startAuthProbeDatabase() {
       APP_MIGRATOR_PASSWORD: passwords[1],
       APP_RUNTIME_PASSWORD: passwords[2],
       PLATFORM_RUNTIME_PASSWORD: passwords[3],
+      PLATFORM_DEPLOYER_PASSWORD: passwords[4],
     })
     .withCopyFilesToContainer([
       {

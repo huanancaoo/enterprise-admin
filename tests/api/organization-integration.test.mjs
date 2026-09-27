@@ -314,6 +314,22 @@ describe("S8: Organization integration invariants", () => {
       fields: { role: "project-reader", permission: body.permission },
     })
     expect(audit[0].request_id).toBeTruthy()
+
+    const visibleAudit = await fetch(
+      `${baseURL}/api/v1/organizations/${org.id}/audit-events?eventCode=role.created`,
+      { headers: { cookie: owner.cookie } }
+    )
+    expect(visibleAudit.status).toBe(200)
+    expect((await visibleAudit.json()).items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          eventCode: "role.created",
+          scope: "tenant",
+          actorId: owner.user.id,
+          resourceId: roleData.id,
+        }),
+      ])
+    )
   })
 
   it("intersects the delegated permission catalog with the actor's current permissions", async () => {
@@ -510,14 +526,14 @@ describe("S8: Organization integration invariants", () => {
       ).toBe(action === "leave" ? 1 : 2)
     }
   )
-  it("native MFA endpoints are not mounted in the production configuration", async () => {
+  it("native MFA endpoints are mounted without session assurance leakage", async () => {
     const actor = await signup()
     const response = await post(
       "two-factor/verify-totp",
       { code: "000000" },
       actor.cookie
     )
-    expect(response.status).toBe(404)
+    expect(response.status).toBe(400)
     const session = await runtime.auth.api.getSession({
       headers: actor.headers,
     })

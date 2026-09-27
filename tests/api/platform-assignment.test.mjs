@@ -1,20 +1,88 @@
 import { startTestApplication } from "../setup/test-runtime.mjs"
 import { signUpVerified } from "../setup/complete-signup.mjs"
 import { execFile } from "node:child_process"
-import { randomBytes, randomUUID } from "node:crypto"
+import { createHmac, randomBytes, randomUUID } from "node:crypto"
 import { promisify } from "node:util"
 import { beforeAll, afterAll, describe, expect, it } from "vitest"
+
+function decodeBase32(value) {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
+  let bits = ""
+  for (const character of value.toUpperCase().replace(/=+$/, "")) {
+    bits += alphabet.indexOf(character).toString(2).padStart(5, "0")
+  }
+  const bytes = []
+  for (let offset = 0; offset + 8 <= bits.length; offset += 8) {
+    bytes.push(Number.parseInt(bits.slice(offset, offset + 8), 2))
+  }
+  return Buffer.from(bytes)
+}
+
+function totp(secret, now = Date.now()) {
+  const counter = Buffer.alloc(8)
+  counter.writeBigUInt64BE(BigInt(Math.floor(now / 30_000)))
+  const digest = createHmac("sha1", decodeBase32(secret))
+    .update(counter)
+    .digest()
+  const offset = digest[digest.length - 1] & 0x0f
+  const value = (digest.readUInt32BE(offset) & 0x7fffffff) % 1_000_000
+  return value.toString().padStart(6, "0")
+}
 
 describe("platform assignment access boundary", () => {
   let environment
   let runtime, migrator, baseURL
   const origin = "http://localhost:3201"
   const signup = () =>
-    signUpVerified(baseURL, origin, migrator, { name: "Member" })
+    signUpVerified(baseURL, origin, migrator, { name: "Platform test" })
   const json = (response) => response.json()
   const platformAccess = (cookie) =>
     fetch(`${baseURL}/api/v1/me/platform`, {
       headers: cookie ? { cookie } : {},
+    })
+  const setCookies = (response) =>
+    response.headers
+      .getSetCookie()
+      .map((value) => value.split(";")[0])
+      .join("; ")
+  const cli = async (action, userId, role, reason) => {
+    const { stdout } = await promisify(execFile)(
+      process.execPath,
+      [
+        "apps/api/dist/console.js",
+        "platform",
+        "assignment",
+        action,
+        "--user-id",
+        userId,
+        "--role",
+        role,
+        "--reason",
+        reason,
+      ],
+      {
+        env: {
+          PATH: process.env.PATH,
+          PLATFORM_ASSIGNMENT_DATABASE_URL: environment.deployerURL,
+        },
+      }
+    )
+    return stdout.trim()
+  }
+  const fetchJson = (path, body, cookie) =>
+    fetch(`${baseURL}/api/auth/${path}`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin,
+        "x-real-ip": `10.${[...randomBytes(3)].join(".")}`,
+        ...(cookie ? { cookie } : {}),
+      },
+      body: JSON.stringify(body),
+    })
+  const getSession = (cookie) =>
+    fetch(`${baseURL}/api/auth/get-session`, {
+      headers: { origin, cookie },
     })
 
   beforeAll(async () => {
@@ -25,119 +93,210 @@ describe("platform assignment access boundary", () => {
     await environment?.close()
   })
 
-  it("真实 CLI 不需要邮件配置即可创建可登录的平台管理员", async () => {
-    const email = `${randomUUID()}@example.test`
-    const password = randomBytes(24).toString("hex")
-    const config = environment.config
-    const { stdout } = await promisify(execFile)(
-      process.execPath,
-      [
-        "apps/api/dist/console.js",
-        "platform",
-        "admin",
-        "create",
-        "--email",
-        email,
-        "--password",
-        password,
-        "--name",
-        "CLI 管理员",
-      ],
-      {
-        env: {
-          PATH: process.env.PATH,
-          DATABASE_URL: config.databaseURL,
-          REDIS_URL: config.redisURL,
-          BETTER_AUTH_URL: config.baseURL,
-          BETTER_AUTH_SECRET: config.secret,
-          BETTER_AUTH_TRUSTED_ORIGINS: origin,
-          // readAuthConfig 对所有环境要求 GitHub 社交登录凭据；CLI 创建
-          // 管理员不触达 GitHub，与 auth.e2e-spec 相同使用测试假凭据。
-          GITHUB_CLIENT_ID: "test-github-client-id",
-          GITHUB_CLIENT_SECRET: "test-github-client-secret",
-        },
-      }
-    )
-    expect(stdout).toMatch(/[0-9a-f]{8}-[0-9a-f-]{27}/)
-    const login = await fetch(`${baseURL}/api/auth/sign-in/email`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        origin,
-        "x-real-ip": `10.${[...randomBytes(3)].join(".")}`,
-      },
-      body: JSON.stringify({ email, password }),
-    })
-    expect(login.status).toBe(200)
-    const cookie = login.headers
-      .getSetCookie()
-      .map((value) => value.split(";")[0])
-      .join("; ")
-    expect((await platformAccess(cookie)).status).toBe(200)
-    const organizations = await fetch(`${baseURL}/api/v1/me/organizations`, {
-      headers: { cookie },
-    })
-    expect(await organizations.json()).toEqual([])
-    const messages = await migrator.query(
-      "SELECT count(*)::int AS count FROM email_messages"
-    )
-    expect(messages.rows[0].count).toBe(0)
-  })
-
-  it("rejects anonymous and organization members, then admits only a current assignment", async () => {
-    const anonymous = await platformAccess()
-    expect(anonymous.status).toBe(401)
-
+  it("deployment CLI grants only verified users and writes a transactional audit", async () => {
     const member = await signup()
-    const org = await runtime.auth.api.createOrganization({
-      headers: member.headers,
-      body: { name: "Member org", slug: randomUUID() },
-    })
-    const asMember = await platformAccess(member.cookie)
-    expect(asMember.status).toBe(403)
-    expect(await json(asMember)).toEqual(
-      expect.objectContaining({ code: "FORBIDDEN" })
-    )
-
-    await runtime.pool.query(
-      "INSERT INTO platform_assignment (user_id) VALUES ($1)",
+    expect(
+      await cli(
+        "grant",
+        member.user.id,
+        "platform_auditor",
+        "issue 19 verified target"
+      )
+    ).toBe(`grant ${member.user.id} platform_auditor`)
+    const record = await migrator.query(
+      "SELECT role, status, granted_by, grant_reason FROM platform_assignment WHERE user_id = $1",
       [member.user.id]
     )
-    const allowed = await platformAccess(member.cookie)
-    expect(allowed.status).toBe(200)
-    expect(await json(allowed)).toEqual({ userId: member.user.id })
-
-    const tenantAccess = await fetch(
-      `${baseURL}/api/v1/organizations/${org.id}/access`,
-      { headers: { cookie: member.cookie } }
+    expect(record.rows[0]).toMatchObject({
+      role: "platform_auditor",
+      status: "active",
+      granted_by: "platform_deployer",
+      grant_reason: "issue 19 verified target",
+    })
+    const audit = await migrator.query(
+      "SELECT action, result, reason, actor FROM platform_assignment_audit WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1",
+      [member.user.id]
     )
-    expect(tenantAccess.status).toBe(200)
-
-    await migrator.query("DELETE FROM platform_assignment WHERE user_id = $1", [
-      member.user.id,
+    expect(audit.rows[0]).toMatchObject({
+      action: "grant",
+      result: "changed",
+      reason: "issue 19 verified target",
+      actor: "platform_deployer",
+    })
+    await cli("grant", member.user.id, "platform_auditor", "repeat assignment")
+    await cli("grant", member.user.id, "platform_admin", "role change")
+    await cli("revoke", member.user.id, "platform_admin", "end assignment")
+    await cli("revoke", member.user.id, "platform_admin", "repeat revocation")
+    const history = await migrator.query(
+      "SELECT action, result FROM platform_assignment_audit WHERE user_id = $1 ORDER BY created_at, id",
+      [member.user.id]
+    )
+    expect(history.rows.map((item) => item.result)).toEqual([
+      "changed",
+      "no_change",
+      "changed",
+      "changed",
+      "no_change",
     ])
-    const revoked = await platformAccess(member.cookie)
-    expect(revoked.status).toBe(403)
+    expect((await platformAccess(member.cookie)).status).toBe(403)
+
+    const unverified = await runtime.auth.api.signUpEmail({
+      body: {
+        name: "Unverified",
+        email: `${randomUUID()}@example.test`,
+        password: randomBytes(24).toString("hex"),
+      },
+    })
+    await expect(
+      cli("grant", unverified.user.id, "platform_admin", "should fail")
+    ).rejects.toMatchObject({ code: 1 })
+    const notGranted = await migrator.query(
+      "SELECT 1 FROM platform_assignment WHERE user_id = $1",
+      [unverified.user.id]
+    )
+    expect(notGranted.rowCount).toBe(0)
   })
 
-  it("does not let a platform admin call tenant APIs without membership", async () => {
-    const admin = await signup()
-    await runtime.pool.query(
-      "INSERT INTO platform_assignment (user_id) VALUES ($1)",
-      [admin.user.id]
+  it("requires a TOTP assertion bound to the active session and rejects bad codes", async () => {
+    const member = await signup()
+    await cli(
+      "grant",
+      member.user.id,
+      "platform_admin",
+      "verified platform operator"
     )
-    const allowed = await platformAccess(admin.cookie)
-    expect(allowed.status).toBe(200)
-
-    const outsider = await signup()
-    const org = await runtime.auth.api.createOrganization({
-      headers: outsider.headers,
-      body: { name: "Other org", slug: randomUUID() },
+    const initiallyDenied = await platformAccess(member.cookie)
+    expect(initiallyDenied.status).toBe(403)
+    expect(await json(initiallyDenied)).toMatchObject({
+      code: "PLATFORM_MFA_REQUIRED",
     })
-    const tenantAccess = await fetch(
-      `${baseURL}/api/v1/organizations/${org.id}/access`,
-      { headers: { cookie: admin.cookie } }
+
+    const previousSession = await getSession(member.cookie).then((response) =>
+      response.json()
     )
-    expect(tenantAccess.status).toBe(403)
+    const enabled = await fetchJson(
+      "two-factor/enable",
+      { password: member.password, method: "totp", issuer: "Enterprise Admin" },
+      member.cookie
+    )
+    expect(enabled.status).toBe(200)
+    const enabledData = await json(enabled)
+    const setupSessionCookie = setCookies(enabled) || member.cookie
+    const sessionAfterEnable = await getSession(setupSessionCookie)
+    expect(sessionAfterEnable.status).toBe(200)
+    expect((await sessionAfterEnable.json()).session.id).toBe(
+      previousSession.session.id
+    )
+    const totpSecret = new URL(enabledData.totpURI).searchParams.get("secret")
+    expect(totpSecret).toBeTruthy()
+
+    const badCodeValue = totp(totpSecret) === "000000" ? "000001" : "000000"
+    const badCode = await fetchJson(
+      "two-factor/verify-totp",
+      { code: badCodeValue },
+      setupSessionCookie
+    )
+    expect(badCode.status).toBe(401)
+    expect(await json(badCode)).toMatchObject({ code: "INVALID_CODE" })
+    expect(
+      await migrator.query(
+        "SELECT 1 FROM platform_session_assurance WHERE user_id = $1",
+        [member.user.id]
+      )
+    ).toMatchObject({ rowCount: 0 })
+    const stillDenied = await platformAccess(setupSessionCookie)
+    expect(await json(stillDenied)).toMatchObject({
+      code: "PLATFORM_MFA_REQUIRED",
+    })
+
+    const verified = await fetchJson(
+      "two-factor/verify-totp",
+      { code: totp(totpSecret) },
+      setupSessionCookie
+    )
+    expect(verified.status).toBe(200)
+    const verifiedSessionCookie = setCookies(verified) || setupSessionCookie
+    const verifiedSession = await getSession(verifiedSessionCookie).then(
+      (response) => response.json()
+    )
+    expect(verifiedSession.session.id).not.toBe(previousSession.session.id)
+    expect(
+      await getSession(setupSessionCookie).then((response) => response.json())
+    ).toBeNull()
+    const assurance = await migrator.query(
+      "SELECT session_id, method FROM platform_session_assurance WHERE user_id = $1",
+      [member.user.id]
+    )
+    expect(assurance.rows).toEqual([
+      expect.objectContaining({ method: "totp" }),
+    ])
+    const allowed = await platformAccess(verifiedSessionCookie)
+    expect(allowed.status).toBe(200)
+    expect(await json(allowed)).toMatchObject({
+      userId: member.user.id,
+      role: "platform_admin",
+      scope: "global",
+      mfaVerifiedAt: expect.any(String),
+    })
+
+    const other = await signup()
+    const org = await runtime.auth.api.createOrganization({
+      headers: other.headers,
+      body: { name: "Other user's organization", slug: randomUUID() },
+    })
+    expect(org.id).toBeTruthy()
+    const revoked = await cli(
+      "revoke",
+      member.user.id,
+      "platform_admin",
+      "remove platform assignment"
+    )
+    expect(revoked).toBe(`revoke ${member.user.id} platform_admin`)
+    expect((await platformAccess(verifiedSessionCookie)).status).toBe(403)
+    const tenantApi = await fetch(
+      `${baseURL}/api/v1/organizations/${org.id}/access`,
+      { headers: { cookie: verifiedSessionCookie } }
+    )
+    expect(tenantApi.status).toBe(403)
+    const signedOut = await fetchJson("sign-out", {}, verifiedSessionCookie)
+    expect(signedOut.status).toBe(200)
+    expect((await platformAccess(verifiedSessionCookie)).status).toBe(401)
+  })
+
+  it("keeps platform identity independent of organization membership and app_runtime grants", async () => {
+    const user = await signup()
+    await expect(
+      runtime.pool.query("SELECT * FROM platform_assignment")
+    ).rejects.toMatchObject({
+      code: "42501",
+    })
+    await expect(
+      environment.platformPool.query("SELECT * FROM platform_assignment")
+    ).rejects.toMatchObject({
+      code: "42501",
+    })
+    await expect(
+      runtime.pool.query("SELECT public.read_platform_access($1, $2)", [
+        user.user.id,
+        randomUUID(),
+      ])
+    ).rejects.toMatchObject({
+      code: "42501",
+    })
+    expect(
+      (
+        await environment.platformPool.query(
+          "SELECT * FROM public.read_platform_access($1, $2)",
+          [user.user.id, randomUUID()]
+        )
+      ).rowCount
+    ).toBe(0)
+    const attemptedHttpGrant = await fetch(`${baseURL}/api/v1/me/platform`, {
+      method: "POST",
+      headers: { cookie: user.cookie, "content-type": "application/json" },
+      body: JSON.stringify({ userId: user.user.id, role: "platform_admin" }),
+    })
+    expect([404, 405]).toContain(attemptedHttpGrant.status)
+    expect((await platformAccess(user.cookie)).status).toBe(403)
   })
 })

@@ -13,6 +13,7 @@
   "ORGANIZATION_NOT_FOUND": "组织不存在",
   "ORGANIZATION_SLUG_ALREADY_TAKEN": "该组织标识已被使用",
   "ORGANIZATION_SUSPENDED": "该组织已停用",
+  "PLATFORM_MFA_REQUIRED": "平台访问需要当前会话的双重验证。",
   "SINGLE_ROLE_REQUIRED": "每位成员只能分配一个角色",
   "UNAUTHENTICATED": "请先登录",
   "USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION": "该用户已是组织成员",

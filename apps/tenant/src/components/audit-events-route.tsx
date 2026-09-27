@@ -139,9 +139,12 @@ export function AuditEventsRoute() {
     "member.left": t("organization:audit_event_member_left"),
     "member.removed": t("organization:audit_event_member_removed"),
     "member.role_changed": t("organization:audit_event_member_role_changed"),
-    "organization.settings.updated": t(
+    "organization.settings_updated": t(
       "organization:audit_event_organization_settings_updated"
     ),
+    "role.created": t("organization:audit_event_role_created"),
+    "role.updated": t("organization:audit_event_role_updated"),
+    "role.deleted": t("organization:audit_event_role_deleted"),
     "platform.organization_resumed": t(
       "organization:audit_event_platform_organization_resumed"
     ),

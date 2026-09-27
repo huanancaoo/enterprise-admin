@@ -11,6 +11,7 @@
   "permissionDenied": "你没有查看或修改组织语言设置的权限。",
   "personalDescription": "选择固定语言，或跟随当前组织和平台默认值。",
   "personalSettings": "个人语言设置",
+  "readOnly": "你可以查看此组织设置，但无权修改。",
   "save": "保存",
   "saved": "语言设置已保存。",
   "saveError": "语言设置保存失败，草稿仍保留。",

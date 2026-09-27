@@ -12,9 +12,9 @@
       "types": "./dist/auth.d.ts",
       "default": "./dist/auth.js"
     },
-    "./platform-admin": {
-      "types": "./dist/platform-admin.d.ts",
-      "default": "./dist/platform-admin.js"
+    "./platform-assignment-admin": {
+      "types": "./dist/platform-assignment-admin.d.ts",
+      "default": "./dist/platform-assignment-admin.js"
     },
     "./tenant": {
       "types": "./dist/tenant.d.ts",

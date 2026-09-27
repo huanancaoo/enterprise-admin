@@ -18,6 +18,10 @@
     "@workspace/admin": "workspace:*",
     "@tanstack/react-router": "1.170.36",
     "@workspace/i18n": "workspace:*",
+    "@workspace/contracts": "workspace:*",
+    "@workspace/api-client": "workspace:*",
+    "@tanstack/react-form": "1.33.5",
+    "zod": "4.6.5",
     "lucide-react": "1.46.0",
     "react-i18next": "17.0.14"
   },

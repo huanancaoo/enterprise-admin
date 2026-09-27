@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 import { Module } from '@nestjs/common';
 import { CommandFactory } from 'nest-commander';
-import { PlatformAdminCreateCommand } from './platform/platform-admin-create.command';
+import {
+  PlatformAssignmentGrantCommand,
+  PlatformAssignmentRevokeCommand,
+} from './platform/platform-assignment.command';
 import {
   EnterpriseAdminCommand,
-  PlatformAdminCommand,
+  PlatformAssignmentCommand,
   PlatformCommand,
 } from './platform/platform.command';
 
@@ -12,8 +15,9 @@ import {
   providers: [
     EnterpriseAdminCommand,
     PlatformCommand,
-    PlatformAdminCommand,
-    PlatformAdminCreateCommand,
+    PlatformAssignmentCommand,
+    PlatformAssignmentGrantCommand,
+    PlatformAssignmentRevokeCommand,
   ],
 })
 class ConsoleModule {}

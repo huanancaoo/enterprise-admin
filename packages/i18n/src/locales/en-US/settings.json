@@ -11,6 +11,7 @@
   "permissionDenied": "You do not have permission to view or change organization language settings.",
   "personalDescription": "Choose a fixed language or follow the current organization's and platform defaults.",
   "personalSettings": "Personal language settings",
+  "readOnly": "You can view this organization's settings, but you cannot change them.",
   "save": "Save",
   "saved": "Language settings saved.",
   "saveError": "Language settings could not be saved. Your draft is still here.",

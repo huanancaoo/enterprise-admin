@@ -154,7 +154,7 @@ describe(
       const versions = JSON.parse(
         await readFile('../../docs/architecture/versions.json', 'utf8'),
       ) as { postgresql: { image: string }; redis: { image: string } };
-      const passwords = Array.from({ length: 4 }, () =>
+      const passwords = Array.from({ length: 5 }, () =>
         randomBytes(24).toString('hex'),
       );
       [container, redis] = await Promise.all([
@@ -166,6 +166,7 @@ describe(
             APP_MIGRATOR_PASSWORD: passwords[1],
             APP_RUNTIME_PASSWORD: passwords[2],
             PLATFORM_RUNTIME_PASSWORD: passwords[3],
+            PLATFORM_DEPLOYER_PASSWORD: passwords[4],
           })
           .withCopyFilesToContainer([
             {
@@ -203,6 +204,7 @@ describe(
       app = await createApplication(
         {
           databaseURL: url('app_runtime', passwords[2]),
+          platformDatabaseURL: url('platform_runtime', passwords[3]),
           redisURL: `redis://${redis.getHost()}:${redis.getMappedPort(6379)}`,
           baseURL: 'http://localhost:3000',
           secret: randomBytes(32).toString('hex'),

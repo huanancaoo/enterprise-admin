@@ -37,6 +37,13 @@ import {
   useOrganizationWorkspace,
 } from "@/hooks/use-organization-workspace"
 import { authClient } from "@/lib/auth-client"
+import { isOrganizationRolesPath } from "@/lib/organization-route"
+import {
+  cancelOrganizationSwitchLocale,
+  preserveLocaleOnOrganizationSwitch,
+  shouldApplyOrganizationLocale,
+} from "@/lib/organization-locale-sync"
+import { getOrganizationSettingsPermissionsOptions } from "@/query/organization-settings-permissions"
 import {
   CreateOrganizationDialog,
   OrganizationUnavailable,
@@ -50,8 +57,8 @@ export function AdminLayout() {
     "common",
     "errors",
   ])
-  const uiLocale = useUiLocale()
   const session = useAuthenticatedSession()!
+  const uiLocale = useUiLocale()
   const workspace = useOrganizationWorkspace()
   const queryClient = useQueryClient()
   const params = useParams({ strict: false })
@@ -73,8 +80,7 @@ export function AdminLayout() {
   const currentOrganizationId = organizationId ?? activeOrganization.data
   const organizations = workspace.workspace.data ?? []
   const onMembers = pathname.startsWith("/app/members/")
-  const onRoles =
-    pathname.startsWith("/app/organizations/") && pathname.endsWith("/roles")
+  const onRoles = isOrganizationRolesPath(pathname)
   const onOrganizationSettings =
     pathname.startsWith("/app/organizations/") && pathname.endsWith("/settings")
   const onPersonalSettings = pathname === "/app/settings/preferences"
@@ -85,29 +91,28 @@ export function AdminLayout() {
     ...getOrganizationAccessOptions(currentOrganizationId ?? ""),
     enabled: Boolean(currentOrganizationId),
   })
-  const settingsPermission = useQuery({
-    queryKey: [
-      "organizations",
-      currentOrganizationId,
-      "tenant-settings-permission",
-    ],
+  const settingsPermissions = useQuery({
+    ...getOrganizationSettingsPermissionsOptions(currentOrganizationId ?? ""),
     enabled: Boolean(currentOrganizationId),
-    retry: false,
-    queryFn: async () => {
-      const result = await authClient.organization.getActiveMemberRole({
-        query: { organizationId: currentOrganizationId ?? "" },
-      })
-      if (result.error) throw new Error(result.error.message)
-      return result.data.role
-        .split(",")
-        .some((role) => role === "owner" || role === "admin")
-    },
   })
   useEffect(() => {
     const nextLocale = access.data?.data.effectiveLocale
-    if (nextLocale && nextLocale !== uiLocale)
-      void i18n.changeLanguage(nextLocale)
-  }, [access.data?.data.effectiveLocale, i18n, uiLocale])
+    if (!currentOrganizationId || !nextLocale) return
+    if (
+      !shouldApplyOrganizationLocale({
+        userId: session.user.id,
+        organizationId: currentOrganizationId,
+        locale: nextLocale,
+      })
+    )
+      return
+    void i18n.changeLanguage(nextLocale)
+  }, [
+    access.data?.data.effectiveLocale,
+    currentOrganizationId,
+    i18n,
+    session.user.id,
+  ])
   useEffect(() => {
     if (
       !currentOrganizationId ||
@@ -176,9 +181,21 @@ export function AdminLayout() {
     access.error.body.code === "ORGANIZATION_SUSPENDED"
 
   async function selectOrganization(nextOrganizationId: string) {
+    const nextLocaleSnapshot = {
+      userId: session.user.id,
+      organizationId: nextOrganizationId,
+      locale: uiLocale,
+    }
+    if (nextOrganizationId !== currentOrganizationId)
+      preserveLocaleOnOrganizationSwitch(nextLocaleSnapshot)
     const target = organizations.find((item) => item.id === nextOrganizationId)
     if (target?.status === "ACTIVE") {
-      if (!(await workspace.selectOrganization(nextOrganizationId))) return
+      if (!(await workspace.selectOrganization(nextOrganizationId))) {
+        cancelOrganizationSwitchLocale(nextLocaleSnapshot)
+        return
+      }
+    } else {
+      cancelOrganizationSwitchLocale(nextLocaleSnapshot)
     }
     if (onRoles) {
       await navigate({
@@ -214,6 +231,18 @@ export function AdminLayout() {
       params: { organizationId: nextOrganizationId },
       search: params.projectId ? {} : { ...projectListSearch, page: 1 },
     })
+  }
+
+  async function createOrganization(input: { name: string; slug: string }) {
+    const nextOrganizationId = await workspace.createOrganization(input)
+    if (nextOrganizationId) {
+      preserveLocaleOnOrganizationSwitch({
+        userId: session.user.id,
+        organizationId: nextOrganizationId,
+        locale: uiLocale,
+      })
+    }
+    return nextOrganizationId
   }
 
   return (
@@ -288,7 +317,7 @@ export function AdminLayout() {
               disabled: !currentOrganizationId || suspended,
               render: rolesLink,
             },
-            ...(settingsPermission.data
+            ...(settingsPermissions.data?.canRead
               ? [
                   {
                     title: t("settings:organizationSettings"),
@@ -349,7 +378,7 @@ export function AdminLayout() {
       <CreateOrganizationDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
-        createOrganization={workspace.createOrganization}
+        createOrganization={createOrganization}
         pending={workspace.pending}
         error={workspace.error}
         onCreated={(nextOrganizationId) => {

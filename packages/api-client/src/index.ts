@@ -1,4 +1,4 @@
-export { ApiClientError, configureApiClient } from "./http/client"
+export { ApiClientError, apiClient, configureApiClient } from "./http/client"
 export type { ApiClientConfig } from "./http/client"
 export {
   bindRequestLocale,

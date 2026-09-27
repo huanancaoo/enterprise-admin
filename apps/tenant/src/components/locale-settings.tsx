@@ -33,6 +33,7 @@ import {
   SelectValue,
 } from "@workspace/ui/components/select"
 import { authClient } from "@/lib/auth-client"
+import { getOrganizationSettingsPermissionsOptions } from "@/query/organization-settings-permissions"
 
 const personalLocaleSchema = z.object({
   preferredLocale: SupportedLocaleSchema.nullable(),
@@ -48,6 +49,7 @@ function LocaleSelect({
   inheritLabel,
   invalid,
   onBlur,
+  disabled = false,
 }: {
   id: string
   value: string
@@ -55,6 +57,7 @@ function LocaleSelect({
   inheritLabel: string
   invalid?: boolean
   onBlur?: () => void
+  disabled?: boolean
 }) {
   return (
     <Select
@@ -70,7 +73,12 @@ function LocaleSelect({
       }}
       onValueChange={onChange}
     >
-      <SelectTrigger id={id} onBlur={onBlur} aria-invalid={invalid}>
+      <SelectTrigger
+        id={id}
+        onBlur={onBlur}
+        aria-invalid={invalid}
+        disabled={disabled}
+      >
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -196,12 +204,6 @@ export function PersonalLocaleSettingsRoute() {
     if (!preferences.data || form.state.isDirty) return
     form.reset({ preferredLocale: preferences.data.data.preferredLocale })
   }, [form, form.state.isDirty, preferences.data])
-  useEffect(() => {
-    if (preferences.data?.data.preferredLocale) return
-    const inherited = activeAccess.data?.data.effectiveLocale
-    if (inherited && inherited !== locale) void i18n.changeLanguage(inherited)
-  }, [activeAccess.data?.data.effectiveLocale, i18n, locale, preferences.data])
-
   if (preferences.isPending) return <p role="status">{t("common:loading")}</p>
   if (preferences.error) return <p role="alert">{t("loadError")}</p>
   const source = preferences.data.data.preferredLocale
@@ -309,6 +311,9 @@ export function OrganizationLocaleSettingsRoute({
   const { t } = useTranslation(["settings", "common"])
   const queryClient = useQueryClient()
   const settings = useQuery(getOrganizationSettingsOptions(organizationId))
+  const permissions = useQuery(
+    getOrganizationSettingsPermissionsOptions(organizationId)
+  )
   const id = useId()
   const [submitError, setSubmitError] = useState<string>()
   const [saved, setSaved] = useState(false)
@@ -355,17 +360,19 @@ export function OrganizationLocaleSettingsRoute({
     form.reset({ defaultLocale: settings.data.data.defaultLocale })
   }, [form, form.state.isDirty, settings.data])
 
-  if (settings.isPending) return <p role="status">{t("common:loading")}</p>
-  if (settings.error) {
+  if (settings.isPending || permissions.isPending)
+    return <p role="status">{t("common:loading")}</p>
+  if (settings.error || permissions.error) {
+    const error = settings.error ?? permissions.error
     return (
       <p role="alert" className="text-sm text-destructive">
-        {settings.error instanceof ApiClientError &&
-        settings.error.status === 403
+        {error instanceof ApiClientError && error.status === 403
           ? t("permissionDenied")
           : t("loadError")}
       </p>
     )
   }
+  const canUpdate = permissions.data?.canUpdate === true
   return (
     <section className="max-w-2xl space-y-6">
       <header className="space-y-1">
@@ -373,6 +380,9 @@ export function OrganizationLocaleSettingsRoute({
         <p className="text-sm text-muted-foreground">
           {t("organizationDescription")}
         </p>
+        {!canUpdate && (
+          <p className="text-sm text-muted-foreground">{t("readOnly")}</p>
+        )}
       </header>
       <form
         onSubmit={(event) => {
@@ -382,7 +392,10 @@ export function OrganizationLocaleSettingsRoute({
         className="space-y-6"
         aria-busy={form.state.isSubmitting}
       >
-        <fieldset disabled={form.state.isSubmitting} className="contents">
+        <fieldset
+          disabled={form.state.isSubmitting || !canUpdate}
+          className="contents"
+        >
           <FieldGroup>
             <form.Field name="defaultLocale">
               {(field) => {
@@ -399,6 +412,7 @@ export function OrganizationLocaleSettingsRoute({
                       value={field.state.value ?? "__inherit__"}
                       inheritLabel={t("followPlatform")}
                       invalid={invalid}
+                      disabled={!canUpdate}
                       onBlur={field.handleBlur}
                       onChange={(value) =>
                         field.handleChange(
@@ -424,9 +438,11 @@ export function OrganizationLocaleSettingsRoute({
               {t("saved")}
             </p>
           )}
-          <Button type="submit" disabled={form.state.isSubmitting}>
-            {form.state.isSubmitting ? t("saving") : t("save")}
-          </Button>
+          {canUpdate && (
+            <Button type="submit" disabled={form.state.isSubmitting}>
+              {form.state.isSubmitting ? t("saving") : t("save")}
+            </Button>
+          )}
         </fieldset>
       </form>
     </section>

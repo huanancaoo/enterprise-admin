@@ -41,6 +41,7 @@
     "@tanstack/react-router": "1.170.36",
     "zod": "4.6.5",
     "@workspace/api-client": "workspace:*",
+    "@workspace/permissions": "workspace:*",
     "@workspace/i18n": "workspace:*",
     "react-i18next": "17.0.14"
   },

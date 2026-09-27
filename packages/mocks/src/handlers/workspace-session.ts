@@ -72,5 +72,21 @@ export function createWorkspaceSessionHandlers(options?: {
       activeId = body.organizationId
       return HttpResponse.json(team)
     }),
+    http.post("*/api/auth/organization/has-permission", async ({ request }) => {
+      const body = (await request.json()) as {
+        organizationId: string
+        permissions?: { tenantSettings?: string[] }
+      }
+      const team = teams.find((item) => item.id === body.organizationId)
+      const grantedActions = new Set(["read", "update"])
+      const requestedActions = body.permissions?.tenantSettings ?? []
+      const success =
+        team?.status === "ACTIVE" &&
+        requestedActions.every((action) => grantedActions.has(action))
+      return HttpResponse.json({
+        success,
+        error: success ? null : "ROLE_MISMATCH",
+      })
+    }),
   ]
 }

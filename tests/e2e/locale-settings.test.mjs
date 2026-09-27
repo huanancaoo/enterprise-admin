@@ -111,6 +111,11 @@ describe("S8-09：浏览器中的个人与组织语言设置", () => {
     await page.getByRole("button", { name: "حفظ", exact: true }).click()
     await expectUI(page.locator("html")).toHaveAttribute("lang", "en-US")
 
+    const createHeaders = []
+    page.on("request", (request) => {
+      if (request.url().endsWith("/api/auth/organization/create"))
+        createHeaders.push(request.headers()["accept-language"])
+    })
     await page.getByRole("button", { name: /语言组织甲/ }).click()
     await page
       .getByRole("menuitem", { name: "Create organization", exact: true })
@@ -126,15 +131,53 @@ describe("S8-09：浏览器中的个人与组织语言设置", () => {
     await dialog
       .getByLabel("Organization identifier", { exact: true })
       .fill(secondOrganization.slug)
+    const createResponse = page.waitForResponse((response) =>
+      response.url().endsWith("/api/auth/organization/create")
+    )
     await dialog
       .getByRole("button", { name: "Create organization", exact: true })
       .click()
-    await expectUI(page.locator("html")).toHaveAttribute("lang", "zh-CN")
+    await createResponse
+    await expectUI(page).toHaveURL(/\/app\/projects\/[0-9a-f-]+(?:\?.*)?$/)
+    await expectUI(page.locator("html")).toHaveAttribute("lang", "en-US")
+    expect(createHeaders).toEqual(["en-US"])
     const second = await environment.migrator.query(
       "SELECT id, default_locale_version FROM organization WHERE slug = $1",
       [secondOrganization.slug]
     )
     const secondOrganizationId = second.rows[0].id
+
+    await page.getByRole("button", { name: /语言设置管理员/ }).click()
+    await page.getByRole("menuitem", { name: "Language", exact: true }).click()
+    await page
+      .getByRole("menuitemradio", { name: "العربية", exact: true })
+      .click()
+    await expectUI(page.locator("html")).toHaveAttribute("lang", "ar")
+
+    const switchHeaders = []
+    page.on("request", (request) => {
+      if (request.url().endsWith("/api/auth/organization/set-active"))
+        switchHeaders.push(request.headers()["accept-language"])
+    })
+    const switchOrganization = async (currentName, nextName) => {
+      await page.getByRole("button", { name: new RegExp(currentName) }).click()
+      const response = page.waitForResponse((item) =>
+        item.url().endsWith("/api/auth/organization/set-active")
+      )
+      await page.getByRole("menuitem", { name: new RegExp(nextName) }).click()
+      await response
+      await expectUI(page.locator("html")).toHaveAttribute("lang", "ar")
+    }
+    await switchOrganization("语言组织乙", "语言组织甲")
+    await switchOrganization("语言组织甲", "语言组织乙")
+    expect(switchHeaders).toEqual(["ar", "ar"])
+
+    await page.getByRole("button", { name: /语言设置管理员/ }).click()
+    await page.getByRole("menuitem", { name: "اللغة", exact: true }).click()
+    await page
+      .getByRole("menuitemradio", { name: "简体中文", exact: true })
+      .click()
+    await expectUI(page.locator("html")).toHaveAttribute("lang", "zh-CN")
 
     await page.getByRole("link", { name: "组织语言设置", exact: true }).click()
     await page.getByRole("combobox", { name: "语言", exact: true }).click()
@@ -164,5 +207,69 @@ describe("S8-09：浏览器中的个人与组织语言设置", () => {
     await page.getByRole("button", { name: "保存", exact: true }).click()
     await expectUI(page.locator("html")).toHaveAttribute("lang", "ar")
     expect(firstOrganizationId).not.toBe(secondOrganizationId)
+
+    await environment.migrator.query(
+      `INSERT INTO organization_role (id, organization_id, role, permission)
+       VALUES ($1, $2, 'locale_reader', $3)`,
+      [
+        randomUUID(),
+        secondOrganizationId,
+        JSON.stringify({ tenantSettings: ["read"] }),
+      ]
+    )
+    const backupOwner = await signUpVerified(
+      environment.baseURL,
+      tenantOrigin,
+      environment.migrator,
+      {
+        name: "备用组织所有者",
+        email: `locale-owner-${randomUUID()}@example.test`,
+        password: randomBytes(24).toString("hex"),
+      }
+    )
+    await environment.migrator.query(
+      `INSERT INTO member (id, organization_id, user_id, role, created_at)
+       VALUES ($1, $2, $3, 'owner', now())`,
+      [randomUUID(), secondOrganizationId, backupOwner.user.id]
+    )
+    await environment.migrator.query(
+      `UPDATE member SET role = 'locale_reader'
+       WHERE organization_id = $1 AND user_id = $2`,
+      [secondOrganizationId, account.user.id]
+    )
+    await page.reload()
+    const navigation = page.getByRole("navigation", {
+      name: "التنقل الرئيسي",
+    })
+    await expectUI(
+      navigation.getByRole("link", {
+        name: "إعدادات لغة المؤسسة",
+        exact: true,
+      })
+    ).toBeVisible()
+    await expectUI(
+      page.getByText("يمكنك عرض إعدادات هذه المؤسسة، ولكن لا يمكنك تغييرها.", {
+        exact: true,
+      })
+    ).toBeVisible()
+    await expectUI(
+      page.getByRole("combobox", { name: "اللغة", exact: true })
+    ).toBeDisabled()
+    await expectUI(
+      page.getByRole("button", { name: "حفظ", exact: true })
+    ).toHaveCount(0)
+
+    await environment.migrator.query(
+      `UPDATE member SET role = 'member'
+       WHERE organization_id = $1 AND user_id = $2`,
+      [secondOrganizationId, account.user.id]
+    )
+    await page.reload()
+    await expectUI(
+      navigation.getByRole("link", {
+        name: "إعدادات لغة المؤسسة",
+        exact: true,
+      })
+    ).toHaveCount(0)
   })
 })

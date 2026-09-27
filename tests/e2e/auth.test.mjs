@@ -884,16 +884,44 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
           event.eventCode === "project.deleted"
       )
     ).toBe(true)
-
     await page.goto(
-      `${tenantOrigin}/app/organizations/${organizationId}/audit`
+      `${tenantOrigin + "/"}app/projects/${organizationId}/${projectId}`
     )
+    await expectUI(
+      page.getByRole("heading", { name: "未找到项目", exact: true })
+    ).toBeVisible()
+    await createTenantRunner(runtime.pool)(tenant, (tx) =>
+      tx.insert(auditEvents).values([
+        {
+          organizationId,
+          scope: "tenant",
+          tenantVisible: true,
+          eventCode: "organization.settings_updated",
+          actorId: tenant.userId,
+          requestId: "e2e-audit-organization-settings-updated",
+          fields: { previousDefaultLocale: "zh-CN", defaultLocale: "en-US" },
+        },
+        ...["created", "updated", "deleted"].map((action) => ({
+          organizationId,
+          scope: "tenant",
+          tenantVisible: true,
+          eventCode: `role.${action}`,
+          actorId: tenant.userId,
+          resourceType: "organization_role",
+          requestId: `e2e-audit-role-${action}`,
+          fields: {
+            role: "billing_manager",
+            permission: { project: ["read"] },
+          },
+        })),
+      ])
+    )
+
+    await page.goto(`${tenantOrigin}/app/organizations/${organizationId}/audit`)
     await expectUI(
       page.getByRole("heading", { name: "审计", exact: true })
     ).toBeVisible()
-    const deletionEvent = page
-      .getByRole("row")
-      .filter({ hasText: "删除项目" })
+    const deletionEvent = page.getByRole("row").filter({ hasText: "删除项目" })
     await expectUI(deletionEvent).toBeVisible()
     await deletionEvent
       .getByRole("button", { name: "删除项目", exact: true })
@@ -909,12 +937,51 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await page.getByRole("button", { name: "清除筛选", exact: true }).click()
     await expectUI(eventCodeFilter).toHaveValue("")
 
-    await page.goto(
-      `${tenantOrigin + "/"}app/projects/${organizationId}/${projectId}`
-    )
-    await expectUI(
-      page.getByRole("heading", { name: "未找到项目", exact: true })
-    ).toBeVisible()
+    const expectAuditEventLabels = async (labels) => {
+      for (const label of labels) {
+        await expectUI(
+          page.getByRole("button", { name: label, exact: true })
+        ).toBeVisible()
+      }
+    }
+    const selectAuditLocale = async (currentLanguage, locale) => {
+      await openAdminUserMenu(page, "项目删除用户")
+      await page
+        .getByRole("menuitem", { name: currentLanguage, exact: true })
+        .focus()
+      const submenuDirection =
+        (await page.locator("html").getAttribute("dir")) === "rtl"
+          ? "ArrowLeft"
+          : "ArrowRight"
+      await page.keyboard.press(submenuDirection)
+      const localeOption = page.getByRole("menuitemradio", {
+        name: locale,
+        exact: true,
+      })
+      await expectUI(localeOption).toBeVisible()
+      await localeOption.focus()
+      await page.keyboard.press("Enter")
+    }
+    await expectAuditEventLabels([
+      "更新组织设置",
+      "创建角色",
+      "更新角色",
+      "删除角色",
+    ])
+    await selectAuditLocale("语言", "English")
+    await expectAuditEventLabels([
+      "Organization settings updated",
+      "Role created",
+      "Role updated",
+      "Role deleted",
+    ])
+    await selectAuditLocale("Language", "العربية")
+    await expectAuditEventLabels([
+      "تحديث إعدادات المؤسسة",
+      "إنشاء دور",
+      "تحديث دور",
+      "حذف دور",
+    ])
   })
 
   it("S7：完整业务流程 Login → Org → Create → Edit → DataTable Filter/Sort/Pagination → Delete 并验证审计与持久化", async () => {
@@ -1532,17 +1599,14 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await page.getByLabel("密码", { exact: true }).fill(credentials.password)
     await page.getByRole("button", { name: "登录", exact: true }).click()
     await expectUI(
-      page.getByRole("heading", { name: "账户已登录", exact: true })
+      page.getByRole("heading", { name: "无权访问平台后台", exact: true })
     ).toBeVisible()
     await expectUI(
-      page.getByText("上次登录：邮箱", { exact: true })
-    ).toBeVisible()
+      page.getByText("平台功能尚未开放。", { exact: true })
+    ).toHaveCount(0)
     await page.reload()
     await expectUI(
-      page.getByText("platform-login@example.test", { exact: true })
-    ).toBeVisible()
-    await expectUI(
-      page.getByText("上次登录：邮箱", { exact: true })
+      page.getByRole("heading", { name: "无权访问平台后台", exact: true })
     ).toBeVisible()
     await page.screenshot({
       path: "test-results/s4-02/platform.png",
@@ -1551,9 +1615,13 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await expectUI(
       page.getByRole("button", { name: "创建组织", exact: true })
     ).toHaveCount(0)
-    await signOutFromAppShell(page, "普通账号")
-    await page.getByRole("heading", { name: "登录", exact: true }).waitFor()
-    await page.reload()
+    const signedOut = await page
+      .context()
+      .request.post(`${platformOrigin}/api/auth/sign-out`, {
+        headers: { origin: platformOrigin },
+      })
+    expect(signedOut.status()).toBe(200)
+    await page.goto(`${platformOrigin}/platform`)
     await expectUI(
       page.getByRole("heading", { name: "登录", exact: true })
     ).toBeVisible()
