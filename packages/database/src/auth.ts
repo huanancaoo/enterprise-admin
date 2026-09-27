@@ -15,7 +15,12 @@ import {
 } from "better-auth/api"
 import { randomUUID } from "node:crypto"
 import type { Pool } from "pg"
-import { permissionStatements, projectActions } from "@workspace/permissions"
+import {
+  builtInOrganizationRoleKeys,
+  delegableRolePermissions,
+  permissionStatements,
+  projectActions,
+} from "@workspace/permissions"
 import {
   isOrganizationMember,
   readOrganizationStatus,
@@ -74,8 +79,57 @@ export const noopAuthEmailHooks: AuthEmailHooks = {
 const ac = createAccessControl({
   ...defaultStatements,
   ...permissionStatements,
-  member: [...defaultStatements.member, "read"],
+  member: [...defaultStatements.member, ...permissionStatements.member],
 })
+
+const delegatedPermissionActions: Record<string, readonly string[]> =
+  delegableRolePermissions
+
+function assertCustomRoleDefinition(body: Record<string, unknown>) {
+  const role = body.role
+  if (
+    typeof role !== "string" ||
+    role.length < 3 ||
+    role.length > 48 ||
+    !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])$/.test(role) ||
+    (builtInOrganizationRoleKeys as readonly string[]).includes(role) ||
+    role.startsWith("platform-")
+  ) {
+    throw new APIError("BAD_REQUEST", {
+      code: "ROLE_NAME_INVALID",
+      message: "ROLE_NAME_INVALID",
+    })
+  }
+
+  const permission = body.permission
+  if (
+    !permission ||
+    typeof permission !== "object" ||
+    Array.isArray(permission)
+  ) {
+    throw new APIError("BAD_REQUEST", {
+      code: "ROLE_PERMISSION_NOT_DELEGABLE",
+      message: "ROLE_PERMISSION_NOT_DELEGABLE",
+    })
+  }
+
+  for (const [resource, actions] of Object.entries(permission)) {
+    const allowedActions = delegatedPermissionActions[resource]
+    if (
+      !allowedActions ||
+      !Array.isArray(actions) ||
+      actions.some(
+        (action) =>
+          typeof action !== "string" || !allowedActions.includes(action)
+      )
+    ) {
+      throw new APIError("BAD_REQUEST", {
+        code: "ROLE_PERMISSION_NOT_DELEGABLE",
+        message: "ROLE_PERMISSION_NOT_DELEGABLE",
+      })
+    }
+  }
+}
 
 const memberManagementWritePaths = new Set([
   "/organization/update-member-role",
@@ -354,6 +408,12 @@ export function createAuth(
             isRoleUpdate && typeof role === "string" ? role.trim() : undefined
           )
         }
+      }
+      if (
+        endpointContext.path === "/organization/create-role" &&
+        endpointContext.body
+      ) {
+        assertCustomRoleDefinition(endpointContext.body)
       }
     }
   )

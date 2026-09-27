@@ -76,6 +76,26 @@ describe("S8: Organization integration invariants", () => {
       reader.release()
     }
   }
+  const roleAudit = async (organizationId, roleId) => {
+    const reader = await migrator.connect()
+    try {
+      await reader.query("BEGIN")
+      await reader.query("SELECT set_config('app.organization_id', $1, true)", [
+        organizationId,
+      ])
+      return (
+        await reader.query(
+          `SELECT event_code, actor_id, request_id, fields FROM audit_events
+           WHERE organization_id = $1 AND resource_id = $2
+           ORDER BY occurred_at, id`,
+          [organizationId, roleId]
+        )
+      ).rows
+    } finally {
+      await reader.query("ROLLBACK")
+      reader.release()
+    }
+  }
   const signup = () =>
     signUpVerified(baseURL, origin, migrator, { name: "S8 probe" })
   const organization = async (actor) =>
@@ -171,6 +191,176 @@ describe("S8: Organization integration invariants", () => {
         )
       ).rowCount
     ).toBe(1)
+  })
+
+  it("creates and lists delegated roles, assigns them through the native member API, and audits creation", async () => {
+    const owner = await signup()
+    const member = await signup()
+    const org = await organization(owner)
+    const body = {
+      organizationId: org.id,
+      role: "project-reader",
+      permission: { project: ["read"], member: ["read"] },
+    }
+
+    const invalidNames = [
+      "ab",
+      "Project-reader",
+      "owner",
+      "platform-admin",
+      "comma,role",
+    ]
+    for (const role of invalidNames) {
+      const rejected = await post(
+        "organization/create-role",
+        { ...body, role },
+        owner.cookie
+      )
+      expect(rejected.status).toBe(400)
+      expect((await rejected.json()).code).toBe("ROLE_NAME_INVALID")
+    }
+
+    for (const permission of [
+      { ac: ["create"] },
+      { tenantSettings: ["update"] },
+      { platform: ["organization:read"] },
+    ]) {
+      const rejected = await post(
+        "organization/create-role",
+        { ...body, role: "blocked-role", permission },
+        owner.cookie
+      )
+      expect(rejected.ok).toBe(false)
+    }
+
+    const accessControlReader = await post(
+      "organization/create-role",
+      {
+        organizationId: org.id,
+        role: "ac-reader",
+        permission: { ac: ["read"] },
+      },
+      owner.cookie
+    )
+    expect(accessControlReader.status).toBe(400)
+    expect((await accessControlReader.json()).code).toBe(
+      "ROLE_PERMISSION_NOT_DELEGABLE"
+    )
+
+    const unregisteredAction = await post(
+      "organization/create-role",
+      {
+        ...body,
+        role: "settings-reader",
+        permission: { tenantSettings: ["read"] },
+      },
+      owner.cookie
+    )
+    expect(unregisteredAction.ok).toBe(false)
+    expect((await unregisteredAction.json()).code).toBe("INVALID_RESOURCE")
+
+    const created = await post("organization/create-role", body, owner.cookie)
+    expect(created.status).toBe(200)
+    const roleData = (await created.json()).roleData
+    expect(roleData).toMatchObject({
+      role: "project-reader",
+      permission: body.permission,
+    })
+
+    const listed = await fetch(
+      `${baseURL}/api/auth/organization/list-roles?organizationId=${org.id}`,
+      { headers: { cookie: owner.cookie } }
+    )
+    expect(listed.status).toBe(200)
+    expect((await listed.json()).map((role) => role.role)).toContain(
+      "project-reader"
+    )
+
+    const duplicate = await post("organization/create-role", body, owner.cookie)
+    expect(duplicate.ok).toBe(false)
+    const sameNameInOtherOrganization = await organization(owner)
+    const otherOrganizationRole = await post(
+      "organization/create-role",
+      { ...body, organizationId: sameNameInOtherOrganization.id },
+      owner.cookie
+    )
+    expect(otherOrganizationRole.status).toBe(200)
+
+    const memberRow = await runtime.auth.api.addMember({
+      headers: owner.headers,
+      body: { organizationId: org.id, userId: member.user.id, role: "member" },
+    })
+    await post(
+      "organization/update-member-role",
+      {
+        organizationId: org.id,
+        memberId: memberRow.id,
+        role: "project-reader",
+      },
+      owner.cookie
+    ).then(async (response) => expect(response.status).toBe(200))
+    const permissionCheck = await post(
+      "organization/has-permission",
+      { organizationId: org.id, permissions: { project: ["read"] } },
+      member.cookie
+    )
+    expect(await permissionCheck.json()).toMatchObject({ success: true })
+
+    const audit = await roleAudit(org.id, roleData.id)
+    expect(audit).toHaveLength(1)
+    expect(audit[0]).toMatchObject({
+      event_code: "role.created",
+      actor_id: owner.user.id,
+      fields: { role: "project-reader", permission: body.permission },
+    })
+    expect(audit[0].request_id).toBeTruthy()
+  })
+
+  it("intersects the delegated permission catalog with the actor's current permissions", async () => {
+    const owner = await signup()
+    const manager = await signup()
+    const org = await organization(owner)
+    const managerRole = "project-reader-manager"
+    await migrator.query(
+      `INSERT INTO organization_role (organization_id, role, permission)
+       VALUES ($1, $2, $3)`,
+      [
+        org.id,
+        managerRole,
+        JSON.stringify({ ac: ["create", "read"], project: ["read"] }),
+      ]
+    )
+    const member = await runtime.auth.api.addMember({
+      headers: owner.headers,
+      body: { organizationId: org.id, userId: manager.user.id, role: "member" },
+    })
+    const promoted = await runtime.auth.api.updateMemberRole({
+      headers: await versionHeaders(owner, org.id),
+      body: { organizationId: org.id, memberId: member.id, role: managerRole },
+    })
+    expect(promoted.role).toBe(managerRole)
+
+    const denied = await post(
+      "organization/create-role",
+      {
+        organizationId: org.id,
+        role: "project-deleter",
+        permission: { project: ["delete"] },
+      },
+      manager.cookie
+    )
+    expect(denied.ok).toBe(false)
+
+    const allowed = await post(
+      "organization/create-role",
+      {
+        organizationId: org.id,
+        role: "project-reader",
+        permission: { project: ["read"] },
+      },
+      manager.cookie
+    )
+    expect(allowed.status).toBe(200)
   })
 
   it("session update failure rolls back membership and keeps invitation pending", async () => {
