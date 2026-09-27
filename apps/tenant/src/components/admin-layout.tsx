@@ -29,6 +29,7 @@ import {
 import { useTranslation } from "react-i18next"
 import {
   ApiClientError,
+  getMyPreferencesOptions,
   getOrganizationAccessOptions,
   organizationKeys,
 } from "@workspace/api-client"
@@ -59,6 +60,7 @@ export function AdminLayout() {
   ])
   const session = useAuthenticatedSession()!
   const uiLocale = useUiLocale()
+  const personalPreferences = useQuery(getMyPreferencesOptions())
   const workspace = useOrganizationWorkspace()
   const queryClient = useQueryClient()
   const params = useParams({ strict: false })
@@ -95,6 +97,28 @@ export function AdminLayout() {
     ...getOrganizationSettingsPermissionsOptions(currentOrganizationId ?? ""),
     enabled: Boolean(currentOrganizationId),
   })
+  useEffect(() => {
+    const preferredLocale = personalPreferences.data?.data.preferredLocale
+    if (
+      organizationId ||
+      !activeOrganization.isSuccess ||
+      activeOrganization.data !== null ||
+      !personalPreferences.isSuccess ||
+      personalPreferences.isFetching ||
+      !preferredLocale ||
+      i18n.resolvedLanguage === preferredLocale
+    )
+      return
+    void i18n.changeLanguage(preferredLocale)
+  }, [
+    activeOrganization.data,
+    activeOrganization.isSuccess,
+    i18n,
+    organizationId,
+    personalPreferences.data?.data.preferredLocale,
+    personalPreferences.isFetching,
+    personalPreferences.isSuccess,
+  ])
   useEffect(() => {
     const nextLocale = access.data?.data.effectiveLocale
     if (!currentOrganizationId || !nextLocale) return

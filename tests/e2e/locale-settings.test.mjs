@@ -41,6 +41,36 @@ describe("S8-09：浏览器中的个人与组织语言设置", () => {
     await environment?.close()
   })
 
+  it("无组织时刷新恢复已保存的个人语言偏好", async () => {
+    const account = await signUpVerified(
+      environment.baseURL,
+      tenantOrigin,
+      environment.migrator,
+      {
+        name: "无组织语言用户",
+        email: `locale-no-org-${randomUUID()}@example.test`,
+        password: randomBytes(24).toString("hex"),
+      }
+    )
+    await page.goto(`${tenantOrigin}/login`)
+    await page.getByLabel("邮箱", { exact: true }).fill(account.user.email)
+    await page.getByLabel("密码", { exact: true }).fill(account.password)
+    await page.getByRole("button", { name: "登录", exact: true }).click()
+    await expectUI(page).toHaveURL(/\/app(?:\/|$)/)
+    await page.goto(`${tenantOrigin}/app/settings/preferences`)
+    await page.getByRole("combobox", { name: "语言", exact: true }).click()
+    await page.getByRole("option", { name: "العربية", exact: true }).click()
+    await page.getByRole("button", { name: "保存", exact: true }).click()
+    await expectUI(page.locator("html")).toHaveAttribute("lang", "ar")
+
+    await page.reload()
+    await expectUI(page.locator("html")).toHaveAttribute("lang", "ar")
+    await expectUI(page.locator("html")).toHaveAttribute("dir", "rtl")
+    await expectUI(
+      page.getByRole("combobox", { name: "اللغة", exact: true })
+    ).toBeVisible()
+  })
+
   it("继承组织语言、保存个人偏好并在版本冲突后保留草稿", async () => {
     account = await signUpVerified(
       environment.baseURL,
@@ -100,6 +130,27 @@ describe("S8-09：浏览器中的个人与组织语言设置", () => {
     await page.getByRole("button", { name: /保存|Save|حفظ/ }).click()
     await expectUI(page.locator("html")).toHaveAttribute("lang", "ar")
     await expectUI(page.locator("html")).toHaveAttribute("dir", "rtl")
+
+    await page.locator('a[href^="/app/projects/"]').first().click()
+    await page.getByRole("button", { name: /语言设置管理员/ }).click()
+    await page.getByRole("menuitem", { name: "اللغة", exact: true }).click()
+    await page
+      .getByRole("menuitemradio", { name: "English", exact: true })
+      .click()
+    await expectUI(page.locator("html")).toHaveAttribute("lang", "en-US")
+    await page
+      .getByRole("link", { name: "Personal language settings", exact: true })
+      .click()
+    await expectUI(
+      page.getByRole("combobox", { name: "Language", exact: true })
+    ).toBeVisible()
+    await expectUI(page.locator("html")).toHaveAttribute("lang", "en-US")
+    await page.getByRole("button", { name: /语言设置管理员/ }).click()
+    await page.getByRole("menuitem", { name: "Language", exact: true }).click()
+    await page
+      .getByRole("menuitemradio", { name: "العربية", exact: true })
+      .click()
+    await expectUI(page.locator("html")).toHaveAttribute("lang", "ar")
 
     await page.getByRole("combobox", { name: "اللغة", exact: true }).click()
     await page
