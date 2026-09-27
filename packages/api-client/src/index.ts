@@ -8,6 +8,10 @@ export {
 export {
   listMyOrganizations,
   getOrganizationAccess,
+  listOrganizationAuditEvents,
+  getOrganizationAuditEvent,
+  getListOrganizationAuditEventsQueryOptions,
+  getGetOrganizationAuditEventQueryOptions,
 } from "./generated/endpoints/organizations/organizations"
 export { getOrganizationAccessOptions } from "./query/organization-access"
 export {

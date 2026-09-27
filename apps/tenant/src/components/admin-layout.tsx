@@ -18,7 +18,7 @@ import {
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
-import { FolderKanbanIcon, UsersIcon } from "lucide-react"
+import { ClipboardListIcon, FolderKanbanIcon, UsersIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import {
   ApiClientError,
@@ -47,6 +47,8 @@ export function AdminLayout() {
   const organizationId = params.organizationId
   const organizations = workspace.workspace.data ?? []
   const onMembers = pathname.startsWith("/app/members/")
+  const onAudit =
+    pathname.startsWith("/app/organizations/") && pathname.endsWith("/audit")
   useDropStaleOrganizationQueries(organizationId)
   const access = useQuery({
     ...getOrganizationAccessOptions(organizationId ?? ""),
@@ -71,6 +73,7 @@ export function AdminLayout() {
   }, [access.error, organizationId, queryClient])
   const projectListSearch =
     !onMembers &&
+    !onAudit &&
     (search.sortBy === "createdAt" || search.sortBy === "updatedAt")
       ? {
           page: search.page,
@@ -91,6 +94,13 @@ export function AdminLayout() {
   const membersLink = organizationId ? (
     <Link to="/app/members/$organizationId" params={{ organizationId }} />
   ) : undefined
+  const auditLink = organizationId ? (
+    <Link
+      to="/app/organizations/$organizationId/audit"
+      params={{ organizationId }}
+      search={{ limit: 20 }}
+    />
+  ) : undefined
   const suspended =
     access.error instanceof ApiClientError &&
     access.error.body.code === "ORGANIZATION_SUSPENDED"
@@ -104,6 +114,14 @@ export function AdminLayout() {
       await navigate({
         to: "/app/members/$organizationId",
         params: { organizationId: nextOrganizationId },
+      })
+      return
+    }
+    if (onAudit) {
+      await navigate({
+        to: "/app/organizations/$organizationId/audit",
+        params: { organizationId: nextOrganizationId },
+        search: { limit: 20 },
       })
       return
     }
@@ -131,11 +149,13 @@ export function AdminLayout() {
             )}
             <BreadcrumbItem>
               <BreadcrumbPage>
-                {onMembers
-                  ? t("organization:members")
-                  : params.projectId
-                    ? t("projects:detail")
-                    : t("projects:title")}
+                {onAudit
+                  ? t("organization:audit")
+                  : onMembers
+                    ? t("organization:members")
+                    : params.projectId
+                      ? t("projects:detail")
+                      : t("projects:title")}
               </BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
@@ -170,6 +190,13 @@ export function AdminLayout() {
               isActive: onMembers,
               disabled: !organizationId || suspended,
               render: membersLink,
+            },
+            {
+              title: t("organization:audit"),
+              icon: <ClipboardListIcon />,
+              isActive: onAudit,
+              disabled: !organizationId || suspended,
+              render: auditLink,
             },
           ],
         },
@@ -213,9 +240,11 @@ export function AdminLayout() {
         error={workspace.error}
         onCreated={(nextOrganizationId) => {
           void navigate({
-            to: onMembers
-              ? "/app/members/$organizationId"
-              : "/app/projects/$organizationId",
+            to: onAudit
+              ? "/app/organizations/$organizationId/audit"
+              : onMembers
+                ? "/app/members/$organizationId"
+                : "/app/projects/$organizationId",
             params: { organizationId: nextOrganizationId },
           })
         }}

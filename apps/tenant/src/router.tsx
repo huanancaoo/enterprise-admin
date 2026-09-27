@@ -5,7 +5,10 @@ import {
   Outlet,
   redirect,
 } from "@tanstack/react-router"
-import { ProjectListQuerySchema } from "@workspace/contracts"
+import {
+  AuditEventsQuerySchema,
+  ProjectListQuerySchema,
+} from "@workspace/contracts"
 import {
   LoadingState,
   NotFoundState,
@@ -30,12 +33,14 @@ import { ProjectsRoute } from "./components/projects-route"
 import { ProjectDetailRoute } from "./components/project-detail-route"
 import { AdminLayout } from "./components/admin-layout"
 import { MembersRoute } from "./components/members-route"
+import { AuditEventsRoute } from "./components/audit-events-route"
 import {
   getInvitationDirectoryOptions,
   getMemberDirectoryOptions,
   memberDirectorySearchSchema,
 } from "./query/organization-directory"
 import { OrganizationGate } from "./components/organization-workspace"
+import { getOrganizationAuditEventsOptions } from "./query/organization-audit"
 
 const rootRoute = createRootRouteWithContext<WorkspaceRouterContext>()({
   component: App,
@@ -201,6 +206,24 @@ const membersRoute = createRoute({
     ]),
   component: MembersRoute,
 })
+const auditLayoutRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/organizations/$organizationId/audit",
+  validateSearch: (search: Record<string, unknown>) =>
+    AuditEventsQuerySchema.parse(search),
+  component: AdminLayout,
+})
+const auditEventsRoute = createRoute({
+  getParentRoute: () => auditLayoutRoute,
+  path: "/",
+  loaderDeps: ({ search }) => search,
+  loader: ({ context, params, deps }) =>
+    context.queryClient.query({
+      ...getOrganizationAuditEventsOptions(params.organizationId, deps),
+      staleTime: "static",
+    }),
+  component: AuditEventsRoute,
+})
 
 export const router = createRouter({
   routeTree: rootRoute.addChildren([
@@ -215,6 +238,7 @@ export const router = createRouter({
       organizationRoute,
       projectsLayoutRoute.addChildren([projectsRoute, projectDetailRoute]),
       membersLayoutRoute.addChildren([membersRoute]),
+      auditLayoutRoute.addChildren([auditEventsRoute]),
     ]),
   ]),
   context: {

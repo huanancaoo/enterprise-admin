@@ -19,6 +19,9 @@ import type {
 
 import type {
   ApiError,
+  AuditEvent,
+  AuditEventsPage,
+  ListOrganizationAuditEventsParams,
   OrganizationAccess,
   OrganizationSummary,
 } from "../../models"
@@ -432,6 +435,483 @@ export function useGetOrganizationAccess<
 } {
   const queryOptions = useGetOrganizationAccessQueryOptions(
     organizationId,
+    options
+  )
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+
+  return withQueryKey(query, queryOptions.queryKey)
+}
+
+export type listOrganizationAuditEventsResponse200 = {
+  data: AuditEventsPage
+  status: 200
+}
+
+export type listOrganizationAuditEventsResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type listOrganizationAuditEventsResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type listOrganizationAuditEventsResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type listOrganizationAuditEventsResponse500 = {
+  data: ApiError
+  status: 500
+}
+
+export type listOrganizationAuditEventsResponseSuccess =
+  listOrganizationAuditEventsResponse200 & {
+    headers: Headers
+  }
+export type listOrganizationAuditEventsResponseError = (
+  | listOrganizationAuditEventsResponse400
+  | listOrganizationAuditEventsResponse401
+  | listOrganizationAuditEventsResponse403
+  | listOrganizationAuditEventsResponse500
+) & {
+  headers: Headers
+}
+
+export const getListOrganizationAuditEventsUrl = (
+  organizationId: string,
+  params?: ListOrganizationAuditEventsParams
+) => {
+  const normalizedParams = new URLSearchParams()
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value))
+    }
+  })
+
+  const stringifiedParams = normalizedParams.toString()
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/organizations/${organizationId}/audit-events?${stringifiedParams}`
+    : `/api/v1/organizations/${organizationId}/audit-events`
+}
+
+export const listOrganizationAuditEvents = async (
+  organizationId: string,
+  params?: ListOrganizationAuditEventsParams,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<listOrganizationAuditEventsResponseSuccess> => {
+  return apiClient<listOrganizationAuditEventsResponseSuccess>(
+    getListOrganizationAuditEventsUrl(organizationId, params),
+    {
+      ...options,
+      method: "GET",
+    }
+  )
+}
+
+export const getListOrganizationAuditEventsQueryKey = (
+  organizationId: string,
+  params?: ListOrganizationAuditEventsParams
+) => {
+  return [
+    `/api/v1/organizations/${organizationId}/audit-events`,
+    ...(params ? [params] : []),
+  ] as const
+}
+
+export const getListOrganizationAuditEventsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listOrganizationAuditEvents>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  params?: ListOrganizationAuditEventsParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listOrganizationAuditEvents>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListOrganizationAuditEventsQueryKey(organizationId, params)
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listOrganizationAuditEvents>>
+  > = ({ signal }) =>
+    listOrganizationAuditEvents(organizationId, params, {
+      signal,
+      ...requestOptions,
+    })
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: organizationId !== null && organizationId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listOrganizationAuditEvents>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListOrganizationAuditEventsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listOrganizationAuditEvents>>
+>
+export type ListOrganizationAuditEventsQueryError = ErrorType<ApiError>
+
+export function useListOrganizationAuditEvents<
+  TData = Awaited<ReturnType<typeof listOrganizationAuditEvents>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  params: undefined | ListOrganizationAuditEventsParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listOrganizationAuditEvents>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listOrganizationAuditEvents>>,
+          TError,
+          Awaited<ReturnType<typeof listOrganizationAuditEvents>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useListOrganizationAuditEvents<
+  TData = Awaited<ReturnType<typeof listOrganizationAuditEvents>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  params?: ListOrganizationAuditEventsParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listOrganizationAuditEvents>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listOrganizationAuditEvents>>,
+          TError,
+          Awaited<ReturnType<typeof listOrganizationAuditEvents>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useListOrganizationAuditEvents<
+  TData = Awaited<ReturnType<typeof listOrganizationAuditEvents>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  params?: ListOrganizationAuditEventsParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listOrganizationAuditEvents>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+
+export function useListOrganizationAuditEvents<
+  TData = Awaited<ReturnType<typeof listOrganizationAuditEvents>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  params?: ListOrganizationAuditEventsParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listOrganizationAuditEvents>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+} {
+  const queryOptions = getListOrganizationAuditEventsQueryOptions(
+    organizationId,
+    params,
+    options
+  )
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+
+  return withQueryKey(query, queryOptions.queryKey)
+}
+
+export type getOrganizationAuditEventResponse200 = {
+  data: AuditEvent
+  status: 200
+}
+
+export type getOrganizationAuditEventResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type getOrganizationAuditEventResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type getOrganizationAuditEventResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type getOrganizationAuditEventResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type getOrganizationAuditEventResponse500 = {
+  data: ApiError
+  status: 500
+}
+
+export type getOrganizationAuditEventResponseSuccess =
+  getOrganizationAuditEventResponse200 & {
+    headers: Headers
+  }
+export type getOrganizationAuditEventResponseError = (
+  | getOrganizationAuditEventResponse400
+  | getOrganizationAuditEventResponse401
+  | getOrganizationAuditEventResponse403
+  | getOrganizationAuditEventResponse404
+  | getOrganizationAuditEventResponse500
+) & {
+  headers: Headers
+}
+
+export const getGetOrganizationAuditEventUrl = (
+  organizationId: string,
+  eventId: string
+) => {
+  return `/api/v1/organizations/${organizationId}/audit-events/${eventId}`
+}
+
+export const getOrganizationAuditEvent = async (
+  organizationId: string,
+  eventId: string,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<getOrganizationAuditEventResponseSuccess> => {
+  return apiClient<getOrganizationAuditEventResponseSuccess>(
+    getGetOrganizationAuditEventUrl(organizationId, eventId),
+    {
+      ...options,
+      method: "GET",
+    }
+  )
+}
+
+export const getGetOrganizationAuditEventQueryKey = (
+  organizationId: string,
+  eventId: string
+) => {
+  return [
+    `/api/v1/organizations/${organizationId}/audit-events/${eventId}`,
+  ] as const
+}
+
+export const getGetOrganizationAuditEventQueryOptions = <
+  TData = Awaited<ReturnType<typeof getOrganizationAuditEvent>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  eventId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getOrganizationAuditEvent>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetOrganizationAuditEventQueryKey(organizationId, eventId)
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getOrganizationAuditEvent>>
+  > = ({ signal }) =>
+    getOrganizationAuditEvent(organizationId, eventId, {
+      signal,
+      ...requestOptions,
+    })
+
+  return {
+    queryKey,
+    queryFn,
+    enabled:
+      organizationId !== null &&
+      organizationId !== undefined &&
+      eventId !== null &&
+      eventId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getOrganizationAuditEvent>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetOrganizationAuditEventQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getOrganizationAuditEvent>>
+>
+export type GetOrganizationAuditEventQueryError = ErrorType<ApiError>
+
+export function useGetOrganizationAuditEvent<
+  TData = Awaited<ReturnType<typeof getOrganizationAuditEvent>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  eventId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getOrganizationAuditEvent>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getOrganizationAuditEvent>>,
+          TError,
+          Awaited<ReturnType<typeof getOrganizationAuditEvent>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetOrganizationAuditEvent<
+  TData = Awaited<ReturnType<typeof getOrganizationAuditEvent>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  eventId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getOrganizationAuditEvent>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getOrganizationAuditEvent>>,
+          TError,
+          Awaited<ReturnType<typeof getOrganizationAuditEvent>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetOrganizationAuditEvent<
+  TData = Awaited<ReturnType<typeof getOrganizationAuditEvent>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  eventId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getOrganizationAuditEvent>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+
+export function useGetOrganizationAuditEvent<
+  TData = Awaited<ReturnType<typeof getOrganizationAuditEvent>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  eventId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getOrganizationAuditEvent>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+} {
+  const queryOptions = getGetOrganizationAuditEventQueryOptions(
+    organizationId,
+    eventId,
     options
   )
 

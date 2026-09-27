@@ -886,6 +886,30 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     ).toBe(true)
 
     await page.goto(
+      `${tenantOrigin}/app/organizations/${organizationId}/audit`
+    )
+    await expectUI(
+      page.getByRole("heading", { name: "审计", exact: true })
+    ).toBeVisible()
+    const deletionEvent = page
+      .getByRole("row")
+      .filter({ hasText: "删除项目" })
+    await expectUI(deletionEvent).toBeVisible()
+    await deletionEvent
+      .getByRole("button", { name: "删除项目", exact: true })
+      .click()
+    const auditDetails = page.getByRole("dialog")
+    await expectUI(auditDetails.getByText(String(projectId))).toBeVisible()
+    await page.keyboard.press("Escape")
+    const eventCodeFilter = page.getByLabel("事件", { exact: true })
+    await eventCodeFilter.fill("project.deleted")
+    await page.getByRole("button", { name: "应用筛选", exact: true }).click()
+    await expectUI(page).toHaveURL(/eventCode=project\.deleted/)
+    await expectUI(eventCodeFilter).toHaveValue("project.deleted")
+    await page.getByRole("button", { name: "清除筛选", exact: true }).click()
+    await expectUI(eventCodeFilter).toHaveValue("")
+
+    await page.goto(
       `${tenantOrigin + "/"}app/projects/${organizationId}/${projectId}`
     )
     await expectUI(

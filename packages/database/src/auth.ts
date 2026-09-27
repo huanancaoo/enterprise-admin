@@ -172,11 +172,13 @@ export function createAuth(
           ...ownerAc.statements,
           member: [...ownerAc.statements.member, "read"],
           project: [...projectActions],
+          audit: ["read"],
         }),
         admin: ac.newRole({
           ...adminAc.statements,
           member: [...adminAc.statements.member, "read"],
           project: [...projectActions],
+          audit: ["read"],
         }),
         member: ac.newRole({
           ...memberAc.statements,
