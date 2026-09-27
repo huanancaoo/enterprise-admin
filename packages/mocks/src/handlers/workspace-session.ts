@@ -1,6 +1,6 @@
 import { http, HttpResponse } from "msw"
 import { organizations } from "../fixtures/projects"
-import type { OrganizationStatus } from "@workspace/contracts"
+import type { MyPreferences, OrganizationStatus } from "@workspace/contracts"
 
 export function createWorkspaceSessionHandlers(options?: {
   suspendedIds?: readonly string[]
@@ -46,6 +46,14 @@ export function createWorkspaceSessionHandlers(options?: {
           updatedAt: "2026-09-01T00:00:00.000Z",
         },
       })
+    ),
+    http.get("*/api/v1/me/preferences", () =>
+      HttpResponse.json({
+        preferredLocale: null,
+        version: 1,
+        effectiveLocale: "zh-CN",
+        effectiveLocaleSource: "request",
+      } satisfies MyPreferences)
     ),
     http.get("*/api/v1/me/organizations", () =>
       HttpResponse.json(
