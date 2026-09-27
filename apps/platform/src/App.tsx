@@ -1,4 +1,6 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { getMyPreferencesOptions } from "@workspace/api-client"
 import { useTranslation } from "react-i18next"
 import {
   Link,
@@ -42,9 +44,37 @@ export function App() {
   if (!user) return outlet
   return (
     <AuthenticatedSessionProvider client={authClient} user={user}>
-      <section key={user.id}>{outlet}</section>
+      <section key={user.id}>
+        <PlatformLocale />
+        {outlet}
+      </section>
     </AuthenticatedSessionProvider>
   )
+}
+
+function PlatformLocale() {
+  const { i18n } = useTranslation()
+  const session = useAuthenticatedSession()!
+  const preferences = useQuery(getMyPreferencesOptions(session.user.id))
+  const initializedUser = useRef<string | null>(null)
+  useEffect(() => {
+    if (
+      !preferences.isSuccess ||
+      preferences.isFetching ||
+      initializedUser.current === session.user.id
+    )
+      return
+    initializedUser.current = session.user.id
+    // 账号上下文初始化使用持久化偏好；后续手动切换显示语言仍由当前 UI 持有。
+    void i18n.changeLanguage(preferences.data.data.effectiveLocale)
+  }, [
+    i18n,
+    preferences.data,
+    preferences.isFetching,
+    preferences.isSuccess,
+    session.user.id,
+  ])
+  return null
 }
 
 export function PlatformLoginPage() {
