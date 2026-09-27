@@ -18,7 +18,8 @@ import {
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
-import { FolderKanbanIcon, UsersIcon } from "lucide-react"
+import { useUiLocale } from "@workspace/i18n/react"
+import { FolderKanbanIcon, SettingsIcon, UsersIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import {
   ApiClientError,
@@ -29,13 +30,21 @@ import {
   useDropStaleOrganizationQueries,
   useOrganizationWorkspace,
 } from "@/hooks/use-organization-workspace"
+import { authClient } from "@/lib/auth-client"
 import {
   CreateOrganizationDialog,
   OrganizationUnavailable,
 } from "./organization-workspace"
 
 export function AdminLayout() {
-  const { t } = useTranslation(["organization", "projects", "common", "errors"])
+  const { t, i18n } = useTranslation([
+    "organization",
+    "projects",
+    "settings",
+    "common",
+    "errors",
+  ])
+  const uiLocale = useUiLocale()
   const session = useAuthenticatedSession()!
   const workspace = useOrganizationWorkspace()
   const queryClient = useQueryClient()
@@ -45,16 +54,52 @@ export function AdminLayout() {
   const navigate = useNavigate()
   const [createOpen, setCreateOpen] = useState(false)
   const organizationId = params.organizationId
+  const activeOrganization = useQuery({
+    queryKey: ["auth", "active-organization"],
+    enabled: !organizationId,
+    retry: false,
+    queryFn: async () => {
+      const result = await authClient.organization.getFullOrganization()
+      if (result.error) throw new Error(result.error.message)
+      return result.data?.id ?? null
+    },
+  })
+  const currentOrganizationId = organizationId ?? activeOrganization.data
   const organizations = workspace.workspace.data ?? []
   const onMembers = pathname.startsWith("/app/members/")
-  useDropStaleOrganizationQueries(organizationId)
+  const onOrganizationSettings = pathname.endsWith("/settings")
+  const onPersonalSettings = pathname === "/app/settings/preferences"
+  useDropStaleOrganizationQueries(currentOrganizationId ?? undefined)
   const access = useQuery({
-    ...getOrganizationAccessOptions(organizationId ?? ""),
-    enabled: Boolean(organizationId),
+    ...getOrganizationAccessOptions(currentOrganizationId ?? ""),
+    enabled: Boolean(currentOrganizationId),
+  })
+  const settingsPermission = useQuery({
+    queryKey: [
+      "organizations",
+      currentOrganizationId,
+      "tenant-settings-permission",
+    ],
+    enabled: Boolean(currentOrganizationId),
+    retry: false,
+    queryFn: async () => {
+      const result = await authClient.organization.getActiveMemberRole({
+        query: { organizationId: currentOrganizationId ?? "" },
+      })
+      if (result.error) throw new Error(result.error.message)
+      return result.data.role
+        .split(",")
+        .some((role) => role === "owner" || role === "admin")
+    },
   })
   useEffect(() => {
+    const nextLocale = access.data?.data.effectiveLocale
+    if (nextLocale && nextLocale !== uiLocale)
+      void i18n.changeLanguage(nextLocale)
+  }, [access.data?.data.effectiveLocale, i18n, uiLocale])
+  useEffect(() => {
     if (
-      !organizationId ||
+      !currentOrganizationId ||
       !(access.error instanceof ApiClientError) ||
       (access.error.body.code !== "ORGANIZATION_SUSPENDED" &&
         access.error.body.code !== "FORBIDDEN")
@@ -62,13 +107,13 @@ export function AdminLayout() {
       return
     // 保留访问拒绝本身，清掉该组织的业务数据，避免删除活跃 access 查询导致反复请求。
     const filters = {
-      queryKey: organizationKeys.scope(organizationId),
+      queryKey: organizationKeys.scope(currentOrganizationId),
       predicate: (query: { queryKey: readonly unknown[] }) =>
         query.queryKey[2] !== "access",
     }
     void queryClient.cancelQueries(filters)
     queryClient.removeQueries(filters)
-  }, [access.error, organizationId, queryClient])
+  }, [access.error, currentOrganizationId, queryClient])
   const projectListSearch =
     !onMembers &&
     (search.sortBy === "createdAt" || search.sortBy === "updatedAt")
@@ -81,15 +126,24 @@ export function AdminLayout() {
           sortOrder: search.sortOrder,
         }
       : {}
-  const projectLink = organizationId ? (
+  const projectLink = currentOrganizationId ? (
     <Link
       to="/app/projects/$organizationId"
-      params={{ organizationId }}
+      params={{ organizationId: currentOrganizationId }}
       search={params.projectId ? {} : projectListSearch}
     />
   ) : undefined
-  const membersLink = organizationId ? (
-    <Link to="/app/members/$organizationId" params={{ organizationId }} />
+  const membersLink = currentOrganizationId ? (
+    <Link
+      to="/app/members/$organizationId"
+      params={{ organizationId: currentOrganizationId }}
+    />
+  ) : undefined
+  const organizationSettingsLink = currentOrganizationId ? (
+    <Link
+      to="/app/organizations/$organizationId/settings"
+      params={{ organizationId: currentOrganizationId }}
+    />
   ) : undefined
   const suspended =
     access.error instanceof ApiClientError &&
@@ -103,6 +157,13 @@ export function AdminLayout() {
     if (onMembers) {
       await navigate({
         to: "/app/members/$organizationId",
+        params: { organizationId: nextOrganizationId },
+      })
+      return
+    }
+    if (onOrganizationSettings) {
+      await navigate({
+        to: "/app/organizations/$organizationId/settings",
         params: { organizationId: nextOrganizationId },
       })
       return
@@ -133,9 +194,13 @@ export function AdminLayout() {
               <BreadcrumbPage>
                 {onMembers
                   ? t("organization:members")
-                  : params.projectId
-                    ? t("projects:detail")
-                    : t("projects:title")}
+                  : onOrganizationSettings
+                    ? t("settings:organizationSettings")
+                    : onPersonalSettings
+                      ? t("settings:personalSettings")
+                      : params.projectId
+                        ? t("projects:detail")
+                        : t("projects:title")}
               </BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
@@ -147,7 +212,7 @@ export function AdminLayout() {
             id: organization.id,
             name: organization.name,
           })),
-          value: organizationId ?? null,
+          value: currentOrganizationId ?? null,
           label: t("organization:select"),
           disabled: workspace.pending,
           createLabel: t("organization:create"),
@@ -161,15 +226,32 @@ export function AdminLayout() {
               title: t("projects:title"),
               icon: <FolderKanbanIcon />,
               isActive: pathname.startsWith("/app/projects/"),
-              disabled: !organizationId || suspended,
+              disabled: !currentOrganizationId || suspended,
               render: projectLink,
             },
             {
               title: t("organization:members"),
               icon: <UsersIcon />,
               isActive: onMembers,
-              disabled: !organizationId || suspended,
+              disabled: !currentOrganizationId || suspended,
               render: membersLink,
+            },
+            ...(settingsPermission.data
+              ? [
+                  {
+                    title: t("settings:organizationSettings"),
+                    icon: <SettingsIcon />,
+                    isActive: onOrganizationSettings,
+                    disabled: !currentOrganizationId || suspended,
+                    render: organizationSettingsLink,
+                  },
+                ]
+              : []),
+            {
+              title: t("settings:personalSettings"),
+              icon: <SettingsIcon />,
+              isActive: pathname === "/app/settings/preferences",
+              render: <Link to="/app/settings/preferences" />,
             },
           ],
         },
@@ -191,13 +273,13 @@ export function AdminLayout() {
           {workspace.error}
         </p>
       )}
-      {organizationId && access.isPending && (
+      {currentOrganizationId && access.isPending && (
         <p role="status">{t("organization:loading")}</p>
       )}
       {suspended && (
         <OrganizationUnavailable
           organizations={organizations}
-          currentId={organizationId}
+          currentId={currentOrganizationId ?? undefined}
         />
       )}
       {access.error && !suspended && (
@@ -215,12 +297,14 @@ export function AdminLayout() {
           void navigate({
             to: onMembers
               ? "/app/members/$organizationId"
-              : "/app/projects/$organizationId",
+              : onOrganizationSettings
+                ? "/app/organizations/$organizationId/settings"
+                : "/app/projects/$organizationId",
             params: { organizationId: nextOrganizationId },
           })
         }}
       />
-      {access.isSuccess ? <Outlet /> : null}
+      {!currentOrganizationId || access.isSuccess ? <Outlet /> : null}
     </AppShell>
   )
 }

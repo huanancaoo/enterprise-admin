@@ -161,6 +161,7 @@ export default interface Resources {
     "USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION": "该用户已是组织成员",
     "USER_IS_ALREADY_INVITED_TO_THIS_ORGANIZATION": "该用户已被邀请",
     "VALIDATION_ERROR": "请求参数无效",
+    "VERSION_CONFLICT": "设置已被其他用户修改，请刷新后重试",
     "YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION": "请使用受邀邮箱账号接受邀请",
     "YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER": "不能以唯一所有者身份退出组织",
     "YOU_CANNOT_LEAVE_THE_ORGANIZATION_WITHOUT_AN_OWNER": "组织必须保留至少一位所有者"
@@ -256,6 +257,29 @@ export default interface Resources {
     "title": "项目",
     "translationLoadFailed": "无法读取所选内容语言。",
     "updatedAt": "更新时间"
+  },
+  "settings": {
+    "effectiveLanguage": "当前界面语言",
+    "followOrganization": "跟随组织或平台默认值",
+    "followPlatform": "跟随平台默认值",
+    "language": "语言",
+    "languageSource": "语言来源",
+    "loadError": "语言设置加载失败。",
+    "localeRefreshError": "设置已保存，但无法刷新继承语言；当前界面语言保持不变。",
+    "organizationDescription": "为本组织设置默认界面语言；留空时使用平台默认语言。",
+    "organizationSettings": "组织语言设置",
+    "permissionDenied": "你没有查看或修改组织语言设置的权限。",
+    "personalDescription": "选择固定语言，或跟随当前组织和平台默认值。",
+    "personalSettings": "个人语言设置",
+    "save": "保存",
+    "saveError": "语言设置保存失败，草稿仍保留。",
+    "saved": "语言设置已保存。",
+    "saving": "正在保存…",
+    "sourceOrganization": "组织默认值",
+    "sourcePlatform": "平台默认值",
+    "sourceRequest": "当前界面选择",
+    "sourceUser": "个人偏好",
+    "versionConflict": "设置已被其他管理员修改。你的草稿仍保留，请刷新后重新提交。"
   },
   "validation": {
     "email": "请输入有效的邮箱地址。",

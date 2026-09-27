@@ -4,19 +4,15 @@
  * Enterprise Foundation API
  * OpenAPI spec version: 0.1.0
  */
-import type { InheritedLocaleSource } from "./inheritedLocaleSource"
-import type { OrganizationAccessStatus } from "./organizationAccessStatus"
 import type { SupportedLocale } from "./supportedLocale"
 
-export interface OrganizationAccess {
+export interface OrganizationSettings {
   /** @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$ */
   organizationId: string
-  status: OrganizationAccessStatus
+  defaultLocale: SupportedLocale | null
   /**
    * @minimum 1
    * @maximum 9007199254740991
    */
-  authorizationVersion: number
-  effectiveLocale: SupportedLocale
-  effectiveLocaleSource: InheritedLocaleSource
+  version: number
 }

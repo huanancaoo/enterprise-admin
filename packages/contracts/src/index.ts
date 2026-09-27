@@ -3,6 +3,12 @@ import { z } from "zod"
 export const SupportedLocaleSchema = z
   .enum(["zh-CN", "en-US", "ar"])
   .meta({ id: "SupportedLocale" })
+export const LocaleSourceSchema = z
+  .enum(["request", "user", "organization", "platform"])
+  .meta({ id: "LocaleSource" })
+export const InheritedLocaleSourceSchema = z
+  .enum(["user", "organization", "platform"])
+  .meta({ id: "InheritedLocaleSource" })
 export type SupportedLocale = z.infer<typeof SupportedLocaleSchema>
 export const OrganizationIdSchema = z.uuidv4()
 export const ProjectIdSchema = z.uuid()
@@ -107,9 +113,43 @@ export const OrganizationAccessSchema = z
     status: z.literal("ACTIVE"),
     authorizationVersion: z.number().int().min(1),
     effectiveLocale: SupportedLocaleSchema,
+    effectiveLocaleSource: InheritedLocaleSourceSchema,
   })
   .meta({ id: "OrganizationAccess" })
 export type OrganizationAccess = z.infer<typeof OrganizationAccessSchema>
+export const MyPreferencesSchema = z
+  .strictObject({
+    preferredLocale: SupportedLocaleSchema.nullable(),
+    version: z.number().int().min(1),
+    effectiveLocale: SupportedLocaleSchema,
+    effectiveLocaleSource: LocaleSourceSchema,
+  })
+  .meta({ id: "MyPreferences" })
+export type MyPreferences = z.infer<typeof MyPreferencesSchema>
+export const UpdateMyPreferencesSchema = z
+  .strictObject({
+    preferredLocale: SupportedLocaleSchema.nullable(),
+    expectedVersion: z.number().int().min(1),
+  })
+  .meta({ id: "UpdateMyPreferences" })
+export type UpdateMyPreferences = z.infer<typeof UpdateMyPreferencesSchema>
+export const OrganizationSettingsSchema = z
+  .strictObject({
+    organizationId: OrganizationIdSchema,
+    defaultLocale: SupportedLocaleSchema.nullable(),
+    version: z.number().int().min(1),
+  })
+  .meta({ id: "OrganizationSettings" })
+export type OrganizationSettings = z.infer<typeof OrganizationSettingsSchema>
+export const UpdateOrganizationSettingsSchema = z
+  .strictObject({
+    defaultLocale: SupportedLocaleSchema.nullable(),
+    expectedVersion: z.number().int().min(1),
+  })
+  .meta({ id: "UpdateOrganizationSettings" })
+export type UpdateOrganizationSettings = z.infer<
+  typeof UpdateOrganizationSettingsSchema
+>
 export const PlatformAccessSchema = z
   .strictObject({
     userId: z.uuid(),
@@ -124,6 +164,7 @@ export const ApiErrorCodeSchema = z
     "NOT_FOUND",
     "ORGANIZATION_SUSPENDED",
     "AUTHORIZATION_UNAVAILABLE",
+    "VERSION_CONFLICT",
     "INTERNAL_ERROR",
   ])
   .meta({ id: "ApiErrorCode" })

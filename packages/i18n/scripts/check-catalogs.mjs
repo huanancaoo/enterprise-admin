@@ -9,6 +9,7 @@ const namespaces = [
   "auth",
   "organization",
   "projects",
+  "settings",
   "validation",
   "errors",
 ]

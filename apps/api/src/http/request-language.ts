@@ -5,17 +5,34 @@ import type {
   NestInterceptor,
 } from '@nestjs/common';
 import { tap } from 'rxjs';
-import { resolveLocale, type SupportedLocale } from '@workspace/i18n';
+import {
+  resolveLocaleWithSource,
+  resolveInheritedLocale,
+  type InheritedLocaleResolution,
+  type LocaleResolution,
+  type SupportedLocale,
+} from '@workspace/i18n';
 
 export class RequestLanguage {
   private preferredLocale?: string | null;
-  private defaultLocale?: string;
+  private defaultLocale?: string | null;
 
   constructor(private readonly acceptLanguage: string | null | undefined) {}
 
-  get locale(): SupportedLocale {
-    return resolveLocale({
+  get resolution(): LocaleResolution {
+    return resolveLocaleWithSource({
       acceptLanguage: this.acceptLanguage,
+      preferredLocale: this.preferredLocale,
+      defaultLocale: this.defaultLocale,
+    });
+  }
+
+  get locale(): SupportedLocale {
+    return this.resolution.locale;
+  }
+
+  get preferenceResolution(): InheritedLocaleResolution {
+    return resolveInheritedLocale({
       preferredLocale: this.preferredLocale,
       defaultLocale: this.defaultLocale,
     });
@@ -26,7 +43,7 @@ export class RequestLanguage {
     this.preferredLocale = locale;
   }
 
-  useOrganizationDefault(locale: string): void {
+  useOrganizationDefault(locale: string | null | undefined): void {
     this.defaultLocale = locale;
   }
 

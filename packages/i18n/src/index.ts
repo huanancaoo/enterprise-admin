@@ -8,10 +8,19 @@ export {
   matchSupportedLocale,
   platformDefaultLocale,
   resolveEmailLocale,
+  resolveInheritedLocale,
   resolveLocale,
+  resolveLocaleWithSource,
+  localeSources,
   supportedLocales,
 } from "./locale.js"
-export type { EmailLocale, SupportedLocale } from "./locale.js"
+export type {
+  EmailLocale,
+  InheritedLocaleResolution,
+  LocaleResolution,
+  LocaleSource,
+  SupportedLocale,
+} from "./locale.js"
 export { authErrorTranslations } from "./catalog.js"
 export { emailCatalog } from "./email-catalog.js"
 export type { EmailCopy, EmailTemplateKey } from "./email-catalog.js"

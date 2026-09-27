@@ -159,9 +159,15 @@ export function createAuth(
           additionalFields: {
             defaultLocale: {
               type: ["zh-CN", "en-US", "ar"],
-              required: true,
-              defaultValue: "zh-CN",
+              required: false,
               input: false,
+            },
+            defaultLocaleVersion: {
+              type: "number",
+              required: true,
+              defaultValue: 1,
+              input: false,
+              returned: false,
             },
           },
         },
@@ -172,11 +178,13 @@ export function createAuth(
           ...ownerAc.statements,
           member: [...ownerAc.statements.member, "read"],
           project: [...projectActions],
+          tenantSettings: ["read", "update"],
         }),
         admin: ac.newRole({
           ...adminAc.statements,
           member: [...adminAc.statements.member, "read"],
           project: [...projectActions],
+          tenantSettings: ["read", "update"],
         }),
         member: ac.newRole({
           ...memberAc.statements,
@@ -415,6 +423,14 @@ export function createAuth(
         preferredLocale: {
           type: ["zh-CN", "en-US", "ar"],
           required: false,
+          input: false,
+        },
+        preferredLocaleVersion: {
+          type: "number",
+          required: true,
+          defaultValue: 1,
+          input: false,
+          returned: false,
         },
       },
     },

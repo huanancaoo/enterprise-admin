@@ -18,6 +18,7 @@
   "USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION": "هذا المستخدم عضو بالفعل",
   "USER_IS_ALREADY_INVITED_TO_THIS_ORGANIZATION": "تمت دعوة هذا المستخدم بالفعل",
   "VALIDATION_ERROR": "معلمات الطلب غير صالحة",
+  "VERSION_CONFLICT": "تم تغيير هذه الإعدادات. حدّث الصفحة ثم أعد المحاولة.",
   "YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION": "سجّل الدخول بالبريد المدعو لقبول الدعوة.",
   "YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER": "لا يمكنك المغادرة وأنت المالك الوحيد",
   "YOU_CANNOT_LEAVE_THE_ORGANIZATION_WITHOUT_AN_OWNER": "يجب أن يكون للمؤسسة مالك واحد على الأقل"

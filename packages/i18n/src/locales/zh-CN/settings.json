@@ -1,0 +1,23 @@
+{
+  "effectiveLanguage": "当前界面语言",
+  "followOrganization": "跟随组织或平台默认值",
+  "followPlatform": "跟随平台默认值",
+  "language": "语言",
+  "languageSource": "语言来源",
+  "loadError": "语言设置加载失败。",
+  "localeRefreshError": "设置已保存，但无法刷新继承语言；当前界面语言保持不变。",
+  "organizationDescription": "为本组织设置默认界面语言；留空时使用平台默认语言。",
+  "organizationSettings": "组织语言设置",
+  "permissionDenied": "你没有查看或修改组织语言设置的权限。",
+  "personalDescription": "选择固定语言，或跟随当前组织和平台默认值。",
+  "personalSettings": "个人语言设置",
+  "save": "保存",
+  "saved": "语言设置已保存。",
+  "saveError": "语言设置保存失败，草稿仍保留。",
+  "saving": "正在保存…",
+  "sourceOrganization": "组织默认值",
+  "sourcePlatform": "平台默认值",
+  "sourceRequest": "当前界面选择",
+  "sourceUser": "个人偏好",
+  "versionConflict": "设置已被其他管理员修改。你的草稿仍保留，请刷新后重新提交。"
+}
