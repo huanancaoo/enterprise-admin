@@ -58,8 +58,16 @@ describe("S8-09：浏览器中的个人与组织语言设置", () => {
     await page.getByRole("button", { name: "登录", exact: true }).click()
     await expectUI(page).toHaveURL(/\/app(?:\/|$)/)
     await page.goto(`${tenantOrigin}/app/settings/preferences`)
-    await page.getByRole("combobox", { name: "语言", exact: true }).click()
-    await page.getByRole("option", { name: "العربية", exact: true }).click()
+    const localeSelect = page.getByRole("combobox", {
+      name: "语言",
+      exact: true,
+    })
+    await localeSelect.focus()
+    await expectUI(localeSelect).toBeFocused()
+    await localeSelect.press("Enter")
+    await page.keyboard.press("End")
+    await page.keyboard.press("Enter")
+    await expectUI(localeSelect).toContainText("العربية")
     await page.getByRole("button", { name: "保存", exact: true }).click()
     await expectUI(page.locator("html")).toHaveAttribute("lang", "ar")
 
@@ -69,6 +77,152 @@ describe("S8-09：浏览器中的个人与组织语言设置", () => {
     await expectUI(
       page.getByRole("combobox", { name: "اللغة", exact: true })
     ).toBeVisible()
+  })
+
+  it("切换到无偏好的无组织账号时按继承语言复位，响应语言仍跟随请求头", async () => {
+    const accountA = await signUpVerified(
+      environment.baseURL,
+      tenantOrigin,
+      environment.migrator,
+      {
+        name: "阿语偏好账号",
+        email: `locale-account-a-${randomUUID()}@example.test`,
+        password: randomBytes(24).toString("hex"),
+      }
+    )
+    const accountB = await signUpVerified(
+      environment.baseURL,
+      tenantOrigin,
+      environment.migrator,
+      {
+        name: "平台默认账号",
+        email: `locale-account-b-${randomUUID()}@example.test`,
+        password: randomBytes(24).toString("hex"),
+      }
+    )
+
+    const updateResponse = await fetch(
+      `${environment.baseURL}/api/v1/me/preferences`,
+      {
+        method: "PATCH",
+        headers: {
+          cookie: accountA.cookie,
+          origin: tenantOrigin,
+          "content-type": "application/json",
+          "accept-language": "zh-CN",
+        },
+        body: JSON.stringify({ preferredLocale: "ar", expectedVersion: 1 }),
+      }
+    )
+    expect(updateResponse.status).toBe(200)
+    expect(updateResponse.headers.get("content-language")).toBe("zh-CN")
+    expect(await updateResponse.json()).toMatchObject({
+      preferredLocale: "ar",
+      effectiveLocale: "ar",
+      effectiveLocaleSource: "user",
+    })
+
+    const defaultResponse = await fetch(
+      `${environment.baseURL}/api/v1/me/preferences`,
+      {
+        headers: {
+          cookie: accountB.cookie,
+          origin: tenantOrigin,
+          "accept-language": "ar",
+        },
+      }
+    )
+    expect(defaultResponse.status).toBe(200)
+    expect(defaultResponse.headers.get("content-language")).toBe("ar")
+    expect(await defaultResponse.json()).toMatchObject({
+      preferredLocale: null,
+      effectiveLocale: "zh-CN",
+      effectiveLocaleSource: "platform",
+    })
+
+    await page.goto(`${tenantOrigin}/login`)
+    await page.getByLabel("邮箱", { exact: true }).fill(accountA.user.email)
+    await page.getByLabel("密码", { exact: true }).fill(accountA.password)
+    await page.getByRole("button", { name: "登录", exact: true }).click()
+    await expectUI(page).toHaveURL(/\/app(?:\/|$)/)
+    await expectUI(page.locator("html")).toHaveAttribute("lang", "ar")
+
+    await page
+      .getByRole("button", { name: "تسجيل الخروج", exact: true })
+      .click()
+    await expectUI(
+      page.getByLabel("البريد الإلكتروني", { exact: true })
+    ).toBeVisible()
+
+    const accountBPreferences = page.waitForResponse(
+      (response) =>
+        response.request().method() === "GET" &&
+        response.url().endsWith("/api/v1/me/preferences")
+    )
+    await page
+      .getByLabel("البريد الإلكتروني", { exact: true })
+      .fill(accountB.user.email)
+    await page
+      .getByLabel("كلمة المرور", { exact: true })
+      .fill(accountB.password)
+    await page
+      .getByRole("button", { name: "تسجيل الدخول", exact: true })
+      .click()
+    await expectUI(page).toHaveURL(/\/app(?:\/|$)/)
+
+    const preferencesResponse = await accountBPreferences
+    expect(preferencesResponse.request().headers()["accept-language"]).toBe(
+      "ar"
+    )
+    expect(preferencesResponse.headers()["content-language"]).toBe("ar")
+    expect(await preferencesResponse.json()).toMatchObject({
+      preferredLocale: null,
+      effectiveLocale: "zh-CN",
+      effectiveLocaleSource: "platform",
+    })
+    await expectUI(page.locator("html")).toHaveAttribute("lang", "zh-CN")
+    await expectUI(page.locator("html")).toHaveAttribute("dir", "ltr")
+    await expectUI(
+      page.getByRole("heading", { name: "创建组织", exact: true })
+    ).toBeVisible()
+  })
+
+  it("个人偏好读取失败时展示可访问错误状态", async () => {
+    const account = await signUpVerified(
+      environment.baseURL,
+      tenantOrigin,
+      environment.migrator,
+      {
+        name: "语言错误状态用户",
+        email: `locale-error-${randomUUID()}@example.test`,
+        password: randomBytes(24).toString("hex"),
+      }
+    )
+    let preferenceRequests = 0
+    await page.route("**/api/v1/me/preferences", async (route) => {
+      preferenceRequests += 1
+      await route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({
+          code: "INTERNAL_ERROR",
+          message: "Unavailable",
+          requestId: "locale-load-failure-e2e",
+          locale: "zh-CN",
+        }),
+      })
+    })
+
+    await page.goto(`${tenantOrigin}/login`)
+    await page.getByLabel("邮箱", { exact: true }).fill(account.user.email)
+    await page.getByLabel("密码", { exact: true }).fill(account.password)
+    await page.getByRole("button", { name: "登录", exact: true }).click()
+    await expectUI(page).toHaveURL(/\/app(?:\/|$)/)
+    await page.goto(`${tenantOrigin}/app/settings/preferences`)
+    await expectUI(page.getByRole("alert")).toHaveText("语言设置加载失败。", {
+      timeout: 15000,
+    })
+    expect(preferenceRequests).toBeGreaterThan(0)
   })
 
   it("继承组织语言、保存个人偏好并在版本冲突后保留草稿", async () => {

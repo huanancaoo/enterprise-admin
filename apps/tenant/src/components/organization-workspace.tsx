@@ -1,11 +1,13 @@
+import { useEffect, type ReactNode } from "react"
 import { useTranslation } from "react-i18next"
-import type { ReactNode } from "react"
 import type { TFunction } from "@workspace/i18n"
 import type { OrganizationSummary } from "@workspace/contracts"
+import { getMyPreferencesOptions } from "@workspace/api-client"
 import { useOrganizationWorkspace } from "@/hooks/use-organization-workspace"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import { FormDialog, LocaleSwitcher, useDocumentTitle } from "@workspace/admin"
 import { useForm } from "@tanstack/react-form"
+import { useQuery } from "@tanstack/react-query"
 import { Link, Navigate } from "@tanstack/react-router"
 import { GalleryVerticalEnd } from "lucide-react"
 import { Button } from "@workspace/ui/components/button"
@@ -251,7 +253,7 @@ function IdentityPage({
 }
 
 export function OrganizationGate() {
-  const { t } = useTranslation([
+  const { t, i18n } = useTranslation([
     "organization",
     "common",
     "validation",
@@ -264,6 +266,30 @@ export function OrganizationGate() {
   // 进入门只根据已读回的组织数量跳转。创建成功但读回失败时停在查询错误，不能用返回的 id 抢先进入工作区。
   const form = useCreateOrganizationForm(createOrganization)
   const organizations = workspace.data ?? []
+  const personalPreferences = useQuery({
+    ...getMyPreferencesOptions(session.user.id),
+    enabled: workspace.isSuccess && organizations.length === 0,
+  })
+  useEffect(() => {
+    const inheritedLocale = personalPreferences.data?.data.effectiveLocale
+    if (
+      !workspace.isSuccess ||
+      organizations.length !== 0 ||
+      !personalPreferences.isSuccess ||
+      personalPreferences.isFetching ||
+      !inheritedLocale ||
+      i18n.resolvedLanguage === inheritedLocale
+    )
+      return
+    void i18n.changeLanguage(inheritedLocale)
+  }, [
+    i18n,
+    organizations.length,
+    personalPreferences.data?.data.effectiveLocale,
+    personalPreferences.isFetching,
+    personalPreferences.isSuccess,
+    workspace.isSuccess,
+  ])
   useDocumentTitle(
     workspace.isPending || workspace.isError
       ? t("organization:management")

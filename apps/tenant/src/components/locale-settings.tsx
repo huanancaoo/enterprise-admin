@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from "react"
 import { useForm } from "@tanstack/react-form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
+import { useAuthenticatedSession } from "@workspace/admin/auth"
 import { z } from "zod"
 import {
   ApiClientError,
@@ -95,9 +96,11 @@ function LocaleSelect({
 
 export function PersonalLocaleSettingsRoute() {
   const { t, i18n } = useTranslation(["settings", "common"])
+  const session = useAuthenticatedSession()!
   const locale = useUiLocale()
   const queryClient = useQueryClient()
-  const preferences = useQuery(getMyPreferencesOptions())
+  const personalPreferencesKey = localeSettingsKeys.personal(session.user.id)
+  const preferences = useQuery(getMyPreferencesOptions(session.user.id))
   const activeOrganization = useQuery({
     queryKey: ["auth", "active-organization"],
     retry: false,
@@ -139,7 +142,7 @@ export function PersonalLocaleSettingsRoute() {
         ) {
           setSubmitError(t("versionConflict"))
           void queryClient.invalidateQueries({
-            queryKey: localeSettingsKeys.personal(),
+            queryKey: personalPreferencesKey,
           })
         } else {
           setSubmitError(t("saveError"))
@@ -163,7 +166,7 @@ export function PersonalLocaleSettingsRoute() {
           nextLocale = access.data.effectiveLocale
           nextSource = access.data.effectiveLocaleSource
         } catch {
-          queryClient.setQueryData(localeSettingsKeys.personal(), result)
+          queryClient.setQueryData(personalPreferencesKey, result)
           setSubmitError(t("localeRefreshError"))
           setSaved(true)
           return
@@ -187,7 +190,7 @@ export function PersonalLocaleSettingsRoute() {
               : current
         )
       }
-      queryClient.setQueryData(localeSettingsKeys.personal(), {
+      queryClient.setQueryData(personalPreferencesKey, {
         ...result,
         data: {
           ...result.data,

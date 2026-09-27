@@ -60,7 +60,7 @@ export function AdminLayout() {
   ])
   const session = useAuthenticatedSession()!
   const uiLocale = useUiLocale()
-  const personalPreferences = useQuery(getMyPreferencesOptions())
+  const personalPreferences = useQuery(getMyPreferencesOptions(session.user.id))
   const workspace = useOrganizationWorkspace()
   const queryClient = useQueryClient()
   const params = useParams({ strict: false })
@@ -98,24 +98,24 @@ export function AdminLayout() {
     enabled: Boolean(currentOrganizationId),
   })
   useEffect(() => {
-    const preferredLocale = personalPreferences.data?.data.preferredLocale
+    const inheritedLocale = personalPreferences.data?.data.effectiveLocale
     if (
       organizationId ||
       !activeOrganization.isSuccess ||
       activeOrganization.data !== null ||
       !personalPreferences.isSuccess ||
       personalPreferences.isFetching ||
-      !preferredLocale ||
-      i18n.resolvedLanguage === preferredLocale
+      !inheritedLocale ||
+      i18n.resolvedLanguage === inheritedLocale
     )
       return
-    void i18n.changeLanguage(preferredLocale)
+    void i18n.changeLanguage(inheritedLocale)
   }, [
     activeOrganization.data,
     activeOrganization.isSuccess,
     i18n,
     organizationId,
-    personalPreferences.data?.data.preferredLocale,
+    personalPreferences.data?.data.effectiveLocale,
     personalPreferences.isFetching,
     personalPreferences.isSuccess,
   ])

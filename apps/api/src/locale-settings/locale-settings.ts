@@ -39,7 +39,8 @@ export class LocaleSettings {
     const preference = result.rows[0];
     if (!preference) throw new ApiException(401, 'UNAUTHENTICATED');
     language.useUserPreference(preference.preferred_locale);
-    const resolution = language.resolution;
+    // UI inheritance excludes this request's language header; Content-Language still follows it.
+    const resolution = language.preferenceResolution;
     return {
       preferredLocale:
         preference.preferred_locale as MyPreferences['preferredLocale'],
@@ -69,7 +70,7 @@ export class LocaleSettings {
     const preference = result.rows[0];
     if (!preference) throw new ApiException(409, 'VERSION_CONFLICT');
     language.useUserPreference(preference.preferred_locale);
-    const resolution = language.resolution;
+    const resolution = language.preferenceResolution;
     return {
       preferredLocale:
         preference.preferred_locale as MyPreferences['preferredLocale'],
