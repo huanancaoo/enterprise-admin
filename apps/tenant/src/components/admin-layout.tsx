@@ -18,7 +18,7 @@ import {
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
-import { FolderKanbanIcon, UsersIcon } from "lucide-react"
+import { FolderKanbanIcon, ShieldCheckIcon, UsersIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import {
   ApiClientError,
@@ -47,6 +47,7 @@ export function AdminLayout() {
   const organizationId = params.organizationId
   const organizations = workspace.workspace.data ?? []
   const onMembers = pathname.startsWith("/app/members/")
+  const onRoles = pathname.startsWith("/app/organizations/")
   useDropStaleOrganizationQueries(organizationId)
   const access = useQuery({
     ...getOrganizationAccessOptions(organizationId ?? ""),
@@ -71,6 +72,7 @@ export function AdminLayout() {
   }, [access.error, organizationId, queryClient])
   const projectListSearch =
     !onMembers &&
+    !onRoles &&
     (search.sortBy === "createdAt" || search.sortBy === "updatedAt")
       ? {
           page: search.page,
@@ -91,6 +93,12 @@ export function AdminLayout() {
   const membersLink = organizationId ? (
     <Link to="/app/members/$organizationId" params={{ organizationId }} />
   ) : undefined
+  const rolesLink = organizationId ? (
+    <Link
+      to="/app/organizations/$organizationId/roles"
+      params={{ organizationId }}
+    />
+  ) : undefined
   const suspended =
     access.error instanceof ApiClientError &&
     access.error.body.code === "ORGANIZATION_SUSPENDED"
@@ -99,6 +107,13 @@ export function AdminLayout() {
     const target = organizations.find((item) => item.id === nextOrganizationId)
     if (target?.status === "ACTIVE") {
       if (!(await workspace.selectOrganization(nextOrganizationId))) return
+    }
+    if (onRoles) {
+      await navigate({
+        to: "/app/organizations/$organizationId/roles",
+        params: { organizationId: nextOrganizationId },
+      })
+      return
     }
     if (onMembers) {
       await navigate({
@@ -133,9 +148,11 @@ export function AdminLayout() {
               <BreadcrumbPage>
                 {onMembers
                   ? t("organization:members")
-                  : params.projectId
-                    ? t("projects:detail")
-                    : t("projects:title")}
+                  : onRoles
+                    ? t("organization:roles")
+                    : params.projectId
+                      ? t("projects:detail")
+                      : t("projects:title")}
               </BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
@@ -170,6 +187,13 @@ export function AdminLayout() {
               isActive: onMembers,
               disabled: !organizationId || suspended,
               render: membersLink,
+            },
+            {
+              title: t("organization:roles"),
+              icon: <ShieldCheckIcon />,
+              isActive: onRoles,
+              disabled: !organizationId || suspended,
+              render: rolesLink,
             },
           ],
         },

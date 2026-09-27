@@ -30,6 +30,7 @@ import { ProjectsRoute } from "./components/projects-route"
 import { ProjectDetailRoute } from "./components/project-detail-route"
 import { AdminLayout } from "./components/admin-layout"
 import { MembersRoute } from "./components/members-route"
+import { RolesRoute } from "./components/roles-route"
 import {
   getInvitationDirectoryOptions,
   getMemberDirectoryOptions,
@@ -201,6 +202,16 @@ const membersRoute = createRoute({
     ]),
   component: MembersRoute,
 })
+const rolesLayoutRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/organizations/$organizationId",
+  component: AdminLayout,
+})
+const rolesRoute = createRoute({
+  getParentRoute: () => rolesLayoutRoute,
+  path: "/roles",
+  component: RolesRoute,
+})
 
 export const router = createRouter({
   routeTree: rootRoute.addChildren([
@@ -215,6 +226,7 @@ export const router = createRouter({
       organizationRoute,
       projectsLayoutRoute.addChildren([projectsRoute, projectDetailRoute]),
       membersLayoutRoute.addChildren([membersRoute]),
+      rolesLayoutRoute.addChildren([rolesRoute]),
     ]),
   ]),
   context: {

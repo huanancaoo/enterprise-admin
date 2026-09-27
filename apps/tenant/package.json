@@ -19,6 +19,7 @@
     "@workspace/api-client": "workspace:*",
     "@workspace/contracts": "workspace:*",
     "@workspace/i18n": "workspace:*",
+    "@workspace/permissions": "workspace:*",
     "@workspace/ui": "workspace:*",
     "lucide-react": "1.46.0",
     "react": "19.3.0",

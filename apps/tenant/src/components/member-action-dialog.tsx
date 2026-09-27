@@ -1,6 +1,6 @@
 import { useForm } from "@tanstack/react-form"
 import { useRef, useState, type RefObject } from "react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
@@ -28,8 +28,9 @@ import {
   organizationWriteOptions,
 } from "@/lib/organization-mutations"
 import type { MemberRow } from "@/query/organization-directory"
+import { getOrganizationRolesOptions } from "@/query/organization-roles"
 
-const roleSchema = z.object({ role: z.enum(["member", "admin", "owner"]) })
+const roleSchema = z.object({ role: z.string().min(1) })
 type Role = z.infer<typeof roleSchema>["role"]
 
 export type MemberAction = (
@@ -54,6 +55,10 @@ export function MemberActionDialog({
   const navigate = useNavigate()
   const completed = useRef(false)
   const [open, setOpen] = useState(true)
+  const roles = useQuery({
+    ...getOrganizationRolesOptions(organizationId),
+    enabled: action.kind === "role",
+  })
   const mutation = useMutation({
     mutationFn: async (role: Role) => {
       // 使用打开确认窗口时的版本，避免后台刷新替用户接受已变化的授权事实。
@@ -115,7 +120,9 @@ export function MemberActionDialog({
     action.kind === "role" &&
     (action.member.role === "admin" || action.member.role === "owner")
       ? action.member.role
-      : "member"
+      : action.kind === "role"
+        ? action.member.role
+        : "member"
   const form = useForm({
     defaultValues: { role: initialRole as Role },
     validators: { onSubmit: roleSchema },
@@ -181,16 +188,18 @@ export function MemberActionDialog({
                     value={field.state.value}
                     items={{
                       member: t("organization:role_member"),
-                      admin: t("organization:role_admin"),
-                      owner: t("organization:role_owner"),
+                      ...(actorRole === "owner"
+                        ? {
+                            admin: t("organization:role_admin"),
+                            owner: t("organization:role_owner"),
+                          }
+                        : {}),
+                      ...Object.fromEntries(
+                        (roles.data ?? []).map((role) => [role.role, role.role])
+                      ),
                     }}
                     onValueChange={(role) => {
-                      if (
-                        role === "member" ||
-                        role === "admin" ||
-                        role === "owner"
-                      )
-                        field.handleChange(role)
+                      if (role) field.handleChange(role)
                     }}
                   >
                     <SelectTrigger
@@ -214,6 +223,11 @@ export function MemberActionDialog({
                           {t("organization:role_owner")}
                         </SelectItem>
                       )}
+                      {(roles.data ?? []).map((role) => (
+                        <SelectItem key={role.id} value={role.role}>
+                          {role.role}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   {isInvalid && <FieldError errors={field.state.meta.errors} />}
