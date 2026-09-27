@@ -106,12 +106,13 @@ export function AdminLayout() {
       })
     )
       return
-    void i18n.changeLanguage(nextLocale)
+    if (nextLocale !== uiLocale) void i18n.changeLanguage(nextLocale)
   }, [
     access.data?.data.effectiveLocale,
     currentOrganizationId,
     i18n,
     session.user.id,
+    uiLocale,
   ])
   useEffect(() => {
     if (

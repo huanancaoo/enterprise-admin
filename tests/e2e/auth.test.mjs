@@ -944,23 +944,15 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
         ).toBeVisible()
       }
     }
-    const selectAuditLocale = async (currentLanguage, locale) => {
-      await openAdminUserMenu(page, "项目删除用户")
+    const selectAuditLocale = async (currentLanguage, locale, localeCode) => {
+      await page.locator('a[href="/app/settings/preferences"]').click()
       await page
-        .getByRole("menuitem", { name: currentLanguage, exact: true })
-        .focus()
-      const submenuDirection =
-        (await page.locator("html").getAttribute("dir")) === "rtl"
-          ? "ArrowLeft"
-          : "ArrowRight"
-      await page.keyboard.press(submenuDirection)
-      const localeOption = page.getByRole("menuitemradio", {
-        name: locale,
-        exact: true,
-      })
-      await expectUI(localeOption).toBeVisible()
-      await localeOption.focus()
-      await page.keyboard.press("Enter")
+        .getByRole("combobox", { name: currentLanguage, exact: true })
+        .click()
+      await page.getByRole("option", { name: locale, exact: true }).click()
+      await page.getByRole("button", { name: /保存|Save|حفظ/ }).click()
+      await expectUI(page.locator("html")).toHaveAttribute("lang", localeCode)
+      await page.goBack()
     }
     await expectAuditEventLabels([
       "更新组织设置",
@@ -968,14 +960,14 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
       "更新角色",
       "删除角色",
     ])
-    await selectAuditLocale("语言", "English")
+    await selectAuditLocale("语言", "English", "en-US")
     await expectAuditEventLabels([
       "Organization settings updated",
       "Role created",
       "Role updated",
       "Role deleted",
     ])
-    await selectAuditLocale("Language", "العربية")
+    await selectAuditLocale("Language", "العربية", "ar")
     await expectAuditEventLabels([
       "تحديث إعدادات المؤسسة",
       "إنشاء دور",

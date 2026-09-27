@@ -17,11 +17,7 @@ import {
 } from "@workspace/admin"
 import { ForgotPasswordPage } from "@workspace/admin/auth"
 import type { WorkspaceRouterContext } from "@workspace/admin/auth"
-import {
-  getProjectDetailOptions,
-  getProjectsListOptions,
-  getWorkspaceOrganizationsOptions,
-} from "@workspace/api-client"
+import { getWorkspaceOrganizationsOptions } from "@workspace/api-client"
 import {
   App,
   TenantAcceptInvitationPage,
@@ -36,17 +32,12 @@ import { AdminLayout } from "./components/admin-layout"
 import { MembersRoute } from "./components/members-route"
 import { RolesRoute } from "./components/roles-route"
 import { AuditEventsRoute } from "./components/audit-events-route"
-import {
-  getInvitationDirectoryOptions,
-  getMemberDirectoryOptions,
-  memberDirectorySearchSchema,
-} from "./query/organization-directory"
+import { memberDirectorySearchSchema } from "./query/organization-directory"
 import { OrganizationGate } from "./components/organization-workspace"
 import {
   OrganizationLocaleSettingsRoute,
   PersonalLocaleSettingsRoute,
 } from "./components/locale-settings"
-import { getOrganizationAuditEventsOptions } from "./query/organization-audit"
 
 const rootRoute = createRootRouteWithContext<WorkspaceRouterContext>()({
   component: App,
@@ -154,7 +145,8 @@ const organizationRoute = createRoute({
   component: OrganizationGate,
 })
 // 工作台挂在 /projects 下，进入门仍是 /app 的兄弟路由。不用 pathless id，以免改写 useParams 的 from。
-// 布局在子 loader 完成前就会挂载并订阅 access；access 不能放进子 loader 的 query()，否则 StrictMode 卸观察者会取消 fetch，列表变成 CatchBoundary。
+// 组织页面由各自的 useQuery 持有数据请求；路由 loader 不能同时等待同一查询，
+// 否则语言或组织切换时卸载观察者会取消 loader，进入路由错误页。
 const projectsLayoutRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/projects",
@@ -164,29 +156,11 @@ const projectsRoute = createRoute({
   getParentRoute: () => projectsLayoutRoute,
   path: "/$organizationId",
   validateSearch: ProjectListQuerySchema,
-  loaderDeps: ({ search }) => search,
-  loader: ({ context, params, deps }) =>
-    context.queryClient.query({
-      ...getProjectsListOptions(params.organizationId, deps, context.locale),
-      staleTime: "static",
-    }),
   component: ProjectsRoute,
 })
 const projectDetailRoute = createRoute({
   getParentRoute: () => projectsLayoutRoute,
   path: "/$organizationId/$projectId",
-  // 404/403 是详情页自己的页面态；query() 抛出后会进 CatchBoundary，而不是「未找到项目」。
-  loader: ({ context, params }) =>
-    context.queryClient
-      .query({
-        ...getProjectDetailOptions(
-          params.organizationId,
-          params.projectId,
-          context.locale
-        ),
-        staleTime: "static",
-      })
-      .catch(() => undefined),
   component: ProjectDetailRoute,
 })
 const membersLayoutRoute = createRoute({
@@ -198,18 +172,6 @@ const membersRoute = createRoute({
   getParentRoute: () => membersLayoutRoute,
   path: "/$organizationId",
   validateSearch: memberDirectorySearchSchema,
-  loaderDeps: ({ search }) => search,
-  loader: ({ context, params, deps }) =>
-    Promise.all([
-      context.queryClient.query({
-        ...getMemberDirectoryOptions(params.organizationId, deps),
-        staleTime: "static",
-      }),
-      context.queryClient.query({
-        ...getInvitationDirectoryOptions(params.organizationId),
-        staleTime: "static",
-      }),
-    ]),
   component: MembersRoute,
 })
 const organizationSettingsLayoutRoute = createRoute({
@@ -247,12 +209,6 @@ const auditEventsRoute = createRoute({
   path: "/$organizationId/audit",
   validateSearch: (search: Record<string, unknown>) =>
     AuditEventsQuerySchema.parse(search),
-  loaderDeps: ({ search }) => search,
-  loader: ({ context, params, deps }) =>
-    context.queryClient.query({
-      ...getOrganizationAuditEventsOptions(params.organizationId, deps),
-      staleTime: "static",
-    }),
   component: AuditEventsRoute,
 })
 
