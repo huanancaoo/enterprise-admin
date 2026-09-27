@@ -1,14 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { CommandRunner, RootCommand, SubCommand } from 'nest-commander';
-import { PlatformAdminCreateCommand } from './platform-admin-create.command';
+import {
+  PlatformAssignmentGrantCommand,
+  PlatformAssignmentRevokeCommand,
+} from './platform-assignment.command';
 
 @SubCommand({
-  name: 'admin',
-  description: '平台管理员',
-  subCommands: [PlatformAdminCreateCommand],
+  name: 'assignment',
+  description: '平台任职',
+  subCommands: [
+    PlatformAssignmentGrantCommand,
+    PlatformAssignmentRevokeCommand,
+  ],
 })
 @Injectable()
-export class PlatformAdminCommand extends CommandRunner {
+export class PlatformAssignmentCommand extends CommandRunner {
   override setCommand(
     command: Parameters<CommandRunner['setCommand']>[0],
   ): this {
@@ -24,7 +30,7 @@ export class PlatformAdminCommand extends CommandRunner {
 @SubCommand({
   name: 'platform',
   description: '平台',
-  subCommands: [PlatformAdminCommand],
+  subCommands: [PlatformAssignmentCommand],
 })
 @Injectable()
 export class PlatformCommand extends CommandRunner {

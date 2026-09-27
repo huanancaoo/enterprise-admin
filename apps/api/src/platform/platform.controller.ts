@@ -5,8 +5,8 @@ import {
   PlatformAccessSchema,
   type PlatformAccess,
 } from '@workspace/contracts';
-import type { Identity } from '../identity/identity.service';
 import { CurrentPlatform, RequirePlatform } from './platform.guard';
+import type { PlatformPrincipal } from './platform-access.service';
 
 @ApiTags('platform')
 @Controller()
@@ -18,7 +18,12 @@ export class PlatformController {
   @ApiResponse({ status: 401, standardSchema: ApiErrorSchema })
   @ApiResponse({ status: 403, standardSchema: ApiErrorSchema })
   @ApiResponse({ status: 500, standardSchema: ApiErrorSchema })
-  me(@CurrentPlatform() identity: Identity): PlatformAccess {
-    return { userId: identity.userId };
+  me(@CurrentPlatform() identity: PlatformPrincipal): PlatformAccess {
+    return {
+      userId: identity.userId,
+      role: identity.role,
+      scope: identity.scope,
+      mfaVerifiedAt: identity.mfaVerifiedAt,
+    };
   }
 }

@@ -113,6 +113,9 @@ export type OrganizationAccess = z.infer<typeof OrganizationAccessSchema>
 export const PlatformAccessSchema = z
   .strictObject({
     userId: z.uuid(),
+    role: z.enum(["platform_admin", "platform_auditor"]),
+    scope: z.literal("global"),
+    mfaVerifiedAt: z.iso.datetime({ offset: true }),
   })
   .meta({ id: "PlatformAccess" })
 export type PlatformAccess = z.infer<typeof PlatformAccessSchema>
@@ -121,6 +124,7 @@ export const ApiErrorCodeSchema = z
     "VALIDATION_ERROR",
     "UNAUTHENTICATED",
     "FORBIDDEN",
+    "PLATFORM_MFA_REQUIRED",
     "NOT_FOUND",
     "ORGANIZATION_SUSPENDED",
     "AUTHORIZATION_UNAVAILABLE",

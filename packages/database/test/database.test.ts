@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { execFile } from "node:child_process"
-import { randomBytes } from "node:crypto"
+import { randomBytes, randomUUID } from "node:crypto"
 import {
   cp,
   mkdir,
@@ -23,7 +23,7 @@ import { Pool } from "pg"
 import type { SecondaryStorage } from "better-auth"
 import { createAuth, noopAuthEmailHooks } from "../src/auth.ts"
 import { createDatabase } from "../src/index.ts"
-import { createPlatformAdmin } from "../src/platform-admin.ts"
+import { managePlatformAssignment } from "../src/platform-assignment-admin.ts"
 
 const exec = promisify(execFile)
 
@@ -76,6 +76,7 @@ const tables = [
   "project_translations",
   "projects",
   "session",
+  "two_factor",
   "user",
   "verification",
 ]
@@ -88,6 +89,7 @@ describe(suiteName, { concurrent: false }, () => {
   let migrator: Pool
   let runtime: Pool
   let platform: Pool
+  let deployer: Pool
   let migrationUrl: string
   let temp: string | undefined
 
@@ -104,7 +106,7 @@ describe(suiteName, { concurrent: false }, () => {
     const versions = JSON.parse(
       await readFile("../../docs/architecture/versions.json", "utf8")
     )
-    const passwords = Array.from({ length: 4 }, () =>
+    const passwords = Array.from({ length: 5 }, () =>
       randomBytes(24).toString("hex")
     )
     container = await new GenericContainer(versions.postgresql.image)
@@ -115,11 +117,16 @@ describe(suiteName, { concurrent: false }, () => {
         APP_MIGRATOR_PASSWORD: passwords[1],
         APP_RUNTIME_PASSWORD: passwords[2],
         PLATFORM_RUNTIME_PASSWORD: passwords[3],
+        PLATFORM_DEPLOYER_PASSWORD: passwords[4],
       })
       .withCopyFilesToContainer([
         {
           source: resolve("../../infra/postgres/bootstrap.sql"),
           target: "/docker-entrypoint-initdb.d/001-bootstrap.sql",
+        },
+        {
+          source: resolve("../../infra/postgres/upgrade-platform-roles.sql"),
+          target: "/tmp/upgrade-platform-roles.sql",
         },
       ])
       .withExposedPorts(5432)
@@ -136,6 +143,35 @@ describe(suiteName, { concurrent: false }, () => {
     platform = new Pool({
       connectionString: url("platform_runtime", passwords[3]),
     })
+    deployer = new Pool({
+      connectionString: url("platform_deployer", passwords[4]),
+    })
+    await owner.query("DROP OWNED BY platform_deployer")
+    await owner.query("DROP ROLE platform_deployer")
+    await owner.query("REVOKE platform_executor FROM app_migrator")
+    await owner.query("DROP OWNED BY platform_executor")
+    await owner.query("DROP ROLE platform_executor")
+    await exec(
+      "docker",
+      [
+        "exec",
+        "-e",
+        `PLATFORM_RUNTIME_PASSWORD=${passwords[3]}`,
+        "-e",
+        `PLATFORM_DEPLOYER_PASSWORD=${passwords[4]}`,
+        container.getId(),
+        "psql",
+        "-U",
+        "bootstrap_admin",
+        "-d",
+        "enterprise_admin",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-f",
+        "/tmp/upgrade-platform-roles.sql",
+      ],
+      { env: { PATH: process.env.PATH } }
+    )
   })
 
   afterAll(async () => {
@@ -146,6 +182,7 @@ describe(suiteName, { concurrent: false }, () => {
         migrator?.end(),
         runtime?.end(),
         platform?.end(),
+        deployer?.end(),
       ])
     } finally {
       await container?.stop()
@@ -192,6 +229,8 @@ describe(suiteName, { concurrent: false }, () => {
         "audit_events",
         "organization_status",
         "platform_assignment",
+        "platform_assignment_audit",
+        "platform_session_assurance",
       ].sort()
     )
   })
@@ -199,10 +238,10 @@ describe(suiteName, { concurrent: false }, () => {
   test("Owner、角色属性、DDL、TEMP、角色切换和迁移历史访问边界", async () => {
     const roles = (
       await owner.query(
-        "SELECT rolname, rolsuper, rolbypassrls, rolcreatedb, rolcreaterole, rolreplication FROM pg_roles WHERE rolname IN ('app_migrator','app_runtime','platform_runtime')"
+        "SELECT rolname, rolsuper, rolbypassrls, rolcreatedb, rolcreaterole, rolreplication, rolcanlogin FROM pg_roles WHERE rolname IN ('app_migrator','app_runtime','platform_runtime','platform_deployer','platform_executor')"
       )
     ).rows
-    assert.equal(roles.length, 3)
+    assert.equal(roles.length, 5)
     for (const row of roles)
       for (const key of [
         "rolsuper",
@@ -212,6 +251,14 @@ describe(suiteName, { concurrent: false }, () => {
         "rolreplication",
       ])
         assert.equal(row[key], false)
+    assert.equal(
+      roles.find((row) => row.rolname === "platform_executor")?.rolcanlogin,
+      false
+    )
+    assert.equal(
+      roles.find((row) => row.rolname === "platform_deployer")?.rolcanlogin,
+      true
+    )
     const owners = (
       await owner.query(
         "SELECT tableowner FROM pg_tables WHERE schemaname IN ('public','drizzle')"
@@ -297,15 +344,39 @@ describe(suiteName, { concurrent: false }, () => {
           `SELECT
             has_table_privilege(current_user, 'platform_assignment', 'SELECT') AS read,
             has_table_privilege(current_user, 'platform_assignment', 'INSERT') AS insert,
-            has_table_privilege(current_user, 'platform_assignment', 'UPDATE') AS update,
-            has_table_privilege(current_user, 'platform_assignment', 'DELETE') AS delete
+            has_function_privilege(current_user, 'read_platform_access(uuid,uuid)', 'EXECUTE') AS read_function
           `
         )
       ).rows[0],
-      { read: true, insert: true, update: false, delete: false }
+      { read: false, insert: false, read_function: false }
     )
     await assert.rejects(
       platform.query("SELECT user_id FROM platform_assignment"),
+      { code: "42501" }
+    )
+    assert.deepEqual(
+      (
+        await platform.query(
+          `SELECT
+            has_table_privilege(current_user, 'platform_assignment', 'SELECT') AS read_assignment,
+            has_table_privilege(current_user, 'platform_session_assurance', 'SELECT') AS read_assurance,
+            has_function_privilege(current_user, 'read_platform_access(uuid,uuid)', 'EXECUTE') AS read_function,
+            has_function_privilege(current_user, 'record_platform_session_assurance(uuid,uuid)', 'EXECUTE') AS record_function
+          `
+        )
+      ).rows[0],
+      {
+        read_assignment: false,
+        read_assurance: false,
+        read_function: true,
+        record_function: false,
+      }
+    )
+    await assert.rejects(
+      runtime.query("SELECT public.read_platform_access($1, $2)", [
+        randomUUID(),
+        randomUUID(),
+      ]),
       { code: "42501" }
     )
     for (const table of tables) {
@@ -467,7 +538,7 @@ describe(suiteName, { concurrent: false }, () => {
     assert.equal(await auth.api.getSession({ headers }), null)
   })
 
-  test("CLI 创建的平台管理员可登录，邮箱已验证，也不因此成为组织成员", async () => {
+  test("部署 CLI 授权只更改平台任职并在同一事务写审计", async () => {
     const auth = createAuth(
       runtime,
       "http://localhost:3000",
@@ -481,12 +552,39 @@ describe(suiteName, { concurrent: false }, () => {
         clientSecret: "test-github-client-secret",
       }
     )
-    const email = "platform-admin@example.test"
-    const password = "platform-admin-test-password"
-    const { userId } = await createPlatformAdmin(auth, runtime, {
-      email,
-      password,
-      name: "平台管理员",
+    const registered = await auth.api.signUpEmail({
+      body: {
+        email: "platform-admin@example.test",
+        password: "platform-admin-test-password",
+        name: "平台管理员",
+      },
+    })
+    const userId = registered.user.id
+    await migrator.query(
+      'UPDATE public."user" SET email_verified = true WHERE id = $1',
+      [userId]
+    )
+    assert.deepEqual(
+      (
+        await deployer.query(`
+          SELECT
+            has_column_privilege(current_user, 'platform_assignment', 'user_id', 'INSERT') AS insert_user_id,
+            has_column_privilege(current_user, 'platform_assignment', 'role', 'INSERT') AS insert_role,
+            has_column_privilege(current_user, 'platform_assignment', 'version', 'UPDATE') AS update_version,
+            has_table_privilege(current_user, 'platform_assignment', 'INSERT') AS insert_table
+        `)
+      ).rows[0],
+      {
+        insert_user_id: true,
+        insert_role: true,
+        update_version: true,
+        insert_table: false,
+      }
+    )
+    await managePlatformAssignment(deployer, "grant", {
+      userId,
+      role: "platform_admin",
+      reason: "database access boundary test",
     })
     assert.equal(
       (
@@ -503,17 +601,39 @@ describe(suiteName, { concurrent: false }, () => {
       0
     )
     const response = await auth.api.signInEmail({
-      body: { email, password },
+      body: {
+        email: "platform-admin@example.test",
+        password: "platform-admin-test-password",
+      },
       asResponse: true,
     })
     assert.equal(response.status, 200)
-    await assert.rejects(
-      createPlatformAdmin(auth, runtime, {
-        email,
-        password,
-        name: "平台管理员",
-      })
+    await managePlatformAssignment(deployer, "grant", {
+      userId,
+      role: "platform_auditor",
+      reason: "change role",
+    })
+    const audit = await migrator.query(
+      "SELECT action, result, reason FROM platform_assignment_audit WHERE user_id = $1",
+      [userId]
     )
+    assert.deepEqual(audit.rows, [
+      {
+        action: "grant",
+        result: "changed",
+        reason: "database access boundary test",
+      },
+      {
+        action: "grant",
+        result: "changed",
+        reason: "change role",
+      },
+    ])
+    await managePlatformAssignment(deployer, "revoke", {
+      userId,
+      role: "platform_auditor",
+      reason: "remove assignment",
+    })
   })
 
   test("停用后写入锁拒绝提交，缺失状态失败关闭", async () => {
@@ -645,21 +765,13 @@ describe(suiteName, { concurrent: false }, () => {
     }
   })
 
-  test("平台仅能读允许的元数据列，不能读凭据或获得默认新表权限", async () => {
-    assert.equal(
-      (await platform.query('SELECT id, name, email FROM public."user"'))
-        .rowCount,
-      2
-    )
-    assert.equal(
-      (await platform.query("SELECT id, name, slug FROM public.organization"))
-        .rowCount,
-      1
-    )
+  test("平台运行账号只能执行固定身份函数，不能读取身份表或获得默认新表权限", async () => {
     for (const sql of [
       "SELECT * FROM public.account",
       "SELECT * FROM public.session",
       "SELECT * FROM public.email_messages",
+      'SELECT id, name, email FROM public."user"',
+      "SELECT id, name, slug FROM public.organization",
       "SELECT metadata FROM public.organization",
       "UPDATE public.organization SET name='forbidden'",
     ])

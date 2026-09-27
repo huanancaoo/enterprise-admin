@@ -114,10 +114,12 @@ export function CredentialsPage({
   title,
   allowSignUp = false,
   allowGithub = false,
+  onMfaRequired,
 }: {
   title: string
   allowSignUp?: boolean
   allowGithub?: boolean
+  onMfaRequired?: () => void
 }) {
   const client = useWorkspaceAuthClient()
   return (
@@ -126,6 +128,7 @@ export function CredentialsPage({
       title={title}
       allowSignUp={allowSignUp}
       allowGithub={allowGithub}
+      onMfaRequired={onMfaRequired}
     />
   )
 }
@@ -159,11 +162,13 @@ function AuthEntry({
   title,
   allowSignUp = false,
   allowGithub = false,
+  onMfaRequired,
 }: {
   client: WorkspaceAuthClient
   title: string
   allowSignUp?: boolean
   allowGithub?: boolean
+  onMfaRequired?: () => void
 }) {
   const [signUp, setSignUp] = useState(false)
   const [checkEmail, setCheckEmail] = useState(false)
@@ -196,6 +201,7 @@ function AuthEntry({
           action={action}
           allowSignUp={allowSignUp}
           allowGithub={allowGithub}
+          onMfaRequired={onMfaRequired}
           onSignedUp={() => setCheckEmail(true)}
           onToggleSignUp={() => {
             action.reset()
@@ -213,6 +219,7 @@ function CredentialsForm({
   action,
   allowSignUp,
   allowGithub,
+  onMfaRequired,
   onToggleSignUp,
   onSignedUp,
 }: {
@@ -221,6 +228,7 @@ function CredentialsForm({
   action: ReturnType<typeof useAuthAction>
   allowSignUp: boolean
   allowGithub: boolean
+  onMfaRequired?: () => void
   onToggleSignUp: () => void
   onSignedUp: () => void
 }) {
@@ -238,16 +246,23 @@ function CredentialsForm({
         email: value.email.trim(),
         password: value.password,
       }
-      const ok = await action.run(() =>
-        signUp
-          ? client.signUp.email({
-              ...credentials,
-              name: value.name.trim(),
-              callbackURL: `${window.location.origin}/auth/verified`,
-            })
-          : client.signIn.email(credentials)
-      )
+      let signInResult:
+        Awaited<ReturnType<typeof client.signIn.email>> | undefined
+      const ok = await action.run(async () => {
+        if (signUp) {
+          return client.signUp.email({
+            ...credentials,
+            name: value.name.trim(),
+            callbackURL: `${window.location.origin}/auth/verified`,
+          })
+        }
+        signInResult = await client.signIn.email(credentials)
+        return signInResult
+      })
       if (ok && signUp) onSignedUp()
+      if (ok && !signUp && signInResult?.data?.twoFactorRedirect) {
+        onMfaRequired?.()
+      }
     },
   })
 

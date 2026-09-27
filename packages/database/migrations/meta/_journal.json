@@ -127,6 +127,13 @@
       "when": 1790390845900,
       "tag": "0017_member-management-audit",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790532472800,
+      "tag": "0018_rainy_echo",
+      "breakpoints": true
     }
   ]
 }

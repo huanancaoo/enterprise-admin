@@ -13,6 +13,7 @@
   "ORGANIZATION_NOT_FOUND": "المؤسسة غير موجودة",
   "ORGANIZATION_SLUG_ALREADY_TAKEN": "معرّف المؤسسة مستخدم بالفعل",
   "ORGANIZATION_SUSPENDED": "هذه المؤسسة موقوفة",
+  "PLATFORM_MFA_REQUIRED": "تحقق من المصادقة الثنائية لهذه الجلسة للوصول إلى المنصة.",
   "SINGLE_ROLE_REQUIRED": "عيّن دورًا واحدًا فقط لكل عضو.",
   "UNAUTHENTICATED": "يرجى تسجيل الدخول",
   "USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION": "هذا المستخدم عضو بالفعل",

@@ -2,6 +2,7 @@ import { createAuthClient } from "better-auth/react"
 import {
   lastLoginMethodClient,
   organizationClient,
+  twoFactorClient,
 } from "better-auth/client/plugins"
 import { requestLanguageHeader, requestLocale } from "@workspace/api-client"
 
@@ -11,6 +12,7 @@ export function createWorkspaceAuthClient() {
     plugins: [
       organizationClient({ dynamicAccessControl: { enabled: true } }),
       lastLoginMethodClient(),
+      twoFactorClient(),
     ],
     fetchOptions: {
       onRequest(context) {

@@ -3,6 +3,7 @@ import { parseEmailEncryptionKey } from '../email/email-crypto';
 import { readAuthConfig, type AuthConfig } from '../identity/auth-runtime';
 
 export interface ApplicationConfig extends AuthConfig {
+  platformDatabaseURL: string;
   email: EmailConfig;
 }
 
@@ -38,6 +39,7 @@ export function readApplicationConfig(
   }
   return {
     ...readAuthConfig(env),
+    platformDatabaseURL: required('PLATFORM_DATABASE_URL'),
     email: {
       smtp: {
         host: required('SMTP_HOST'),

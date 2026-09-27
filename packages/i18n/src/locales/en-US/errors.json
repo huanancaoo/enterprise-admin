@@ -13,6 +13,7 @@
   "ORGANIZATION_NOT_FOUND": "Organization not found",
   "ORGANIZATION_SLUG_ALREADY_TAKEN": "This organization slug is already taken",
   "ORGANIZATION_SUSPENDED": "This organization is suspended",
+  "PLATFORM_MFA_REQUIRED": "Verify two-factor authentication for this session to access the platform.",
   "SINGLE_ROLE_REQUIRED": "Assign exactly one role to each member.",
   "UNAUTHENTICATED": "Authentication required",
   "USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION": "This user is already a member",

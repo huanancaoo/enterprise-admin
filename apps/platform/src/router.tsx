@@ -11,6 +11,8 @@ import {
 } from "@workspace/admin"
 import { ForgotPasswordPage } from "@workspace/admin/auth"
 import type { WorkspaceRouterContext } from "@workspace/admin/auth"
+import { ApiClientError, apiClient } from "@workspace/api-client"
+import { PlatformAccessSchema, type PlatformAccess } from "@workspace/contracts"
 import {
   App,
   PlatformAuthTitlePage,
@@ -18,6 +20,8 @@ import {
   PlatformHome,
   PlatformLayout,
   PlatformLoginPage,
+  PlatformMfaPage,
+  PlatformAccessDeniedPage,
   PlatformResetPasswordPage,
 } from "./App"
 
@@ -31,6 +35,22 @@ const loginRoute = createRoute({
     if (context.user) throw redirect({ to: "/platform" })
   },
   component: PlatformLoginPage,
+})
+const platformMfaRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/platform/mfa",
+  validateSearch: (search: Record<string, unknown>) => ({
+    challenge: search.challenge === true || search.challenge === "true",
+  }),
+  beforeLoad: ({ context, search }) => {
+    if (!context.user && !search.challenge) throw redirect({ to: "/login" })
+  },
+  component: PlatformMfaPage,
+})
+const platformAccessDeniedRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/platform/access-denied",
+  component: PlatformAccessDeniedPage,
 })
 const forgotPasswordRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -56,8 +76,28 @@ const emailVerifiedRoute = createRoute({
 const platformRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/platform",
-  beforeLoad: ({ context }) => {
+  beforeLoad: async ({ context }) => {
     if (!context.user) throw redirect({ to: "/login" })
+    try {
+      const response = await apiClient<{ data: PlatformAccess }>(
+        "/api/v1/me/platform"
+      )
+      return { platformAccess: PlatformAccessSchema.parse(response.data) }
+    } catch (error) {
+      if (error instanceof ApiClientError && error.status === 401) {
+        throw redirect({ to: "/login" })
+      }
+      if (
+        error instanceof ApiClientError &&
+        error.body.code === "PLATFORM_MFA_REQUIRED"
+      ) {
+        throw redirect({ to: "/platform/mfa", search: { challenge: false } })
+      }
+      if (error instanceof ApiClientError && error.status === 403) {
+        throw redirect({ to: "/platform/access-denied" })
+      }
+      throw error
+    }
   },
   component: PlatformLayout,
 })
@@ -79,6 +119,8 @@ export const router = createRouter({
     indexRoute,
     loginRoute,
     forgotPasswordRoute,
+    platformMfaRoute,
+    platformAccessDeniedRoute,
     resetPasswordRoute,
     emailVerifiedRoute,
     platformRoute.addChildren([platformIndexRoute]),

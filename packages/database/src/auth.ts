@@ -1,5 +1,9 @@
-import { betterAuth, type SecondaryStorage } from "better-auth"
-import { lastLoginMethod, organization } from "better-auth/plugins"
+import {
+  betterAuth,
+  type BetterAuthPlugin,
+  type SecondaryStorage,
+} from "better-auth"
+import { lastLoginMethod, organization, twoFactor } from "better-auth/plugins"
 import { createAccessControl } from "better-auth/plugins/access"
 import {
   defaultStatements,
@@ -459,6 +463,19 @@ export function createAuth(
       },
     },
     hooks: {
+      after: createAuthMiddleware(async (ctx) => {
+        if (ctx.path !== "/two-factor/verify-totp") return
+        if (ctx.context.returned instanceof APIError) return
+        const verifiedSession =
+          ctx.context.newSession ??
+          (await getSessionFromCtx(ctx, { disableCookieCache: true }))
+        if (!verifiedSession) return
+        // Only successful TOTP verification creates assurance, bound to the Session Better Auth actually issued.
+        await pool.query(
+          "SELECT public.record_platform_session_assurance($1, $2)",
+          [verifiedSession.session.id, verifiedSession.user.id]
+        )
+      }),
       before: createAuthMiddleware(async (ctx) => {
         if (!ctx.path.startsWith("/organization/")) return
         const body = (ctx.body ?? {}) as {
@@ -537,6 +554,7 @@ export function createAuth(
     },
     plugins: [
       organizationPlugin,
+      twoFactor({ issuer: "Enterprise Admin" }) as BetterAuthPlugin,
       createAuthI18n(),
       // 登录页读 cookie；已登录会话从 user.lastLoginMethod 展示，必须写库。
       lastLoginMethod({ storeInDatabase: true }),

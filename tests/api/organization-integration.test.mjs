@@ -320,14 +320,14 @@ describe("S8: Organization integration invariants", () => {
       ).toBe(action === "leave" ? 1 : 2)
     }
   )
-  it("native MFA endpoints are not mounted in the production configuration", async () => {
+  it("native MFA endpoints are mounted without session assurance leakage", async () => {
     const actor = await signup()
     const response = await post(
       "two-factor/verify-totp",
       { code: "000000" },
       actor.cookie
     )
-    expect(response.status).toBe(404)
+    expect(response.status).toBe(400)
     const session = await runtime.auth.api.getSession({
       headers: actor.headers,
     })

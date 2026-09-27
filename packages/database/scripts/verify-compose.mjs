@@ -20,6 +20,7 @@ const env = {
   APP_MIGRATOR_PASSWORD: randomBytes(24).toString("hex"),
   APP_RUNTIME_PASSWORD: randomBytes(24).toString("hex"),
   PLATFORM_RUNTIME_PASSWORD: randomBytes(24).toString("hex"),
+  PLATFORM_DEPLOYER_PASSWORD: randomBytes(24).toString("hex"),
   POSTGRES_PORT: "0",
 }
 env.MIGRATION_DATABASE_URL = `postgresql://app_migrator:${env.APP_MIGRATOR_PASSWORD}@postgres:5432/enterprise_admin`

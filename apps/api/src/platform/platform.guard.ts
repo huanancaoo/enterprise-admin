@@ -9,22 +9,30 @@ import {
 } from '@nestjs/common';
 import { fromNodeHeaders } from 'better-auth/node';
 import type { Request } from 'express';
-import { IdentityService, type Identity } from '../identity/identity.service';
+import { IdentityService } from '../identity/identity.service';
+import {
+  PlatformAccessService,
+  type PlatformPrincipal,
+} from './platform-access.service';
 
 const trustedPlatform = Symbol('trustedPlatformIdentity');
-type PlatformRequest = Request & { [trustedPlatform]?: Identity };
+type PlatformRequest = Request & { [trustedPlatform]?: PlatformPrincipal };
 
 @Injectable()
 export class PlatformGuard implements CanActivate {
-  constructor(private readonly identity: IdentityService) {}
+  constructor(
+    private readonly identity: IdentityService,
+    private readonly access: PlatformAccessService,
+  ) {}
 
   async canActivate(execution: ExecutionContext): Promise<boolean> {
     const request = execution.switchToHttp().getRequest<PlatformRequest>();
     const headers = fromNodeHeaders(request.headers);
     const actor = await this.identity.requireIdentity(headers);
-    // 每次请求重查任职表；会话、组织角色和打开平台后台都不能代替这一行。
-    await this.identity.requirePlatformAssignment(actor);
-    request[trustedPlatform] = actor;
+    request[trustedPlatform] = await this.access.requireAccess(
+      actor,
+      !['GET', 'HEAD', 'OPTIONS'].includes(request.method),
+    );
     return true;
   }
 }
@@ -34,7 +42,7 @@ export function RequirePlatform() {
 }
 
 export const CurrentPlatform = createParamDecorator(
-  (_data: unknown, execution: ExecutionContext): Identity => {
+  (_data: unknown, execution: ExecutionContext): PlatformPrincipal => {
     const identity = execution.switchToHttp().getRequest<PlatformRequest>()[
       trustedPlatform
     ];

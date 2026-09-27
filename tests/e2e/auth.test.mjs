@@ -1508,17 +1508,14 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await page.getByLabel("密码", { exact: true }).fill(credentials.password)
     await page.getByRole("button", { name: "登录", exact: true }).click()
     await expectUI(
-      page.getByRole("heading", { name: "账户已登录", exact: true })
+      page.getByRole("heading", { name: "无权访问平台后台", exact: true })
     ).toBeVisible()
     await expectUI(
-      page.getByText("上次登录：邮箱", { exact: true })
-    ).toBeVisible()
+      page.getByText("平台功能尚未开放。", { exact: true })
+    ).toHaveCount(0)
     await page.reload()
     await expectUI(
-      page.getByText("platform-login@example.test", { exact: true })
-    ).toBeVisible()
-    await expectUI(
-      page.getByText("上次登录：邮箱", { exact: true })
+      page.getByRole("heading", { name: "无权访问平台后台", exact: true })
     ).toBeVisible()
     await page.screenshot({
       path: "test-results/s4-02/platform.png",
@@ -1527,9 +1524,13 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await expectUI(
       page.getByRole("button", { name: "创建组织", exact: true })
     ).toHaveCount(0)
-    await signOutFromAppShell(page, "普通账号")
-    await page.getByRole("heading", { name: "登录", exact: true }).waitFor()
-    await page.reload()
+    const signedOut = await page
+      .context()
+      .request.post(`${platformOrigin}/api/auth/sign-out`, {
+        headers: { origin: platformOrigin },
+      })
+    expect(signedOut.status()).toBe(200)
+    await page.goto(`${platformOrigin}/platform`)
     await expectUI(
       page.getByRole("heading", { name: "登录", exact: true })
     ).toBeVisible()
