@@ -223,6 +223,7 @@ describe("platform assignment access boundary", () => {
     expect(
       await getSession(setupSessionCookie).then((response) => response.json())
     ).toBeNull()
+    expect((await platformAccess(setupSessionCookie)).status).toBe(401)
     const assurance = await migrator.query(
       "SELECT session_id, method FROM platform_session_assurance WHERE user_id = $1",
       [member.user.id]
@@ -245,6 +246,18 @@ describe("platform assignment access boundary", () => {
       body: { name: "Other user's organization", slug: randomUUID() },
     })
     expect(org.id).toBeTruthy()
+    expect(
+      (
+        await migrator.query("SELECT 1 FROM member WHERE user_id = $1", [
+          member.user.id,
+        ])
+      ).rowCount
+    ).toBe(0)
+    const tenantProjects = await fetch(
+      `${baseURL}/api/v1/organizations/${org.id}/projects`,
+      { headers: { cookie: verifiedSessionCookie } }
+    )
+    expect(tenantProjects.status).toBe(403)
     const revoked = await cli(
       "revoke",
       member.user.id,
@@ -261,6 +274,118 @@ describe("platform assignment access boundary", () => {
     const signedOut = await fetchJson("sign-out", {}, verifiedSessionCookie)
     expect(signedOut.status).toBe(200)
     expect((await platformAccess(verifiedSessionCookie)).status).toBe(401)
+  })
+
+  it("rejects an expired session after valid MFA-backed platform access", async () => {
+    const user = await signup()
+    await cli(
+      "grant",
+      user.user.id,
+      "platform_admin",
+      "expired platform session"
+    )
+    const enabled = await fetchJson(
+      "two-factor/enable",
+      { password: user.password, method: "totp", issuer: "Enterprise Admin" },
+      user.cookie
+    )
+    expect(enabled.status).toBe(200)
+    const enabledData = await json(enabled)
+    const setupSessionCookie = setCookies(enabled) || user.cookie
+    const totpSecret = new URL(enabledData.totpURI).searchParams.get("secret")
+    expect(totpSecret).toBeTruthy()
+
+    const verified = await fetchJson(
+      "two-factor/verify-totp",
+      { code: totp(totpSecret) },
+      setupSessionCookie
+    )
+    expect(verified.status).toBe(200)
+    const verifiedSessionCookie = setCookies(verified) || setupSessionCookie
+    const session = await getSession(verifiedSessionCookie).then((response) =>
+      response.json()
+    )
+
+    const activeDatabaseAccess = await environment.platformPool.query(
+      "SELECT * FROM public.read_platform_access($1, $2)",
+      [user.user.id, session.session.id]
+    )
+    expect(activeDatabaseAccess.rows).toEqual([
+      expect.objectContaining({
+        role: "platform_admin",
+        two_factor_enabled: true,
+        mfa_verified_at: expect.any(Date),
+      }),
+    ])
+    expect((await platformAccess(verifiedSessionCookie)).status).toBe(200)
+
+    await migrator.query(
+      "UPDATE public.session SET expires_at = clock_timestamp() - interval '1 second' WHERE id = $1",
+      [session.session.id]
+    )
+    const persistedExpiry = await migrator.query(
+      "SELECT expires_at < clock_timestamp() AS expired FROM public.session WHERE id = $1",
+      [session.session.id]
+    )
+    expect(persistedExpiry.rows[0].expired).toBe(true)
+
+    const databaseAccess = await environment.platformPool.query(
+      "SELECT * FROM public.read_platform_access($1, $2)",
+      [user.user.id, session.session.id]
+    )
+    expect(databaseAccess.rowCount).toBe(0)
+    const expiredPlatformAccess = await platformAccess(verifiedSessionCookie)
+    expect(expiredPlatformAccess.status).toBe(403)
+    expect(await json(expiredPlatformAccess)).toMatchObject({
+      code: "FORBIDDEN",
+    })
+  })
+
+  it("does not let tenant owners or admins grant themselves platform access over HTTP", async () => {
+    const owner = await signup()
+    const admin = await signup()
+    const org = await runtime.auth.api.createOrganization({
+      headers: owner.headers,
+      body: { name: "Tenant role boundary", slug: randomUUID() },
+    })
+    await runtime.auth.api.addMember({
+      headers: owner.headers,
+      body: {
+        organizationId: org.id,
+        userId: admin.user.id,
+        role: "admin",
+      },
+    })
+
+    const tenantRoles = await migrator.query(
+      "SELECT user_id, role FROM member WHERE organization_id = $1 AND user_id IN ($2, $3) ORDER BY role",
+      [org.id, owner.user.id, admin.user.id]
+    )
+    expect(tenantRoles.rows).toEqual([
+      { user_id: admin.user.id, role: "admin" },
+      { user_id: owner.user.id, role: "owner" },
+    ])
+
+    for (const tenant of [owner, admin]) {
+      const attemptedGrant = await fetch(`${baseURL}/api/v1/me/platform`, {
+        method: "POST",
+        headers: {
+          cookie: tenant.cookie,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: tenant.user.id,
+          role: "platform_admin",
+        }),
+      })
+      expect([404, 405]).toContain(attemptedGrant.status)
+    }
+
+    const assignments = await migrator.query(
+      "SELECT user_id FROM platform_assignment WHERE user_id IN ($1, $2)",
+      [owner.user.id, admin.user.id]
+    )
+    expect(assignments.rowCount).toBe(0)
   })
 
   it("keeps platform identity independent of organization membership and app_runtime grants", async () => {
