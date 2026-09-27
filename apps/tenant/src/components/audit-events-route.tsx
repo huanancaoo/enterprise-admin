@@ -102,7 +102,13 @@ function dateStart(value: string) {
 }
 
 function dateEnd(value: string) {
-  return value ? new Date(`${value}T23:59:59.999Z`).toISOString() : undefined
+  if (!value) return undefined
+
+  const endOfDay = new Date(`${value}T23:59:59.999Z`)
+  const now = new Date()
+  return (
+    value === now.toISOString().slice(0, 10) ? now : endOfDay
+  ).toISOString()
 }
 
 function eventLabel(event: AuditEvent, labels: Record<string, string>) {
@@ -413,9 +419,23 @@ export function AuditEventsRoute() {
       </form>
 
       {page.isPending && <p role="status">{t("organization:auditLoading")}</p>}
-      {page.isError && <p role="alert">{t("organization:auditError")}</p>}
+      {page.isError && (
+        <div className="space-y-2">
+          <p role="alert">{t("organization:auditError")}</p>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void page.refetch()}
+          >
+            {t("common:retry")}
+          </Button>
+        </div>
+      )}
       {page.isSuccess && page.data.items.length === 0 && (
-        <p className="rounded-lg border p-6 text-center text-muted-foreground">
+        <p
+          role="status"
+          className="rounded-lg border p-6 text-center text-muted-foreground"
+        >
           {t("organization:auditEmpty")}
         </p>
       )}

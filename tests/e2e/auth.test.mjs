@@ -1,6 +1,6 @@
 import { startBrowserApplication } from "../setup/test-runtime.mjs"
 import { signUpVerified } from "../setup/complete-signup.mjs"
-import { randomBytes } from "node:crypto"
+import { randomBytes, randomUUID } from "node:crypto"
 import { mkdir } from "node:fs/promises"
 import { createRequire } from "node:module"
 import { expect as expectUI } from "playwright/test"
@@ -974,6 +974,239 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
       "تحديث دور",
       "حذف دور",
     ])
+  })
+
+  it("审计列表筛选分页、错误恢复、键盘详情和 RTL 状态可访问", async () => {
+    const userName = "审计界面用户"
+    await page.goto(`${tenantOrigin}/app/`)
+    await registerAccount(page, {
+      name: userName,
+      email: `audit-ui-${randomBytes(6).toString("hex")}@example.test`,
+      password: credentials.password,
+    })
+    await page.getByLabel("组织名称", { exact: true }).fill("审计界面组织")
+    await page
+      .getByLabel("组织标识", { exact: true })
+      .fill(`audit-ui-${randomBytes(5).toString("hex")}`)
+    await page.getByRole("button", { name: "创建组织", exact: true }).click()
+    await expectUI(page).toHaveURL(/\/app\/projects\/[0-9a-f-]+(?:\?.*)?$/)
+    const organizationId = new URL(page.url()).pathname.split("/").at(-1)
+    expect(organizationId).toBeTruthy()
+
+    const cookie = (await context.cookies())
+      .map(({ name, value }) => `${name}=${value}`)
+      .join("; ")
+    const tenant = await tenantContexts.resolve(
+      new Headers({ cookie }),
+      String(organizationId),
+      { audit: ["read"] },
+      "e2e-audit-ui-accessibility",
+      new RequestLanguage(null)
+    )
+    const resourceId = randomUUID()
+    const occurredAt = Date.now()
+    const seededAuditEvents = await createTenantRunner(runtime.pool)(
+      tenant,
+      (tx) =>
+        tx
+          .insert(auditEvents)
+          .values(
+            Array.from({ length: 21 }, (_, sequence) => ({
+              organizationId,
+              scope: "tenant",
+              tenantVisible: true,
+              eventCode: "audit.browser.page",
+              actorType: "user",
+              actorId: tenant.userId,
+              resourceType: "project",
+              resourceId,
+              result: "succeeded",
+              requestId: `e2e-audit-ui-${randomBytes(8).toString("hex")}-${sequence}`,
+              fields: { sequence },
+              occurredAt: new Date(occurredAt - sequence * 1_000),
+            }))
+          )
+          .returning()
+    )
+    const auditPagePath = `${tenantOrigin}/app/organizations/${organizationId}/audit`
+    const auditEventsPath = `/api/v1/organizations/${organizationId}/audit-events`
+    const auditRequestPattern = "**/api/v1/organizations/*/audit-events**"
+    let listFailureInjected = false
+    let allowListRecovery = false
+    await page.route(auditRequestPattern, async (route) => {
+      const requestURL = new URL(route.request().url())
+      if (requestURL.pathname === auditEventsPath && !allowListRecovery) {
+        listFailureInjected = true
+        await route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: JSON.stringify({
+            code: "INTERNAL_ERROR",
+            message: "Temporary audit read failure",
+            requestId: randomUUID(),
+            locale: "zh-CN",
+          }),
+        })
+        return
+      }
+      await route.continue()
+    })
+
+    await page.goto(auditPagePath)
+    await expectUI(page.getByRole("alert")).toContainText("无法加载审计记录")
+    await expectUI(
+      page.getByRole("button", { name: "重试", exact: true })
+    ).toBeVisible()
+    expect(listFailureInjected).toBe(true)
+    allowListRecovery = true
+    await page.getByRole("button", { name: "重试", exact: true }).click()
+    await expectUI(
+      page.getByRole("heading", { name: "审计", exact: true })
+    ).toBeVisible()
+    await page.unroute(auditRequestPattern)
+
+    const today = new Date().toISOString().slice(0, 10)
+    const tooOld = new Date(Date.now() - 91 * 24 * 60 * 60 * 1_000)
+      .toISOString()
+      .slice(0, 10)
+    const fromFilter = page.getByLabel("开始日期", { exact: true })
+    const toFilter = page.getByLabel("结束日期", { exact: true })
+    await fromFilter.fill(tooOld)
+    await toFilter.fill(today)
+    const beforeInvalidSubmit = page.url()
+    await page.getByRole("button", { name: "应用筛选", exact: true }).click()
+    await expectUI(
+      page.getByText("查询范围不能超过 90 天。", { exact: true })
+    ).toBeVisible()
+    expect(page.url()).toBe(beforeInvalidSubmit)
+
+    await fromFilter.fill(today)
+    await toFilter.fill(today)
+    await page.getByLabel("操作者 ID", { exact: true }).fill(tenant.userId)
+    await page.getByLabel("事件", { exact: true }).fill("audit.browser.page")
+    await page.getByLabel("资源类型", { exact: true }).fill("project")
+    await page.getByLabel("资源 ID", { exact: true }).fill(resourceId)
+    await page.getByLabel("结果", { exact: true }).selectOption("succeeded")
+    const filteredPage = page.waitForURL(
+      (url) => url.searchParams.get("eventCode") === "audit.browser.page"
+    )
+    await page.getByRole("button", { name: "应用筛选", exact: true }).click()
+    await filteredPage
+
+    const filterParams = new URL(page.url()).searchParams
+    expect(filterParams.get("from")).toBe(`${today}T00:00:00.000Z`)
+    expect(filterParams.get("to")?.slice(0, 10)).toBe(today)
+    const filterEnd = Date.parse(filterParams.get("to") ?? "")
+    expect(filterEnd).toBeGreaterThanOrEqual(occurredAt)
+    expect(filterEnd).toBeLessThanOrEqual(Date.now())
+    expect(filterParams.get("actorId")).toBe(tenant.userId)
+    expect(filterParams.get("eventCode")).toBe("audit.browser.page")
+    expect(filterParams.get("resourceType")).toBe("project")
+    expect(filterParams.get("resourceId")).toBe(resourceId)
+    expect(filterParams.get("result")).toBe("succeeded")
+    await expectUI(page.getByRole("table").getByRole("row")).toHaveCount(21)
+
+    const detailErrorEvent = seededAuditEvents.find(
+      (event) => event.occurredAt.getTime() === occurredAt
+    )
+    expect(detailErrorEvent).toBeDefined()
+    let detailFailureInjected = false
+    await page.route(auditRequestPattern, async (route) => {
+      const requestURL = new URL(route.request().url())
+      if (
+        requestURL.pathname === `${auditEventsPath}/${detailErrorEvent.id}` &&
+        !detailFailureInjected
+      ) {
+        detailFailureInjected = true
+        await route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: JSON.stringify({
+            code: "INTERNAL_ERROR",
+            message: "Temporary audit detail failure",
+            requestId: randomUUID(),
+            locale: "zh-CN",
+          }),
+        })
+        return
+      }
+      await route.continue()
+    })
+    const firstRow = page.getByRole("table").getByRole("row").nth(1)
+    const detailErrorTrigger = firstRow.getByRole("button", {
+      name: "audit.browser.page",
+      exact: true,
+    })
+    await detailErrorTrigger.focus()
+    await page.keyboard.press("Enter")
+    const detailErrorDialog = page.getByRole("dialog")
+    await expectUI(detailErrorDialog).toHaveAccessibleName("审计详情")
+    await expectUI(detailErrorDialog.getByRole("alert")).toContainText(
+      "无法加载审计记录"
+    )
+    expect(detailFailureInjected).toBe(true)
+    await page.keyboard.press("Escape")
+    await expectUI(detailErrorDialog).toHaveCount(0)
+    await page.unroute(auditRequestPattern)
+
+    const nextPage = page.getByRole("button", {
+      name: "下一页",
+      exact: true,
+    })
+    const secondPageURL = page.waitForURL((url) =>
+      url.searchParams.has("cursor")
+    )
+    await nextPage.click()
+    await secondPageURL
+    const pageTwoTable = page.getByRole("table")
+    await expectUI(pageTwoTable.getByRole("row")).toHaveCount(2)
+    const pageTwoTrigger = pageTwoTable
+      .getByRole("row")
+      .nth(1)
+      .getByRole("button", { name: "audit.browser.page", exact: true })
+    await pageTwoTrigger.focus()
+    await page.keyboard.press("Enter")
+    const details = page.getByRole("dialog")
+    await expectUI(details).toHaveAccessibleName("audit.browser.page")
+    await expectUI(details.getByText(resourceId, { exact: true })).toBeVisible()
+    await page.keyboard.press("Tab")
+    await expectUI
+      .poll(
+        () =>
+          details.evaluate((dialog) => dialog.contains(document.activeElement)),
+        { timeout: 1_000 }
+      )
+      .toBe(true)
+    await page.keyboard.press("Escape")
+    await expectUI(details).toHaveCount(0)
+    await expectUI(pageTwoTrigger).toBeFocused()
+
+    const emptyURL = new URL(auditPagePath)
+    emptyURL.searchParams.set("eventCode", "audit.browser.missing")
+    await page.goto(emptyURL.toString())
+    await expectUI(page.getByRole("status")).toContainText(
+      "此时间范围内没有审计记录。"
+    )
+
+    await selectAdminLocale(page, userName, "语言", "العربية")
+    await expectUI(page.locator("html")).toHaveAttribute("lang", "ar")
+    await expectUI(page.locator("html")).toHaveAttribute("dir", "rtl")
+    await expectUI(
+      page.getByRole("heading", { name: "سجل التدقيق", exact: true })
+    ).toBeVisible()
+    await expectUI(page.getByLabel("الحدث", { exact: true })).toBeVisible()
+    await expectUI(page.locator("form").first()).toHaveCSS("direction", "rtl")
+    await expectUI(page.getByRole("status")).toContainText(
+      "لا توجد سجلات تدقيق في هذا النطاق الزمني."
+    )
+    await page
+      .getByRole("heading", { name: "سجل التدقيق", exact: true })
+      .click()
+    await expectUI(page.getByRole("menu")).toHaveCount(0)
+    await page.screenshot({
+      path: "test-results/s4-02/audit-rtl.png",
+      fullPage: true,
+    })
   })
 
   it("S7：完整业务流程 Login → Org → Create → Edit → DataTable Filter/Sort/Pagination → Delete 并验证审计与持久化", async () => {
