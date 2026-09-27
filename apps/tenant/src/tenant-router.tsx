@@ -21,12 +21,18 @@ export function TenantRouter() {
 function SessionRouter({ user, queryClient, locale }: WorkspaceRouterContext) {
   const userId = user?.id ?? "anonymous"
   const previousUserId = useRef(userId)
+  const previousLocale = useRef(locale)
   useLayoutEffect(() => {
     // RouterProvider 更新 context 不会重跑 beforeLoad。登录/登出后必须 invalidate，否则会停在已失效的路由上。
     if (previousUserId.current === userId) return
     previousUserId.current = userId
     void router.invalidate()
   }, [userId])
+  useLayoutEffect(() => {
+    if (previousLocale.current === locale) return
+    previousLocale.current = locale
+    void router.invalidate()
+  }, [locale])
   return (
     <RouterProvider router={router} context={{ user, queryClient, locale }} />
   )

@@ -118,10 +118,17 @@ export class EmailService {
       data.organization.id,
       data.invitation.id,
     );
+    const recipient = await this.pool.query<{
+      preferred_locale: string | null;
+    }>(
+      `SELECT preferred_locale FROM public."user" WHERE lower(email) = lower($1) LIMIT 1`,
+      [data.email],
+    );
     await this.enqueue({
       organizationId: data.organization.id,
       templateKey: 'organization.invitation',
-      requestedLocale: data.organization.defaultLocale,
+      requestedLocale:
+        recipient.rows[0]?.preferred_locale ?? data.organization.defaultLocale,
       to: data.email,
       idempotencyKey: `organization/${data.organization.id}/invitation/${data.invitation.id}/send/${version}`,
       render: (locale) =>

@@ -12,6 +12,7 @@ import type {
   ProjectPage,
   SupportedLocale,
 } from '@workspace/contracts';
+import { platformDefaultLocale } from '@workspace/i18n';
 import {
   createTenantRunner,
   type TenantContext,
@@ -44,7 +45,9 @@ export class Projects {
   ): Promise<ProjectResponse> {
     return runTenantWrite(this.runtime.pool, context, async (tx) => {
       const contentLocale =
-        input.contentLocale ?? (await projectRepository.defaultLocale(tx));
+        input.contentLocale ??
+        (await projectRepository.defaultLocale(tx)) ??
+        platformDefaultLocale;
       const project = await projectRepository.create(tx, {
         ...input,
         contentLocale,

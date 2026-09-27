@@ -4,6 +4,7 @@ import {
   createRouter,
   Outlet,
   redirect,
+  useParams,
 } from "@tanstack/react-router"
 import { ProjectListQuerySchema } from "@workspace/contracts"
 import {
@@ -37,6 +38,10 @@ import {
   memberDirectorySearchSchema,
 } from "./query/organization-directory"
 import { OrganizationGate } from "./components/organization-workspace"
+import {
+  OrganizationLocaleSettingsRoute,
+  PersonalLocaleSettingsRoute,
+} from "./components/locale-settings"
 
 const rootRoute = createRootRouteWithContext<WorkspaceRouterContext>()({
   component: App,
@@ -202,15 +207,35 @@ const membersRoute = createRoute({
     ]),
   component: MembersRoute,
 })
-const rolesLayoutRoute = createRoute({
+const organizationSettingsLayoutRoute = createRoute({
   getParentRoute: () => appRoute,
-  path: "/organizations/$organizationId",
+  path: "/organizations",
   component: AdminLayout,
 })
 const rolesRoute = createRoute({
-  getParentRoute: () => rolesLayoutRoute,
-  path: "/roles",
+  getParentRoute: () => organizationSettingsLayoutRoute,
+  path: "/$organizationId/roles",
   component: RolesRoute,
+})
+const organizationSettingsRoute = createRoute({
+  getParentRoute: () => organizationSettingsLayoutRoute,
+  path: "/$organizationId/settings",
+  component: function OrganizationSettingsPage() {
+    const { organizationId } = useParams({
+      from: "/app/organizations/$organizationId/settings",
+    })
+    return <OrganizationLocaleSettingsRoute organizationId={organizationId} />
+  },
+})
+const personalSettingsLayoutRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/settings",
+  component: AdminLayout,
+})
+const personalSettingsRoute = createRoute({
+  getParentRoute: () => personalSettingsLayoutRoute,
+  path: "/preferences",
+  component: PersonalLocaleSettingsRoute,
 })
 
 export const router = createRouter({
@@ -226,7 +251,11 @@ export const router = createRouter({
       organizationRoute,
       projectsLayoutRoute.addChildren([projectsRoute, projectDetailRoute]),
       membersLayoutRoute.addChildren([membersRoute]),
-      rolesLayoutRoute.addChildren([rolesRoute]),
+      organizationSettingsLayoutRoute.addChildren([
+        rolesRoute,
+        organizationSettingsRoute,
+      ]),
+      personalSettingsLayoutRoute.addChildren([personalSettingsRoute]),
     ]),
   ]),
   context: {

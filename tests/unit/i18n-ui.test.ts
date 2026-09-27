@@ -48,7 +48,7 @@ describe("UI locale and formatting", () => {
       new Intl.NumberFormat("ar").format(1234)
     )
   })
-  it("ships all six namespaces with the same non-empty keys in every locale", () => {
+  it("ships all seven namespaces with the same non-empty keys in every locale", () => {
     for (const locale of supportedLocales) {
       expect(Object.keys(resources[locale]).sort()).toEqual([
         "auth",
@@ -56,6 +56,7 @@ describe("UI locale and formatting", () => {
         "errors",
         "organization",
         "projects",
+        "settings",
         "validation",
       ])
       for (const namespace of Object.keys(resources["zh-CN"]) as Array<

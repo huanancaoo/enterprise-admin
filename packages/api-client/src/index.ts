@@ -18,6 +18,12 @@ export {
   getProjectTranslation,
   updateProject,
 } from "./generated/endpoints/projects/projects"
+export {
+  getMyPreferences,
+  updateMyPreferences,
+  getOrganizationSettings,
+  updateOrganizationSettings,
+} from "./generated/endpoints/locale-settings/locale-settings"
 export type * from "./generated/models"
 export { projectKeys } from "./query/projects"
 export {
@@ -33,5 +39,10 @@ export {
 } from "./query/use-projects-list"
 export { getProjectDetailOptions } from "./query/use-project-detail"
 export { getProjectTranslationOptions } from "./query/use-project-translation"
+export {
+  getMyPreferencesOptions,
+  getOrganizationSettingsOptions,
+  localeSettingsKeys,
+} from "./query/locale-settings"
 
 export { createProjectMutations } from "./query/project-mutations"

@@ -4,6 +4,7 @@ import {
   text,
   timestamp,
   boolean,
+  integer,
   uuid,
   index,
 } from "drizzle-orm/pg-core";
@@ -23,6 +24,9 @@ export const user = pgTable("user", {
     .notNull(),
   lastLoginMethod: text("last_login_method"),
   preferredLocale: text("preferred_locale", { enum: ["zh-CN", "en-US", "ar"] }),
+  preferredLocaleVersion: integer("preferred_locale_version")
+    .default(1)
+    .notNull(),
 });
 
 export const session = pgTable(
@@ -103,9 +107,8 @@ export const organization = pgTable("organization", {
   logo: text("logo"),
   createdAt: timestamp("created_at").notNull(),
   metadata: text("metadata"),
-  defaultLocale: text("default_locale", { enum: ["zh-CN", "en-US", "ar"] })
-    .default("zh-CN")
-    .notNull(),
+  defaultLocale: text("default_locale", { enum: ["zh-CN", "en-US", "ar"] }),
+  defaultLocaleVersion: integer("default_locale_version").default(1).notNull(),
 });
 
 export const organizationRole = pgTable(

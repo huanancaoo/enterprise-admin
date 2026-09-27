@@ -24,6 +24,10 @@
       "types": "./dist/repositories/projects.d.ts",
       "default": "./dist/repositories/projects.js"
     },
+    "./repositories/organization-settings": {
+      "types": "./dist/repositories/organization-settings.d.ts",
+      "default": "./dist/repositories/organization-settings.js"
+    },
     "./repositories/audit": {
       "types": "./dist/repositories/audit.d.ts",
       "default": "./dist/repositories/audit.js"

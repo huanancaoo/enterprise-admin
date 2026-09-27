@@ -14,6 +14,8 @@ export const delegableRolePermissions = {
   audit: ["read"],
 } as const
 
+export const tenantSettingsActions = ["read", "update"] as const
+
 export type ProjectAction = (typeof projectActions)[number]
 export type ProjectPermission = `project:${ProjectAction}`
 export const builtInOrganizationRoleKeys = ["owner", "admin", "member"] as const
@@ -22,8 +24,10 @@ export const builtInOrganizationRoleKeys = ["owner", "admin", "member"] as const
 export const permissionStatements = {
   member: ["read"],
   project: projectActions,
+  tenantSettings: tenantSettingsActions,
 } as const
 export type PermissionRequest = {
   member?: (typeof permissionStatements.member)[number][]
   project?: ProjectAction[]
+  tenantSettings?: (typeof tenantSettingsActions)[number][]
 }

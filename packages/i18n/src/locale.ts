@@ -5,6 +5,22 @@ export const platformDefaultLocale: SupportedLocale = "zh-CN"
 // 邮件正文只有这两种；ar 是否进入邮件是产品决定，不在协商算法里分叉。
 export const emailLocales = ["zh-CN", "en-US"] as const
 export type EmailLocale = (typeof emailLocales)[number]
+export const localeSources = [
+  "request",
+  "user",
+  "organization",
+  "platform",
+] as const
+export type LocaleSource = (typeof localeSources)[number]
+
+export type LocaleResolution = {
+  locale: SupportedLocale
+  source: LocaleSource
+}
+export type InheritedLocaleResolution = {
+  locale: SupportedLocale
+  source: Exclude<LocaleSource, "request">
+}
 
 export function matchSupportedLocale(
   value: string | null | undefined,
@@ -14,12 +30,12 @@ export function matchSupportedLocale(
   return allowed.find((locale) => locale.toLowerCase() === value.toLowerCase())
 }
 
-export function resolveLocale(input: {
+export function resolveLocaleWithSource(input: {
   acceptLanguage?: string | null
   preferredLocale?: string | null
   defaultLocale?: string | null
   allowed?: readonly SupportedLocale[]
-}): SupportedLocale {
+}): LocaleResolution {
   const allowed = input.allowed ?? supportedLocales
   // 只有明确支持的语言参与 Header 选择；通配符不覆盖用户或组织偏好。
   const preferences = (input.acceptLanguage ?? "")
@@ -35,12 +51,34 @@ export function resolveLocale(input: {
       return locale && weight > 0 ? [{ locale, weight, index }] : []
     })
   preferences.sort((a, b) => b.weight - a.weight || a.index - b.index)
-  return (
-    preferences[0]?.locale ??
-    matchSupportedLocale(input.preferredLocale, allowed) ??
-    matchSupportedLocale(input.defaultLocale, allowed) ??
-    platformDefaultLocale
-  )
+  if (preferences[0])
+    return { locale: preferences[0].locale, source: "request" }
+  const preferred = matchSupportedLocale(input.preferredLocale, allowed)
+  if (preferred) return { locale: preferred, source: "user" }
+  const organization = matchSupportedLocale(input.defaultLocale, allowed)
+  if (organization) return { locale: organization, source: "organization" }
+  return { locale: platformDefaultLocale, source: "platform" }
+}
+
+export function resolveLocale(input: {
+  acceptLanguage?: string | null
+  preferredLocale?: string | null
+  defaultLocale?: string | null
+  allowed?: readonly SupportedLocale[]
+}): SupportedLocale {
+  return resolveLocaleWithSource(input).locale
+}
+
+export function resolveInheritedLocale(input: {
+  preferredLocale?: string | null
+  defaultLocale?: string | null
+  allowed?: readonly SupportedLocale[]
+}): InheritedLocaleResolution {
+  const resolution = resolveLocaleWithSource(input)
+  return {
+    locale: resolution.locale,
+    source: resolution.source as InheritedLocaleResolution["source"],
+  }
 }
 
 export function resolveEmailLocale(

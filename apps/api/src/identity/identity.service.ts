@@ -61,13 +61,13 @@ export class IdentityService {
     requestId: string,
   ): Promise<{
     membershipId: string;
-    defaultLocale: string;
+    defaultLocale: string | null;
     status: OrganizationStatus;
     authorizationVersion: number;
   }> {
     const result = await this.runtime.pool.query<{
       membership_id: string;
-      default_locale: string;
+      default_locale: string | null;
       status: OrganizationStatus | null;
       authorization_version: number | null;
     }>(

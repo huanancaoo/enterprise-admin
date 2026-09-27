@@ -63,11 +63,14 @@ export class OrganizationsController {
     language.useOrganizationDefault(membership.defaultLocale);
     if (membership.status !== 'ACTIVE')
       throw new ApiException(403, 'ORGANIZATION_SUSPENDED');
+    // API 请求头仍协商响应语言；页面上下文按用户与目标组织设置重新计算，便于切组织后更新 UI。
+    const effective = language.preferenceResolution;
     return {
       organizationId,
       status: 'ACTIVE',
       authorizationVersion: membership.authorizationVersion,
-      effectiveLocale: language.locale,
+      effectiveLocale: effective.locale,
+      effectiveLocaleSource: effective.source,
     };
   }
 }

@@ -636,6 +636,64 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
     )
     expect(page.data.items).toEqual([created])
   })
+  it("组织默认语言为空时回退平台默认值，非空默认值和显式语言保持原语义", async () => {
+    await migrator.query(
+      "UPDATE organization SET default_locale = NULL WHERE id = $1",
+      [orgB.id]
+    )
+    const platformFallback = await createProject(
+      orgB.id,
+      { name: "Platform fallback", description: null },
+      { "Accept-Language": "ar" }
+    )
+    expect(platformFallback.data).toMatchObject({
+      contentLocale: "zh-CN",
+      resolvedLocale: "zh-CN",
+    })
+    expect(
+      (
+        await getProject(orgB.id, platformFallback.data.id, {
+          "Accept-Language": "ar",
+        })
+      ).data
+    ).toMatchObject({
+      id: platformFallback.data.id,
+      contentLocale: "zh-CN",
+      resolvedLocale: "zh-CN",
+    })
+    expect(
+      (await listProjects(orgB.id, {}, { "Accept-Language": "ar" })).data.items
+    ).toContainEqual(
+      expect.objectContaining({
+        id: platformFallback.data.id,
+        contentLocale: "zh-CN",
+        resolvedLocale: "zh-CN",
+      })
+    )
+
+    await migrator.query(
+      "UPDATE organization SET default_locale = $1 WHERE id = $2",
+      ["ar", orgB.id]
+    )
+    const organizationDefault = await createProject(
+      orgB.id,
+      { name: "Organization default", description: null },
+      { "Accept-Language": "en-US" }
+    )
+    expect(organizationDefault.data).toMatchObject({
+      contentLocale: "ar",
+      resolvedLocale: "ar",
+    })
+    const explicit = await createProject(
+      orgB.id,
+      { name: "Explicit locale", description: null, contentLocale: "en-US" },
+      { "Accept-Language": "ar" }
+    )
+    expect(explicit.data).toMatchObject({
+      contentLocale: "en-US",
+      resolvedLocale: "en-US",
+    })
+  })
   it("创建审计使用可信身份，组织默认语言独立于请求语言，删除保留审计", async () => {
     await migrator.query(
       "UPDATE organization SET default_locale = 'ar' WHERE id = $1",

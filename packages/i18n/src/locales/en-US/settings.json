@@ -1,0 +1,23 @@
+{
+  "effectiveLanguage": "Current interface language",
+  "followOrganization": "Follow organization or platform defaults",
+  "followPlatform": "Follow platform default",
+  "language": "Language",
+  "languageSource": "Language source",
+  "loadError": "Language settings could not be loaded.",
+  "localeRefreshError": "Settings were saved, but the inherited language could not be refreshed. Your current language remains active.",
+  "organizationDescription": "Set this organization's default interface language. Leave it empty to use the platform default.",
+  "organizationSettings": "Organization language settings",
+  "permissionDenied": "You do not have permission to view or change organization language settings.",
+  "personalDescription": "Choose a fixed language or follow the current organization's and platform defaults.",
+  "personalSettings": "Personal language settings",
+  "save": "Save",
+  "saved": "Language settings saved.",
+  "saveError": "Language settings could not be saved. Your draft is still here.",
+  "saving": "Saving…",
+  "sourceOrganization": "Organization default",
+  "sourcePlatform": "Platform default",
+  "sourceRequest": "Current interface selection",
+  "sourceUser": "Personal preference",
+  "versionConflict": "Another administrator changed these settings. Your draft is still here. Refresh and submit again."
+}

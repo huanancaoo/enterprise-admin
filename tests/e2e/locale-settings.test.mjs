@@ -1,0 +1,168 @@
+import { randomBytes, randomUUID } from "node:crypto"
+import { startBrowserApplication } from "../setup/test-runtime.mjs"
+import { signUpVerified } from "../setup/complete-signup.mjs"
+import { expect as expectUI } from "playwright/test"
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from "vitest"
+
+describe("S8-09：浏览器中的个人与组织语言设置", () => {
+  let environment
+  let browser
+  let context
+  let page
+  let tenantOrigin
+  let account
+
+  beforeAll(async () => {
+    environment = await startBrowserApplication()
+    ;({ browser, tenantOrigin } = environment)
+  })
+
+  beforeEach(async () => {
+    context = await browser.newContext({
+      viewport: { width: 1280, height: 800 },
+      extraHTTPHeaders: { "x-real-ip": `10.${[...randomBytes(3)].join(".")}` },
+    })
+    page = await context.newPage()
+  })
+
+  afterEach(async () => {
+    await context?.close()
+  })
+
+  afterAll(async () => {
+    await environment?.close()
+  })
+
+  it("继承组织语言、保存个人偏好并在版本冲突后保留草稿", async () => {
+    account = await signUpVerified(
+      environment.baseURL,
+      tenantOrigin,
+      environment.migrator,
+      {
+        name: "语言设置管理员",
+        email: `locale-${randomUUID()}@example.test`,
+        password: randomBytes(24).toString("hex"),
+      }
+    )
+    // 浏览器登录负责建立页面会话；服务端 API 用同一身份模拟并发管理员写入。
+    await page.goto(`${tenantOrigin}/login`)
+    await page.getByLabel("邮箱", { exact: true }).fill(account.user.email)
+    await page.getByLabel("密码", { exact: true }).fill(account.password)
+    await page.getByRole("button", { name: "登录", exact: true }).click()
+    await expectUI(
+      page.getByRole("heading", { name: "创建组织", exact: true })
+    ).toBeVisible()
+
+    const firstOrganization = {
+      name: "语言组织甲",
+      slug: `locale-a-${randomUUID()}`,
+    }
+    await page
+      .getByLabel("组织名称", { exact: true })
+      .fill(firstOrganization.name)
+    await page
+      .getByLabel("组织标识", { exact: true })
+      .fill(firstOrganization.slug)
+    await page.getByRole("button", { name: "创建组织", exact: true }).click()
+    await expectUI(
+      page.getByRole("heading", { name: "项目", exact: true })
+    ).toBeVisible()
+    const organizations = await environment.migrator.query(
+      "SELECT id FROM organization WHERE slug = $1",
+      [firstOrganization.slug]
+    )
+    const firstOrganizationId = organizations.rows[0].id
+    await page.getByRole("link", { name: "组织语言设置", exact: true }).click()
+    await page.getByRole("combobox", { name: "语言", exact: true }).click()
+    await page.getByRole("option", { name: "English", exact: true }).click()
+    await page.getByRole("button", { name: "保存", exact: true }).click()
+    await expectUI(page.locator("html")).toHaveAttribute("lang", "en-US")
+    await expectUI(
+      page.getByRole("heading", {
+        name: "Organization language settings",
+        exact: true,
+      })
+    ).toBeVisible()
+
+    await page
+      .getByRole("link", { name: "Personal language settings", exact: true })
+      .click()
+    await page.getByRole("combobox", { name: "Language", exact: true }).click()
+    await page.getByRole("option", { name: "العربية", exact: true }).click()
+    await page.getByRole("button", { name: /保存|Save|حفظ/ }).click()
+    await expectUI(page.locator("html")).toHaveAttribute("lang", "ar")
+    await expectUI(page.locator("html")).toHaveAttribute("dir", "rtl")
+
+    await page.getByRole("combobox", { name: "اللغة", exact: true }).click()
+    await page
+      .getByRole("option", {
+        name: "اتباع الإعدادات الافتراضية للمؤسسة أو المنصة",
+        exact: true,
+      })
+      .click()
+    await page.getByRole("button", { name: "حفظ", exact: true }).click()
+    await expectUI(page.locator("html")).toHaveAttribute("lang", "en-US")
+
+    await page.getByRole("button", { name: /语言组织甲/ }).click()
+    await page
+      .getByRole("menuitem", { name: "Create organization", exact: true })
+      .click()
+    const dialog = page.getByRole("dialog")
+    const secondOrganization = {
+      name: "语言组织乙",
+      slug: `locale-b-${randomUUID()}`,
+    }
+    await dialog
+      .getByLabel("Organization name", { exact: true })
+      .fill(secondOrganization.name)
+    await dialog
+      .getByLabel("Organization identifier", { exact: true })
+      .fill(secondOrganization.slug)
+    await dialog
+      .getByRole("button", { name: "Create organization", exact: true })
+      .click()
+    await expectUI(page.locator("html")).toHaveAttribute("lang", "zh-CN")
+    const second = await environment.migrator.query(
+      "SELECT id, default_locale_version FROM organization WHERE slug = $1",
+      [secondOrganization.slug]
+    )
+    const secondOrganizationId = second.rows[0].id
+
+    await page.getByRole("link", { name: "组织语言设置", exact: true }).click()
+    await page.getByRole("combobox", { name: "语言", exact: true }).click()
+    await page.getByRole("option", { name: "العربية", exact: true }).click()
+    const externalWrite = await fetch(
+      `${environment.baseURL}/api/v1/organizations/${secondOrganizationId}/settings`,
+      {
+        method: "PATCH",
+        headers: {
+          cookie: account.cookie,
+          origin: tenantOrigin,
+          "content-type": "application/json",
+          "accept-language": "zh-CN",
+        },
+        body: JSON.stringify({ defaultLocale: "en-US", expectedVersion: 1 }),
+      }
+    )
+    expect(externalWrite.status).toBe(200)
+    await page.getByRole("button", { name: "保存", exact: true }).click()
+    await expectUI(page.getByRole("alert")).toContainText(
+      "设置已被其他管理员修改"
+    )
+    const localeControls = page.getByRole("combobox")
+    if ((await localeControls.count()) === 0)
+      throw new Error(await page.locator("body").innerText())
+    await expectUI(localeControls.last()).toContainText("العربية")
+    await page.getByRole("button", { name: "保存", exact: true }).click()
+    await expectUI(page.locator("html")).toHaveAttribute("lang", "ar")
+    expect(firstOrganizationId).not.toBe(secondOrganizationId)
+  })
+})

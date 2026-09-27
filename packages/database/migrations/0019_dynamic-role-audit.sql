@@ -30,10 +30,18 @@ BEGIN
   IF TG_TABLE_NAME = 'organization' THEN
     v_organization_id := CASE WHEN TG_OP = 'DELETE' THEN OLD.id ELSE NEW.id END;
     v_resource_id := v_organization_id;
-    v_fields := pg_catalog.jsonb_build_object(
-      'name', CASE WHEN TG_OP = 'DELETE' THEN OLD.name ELSE NEW.name END,
-      'slug', CASE WHEN TG_OP = 'DELETE' THEN OLD.slug ELSE NEW.slug END
-    );
+    IF TG_OP = 'UPDATE' AND OLD.default_locale IS DISTINCT FROM NEW.default_locale THEN
+      v_event_code := 'organization.settings_updated';
+      v_fields := pg_catalog.jsonb_build_object(
+        'previousDefaultLocale', OLD.default_locale,
+        'defaultLocale', NEW.default_locale
+      );
+    ELSE
+      v_fields := pg_catalog.jsonb_build_object(
+        'name', CASE WHEN TG_OP = 'DELETE' THEN OLD.name ELSE NEW.name END,
+        'slug', CASE WHEN TG_OP = 'DELETE' THEN OLD.slug ELSE NEW.slug END
+      );
+    END IF;
   ELSE
     v_organization_id := CASE WHEN TG_OP = 'DELETE' THEN OLD.organization_id ELSE NEW.organization_id END;
     v_resource_id := CASE WHEN TG_OP = 'DELETE' THEN OLD.id ELSE NEW.id END;
@@ -49,7 +57,9 @@ BEGIN
     END IF;
   END IF;
 
-  v_event_code := 'organization.' || TG_TABLE_NAME || '.' || pg_catalog.lower(TG_OP);
+  IF v_event_code IS NULL THEN
+    v_event_code := 'organization.' || TG_TABLE_NAME || '.' || pg_catalog.lower(TG_OP);
+  END IF;
   v_operation := pg_catalog.current_setting('app.auth_organization_operation', true);
   IF TG_TABLE_NAME = 'organization_role' THEN
     v_event_code := CASE TG_OP

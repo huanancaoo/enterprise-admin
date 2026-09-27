@@ -1,6 +1,252 @@
 {
   "openapi": "3.0.0",
   "paths": {
+    "/api/v1/me/preferences": {
+      "get": {
+        "operationId": "getMyPreferences",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyPreferences"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "locale-settings"
+        ]
+      },
+      "patch": {
+        "operationId": "updateMyPreferences",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMyPreferences"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyPreferences"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "locale-settings"
+        ]
+      }
+    },
+    "/api/v1/organizations/{organizationId}/settings": {
+      "get": {
+        "operationId": "getOrganizationSettings",
+        "parameters": [
+          {
+            "name": "organizationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationSettings"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "locale-settings"
+        ]
+      },
+      "patch": {
+        "operationId": "updateOrganizationSettings",
+        "parameters": [
+          {
+            "name": "organizationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOrganizationSettings"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationSettings"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "locale-settings"
+        ]
+      }
+    },
     "/api/v1/me/organizations": {
       "get": {
         "operationId": "listMyOrganizations",
@@ -828,39 +1074,52 @@
   "servers": [],
   "components": {
     "schemas": {
-      "OrganizationSummary": {
+      "MyPreferences": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+          "preferredLocale": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SupportedLocale"
+              }
+            ]
           },
-          "name": {
-            "type": "string",
-            "minLength": 1
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
           },
-          "slug": {
-            "type": "string",
-            "minLength": 1
+          "effectiveLocale": {
+            "$ref": "#/components/schemas/SupportedLocale"
           },
-          "status": {
-            "$ref": "#/components/schemas/OrganizationStatus"
+          "effectiveLocaleSource": {
+            "$ref": "#/components/schemas/LocaleSource"
           }
         },
         "required": [
-          "id",
-          "name",
-          "slug",
-          "status"
+          "preferredLocale",
+          "version",
+          "effectiveLocale",
+          "effectiveLocaleSource"
         ],
         "additionalProperties": false
       },
-      "OrganizationStatus": {
+      "SupportedLocale": {
         "type": "string",
         "enum": [
-          "ACTIVE",
-          "SUSPENDED"
+          "zh-CN",
+          "en-US",
+          "ar"
+        ]
+      },
+      "LocaleSource": {
+        "type": "string",
+        "enum": [
+          "request",
+          "user",
+          "organization",
+          "platform"
         ]
       },
       "ApiError": {
@@ -897,15 +1156,118 @@
           "NOT_FOUND",
           "ORGANIZATION_SUSPENDED",
           "AUTHORIZATION_UNAVAILABLE",
+          "VERSION_CONFLICT",
           "INTERNAL_ERROR"
         ]
       },
-      "SupportedLocale": {
+      "UpdateMyPreferences": {
+        "type": "object",
+        "properties": {
+          "preferredLocale": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SupportedLocale"
+              }
+            ]
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "preferredLocale",
+          "expectedVersion"
+        ],
+        "additionalProperties": false
+      },
+      "OrganizationSettings": {
+        "type": "object",
+        "properties": {
+          "organizationId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+          },
+          "defaultLocale": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SupportedLocale"
+              }
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "organizationId",
+          "defaultLocale",
+          "version"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateOrganizationSettings": {
+        "type": "object",
+        "properties": {
+          "defaultLocale": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SupportedLocale"
+              }
+            ]
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "defaultLocale",
+          "expectedVersion"
+        ],
+        "additionalProperties": false
+      },
+      "OrganizationSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "slug": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "$ref": "#/components/schemas/OrganizationStatus"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "OrganizationStatus": {
         "type": "string",
         "enum": [
-          "zh-CN",
-          "en-US",
-          "ar"
+          "ACTIVE",
+          "SUSPENDED"
         ]
       },
       "OrganizationAccess": {
@@ -929,15 +1291,27 @@
           },
           "effectiveLocale": {
             "$ref": "#/components/schemas/SupportedLocale"
+          },
+          "effectiveLocaleSource": {
+            "$ref": "#/components/schemas/InheritedLocaleSource"
           }
         },
         "required": [
           "organizationId",
           "status",
           "authorizationVersion",
-          "effectiveLocale"
+          "effectiveLocale",
+          "effectiveLocaleSource"
         ],
         "additionalProperties": false
+      },
+      "InheritedLocaleSource": {
+        "type": "string",
+        "enum": [
+          "user",
+          "organization",
+          "platform"
+        ]
       },
       "CreateProject": {
         "type": "object",
