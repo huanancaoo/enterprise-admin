@@ -89,23 +89,7 @@ const ac = createAccessControl({
 const delegatedPermissionActions: Record<string, readonly string[]> =
   delegableRolePermissions
 
-function assertCustomRoleDefinition(body: Record<string, unknown>) {
-  const role = body.role
-  if (
-    typeof role !== "string" ||
-    role.length < 3 ||
-    role.length > 48 ||
-    !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])$/.test(role) ||
-    (builtInOrganizationRoleKeys as readonly string[]).includes(role) ||
-    role.startsWith("platform-")
-  ) {
-    throw new APIError("BAD_REQUEST", {
-      code: "ROLE_NAME_INVALID",
-      message: "ROLE_NAME_INVALID",
-    })
-  }
-
-  const permission = body.permission
+function assertCustomRolePermissions(permission: unknown) {
   if (
     !permission ||
     typeof permission !== "object" ||
@@ -132,6 +116,41 @@ function assertCustomRoleDefinition(body: Record<string, unknown>) {
         message: "ROLE_PERMISSION_NOT_DELEGABLE",
       })
     }
+  }
+}
+
+function assertCustomRoleDefinition(body: Record<string, unknown>) {
+  const role = body.role
+  if (
+    typeof role !== "string" ||
+    role.length < 3 ||
+    role.length > 48 ||
+    !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])$/.test(role) ||
+    (builtInOrganizationRoleKeys as readonly string[]).includes(role) ||
+    role.startsWith("platform-")
+  ) {
+    throw new APIError("BAD_REQUEST", {
+      code: "ROLE_NAME_INVALID",
+      message: "ROLE_NAME_INVALID",
+    })
+  }
+
+  assertCustomRolePermissions(body.permission)
+}
+
+function assertCustomRoleUpdate(body: Record<string, unknown>) {
+  const data = body.data
+  if (!data || typeof data !== "object" || Array.isArray(data)) return
+
+  if ("roleName" in data) {
+    throw new APIError("BAD_REQUEST", {
+      code: "ROLE_KEY_IMMUTABLE",
+      message: "ROLE_KEY_IMMUTABLE",
+    })
+  }
+
+  if ("permission" in data) {
+    assertCustomRolePermissions(data.permission)
   }
 }
 
@@ -428,6 +447,12 @@ export function createAuth(
         endpointContext.body
       ) {
         assertCustomRoleDefinition(endpointContext.body)
+      }
+      if (
+        endpointContext.path === "/organization/update-role" &&
+        endpointContext.body
+      ) {
+        assertCustomRoleUpdate(endpointContext.body)
       }
     }
   )

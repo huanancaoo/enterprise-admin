@@ -247,6 +247,20 @@ describe("S8: Organization integration invariants", () => {
       "ROLE_PERMISSION_NOT_DELEGABLE"
     )
 
+    await expect(
+      runtime.auth.api.createOrgRole({
+        headers: owner.headers,
+        body: {
+          organizationId: org.id,
+          role: "internal-ac-reader",
+          permission: { ac: ["read"] },
+        },
+      })
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      body: { code: "ROLE_PERMISSION_NOT_DELEGABLE" },
+    })
+
     for (const [role, permission] of [
       ["settings-reader", { tenantSettings: ["read"] }],
       ["audit-reader", { audit: ["read"] }],
@@ -274,6 +288,79 @@ describe("S8: Organization integration invariants", () => {
     expect(listed.status).toBe(200)
     expect((await listed.json()).map((role) => role.role)).toContain(
       "project-reader"
+    )
+
+    const renamed = await post(
+      "organization/update-role",
+      {
+        organizationId: org.id,
+        roleName: "project-reader",
+        data: { roleName: "renamed-reader" },
+      },
+      owner.cookie
+    )
+    expect(renamed.status).toBe(400)
+    expect((await renamed.json()).code).toBe("ROLE_KEY_IMMUTABLE")
+
+    await expect(
+      runtime.auth.api.updateOrgRole({
+        headers: await versionHeaders(owner, org.id),
+        body: {
+          organizationId: org.id,
+          roleName: "project-reader",
+          data: { roleName: "internal-renamed-reader" },
+        },
+      })
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      body: { code: "ROLE_KEY_IMMUTABLE" },
+    })
+
+    const widened = await post(
+      "organization/update-role",
+      {
+        organizationId: org.id,
+        roleName: "project-reader",
+        data: { permission: { ac: ["create"] } },
+      },
+      owner.cookie
+    )
+    expect(widened.status).toBe(400)
+    expect((await widened.json()).code).toBe("ROLE_PERMISSION_NOT_DELEGABLE")
+
+    const stillNamed = await fetch(
+      `${baseURL}/api/auth/organization/list-roles?organizationId=${org.id}`,
+      { headers: { cookie: owner.cookie } }
+    )
+    expect((await stillNamed.json()).map((role) => role.role)).toContain(
+      "project-reader"
+    )
+
+    for (const builtInRole of ["owner", "admin", "member"]) {
+      const builtInUpdate = await post(
+        "organization/update-role",
+        {
+          organizationId: org.id,
+          roleName: builtInRole,
+          data: { permission: { project: ["read"] } },
+        },
+        owner.cookie
+      )
+      expect(builtInUpdate.ok).toBe(false)
+    }
+
+    const nonDelegableUpdate = await post(
+      "organization/update-role",
+      {
+        organizationId: org.id,
+        roleName: "project-reader",
+        data: { permission: { tenantSettings: ["update"] } },
+      },
+      owner.cookie
+    )
+    expect(nonDelegableUpdate.status).toBe(400)
+    expect((await nonDelegableUpdate.json()).code).toBe(
+      "ROLE_PERMISSION_NOT_DELEGABLE"
     )
 
     const duplicate = await post("organization/create-role", body, owner.cookie)
@@ -343,7 +430,7 @@ describe("S8: Organization integration invariants", () => {
       [
         org.id,
         managerRole,
-        JSON.stringify({ ac: ["create", "read"], project: ["read"] }),
+        JSON.stringify({ ac: ["create", "read", "update"], project: ["read"] }),
       ]
     )
     const member = await runtime.auth.api.addMember({
@@ -355,6 +442,39 @@ describe("S8: Organization integration invariants", () => {
       body: { organizationId: org.id, memberId: member.id, role: managerRole },
     })
     expect(promoted.role).toBe(managerRole)
+
+    const ownerCreatedRole = await post(
+      "organization/create-role",
+      {
+        organizationId: org.id,
+        role: "project-reader",
+        permission: { project: ["read"] },
+      },
+      owner.cookie
+    )
+    expect(ownerCreatedRole.status).toBe(200)
+
+    const deniedUpdate = await post(
+      "organization/update-role",
+      {
+        organizationId: org.id,
+        roleName: "project-reader",
+        data: { permission: { project: ["delete"] } },
+      },
+      manager.cookie
+    )
+    expect(deniedUpdate.ok).toBe(false)
+
+    const allowedUpdate = await post(
+      "organization/update-role",
+      {
+        organizationId: org.id,
+        roleName: "project-reader",
+        data: { permission: { project: ["read"] } },
+      },
+      manager.cookie
+    )
+    expect(allowedUpdate.status).toBe(200)
 
     const denied = await post(
       "organization/create-role",
@@ -371,7 +491,7 @@ describe("S8: Organization integration invariants", () => {
       "organization/create-role",
       {
         organizationId: org.id,
-        role: "project-reader",
+        role: "manager-reader",
         permission: { project: ["read"] },
       },
       manager.cookie
