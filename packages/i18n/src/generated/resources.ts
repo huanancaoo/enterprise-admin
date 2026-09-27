@@ -278,6 +278,7 @@ export default interface Resources {
     "roleCustom": "自定义",
     "roleKey": "角色标识",
     "roleKeyDescription": "使用 3–48 个小写字母、数字或连字符。创建后不能修改标识。",
+    "roleNameAlreadyTaken": "该组织中的角色标识已被使用。",
     "roleNameInvalid": "请输入有效角色标识，且不能使用保留名称。",
     "roleNoPermissions": "没有权限",
     "rolePermissionDenied": "所选权限中包含不能委派的权限。",

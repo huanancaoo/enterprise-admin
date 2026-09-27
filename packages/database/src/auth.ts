@@ -125,7 +125,7 @@ function assertCustomRoleDefinition(body: Record<string, unknown>) {
     typeof role !== "string" ||
     role.length < 3 ||
     role.length > 48 ||
-    !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])$/.test(role) ||
+    !/^[a-z0-9-]+$/.test(role) ||
     (builtInOrganizationRoleKeys as readonly string[]).includes(role) ||
     role.startsWith("platform-")
   ) {

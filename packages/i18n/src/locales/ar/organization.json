@@ -97,6 +97,7 @@
   "roleCustom": "مخصص",
   "roleKey": "مفتاح الدور",
   "roleKeyDescription": "استخدم 3–48 حرفاً صغيراً أو رقماً أو شرطة. لا يمكن تغيير المفتاح لاحقاً.",
+  "roleNameAlreadyTaken": "مفتاح الدور مستخدم بالفعل في هذه المؤسسة.",
   "roleNameInvalid": "أدخل مفتاح دور صالحاً وغير محجوز.",
   "roleNoPermissions": "لا توجد صلاحيات",
   "rolePermission_ac_read": "الأدوار: عرض",

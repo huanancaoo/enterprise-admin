@@ -97,6 +97,7 @@
   "roleCustom": "Custom",
   "roleKey": "Role key",
   "roleKeyDescription": "Use 3–48 lowercase letters, numbers, or hyphens. The key cannot be changed later.",
+  "roleNameAlreadyTaken": "This role key is already in use in this organization.",
   "roleNameInvalid": "Enter a valid role key that is not reserved.",
   "roleNoPermissions": "No permissions",
   "rolePermission_ac_read": "Roles: view",

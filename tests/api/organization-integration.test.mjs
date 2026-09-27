@@ -220,6 +220,15 @@ describe("S8: Organization integration invariants", () => {
       expect((await rejected.json()).code).toBe("ROLE_NAME_INVALID")
     }
 
+    for (const role of ["-leading-hyphen", "trailing-hyphen-"]) {
+      const accepted = await post(
+        "organization/create-role",
+        { ...body, role },
+        owner.cookie
+      )
+      expect(accepted.status).toBe(200)
+    }
+
     for (const permission of [
       { ac: ["create"] },
       { tenantSettings: ["update"] },
@@ -365,6 +374,8 @@ describe("S8: Organization integration invariants", () => {
 
     const duplicate = await post("organization/create-role", body, owner.cookie)
     expect(duplicate.ok).toBe(false)
+    expect(duplicate.status).toBe(400)
+    expect((await duplicate.json()).code).toBe("ROLE_NAME_IS_ALREADY_TAKEN")
     const sameNameInOtherOrganization = await organization(owner)
     const otherOrganizationRole = await post(
       "organization/create-role",

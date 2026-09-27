@@ -53,10 +53,7 @@ function createRoleSchema(t: RoleTranslation) {
       .string()
       .min(3, t("organization:roleNameInvalid"))
       .max(48, t("organization:roleNameInvalid"))
-      .regex(
-        /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])$/,
-        t("organization:roleNameInvalid")
-      )
+      .regex(/^[a-z0-9-]+$/, t("organization:roleNameInvalid"))
       .refine(
         (role) => !builtInOrganizationRoleKeys.includes(role as never),
         t("organization:roleNameInvalid")
@@ -120,6 +117,8 @@ export function RolesRoute() {
         const code = result.error.code
         if (code === "ROLE_NAME_INVALID")
           throw new Error(t("organization:roleNameInvalid"))
+        if (code === "ROLE_NAME_IS_ALREADY_TAKEN")
+          throw new Error(t("organization:roleNameAlreadyTaken"))
         if (code === "ROLE_PERMISSION_NOT_DELEGABLE")
           throw new Error(t("organization:rolePermissionDenied"))
         throw new Error(
