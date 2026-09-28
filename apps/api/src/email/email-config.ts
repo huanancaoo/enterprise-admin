@@ -1,3 +1,5 @@
+import type { EmailLocale } from '@workspace/i18n';
+
 export type SmtpConfig = {
   host: string;
   port: number;
@@ -16,7 +18,7 @@ export type EmailConfig = {
   from: EmailFrom;
   encryptionKey: Buffer;
   linkOrigin: string;
-  defaultLocale: 'zh-CN' | 'en-US';
+  defaultLocale: EmailLocale;
   pollIntervalMs: number;
   retry: {
     maxAttempts: number;

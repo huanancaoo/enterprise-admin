@@ -42,7 +42,8 @@ describe("Locale negotiation", () => {
         allowed: ["zh-CN", "en-US"],
       })
     ).toBe("en-US")
-    expect(resolveEmailLocale("ar", "zh-CN")).toBe("zh-CN")
+    expect(resolveEmailLocale("ar", "zh-CN")).toBe("ar")
+    expect(resolveEmailLocale(null, "ar")).toBe("ar")
     expect(resolveEmailLocale("EN-us", "zh-CN")).toBe("en-US")
     expect(
       resolveLocale({

@@ -2,8 +2,7 @@ export const supportedLocales = ["zh-CN", "en-US", "ar"] as const
 export type SupportedLocale = (typeof supportedLocales)[number]
 export const platformDefaultLocale: SupportedLocale = "zh-CN"
 
-// 邮件正文只有这两种；ar 是否进入邮件是产品决定，不在协商算法里分叉。
-export const emailLocales = ["zh-CN", "en-US"] as const
+export const emailLocales = ["zh-CN", "en-US", "ar"] as const
 export type EmailLocale = (typeof emailLocales)[number]
 export const localeSources = [
   "request",
@@ -85,11 +84,5 @@ export function resolveEmailLocale(
   requested: string | null | undefined,
   fallback: EmailLocale
 ): EmailLocale {
-  const locale = resolveLocale({
-    preferredLocale: requested,
-    defaultLocale: fallback,
-    allowed: emailLocales,
-  })
-  // allowed 与 platformDefaultLocale 都落在 emailLocales 内；否则用调用方给出的邮件默认语言。
-  return locale === "zh-CN" || locale === "en-US" ? locale : fallback
+  return matchSupportedLocale(requested, emailLocales) ?? fallback
 }

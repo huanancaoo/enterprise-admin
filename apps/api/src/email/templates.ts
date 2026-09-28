@@ -1,5 +1,5 @@
 import type { EmailLocale, EmailTemplateKey } from '@workspace/i18n';
-import { emailCatalog } from '@workspace/i18n';
+import { emailCatalog, localeMeta } from '@workspace/i18n';
 
 export const EMAIL_TEMPLATE_VERSION = 1;
 
@@ -31,15 +31,18 @@ function letter(options: {
   const name = escapeHtml(options.name);
   const extra = options.extraText ? escapeHtml(options.extraText) : '';
   const url = options.url;
+  const isRtl = localeMeta[options.locale].direction === 'rtl';
   const subject =
     options.templateKey === 'organization.invitation'
-      ? `${catalog.subject}：${options.extraText}`
+      ? `${catalog.subject}${isRtl ? ': ' : '：'}${options.extraText}`
       : catalog.subject;
   const intro =
     options.templateKey === 'organization.invitation'
-      ? `${catalog.greeting(name)} ${extra} ${catalog.body}`
-      : `${catalog.greeting(name)}。${catalog.body}`;
-  const html = `<!doctype html><html lang="${options.locale}"><body><p>${intro}</p><p><a href="${escapeHtml(url)}">${catalog.action}</a></p><p>${catalog.ignore}</p></body></html>`;
+      ? isRtl
+        ? `${catalog.greeting(name)} ${extra}${catalog.body}`
+        : `${catalog.greeting(name)} ${extra} ${catalog.body}`
+      : `${catalog.greeting(name)}${isRtl ? '، ' : '。'}${catalog.body}`;
+  const html = `<!doctype html><html lang="${options.locale}" dir="${localeMeta[options.locale].direction}"><body><p>${intro}</p><p><a href="${escapeHtml(url)}">${catalog.action}</a></p><p>${catalog.ignore}</p></body></html>`;
   const text = `${intro}\n${url}\n${catalog.ignore}`;
   return { subject, html, text };
 }

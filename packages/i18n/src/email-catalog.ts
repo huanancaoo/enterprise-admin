@@ -11,7 +11,7 @@ export type EmailCopy = {
   ignore: string
 }
 
-// 邮件在入队时渲染并冻住；这里没有 ar，因为邮件允许集不含 ar。
+// 邮件在入队时渲染并冻住，目录必须覆盖每一种允许的邮件语言。
 export const emailCatalog: Record<
   EmailTemplateKey,
   Record<EmailLocale, EmailCopy>
@@ -31,6 +31,13 @@ export const emailCatalog: Record<
       action: "Verify email",
       ignore: "If you did not request this, ignore this email.",
     },
+    ar: {
+      subject: "تحقق من بريدك الإلكتروني",
+      greeting: (name) => `مرحبًا ${name}`,
+      body: "يرجى النقر على الرابط أدناه للتحقق من بريدك الإلكتروني. لا يمكن استخدام الرابط إلا مرة واحدة.",
+      action: "تحقق من البريد الإلكتروني",
+      ignore: "إذا لم تطلب ذلك، فتجاهل هذه الرسالة.",
+    },
   },
   "password-reset": {
     "zh-CN": {
@@ -47,6 +54,13 @@ export const emailCatalog: Record<
       action: "Reset password",
       ignore: "If you did not request this, ignore this email.",
     },
+    ar: {
+      subject: "إعادة تعيين كلمة المرور",
+      greeting: (name) => `مرحبًا ${name}`,
+      body: "انقر على الرابط أدناه لتعيين كلمة مرور جديدة. تنتهي صلاحية الرابط خلال ساعة واحدة ويمكن استخدامه مرة واحدة.",
+      action: "إعادة تعيين كلمة المرور",
+      ignore: "إذا لم تطلب ذلك، فتجاهل هذه الرسالة.",
+    },
   },
   "organization.invitation": {
     "zh-CN": {
@@ -62,6 +76,13 @@ export const emailCatalog: Record<
       body: "invited you to join an organization.",
       action: "Accept invitation",
       ignore: "If this was not meant for you, ignore this email.",
+    },
+    ar: {
+      subject: "دعوة للانضمام إلى مؤسسة",
+      greeting: (name) => `${name} يدعوك للانضمام إلى`,
+      body: ".",
+      action: "قبول الدعوة",
+      ignore: "إذا لم تكن هذه الرسالة موجهة إليك، فتجاهلها.",
     },
   },
 }

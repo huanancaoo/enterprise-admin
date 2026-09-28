@@ -1,4 +1,5 @@
 import type { EmailConfig } from '../email/email-config';
+import { emailLocales } from '@workspace/i18n';
 import { parseEmailEncryptionKey } from '../email/email-crypto';
 import { readAuthConfig, type AuthConfig } from '../identity/auth-runtime';
 
@@ -33,9 +34,13 @@ export function readApplicationConfig(
   if (smtpSecure !== 'true' && smtpSecure !== 'false') {
     throw new Error('SMTP_SECURE must be "true" or "false"');
   }
-  const defaultLocale = required('EMAIL_DEFAULT_LOCALE');
-  if (defaultLocale !== 'zh-CN' && defaultLocale !== 'en-US') {
-    throw new Error('EMAIL_DEFAULT_LOCALE must be "zh-CN" or "en-US"');
+  const defaultLocale = emailLocales.find(
+    (locale) => locale === required('EMAIL_DEFAULT_LOCALE'),
+  );
+  if (!defaultLocale) {
+    throw new Error(
+      `EMAIL_DEFAULT_LOCALE must be one of ${emailLocales.map((locale) => `"${locale}"`).join(', ')}`,
+    );
   }
   return {
     ...readAuthConfig(env),
