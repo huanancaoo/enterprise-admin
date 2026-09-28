@@ -138,16 +138,16 @@ export async function startBrowserApplication({ mail = false } = {}) {
       mail,
     })
     resources.defer(() => runtime.close())
-    const { createServer } = await import("vite")
+    const { preview } = await import("vite")
     for (const { name, port, prefix } of [
       { name: "tenant", port: tenantPort, prefix: "/api" },
       { name: "platform", port: platformPort, prefix: "/api" },
     ]) {
-      const server = await createServer({
+      const server = await preview({
         root: resolve(`apps/${name}`),
         configFile: resolve(`apps/${name}/vite.config.ts`),
-        // 每个 Vite 实例持有自己的目标；测试不再改写进程级代理环境变量。
-        server: {
+        // 浏览器验收使用构建产物；每个预览实例独立代理到本测试的真实 API。
+        preview: {
           host: "127.0.0.1",
           port,
           strictPort: true,
@@ -155,7 +155,6 @@ export async function startBrowserApplication({ mail = false } = {}) {
         },
       })
       resources.defer(() => server.close())
-      await server.listen()
     }
     const { chromium } = await import("playwright")
     const browser = await chromium.launch()

@@ -21,7 +21,7 @@
     "db:check": "pnpm --filter @workspace/database schema:check",
     "test:database": "pnpm --filter @workspace/database test:database",
     "test:isolation": "pnpm --filter @workspace/database test:isolation",
-    "test:e2e": "turbo build --filter=api && vitest run --config vitest.config.e2e.mjs",
+    "test:e2e": "turbo build --filter=api --filter=tenant --filter=platform && vitest run --config vitest.config.e2e.mjs",
     "api:check": "node packages/api-client/scripts/check-generated.mjs",
     "i18n:check": "pnpm --filter @workspace/i18n check"
   },

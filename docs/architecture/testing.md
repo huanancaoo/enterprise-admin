@@ -80,8 +80,8 @@ S2 新增 1 个 Vitest 文件、5 个真实数据库测试，见 [S2 验收记�
 
 ## 共享测试运行时与项目规则
 
-- `tests/setup/test-runtime.mjs` 负责生产迁移、临时 PostgreSQL、HTTP、可选 Mailpit，以及浏览器测试的 Vite/Chromium 生命周期。资源创建后立即登记逆序释放；启动失败也释放已创建资源。每个测试文件仍拥有独立数据库。
-- `startTestApplication` 用于生产 HTTP 集成，`startBrowserApplication` 用于两个后台的真实浏览器流程。浏览器代理目标归各 Vite 实例，不改进程环境变量；浏览器测试仍串行以限制资源消耗。
+- `tests/setup/test-runtime.mjs` 负责生产迁移、临时 PostgreSQL、HTTP、可选 Mailpit，以及浏览器测试的 Vite 产物预览/Chromium 生命周期。资源创建后立即登记逆序释放；启动失败也释放已创建资源。每个测试文件仍拥有独立数据库。
+- `startTestApplication` 用于生产 HTTP 集成，`startBrowserApplication` 用于两个后台的真实浏览器流程。`pnpm test:e2e` 先构建 API、租户后台与平台后台，再通过 Vite preview 验收 SPA 构建产物；业务测试不依赖开发服务器的依赖预编译。浏览器代理目标归各预览实例，不改进程环境变量；浏览器测试仍串行以限制资源消耗。
 - MFA 的上游 Schema 实验继续使用 `startAuthProbeDatabase`，不混入生产迁移链。
 - `packages/api-client/tests` 纳入根 Vitest 的 `unit` project，通过项目写入 interface 验证组织/语言缓存隔离及写入提交与读回结果的区分；页面继续管理未保存输入。
 - `tests/api/projects.test.mjs` 同时保留真实 HTTP 授权与回滚验证，并通过 Projects module 验证项目译文规则。`tests/api/platform-assignment.test.mjs` 经真实 CLI 验证无邮件配置也能创建可登录的平台管理员。
