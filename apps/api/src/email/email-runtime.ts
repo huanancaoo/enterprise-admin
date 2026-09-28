@@ -17,8 +17,13 @@ export class EmailRuntime implements OnModuleDestroy {
       config.email.linkOrigin,
       config.trustedOrigins,
     );
-    this.hooks = new EmailService(pool, config.email, allowedOrigins).hooks();
     this.smtp = new SmtpEmailProvider(config.email.smtp, config.email.from);
+    this.hooks = new EmailService(
+      pool,
+      config.email,
+      allowedOrigins,
+      this.smtp,
+    ).hooks();
     this.dispatcher = new EmailDispatcher(pool, this.smtp, config.email);
   }
 

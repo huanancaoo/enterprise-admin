@@ -1,14 +1,11 @@
 import { useEffect, useRef, useState, type RefObject } from "react"
 import { useParams, useSearch, useNavigate } from "@tanstack/react-router"
 import { useForm } from "@tanstack/react-form"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import type { TFunction } from "@workspace/i18n"
-import { ConfirmDangerAction, FormDialog, PageHeader } from "@workspace/admin"
-import {
-  authErrorMessage,
-  useAuthenticatedSession,
-} from "@workspace/admin/auth"
+import { PageHeader } from "@workspace/admin"
+import { useAuthenticatedSession } from "@workspace/admin/auth"
 import {
   getOrganizationAccessOptions,
   organizationKeys,
@@ -39,26 +36,16 @@ import {
 import * as z from "zod"
 import { authClient } from "@/lib/auth-client"
 import {
-  getInvitationDirectoryOptions,
   getMemberDirectoryOptions,
-  invitationDirectoryKey,
-  memberDirectoryKey,
   MemberDirectoryError,
   type MemberDirectorySearch,
 } from "@/query/organization-directory"
 
+import { InvitationDirectory } from "./invitation-directory"
+
 import { MemberActionDialog, type MemberAction } from "./member-action-dialog"
 
 const membersPath = "/app/members/$organizationId"
-
-function inviteSchema(
-  t: TFunction<["organization", "common", "validation", "auth"]>
-) {
-  return z.object({
-    email: z.email(t("validation:email")),
-    role: z.enum(["member", "admin"]),
-  })
-}
 
 function roleLabel(
   role: string,
@@ -70,10 +57,6 @@ function roleLabel(
   return role
 }
 
-function mutationErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : undefined
-}
-
 export function MembersRoute() {
   const { organizationId } = useParams({ from: membersPath })
   const search = useSearch({ from: membersPath })
@@ -82,7 +65,6 @@ export function MembersRoute() {
   const locale = useUiLocale()
   const session = useAuthenticatedSession()!
   const queryClient = useQueryClient()
-  const [inviteOpen, setInviteOpen] = useState(false)
   const [memberAction, setMemberAction] = useState<MemberAction | null>(null)
   const directorySearchRef = useRef<HTMLInputElement>(null)
   const members = useQuery(getMemberDirectoryOptions(organizationId, search))
@@ -100,7 +82,6 @@ export function MembersRoute() {
     )
       void queryClient.resetQueries(filters)
   }, [directoryForbidden, organizationId, queryClient])
-  const invitations = useQuery(getInvitationDirectoryOptions(organizationId))
   const actorRoleQuery = useQuery({
     queryKey: ["organizations", organizationId, "active-member-role"],
     queryFn: async () => {
@@ -113,80 +94,11 @@ export function MembersRoute() {
   })
   const access = useQuery(getOrganizationAccessOptions(organizationId))
   const actorRole = actorRoleQuery.data ?? ""
-  const canInvite = actorRole === "owner" || actorRole === "admin"
-  const canInviteAdmin = actorRole === "owner"
-
-  const invite = useMutation({
-    mutationFn: async (input: { email: string; role: "member" | "admin" }) => {
-      const result = await authClient.organization.inviteMember({
-        email: input.email,
-        role: input.role,
-        organizationId,
-      })
-      if (result.error)
-        throw new Error(
-          authErrorMessage(result.error, t("common:operationFailed"))
-        )
-    },
-    onSuccess: () => invalidateDirectory(),
-  })
-  const resendInvitation = useMutation({
-    mutationFn: async (input: { email: string; role: string }) => {
-      const result = await authClient.organization.inviteMember({
-        email: input.email,
-        role: input.role,
-        organizationId,
-        resend: true,
-      })
-      if (result.error)
-        throw new Error(
-          authErrorMessage(result.error, t("common:operationFailed"))
-        )
-    },
-    onSuccess: () => invalidateDirectory(),
-  })
-  const cancelInvitation = useMutation({
-    mutationFn: async (invitationId: string) => {
-      const result = await authClient.organization.cancelInvitation({
-        invitationId,
-      })
-      if (result.error)
-        throw new Error(
-          authErrorMessage(result.error, t("common:operationFailed"))
-        )
-    },
-    onSuccess: () => invalidateDirectory(),
-  })
-
-  function invalidateDirectory() {
-    return Promise.all([
-      queryClient.invalidateQueries({
-        queryKey: memberDirectoryKey(organizationId, search).slice(0, 3),
-      }),
-      queryClient.invalidateQueries({
-        queryKey: invitationDirectoryKey(organizationId),
-      }),
-    ])
-  }
-
   function setSearch(
     updater: (current: MemberDirectorySearch) => MemberDirectorySearch
   ) {
     void navigate({ search: updater })
   }
-
-  const form = useForm({
-    defaultValues: { email: "", role: "member" as "member" | "admin" },
-    validators: { onSubmit: inviteSchema(t) },
-    onSubmit: async ({ value, formApi }) => {
-      await invite.mutateAsync({
-        email: value.email.trim(),
-        role: canInviteAdmin ? value.role : "member",
-      })
-      formApi.reset()
-      setInviteOpen(false)
-    },
-  })
 
   return (
     <section className="space-y-8">
@@ -209,11 +121,6 @@ export function MembersRoute() {
             >
               {t("organization:leave")}
             </Button>
-            {canInvite && (
-              <Button onClick={() => setInviteOpen(true)}>
-                {t("organization:invite")}
-              </Button>
-            )}
           </div>
         }
       />
@@ -345,69 +252,6 @@ export function MembersRoute() {
               setSearch((current) => ({ ...current, page }))
             }
           />
-          <section className="space-y-3">
-            <h2 className="text-lg font-semibold">
-              {t("organization:pendingInvitations")}
-            </h2>
-            {(invitations.data ?? []).length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                {t("organization:noPendingInvitations")}
-              </p>
-            ) : (
-              <ul className="divide-y rounded-xl border">
-                {(invitations.data ?? []).map((invitation) => (
-                  <li
-                    key={invitation.id}
-                    className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
-                  >
-                    <div className="min-w-0">
-                      <p className="font-medium">{invitation.email}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {roleLabel(invitation.role, t)}
-                      </p>
-                    </div>
-                    {canInvite && (
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          variant="outline"
-                          disabled={resendInvitation.isPending}
-                          onClick={() => {
-                            resendInvitation.mutate({
-                              email: invitation.email,
-                              role: invitation.role,
-                            })
-                          }}
-                        >
-                          {t("organization:resend")}
-                        </Button>
-                        <ConfirmDangerAction
-                          triggerLabel={t("organization:cancelInvitation")}
-                          title={t("organization:cancelInvitationTitle")}
-                          description={t(
-                            "organization:cancelInvitationDescription",
-                            { email: invitation.email }
-                          )}
-                          cancelLabel={t("common:cancel")}
-                          confirmLabel={t("organization:cancelInvitation")}
-                          pendingLabel={t("organization:cancelling")}
-                          pending={cancelInvitation.isPending}
-                          error={mutationErrorMessage(cancelInvitation.error)}
-                          onConfirm={() => {
-                            cancelInvitation.mutate(invitation.id)
-                          }}
-                        />
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-            {resendInvitation.error && (
-              <p role="alert" className="text-sm text-destructive">
-                {resendInvitation.error.message}
-              </p>
-            )}
-          </section>
         </>
       )}
       {memberAction && (
@@ -428,91 +272,10 @@ export function MembersRoute() {
           }
         />
       )}
-      <form.Subscribe selector={(state) => state.isSubmitting}>
-        {(submitting) => (
-          <FormDialog
-            open={inviteOpen}
-            onOpenChange={setInviteOpen}
-            title={t("organization:invite")}
-            description={t("organization:inviteDescription")}
-            onSubmit={() => void form.handleSubmit()}
-            pending={invite.isPending || submitting}
-            error={mutationErrorMessage(invite.error)}
-            submitLabel={t("organization:inviteSubmit")}
-          >
-            <FieldGroup>
-              <form.Field name="email">
-                {(field) => {
-                  const isInvalid =
-                    field.state.meta.isTouched && !field.state.meta.isValid
-                  return (
-                    <Field data-invalid={isInvalid}>
-                      <FieldLabel htmlFor="invite-email">
-                        {t("auth:email")}
-                      </FieldLabel>
-                      <Input
-                        id="invite-email"
-                        name={field.name}
-                        value={field.state.value}
-                        onChange={(event) =>
-                          field.handleChange(event.target.value)
-                        }
-                        onBlur={field.handleBlur}
-                        type="email"
-                        autoComplete="email"
-                        aria-invalid={isInvalid}
-                        required
-                      />
-                      {isInvalid && (
-                        <FieldError errors={field.state.meta.errors} />
-                      )}
-                    </Field>
-                  )
-                }}
-              </form.Field>
-              {canInviteAdmin && (
-                <form.Field name="role">
-                  {(field) => (
-                    <Field>
-                      <FieldLabel htmlFor="invite-role">
-                        {t("organization:role")}
-                      </FieldLabel>
-                      <Select
-                        value={field.state.value}
-                        items={{
-                          member: t("organization:role_member"),
-                          admin: t("organization:role_admin"),
-                        }}
-                        onValueChange={(value) => {
-                          if (value !== "member" && value !== "admin") {
-                            throw new Error(`unknown role: ${value}`)
-                          }
-                          field.handleChange(value)
-                        }}
-                      >
-                        <SelectTrigger
-                          id="invite-role"
-                          onBlur={field.handleBlur}
-                        >
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="member">
-                            {t("organization:role_member")}
-                          </SelectItem>
-                          <SelectItem value="admin">
-                            {t("organization:role_admin")}
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                  )}
-                </form.Field>
-              )}
-            </FieldGroup>
-          </FormDialog>
-        )}
-      </form.Subscribe>
+      <InvitationDirectory
+        organizationId={organizationId}
+        actorRole={actorRole}
+      />
     </section>
   )
 }

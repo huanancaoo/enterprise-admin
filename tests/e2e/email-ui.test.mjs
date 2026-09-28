@@ -189,6 +189,12 @@ describe("email auth UI", () => {
     await dialog.getByRole("button", { name: "发送邀请", exact: true }).click()
     await expectUI(dialog).toHaveCount(0)
     await expectUI(page.getByText(invitee.email, { exact: true })).toBeVisible()
+    await expectUI(
+      page.getByRole("status").filter({ hasText: "邀请已创建。 SMTP 已接受" })
+    ).toBeVisible()
+    await expectUI(
+      page.getByText("SMTP 接受不代表邮件已送达收件箱。", { exact: true })
+    ).toBeVisible()
     const invitation = await waitForMail(
       mailpitOrigin,
       invitee.email,
@@ -212,6 +218,14 @@ describe("email auth UI", () => {
       await expectUI(
         inviteePage.getByText(`加入 ${organization.name}。`, { exact: false })
       ).toBeVisible()
+      const beforeAcceptance = await inviteePage.request.get(
+        `${tenantOrigin}/api/auth/organization/list`
+      )
+      expect(
+        (await beforeAcceptance.json()).some(
+          (row) => row.slug === organization.slug
+        )
+      ).toBe(false)
       await inviteePage
         .getByRole("button", { name: "接受邀请", exact: true })
         .click()

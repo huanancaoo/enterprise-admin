@@ -2,7 +2,7 @@ import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import type { TFunction } from "@workspace/i18n"
 import { useForm } from "@tanstack/react-form"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -14,6 +14,7 @@ import {
 } from "@workspace/ui/components/field"
 import { Input } from "@workspace/ui/components/input"
 import * as z from "zod"
+import { organizationKeys } from "@workspace/api-client"
 import { AuthPageShell } from "./auth-page-shell"
 import { useWorkspaceAuthClient } from "./auth-client-context"
 import { useAuthAction } from "./use-auth-action"
@@ -342,10 +343,12 @@ export function AcceptInvitationPage({
   const client = useWorkspaceAuthClient()
   const session = useAuthenticatedSession()
   const action = useAuthAction()
+  const queryClient = useQueryClient()
+  const [rejected, setRejected] = useState(false)
   const userId = session?.user.id
   // getInvitation 要求已登录且邮箱与受邀人一致；匿名阶段只提示登录，不请求。
   const invitation = useQuery({
-    queryKey: ["invitations", invitationId] as const,
+    queryKey: ["invitations", userId, invitationId] as const,
     queryFn: async ({ signal }) => {
       const result = await client.organization.getInvitation({
         query: { id: invitationId },
@@ -354,12 +357,12 @@ export function AcceptInvitationPage({
       if (result.error || !result.data?.organizationName) {
         throw new Error("invalid")
       }
-      return result.data.organizationName
+      return result.data
     },
     enabled: Boolean(userId),
     retry: false,
   })
-  const organizationName = invitation.data
+  const organizationName = invitation.data?.organizationName
   const invalid = invitation.isError
 
   return (
@@ -368,7 +371,9 @@ export function AcceptInvitationPage({
         <h1 className="text-2xl font-bold">
           {t("auth:acceptInvitationTitle")}
         </h1>
-        {invalid ? (
+        {rejected ? (
+          <p role="status">{t("auth:invitationRejected")}</p>
+        ) : invalid ? (
           <p role="alert">{t("auth:invitationInvalid")}</p>
         ) : organizationName ? (
           <p className="text-sm text-muted-foreground">
@@ -401,23 +406,60 @@ export function AcceptInvitationPage({
             {t("auth:signIn")}
           </Button>
         )}
-        {session && !invalid && organizationName && (
-          <Button
-            disabled={action.pending}
-            onClick={() => {
-              void action.run(async () => {
-                const result = await client.organization.acceptInvitation({
-                  invitationId,
+        {session && !invalid && !rejected && organizationName && (
+          <>
+            <Button
+              disabled={action.pending}
+              onClick={() => {
+                void action.run(async () => {
+                  const result = await client.organization.acceptInvitation({
+                    invitationId,
+                  })
+                  if (!result.error) {
+                    await Promise.all([
+                      queryClient.invalidateQueries({
+                        queryKey: organizationKeys.mine(),
+                      }),
+                      queryClient.invalidateQueries({
+                        queryKey: organizationKeys.scope(
+                          result.data.invitation.organizationId
+                        ),
+                      }),
+                    ])
+                    queryClient.removeQueries({
+                      queryKey: ["invitations", userId, invitationId],
+                    })
+                    onAccepted()
+                  }
+                  return result
                 })
-                if (!result.error) onAccepted()
-                return result
-              })
-            }}
-          >
-            {action.pending
-              ? t("common:submitting")
-              : t("auth:acceptInvitation")}
-          </Button>
+              }}
+            >
+              {action.pending
+                ? t("common:submitting")
+                : t("auth:acceptInvitation")}
+            </Button>
+            <Button
+              variant="outline"
+              disabled={action.pending}
+              onClick={() => {
+                void action.run(async () => {
+                  const result = await client.organization.rejectInvitation({
+                    invitationId,
+                  })
+                  if (!result.error) {
+                    setRejected(true)
+                    queryClient.removeQueries({
+                      queryKey: ["invitations", userId, invitationId],
+                    })
+                  }
+                  return result
+                })
+              }}
+            >
+              {t("auth:rejectInvitation")}
+            </Button>
+          </>
         )}
       </div>
     </AuthPageShell>

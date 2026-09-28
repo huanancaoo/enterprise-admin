@@ -137,6 +137,11 @@ export function AuditEventsRoute() {
   const { t } = useTranslation(["organization", "common"])
   const locale = useUiLocale()
   const eventLabels = {
+    "invitation.delivery_smtp_accepted": t(
+      "organization:delivery_smtp_accepted"
+    ),
+    "invitation.delivery_failed": t("organization:delivery_failed"),
+    "invitation.delivery_unknown": t("organization:delivery_unknown"),
     "invitation.accepted": t("organization:audit_event_invitation_accepted"),
     "invitation.canceled": t("organization:audit_event_invitation_canceled"),
     "invitation.rejected": t("organization:audit_event_invitation_rejected"),

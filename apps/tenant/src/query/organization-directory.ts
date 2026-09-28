@@ -34,6 +34,16 @@ export type InvitationRow = {
   email: string
   role: string
   status: string
+  businessStatus: "pending" | "accepted" | "rejected" | "canceled" | "expired"
+  inviterName: string
+  createdAt: string | Date
+  expiresAt: string | Date
+  delivery: {
+    attemptId: string
+    status: "pending" | "smtp_accepted" | "failed" | "unknown"
+    attemptedAt: string
+    errorCode: string | null
+  } | null
 }
 
 export class MemberDirectoryError extends Error {
@@ -99,10 +109,8 @@ export function getInvitationDirectoryOptions(organizationId: string) {
         query: { organizationId },
         fetchOptions: { signal },
       })
-      if (result.error) throw new Error(result.error.message)
-      return (result.data as InvitationRow[]).filter(
-        (invitation) => invitation.status === "pending"
-      )
+      if (result.error) throw new MemberDirectoryError(result.error)
+      return result.data as unknown as InvitationRow[]
     },
     retry: false,
   })

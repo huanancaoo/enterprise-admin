@@ -17,7 +17,7 @@ import {
   getAuthoritativeSessionFromCtx,
   getSessionFromCtx,
 } from "better-auth/api"
-import { randomUUID } from "node:crypto"
+import { createHmac, randomUUID } from "node:crypto"
 import type { Pool } from "pg"
 import {
   builtInOrganizationRoleKeys,
@@ -43,6 +43,20 @@ import {
   searchOrganizationMembers,
 } from "./member-directory.ts"
 
+import {
+  assertInvitationRole,
+  invitationError,
+  assertInvitationActive,
+  reserveInvitationSend,
+  defaultInvitationLimits,
+  type InvitationLimits,
+  assertInvitationPermission,
+  readInvitationPermission,
+  type InvitationRecord,
+  lockInvitation,
+  assertInvitationRecipient,
+} from "./invitation-policy.ts"
+
 export {
   getAuthRequestContext,
   runWithAuthRequestContext,
@@ -66,6 +80,9 @@ export type AuthEmailHooks = {
   }) => Promise<void>
   sendInvitationEmail: (data: {
     id: string
+    attemptId: string
+    actorId: string
+    requestId: string
     email: string
     role: string
     organization: { id: string; name: string; defaultLocale?: string | null }
@@ -236,9 +253,52 @@ export function createAuth(
   emailHooks: AuthEmailHooks,
   secondaryStorage: SecondaryStorage,
   trustedProxies: string[],
-  github: { clientId: string; clientSecret: string }
+  github: { clientId: string; clientSecret: string },
+  invitationLimits: InvitationLimits = defaultInvitationLimits
 ) {
   const transactionalAdapter = createTransactionalAuthAdapter(pool)
+  type InvitationEmailData = Omit<
+    Parameters<AuthEmailHooks["sendInvitationEmail"]>[0],
+    "attemptId" | "actorId" | "requestId"
+  >
+  async function stageInvitationEmail(data: InvitationEmailData) {
+    const attempt = await transactionalAdapter.query<{
+      id: string
+      actor_id: string
+      request_id: string
+    }>(
+      "INSERT INTO invitation_delivery_attempts (invitation_id, organization_id) VALUES ($1, $2) RETURNING id, current_setting('app.auth_actor_id') AS actor_id, current_setting('app.auth_request_id') AS request_id",
+      [data.id, data.organization.id]
+    )
+    transactionalAdapter.deferUntilCommit(async () => {
+      try {
+        await emailHooks.sendInvitationEmail({
+          attemptId: attempt.rows[0].id,
+          actorId: attempt.rows[0].actor_id,
+          requestId: attempt.rows[0].request_id,
+          id: data.id,
+          email: data.email,
+          role: data.role,
+          organization: {
+            id: data.organization.id,
+            name: data.organization.name,
+            defaultLocale:
+              "defaultLocale" in data.organization
+                ? (data.organization.defaultLocale as string | null | undefined)
+                : undefined,
+          },
+          invitation: { id: data.invitation.id },
+          inviter: { user: { name: data.inviter.user.name } },
+        })
+      } catch {
+        // 邀请已提交。持久化不可用不能改写创建结果；attempt 保留已记录事实。
+        console.error({
+          event: "invitation.delivery.unavailable",
+          requestId: attempt.rows[0].request_id,
+        })
+      }
+    })
+  }
   const organizationPlugin = wrapTransactionalOrganizationEndpoints(
     organization({
       schema: {
@@ -282,25 +342,9 @@ export function createAuth(
         }),
       },
       dynamicAccessControl: { enabled: true },
-      invitationExpiresIn: 60 * 60 * 48,
+      invitationExpiresIn: 60 * 60 * 24 * 7,
       requireEmailVerificationOnInvitation: true,
-      sendInvitationEmail: async (data) => {
-        await emailHooks.sendInvitationEmail({
-          id: data.id,
-          email: data.email,
-          role: data.role,
-          organization: {
-            id: data.organization.id,
-            name: data.organization.name,
-            defaultLocale:
-              "defaultLocale" in data.organization
-                ? (data.organization.defaultLocale as string | null | undefined)
-                : undefined,
-          },
-          invitation: { id: data.invitation.id },
-          inviter: { user: { name: data.inviter.user.name } },
-        })
-      },
+      sendInvitationEmail: stageInvitationEmail,
       organizationHooks: {
         beforeUpdateMemberRole: async ({ newRole, user }) => {
           if (newRole === "owner" && !user.emailVerified) {
@@ -345,6 +389,9 @@ export function createAuth(
           memberId?: string
           memberIdOrEmail?: string
           role?: string | string[]
+          email?: string
+          resend?: boolean
+          invitationId?: string
         }
       }
       const session = await getAuthoritativeSessionFromCtx(endpointContext)
@@ -384,6 +431,172 @@ export function createAuth(
           endpointContext.path ?? "",
         ]
       )
+      if (
+        endpointContext.path &&
+        [
+          "/organization/accept-invitation",
+          "/organization/reject-invitation",
+          "/organization/cancel-invitation",
+        ].includes(endpointContext.path)
+      ) {
+        const invitation = await lockInvitation(
+          { query: transactionalAdapter.query },
+          endpointContext.body!.invitationId!,
+          endpointContext.path !== "/organization/cancel-invitation"
+        )
+        if (endpointContext.path === "/organization/cancel-invitation") {
+          await assertInvitationPermission(
+            { query: transactionalAdapter.query },
+            invitation.organization_id,
+            session.user.id,
+            "cancel"
+          )
+          const actor = await transactionalAdapter.query<{ role: string }>(
+            "SELECT role FROM member WHERE organization_id = $1 AND user_id = $2",
+            [invitation.organization_id, session.user.id]
+          )
+          if (invitation.role === "admin" && actor.rows[0]?.role !== "owner")
+            invitationError("INVITATION_ROLE_FORBIDDEN", "FORBIDDEN")
+          assertInvitationActive(invitation)
+          await transactionalAdapter.query(
+            "SELECT public.require_active_organization($1)",
+            [invitation.organization_id]
+          )
+        } else {
+          await assertInvitationRecipient(
+            { query: transactionalAdapter.query },
+            session.user.id,
+            invitation.email
+          )
+          // 身份和权限先于终态判断，未授权者不能用错误码探测邀请状态。
+          assertInvitationActive(invitation)
+          if (endpointContext.path === "/organization/accept-invitation") {
+            await transactionalAdapter.query(
+              "SELECT public.require_active_organization($1)",
+              [invitation.organization_id]
+            )
+            await assertInvitationRole(
+              { query: transactionalAdapter.query },
+              invitation.organization_id,
+              invitation.inviter_id,
+              invitation.role
+            )
+          }
+        }
+      }
+      if (endpointContext.path === "/organization/invite-member") {
+        const organizationId =
+          endpointContext.body?.organizationId ??
+          session.session.activeOrganizationId
+        if (!organizationId) invitationError("ORGANIZATION_NOT_FOUND")
+        if (
+          !(await isOrganizationMember(
+            { query: transactionalAdapter.query },
+            organizationId,
+            session.user.id
+          ))
+        )
+          invitationError("FORBIDDEN", "FORBIDDEN")
+        await transactionalAdapter.query(
+          "SELECT public.require_active_organization($1)",
+          [organizationId]
+        )
+        const email = endpointContext.body!.email!.toLowerCase()
+        await assertInvitationRole(
+          { query: transactionalAdapter.query },
+          organizationId,
+          session.user.id,
+          endpointContext.body?.role
+        )
+        const member = await transactionalAdapter.query(
+          `SELECT 1 FROM member m JOIN public."user" u ON u.id = m.user_id WHERE m.organization_id = $1 AND u.email = $2`,
+          [organizationId, email]
+        )
+        if (member.rowCount)
+          invitationError("MEMBER_ALREADY_EXISTS", "CONFLICT")
+        const pending = await transactionalAdapter.query<InvitationRecord>(
+          `SELECT *, expires_at AT TIME ZONE 'UTC' AS expires_at, created_at AT TIME ZONE 'UTC' AS created_at FROM invitation WHERE organization_id = $1 AND lower(email) = $2 AND status = 'pending' AND expires_at > clock_timestamp()`,
+          [organizationId, email]
+        )
+        if (pending.rowCount && !endpointContext.body?.resend)
+          invitationError("INVITATION_ALREADY_PENDING", "CONFLICT")
+        if (endpointContext.body?.resend) {
+          const invitation = pending.rows[0]
+          if (!invitation) invitationError("INVITATION_NOT_ACTIVE", "CONFLICT")
+          if (invitation.role !== endpointContext.body.role)
+            invitationError("INVITATION_ROLE_IMMUTABLE", "CONFLICT")
+          await assertInvitationRole(
+            { query: transactionalAdapter.query },
+            organizationId,
+            invitation.inviter_id,
+            invitation.role
+          )
+          const recent = await transactionalAdapter.query(
+            "SELECT 1 FROM invitation_delivery_attempts WHERE invitation_id = $1 AND created_at > clock_timestamp() - interval '60 seconds'",
+            [invitation.id]
+          )
+          if (recent.rowCount)
+            invitationError("INVITATION_RESEND_COOLDOWN", "TOO_MANY_REQUESTS")
+        }
+        await reserveInvitationSend(
+          { query: transactionalAdapter.query },
+          {
+            organizationId,
+            email,
+            actorId: session.user.id,
+            ipHash: createHmac("sha256", secret)
+              .update(request?.clientIp ?? "internal")
+              .digest("hex"),
+            limits: invitationLimits,
+          }
+        )
+        if (endpointContext.body?.resend) {
+          const invitation = pending.rows[0]
+          const organization = await transactionalAdapter.query<{
+            name: string
+            default_locale: string | null
+          }>("SELECT name, default_locale FROM organization WHERE id = $1", [
+            organizationId,
+          ])
+          await stageInvitationEmail({
+            id: invitation.id,
+            email: invitation.email,
+            role: invitation.role,
+            organization: {
+              id: organizationId,
+              name: organization.rows[0].name,
+              defaultLocale: organization.rows[0].default_locale,
+            },
+            invitation: { id: invitation.id },
+            inviter: { user: { name: session.user.name } },
+          })
+          await transactionalAdapter.query(
+            "SELECT set_config('app.organization_id', $1, true)",
+            [organizationId]
+          )
+          await transactionalAdapter.query(
+            `INSERT INTO audit_events (organization_id, actor_id, event_code, resource_type, resource_id, request_id, tenant_visible, fields) VALUES ($1, $2, 'invitation.resent', 'invitation', $3, $4, true, '{}'::jsonb)`,
+            [
+              organizationId,
+              session.user.id,
+              invitation.id,
+              request?.requestId ?? randomUUID(),
+            ]
+          )
+          return {
+            result: {
+              id: invitation.id,
+              email: invitation.email,
+              role: invitation.role,
+              status: invitation.status,
+              organizationId,
+              inviterId: invitation.inviter_id,
+              expiresAt: invitation.expires_at,
+              createdAt: invitation.created_at,
+            },
+          }
+        }
+      }
       if (
         endpointContext.path &&
         memberManagementWritePaths.has(endpointContext.path)
@@ -577,6 +790,60 @@ export function createAuth(
     },
     hooks: {
       after: createAuthMiddleware(async (ctx) => {
+        if (
+          ctx.path === "/organization/get-full-organization" &&
+          ctx.context.returned &&
+          !(ctx.context.returned instanceof APIError)
+        ) {
+          const organization = { ...ctx.context.returned } as Record<
+            string,
+            unknown
+          >
+          const session = await getAuthoritativeSessionFromCtx(ctx)
+          if (
+            session &&
+            !(await readInvitationPermission(
+              { query: transactionalAdapter.query },
+              organization.id as string,
+              session.user.id,
+              "read"
+            ))
+          ) {
+            // 原生完整组织仍提供成员目录；邀请邮箱只投影给具有邀请管理权限的用户。
+            delete organization.invitations
+            return ctx.json(organization)
+          }
+        }
+        if (
+          ctx.path === "/organization/list-invitations" &&
+          Array.isArray(ctx.context.returned)
+        ) {
+          const invitations = ctx.context.returned as { id: string }[]
+          const details = await pool.query<{
+            id: string
+            businessStatus: string
+            inviterName: string
+            delivery: unknown
+          }>(
+            `SELECT i.id,
+              CASE WHEN i.status = 'pending' AND i.expires_at <= clock_timestamp() THEN 'expired' ELSE i.status END AS "businessStatus",
+              u.name AS "inviterName",
+              CASE WHEN a.id IS NULL THEN NULL ELSE json_build_object('attemptId', a.id, 'status', a.status,
+                'attemptedAt', a.created_at, 'errorCode', a.error_code) END AS delivery
+             FROM invitation i JOIN public."user" u ON u.id = i.inviter_id
+             LEFT JOIN LATERAL (SELECT * FROM invitation_delivery_attempts WHERE invitation_id = i.id ORDER BY created_at DESC, id DESC LIMIT 1) a ON true
+             WHERE i.id = ANY($1::uuid[])`,
+            [invitations.map((i) => i.id)]
+          )
+          const byId = new Map(details.rows.map((row) => [row.id, row]))
+          return ctx.json(
+            invitations.map((invitation) => ({
+              ...invitation,
+              ...byId.get(invitation.id),
+            }))
+          )
+        }
+
         if (ctx.path !== "/two-factor/verify-totp") return
         if (ctx.context.returned instanceof APIError) return
         const verifiedSession =
@@ -591,6 +858,36 @@ export function createAuth(
       }),
       before: createAuthMiddleware(async (ctx) => {
         if (!ctx.path.startsWith("/organization/")) return
+        if (ctx.path === "/organization/get-invitation") {
+          const session = await getAuthoritativeSessionFromCtx(ctx)
+          if (!session) throw new APIError("UNAUTHORIZED")
+          const invitation = await transactionalAdapter.query<{
+            email: string
+          }>("SELECT email FROM invitation WHERE id::text = $1", [
+            (ctx.query as { id?: string } | undefined)?.id,
+          ])
+          if (!invitation.rows[0])
+            invitationError(
+              "YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION",
+              "FORBIDDEN"
+            )
+          await assertInvitationRecipient(
+            { query: transactionalAdapter.query },
+            session.user.id,
+            invitation.rows[0].email
+          )
+          // 原生确认页负责展示有效邀请；身份检查不泄露不存在、终态或组织状态。
+          return
+        }
+        // 三个邀请状态动作在事务 prepare 中先授权再检查状态；拒绝允许停用组织。
+        if (
+          [
+            "/organization/accept-invitation",
+            "/organization/reject-invitation",
+            "/organization/cancel-invitation",
+          ].includes(ctx.path)
+        )
+          return
         const body = (ctx.body ?? {}) as {
           organizationId?: string | null
           organizationSlug?: string | null
@@ -636,6 +933,14 @@ export function createAuth(
             organizationQuery,
             organizationId,
             userId
+          )
+        }
+        if (ctx.path === "/organization/list-invitations") {
+          await assertInvitationPermission(
+            organizationQuery,
+            organizationId,
+            userId,
+            "read"
           )
         }
         if (ctx.path !== "/organization/list-members") return

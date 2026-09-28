@@ -306,6 +306,14 @@ describe("auth mail outbox → SMTP → Mailpit", () => {
       }
     )
     expect(invited.status).toBe(200)
+    const invitation = await invited.json()
+    const list = await runtime.auth.api.listInvitations({
+      headers: account.headers,
+      query: { organizationId: organization.id },
+    })
+    expect(list.find((row) => row.id === invitation.id).delivery.status).toBe(
+      "smtp_accepted"
+    )
     const message = await waitForMail(
       mailpitOrigin,
       invitee,

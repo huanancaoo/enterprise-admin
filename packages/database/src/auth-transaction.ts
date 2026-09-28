@@ -23,6 +23,7 @@ export function createTransactionalAuthAdapter(pool: Pool) {
   const transactionContext = new AsyncLocalStorage<{
     adapter: DBAdapter
     client: PoolClient
+    afterCommit: (() => Promise<void>)[]
   }>()
   const baseFactory = drizzleAdapter(database, {
     provider: "pg",
@@ -50,6 +51,8 @@ export function createTransactionalAuthAdapter(pool: Pool) {
     if (!authOptions || !baseAdapter)
       throw new Error("Better Auth adapter is not initialized")
 
+    const afterCommit: (() => Promise<void>)[] = []
+    let result: T
     const client = await pool.connect()
     try {
       await client.query("BEGIN")
@@ -58,12 +61,11 @@ export function createTransactionalAuthAdapter(pool: Pool) {
         schema,
         transaction: false,
       })(authOptions)
-      const result = await transactionContext.run(
-        { adapter: transactionAdapter, client },
+      result = await transactionContext.run(
+        { adapter: transactionAdapter, client, afterCommit },
         work
       )
       await client.query("COMMIT")
-      return result
     } catch (error) {
       await client.query("ROLLBACK")
       const databaseCode = databaseErrorCode(error)
@@ -99,6 +101,9 @@ export function createTransactionalAuthAdapter(pool: Pool) {
     } finally {
       client.release()
     }
+    // SMTP 与数据库没有共同事务；提交后仍由本请求等待发送并记录真实结果。
+    for (const send of afterCommit) await send()
+    return result
   }
 
   function query<Row extends QueryResultRow>(text: string, values?: unknown[]) {
@@ -108,11 +113,21 @@ export function createTransactionalAuthAdapter(pool: Pool) {
     )
   }
 
-  return { adapterFactory, run, query }
+  function deferUntilCommit(work: () => Promise<void>) {
+    const context = transactionContext.getStore()
+    if (!context)
+      throw new Error("Invitation delivery requires an auth transaction")
+    context.afterCommit.push(work)
+  }
+
+  return { adapterFactory, run, query, deferUntilCommit }
 }
 
 type EndpointFunction = ((...args: unknown[]) => unknown) & {
   method?: string
+  options?: {
+    body?: { safeParseAsync: (body: unknown) => Promise<{ success: boolean }> }
+  }
 }
 
 const transactionalOrganizationEndpoints = new Set([
@@ -138,16 +153,30 @@ export function wrapTransactionalOrganizationEndpoints<
 >(
   plugin: Plugin,
   run: <T>(work: () => Promise<T>) => Promise<T>,
-  prepare: (context: unknown) => Promise<void>
+  prepare: (context: unknown) => Promise<{ result: unknown } | void>
 ): Plugin {
   const endpoints = plugin.endpoints as Record<string, EndpointFunction>
   for (const [key, endpoint] of Object.entries(endpoints)) {
     if (!transactionalOrganizationEndpoints.has(key)) continue
-    const transactionalEndpoint = (async (...args: unknown[]) =>
-      run(async () => {
-        await prepare(args[0])
+    const transactionalEndpoint = (async (...args: unknown[]) => {
+      const context = args[0] as { body?: unknown }
+      if (
+        endpoint.options?.body &&
+        !(await endpoint.options.body.safeParseAsync(context.body)).success
+      ) {
         return endpoint(...args)
-      })) as EndpointFunction
+      }
+      return run(async () => {
+        const prepared = await prepare(args[0])
+        if (prepared)
+          return {
+            response: prepared.result,
+            status: 200,
+            headers: new Headers(),
+          }
+        return endpoint(...args)
+      })
+    }) as EndpointFunction
     Object.assign(transactionalEndpoint, endpoint)
     endpoints[key] = transactionalEndpoint
   }

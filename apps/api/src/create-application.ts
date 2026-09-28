@@ -28,11 +28,13 @@ export async function createApplication(
     configureApp(app);
     // Better Auth 需要原始请求流；Nest 的业务 JSON 解析必须在认证路由之后。
     const server = app.getHttpAdapter().getInstance();
+    server.set('trust proxy', config.trustedProxies);
     const authHandler = toNodeHandler(runtime.auth);
     server.all('/api/auth/*path', (request, response) => {
       return runWithAuthRequestContext(
         {
           requestId: response.locals.requestId as string,
+          clientIp: request.ip,
         },
         () => authHandler(request, response),
       );

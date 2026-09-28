@@ -227,6 +227,8 @@ describe(suiteName, { concurrent: false }, () => {
       [
         ...tables,
         "audit_events",
+        "invitation_delivery_attempts",
+        "invitation_send_events",
         "organization_status",
         "platform_assignment",
         "platform_assignment_audit",

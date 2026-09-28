@@ -15,6 +15,11 @@ export class SmtpEmailProvider implements EmailProvider {
       port: smtp.port,
       secure: smtp.secure,
       pool: true,
+      // 每个业务 attempt 只尝试一次；连接中断不能由池自动重发并掩盖未知结果。
+      maxRequeues: 0,
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 30_000,
       disableFileAccess: true,
       disableUrlAccess: true,
       ...(smtp.user ? { auth: { user: smtp.user, pass: smtp.password } } : {}),
@@ -29,7 +34,9 @@ export class SmtpEmailProvider implements EmailProvider {
       html: message.html,
       text: message.text,
     });
-    if (!info.messageId) throw new Error('SMTP_ERROR');
+    if (!info.messageId || !info.accepted?.length) {
+      throw new Error('SMTP_RESULT_UNKNOWN');
+    }
     return { providerMessageId: info.messageId };
   }
 

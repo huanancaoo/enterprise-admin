@@ -176,6 +176,20 @@
       "when": 1790563837640,
       "tag": "0024_shared-runtime-platform-access",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1790564862826,
+      "tag": "0025_sticky_giant_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1790566788455,
+      "tag": "0026_invitation-state-guard",
+      "breakpoints": true
     }
   ]
 }

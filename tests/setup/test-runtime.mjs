@@ -31,6 +31,8 @@ async function reservePort() {
 export async function startTestApplication({
   origins = ["http://localhost:3200"],
   mail = false,
+  smtp: smtpOverride,
+  invitationLimits,
 } = {}) {
   // 每取得一个资源立即登记释放；启动中途失败和正常结束使用同一条逆序清理链。
   const resources = new AsyncDisposableStack()
@@ -60,7 +62,7 @@ export async function startTestApplication({
     const migrator = createDatabase(migrationURL).pool
     resources.defer(() => migrator.end())
     let mailpitOrigin
-    let smtp
+    let smtp = { host: "127.0.0.1", port: await reservePort(), secure: false }
     if (mail) {
       const mailpit = await new GenericContainer(versions.mailpit.image)
         .withExposedPorts(1025, 8025)
@@ -83,13 +85,14 @@ export async function startTestApplication({
       secret: randomBytes(32).toString("hex"),
       trustedOrigins: origins,
       trustedProxies: [],
+      ...(invitationLimits ? { invitationLimits } : {}),
       github: {
         clientId: "test-github-client-id",
         clientSecret: "test-github-client-secret",
       },
       email: testEmailConfig({
         linkOrigin: origins[0],
-        ...(smtp ? { smtp } : {}),
+        smtp: smtpOverride ?? smtp,
       }),
     }
     const app = await createApplication(config, { logger: ["error"] })

@@ -11,6 +11,7 @@ import { isIP } from 'node:net';
 import Redis from 'ioredis';
 
 export interface AuthConfig {
+  invitationLimits?: { organization: number; actor: number; ip: number };
   databaseURL: string;
   redisURL: string;
   baseURL: string;
@@ -56,7 +57,21 @@ export function readAuthConfig(env: NodeJS.ProcessEnv): AuthConfig {
   const secret = required('BETTER_AUTH_SECRET');
   if (secret.length < 32)
     throw new Error('BETTER_AUTH_SECRET must contain at least 32 characters');
+  function invitationLimit(name: string, defaultValue: number): number {
+    const value = Number(env[name] ?? defaultValue);
+    if (!Number.isSafeInteger(value) || value <= 0)
+      throw new Error(`${name} must be a positive integer`);
+    return value;
+  }
   return {
+    invitationLimits: {
+      organization: invitationLimit(
+        'INVITATION_ORGANIZATION_HOURLY_LIMIT',
+        100,
+      ),
+      actor: invitationLimit('INVITATION_ACTOR_HOURLY_LIMIT', 50),
+      ip: invitationLimit('INVITATION_IP_HOURLY_LIMIT', 100),
+    },
     databaseURL: required('DATABASE_URL'),
     redisURL: required('REDIS_URL'),
     baseURL: required('BETTER_AUTH_URL'),
@@ -116,6 +131,7 @@ export class AuthRuntime implements OnApplicationShutdown {
         redisStorage({ client: this.redis }),
         config.trustedProxies,
         config.github,
+        config.invitationLimits,
       );
     } catch (error) {
       this.redis.disconnect();
