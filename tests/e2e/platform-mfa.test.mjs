@@ -72,6 +72,25 @@ describe("platform MFA browser flow", () => {
     await page.getByRole("button", { name: "登录", exact: true }).click()
   }
 
+  async function selectArabic() {
+    await page.getByRole("button", { name: "语言", exact: true }).click()
+    await page
+      .getByRole("menuitemradio", { name: "العربية", exact: true })
+      .click()
+    await expectUI(page.locator("html")).toHaveAttribute("lang", "ar")
+    await expectUI(page.locator("html")).toHaveAttribute("dir", "rtl")
+  }
+
+  async function signInArabic(target) {
+    await page
+      .getByLabel("البريد الإلكتروني", { exact: true })
+      .fill(target.email)
+    await page.getByLabel("كلمة المرور", { exact: true }).fill(target.password)
+    await page
+      .getByRole("button", { name: "تسجيل الدخول", exact: true })
+      .click()
+  }
+
   beforeAll(async () => {
     environment = await startBrowserApplication()
     ;({ browser, platformOrigin } = environment)
@@ -83,21 +102,44 @@ describe("platform MFA browser flow", () => {
 
   it("keeps an unassigned user's platform content hidden", async () => {
     const target = account("普通用户")
-    await signUpVerified(
+    const registered = await signUpVerified(
       environment.baseURL,
       platformOrigin,
       environment.migrator,
       target
     )
+    await environment.migrator.query(
+      'UPDATE public."user" SET preferred_locale = $2 WHERE id = $1',
+      [registered.user.id, "ar"]
+    )
     page = await browser.newPage()
     await page.goto(`${platformOrigin}/platform`)
-    await signIn(target)
+    await selectArabic()
+    await signInArabic(target)
     await expectUI(
-      page.getByRole("heading", { name: "无权访问平台后台", exact: true })
+      page.getByRole("heading", {
+        name: "لا يمكن الوصول إلى إدارة المنصة",
+        exact: true,
+      })
     ).toBeVisible()
     await expectUI(
-      page.getByText("平台功能尚未开放。", { exact: true })
+      page.getByText("لا يملك هذا الحساب تكليفًا نشطًا في المنصة.", {
+        exact: true,
+      })
+    ).toBeVisible()
+    await expectUI(
+      page.getByText("ميزات المنصة غير متاحة بعد.", { exact: true })
     ).toHaveCount(0)
+    const switchAccount = page.getByRole("button", {
+      name: "تسجيل الخروج واستخدام حساب آخر لتسجيل الدخول",
+      exact: true,
+    })
+    await switchAccount.focus()
+    await page.keyboard.press("Enter")
+    await expectUI(page).toHaveURL(/\/login$/)
+    await expectUI(
+      page.getByLabel("البريد الإلكتروني", { exact: true })
+    ).toBeVisible()
   }, 120_000)
 
   it("enrolls TOTP before showing the platform shell and challenges subsequent sign-ins", async () => {
@@ -138,19 +180,61 @@ describe("platform MFA browser flow", () => {
     await expectUI(
       page.getByText("平台功能尚未开放。", { exact: true })
     ).toBeVisible()
+    await environment.migrator.query(
+      'UPDATE public."user" SET preferred_locale = $2 WHERE id = $1',
+      [registered.user.id, "ar"]
+    )
 
     await page.context().request.post(`${platformOrigin}/api/auth/sign-out`, {
       headers: { origin: platformOrigin },
     })
     await page.goto(`${platformOrigin}/login`)
-    await signIn(target)
+    await selectArabic()
+    await signInArabic(target)
     await expectUI(
-      page.getByRole("heading", { name: "验证平台身份", exact: true })
+      page.getByRole("heading", {
+        name: "تحقق من هويتك على المنصة",
+        exact: true,
+      })
     ).toBeVisible()
-    await page.getByLabel("6 位验证码", { exact: true }).fill(totp(secret))
-    await page.getByRole("button", { name: "验证并继续", exact: true }).click()
+    const codeInput = page.getByLabel("رمز من ستة أرقام", { exact: true })
+    const verifyButton = page.getByRole("button", {
+      name: "تحقق وتابع",
+      exact: true,
+    })
+
+    await codeInput.focus()
+    await page.keyboard.type("123")
+    await page.keyboard.press("Tab")
+    await expectUI(verifyButton).toBeFocused()
+    await page.keyboard.press("Enter")
+    await expectUI(codeInput).toHaveAttribute("aria-invalid", "true")
+    await expectUI(page.getByRole("alert")).toHaveText(
+      "أدخل الرمز الحالي المكوّن من ستة أرقام من تطبيق المصادقة."
+    )
+
+    const wrongCode = totp(secret) === "000000" ? "000001" : "000000"
+    await codeInput.fill(wrongCode)
+    await codeInput.press("Tab")
+    await expectUI(verifyButton).toBeFocused()
+    await page.keyboard.press("Enter")
+    await expectUI(page.getByRole("alert")).toHaveText(
+      "تعذر التحقق. راجع كلمة المرور أو الرمز وحاول مرة أخرى."
+    )
+
+    await codeInput.fill(totp(secret))
+    await codeInput.press("Tab")
+    await expectUI(verifyButton).toBeFocused()
+    await page.keyboard.press("Enter")
+    await expectUI(page).toHaveURL(/\/platform$/)
+    await expectUI(page.locator("html")).toHaveAttribute("lang", "ar")
     await expectUI(
-      page.getByText("平台管理员 · 全平台范围", { exact: true })
+      page.getByText("مسؤول المنصة · نطاق المنصة بالكامل", { exact: true })
     ).toBeVisible()
+    await expectUI(
+      page.getByText("ميزات المنصة غير متاحة بعد.", { exact: true })
+    ).toBeVisible()
+    await expectUI(page.locator("html")).toHaveAttribute("lang", "ar")
+    await expectUI(page.locator("html")).toHaveAttribute("dir", "rtl")
   }, 120_000)
 })
