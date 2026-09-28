@@ -89,6 +89,11 @@ describe("email auth UI", () => {
   afterEach(async ({ task }) => {
     try {
       if (task.result?.state === "fail" || pageErrors.length) {
+        console.error(
+          "Failed email page",
+          page.url(),
+          await page.locator("body").innerText()
+        )
         await page.screenshot({
           path: `test-results/email-ui/${task.id}.png`,
           fullPage: true,

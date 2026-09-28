@@ -33,7 +33,14 @@ describe("S8-09：浏览器中的个人与组织语言设置", () => {
     page = await context.newPage()
   })
 
-  afterEach(async () => {
+  afterEach(async ({ task }) => {
+    if (task.result?.state === "fail") {
+      console.error(
+        "Failed locale page",
+        page.url(),
+        await page.locator("body").innerText()
+      )
+    }
     await context?.close()
   })
 

@@ -4,7 +4,7 @@ import { execFile } from "node:child_process"
 import { createHmac, randomBytes, randomUUID } from "node:crypto"
 import { promisify } from "node:util"
 import { expect as expectUI } from "playwright/test"
-import { afterAll, beforeAll, describe, expect, it } from "vitest"
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest"
 
 const exec = promisify(execFile)
 
@@ -94,6 +94,16 @@ describe("platform MFA browser flow", () => {
   beforeAll(async () => {
     environment = await startBrowserApplication()
     ;({ browser, platformOrigin } = environment)
+  })
+
+  afterEach(async ({ task }) => {
+    if (task.result?.state === "fail") {
+      console.error(
+        "Failed platform page",
+        page.url(),
+        await page.locator("body").innerText()
+      )
+    }
   })
 
   afterAll(async () => {
