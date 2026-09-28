@@ -23,6 +23,7 @@
   "ORGANIZATION_SLUG_ALREADY_TAKEN": "该组织标识已被使用",
   "ORGANIZATION_SUSPENDED": "该组织已停用",
   "PLATFORM_MFA_REQUIRED": "平台访问需要当前会话的双重验证。",
+  "ROLE_IN_USE": "角色仍被引用，请先解除引用",
   "ROLE_NOT_FOUND": "角色不存在。",
   "SINGLE_ROLE_REQUIRED": "每位成员只能分配一个角色",
   "UNAUTHENTICATED": "请先登录",

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useParams } from "@tanstack/react-router"
 import { useForm } from "@tanstack/react-form"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
@@ -20,6 +20,7 @@ import {
 import { Input } from "@workspace/ui/components/input"
 import { builtInOrganizationRoleKeys } from "@workspace/permissions"
 import { authClient } from "@/lib/auth-client"
+import { RoleActionDialog, type RoleAction } from "./role-action-dialog"
 import {
   getOrganizationRoleAccessOptions,
   getOrganizationRolesOptions,
@@ -96,6 +97,8 @@ export function RolesRoute() {
   const { organizationId } = useParams({ from: rolesPath })
   const { t } = useTranslation(["organization", "common", "auth"])
   const queryClient = useQueryClient()
+  const [action, setAction] = useState<RoleAction | null>(null)
+  const rolesTitle = useRef<HTMLHeadingElement>(null)
   const access = useQuery(getOrganizationRoleAccessOptions(organizationId))
   const roles = useQuery({
     ...getOrganizationRolesOptions(organizationId),
@@ -187,7 +190,12 @@ export function RolesRoute() {
       </section>
 
       <section aria-labelledby="custom-roles-title" className="space-y-3">
-        <h2 id="custom-roles-title" className="text-lg font-semibold">
+        <h2
+          id="custom-roles-title"
+          ref={rolesTitle}
+          tabIndex={-1}
+          className="text-lg font-semibold"
+        >
           {t("organization:customRoles")}
         </h2>
         {roles.isPending ? (
@@ -211,12 +219,64 @@ export function RolesRoute() {
                   </Badge>
                 </div>
                 <RolePermissions permission={role.permission} t={t} />
+                <p className="text-sm text-muted-foreground">
+                  {t("organization:roleReferenceCounts", {
+                    memberCount: role.memberCount,
+                    invitationCount: role.invitationCount,
+                  })}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {access.data.canUpdate && (
+                    <Button
+                      variant="outline"
+                      onClick={(event) =>
+                        setAction({
+                          kind: "update",
+                          role,
+                          grantablePermissions:
+                            access.data.grantablePermissions,
+                          trigger: event.currentTarget,
+                        })
+                      }
+                    >
+                      {t("organization:editRolePermissions")}
+                    </Button>
+                  )}
+                  {access.data.canDelete && (
+                    <Button
+                      variant="destructive"
+                      onClick={(event) =>
+                        setAction({
+                          kind: "delete",
+                          role,
+                          grantablePermissions:
+                            access.data.grantablePermissions,
+                          trigger: event.currentTarget,
+                        })
+                      }
+                    >
+                      {t("organization:deleteCustomRole")}
+                    </Button>
+                  )}
+                </div>
               </li>
             ))}
           </ul>
         )}
       </section>
 
+      {action && (
+        <RoleActionDialog
+          key={action.role.id + action.kind}
+          organizationId={organizationId}
+          action={action}
+          onClose={() => setAction(null)}
+          successFocus={rolesTitle}
+          permissionLabel={(resource, item) =>
+            permissionLabel(resource, item, t)
+          }
+        />
+      )}
       {access.data.canCreate && (
         <section aria-labelledby="create-role-title" className="space-y-4">
           <h2 id="create-role-title" className="text-lg font-semibold">

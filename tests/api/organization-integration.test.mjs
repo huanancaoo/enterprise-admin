@@ -169,12 +169,29 @@ describe("S8: Organization integration invariants", () => {
       actor.cookie
     )
     expect(invited.status).toBe(200)
+    const listed = await fetch(
+      `${baseURL}/api/auth/organization/list-roles?organizationId=${org.id}`,
+      { headers: { cookie: actor.cookie } }
+    )
+    expect(await listed.json()).toEqual([
+      expect.objectContaining({
+        role: "reviewer",
+        memberCount: 0,
+        invitationCount: 1,
+        authorizationVersion: await authorizationVersion(org.id),
+      }),
+    ])
     const removed = await post(
       "organization/delete-role",
       { organizationId: org.id, roleName: "reviewer" },
       actor.cookie
     )
-    expect(removed.ok).toBe(false)
+    expect(removed.status).toBe(409)
+    expect(await removed.json()).toMatchObject({
+      code: "ROLE_IN_USE",
+      memberCount: 0,
+      invitationCount: 1,
+    })
     expect(
       (
         await migrator.query(
@@ -191,6 +208,287 @@ describe("S8: Organization integration invariants", () => {
         )
       ).rowCount
     ).toBe(1)
+  })
+
+  it("deletes a role when its last pending invitation expires while waiting for the organization lock", async () => {
+    const owner = await signup()
+    const org = await organization(owner)
+    expect(
+      (
+        await post(
+          "organization/create-role",
+          {
+            organizationId: org.id,
+            role: "expiring-role",
+            permission: { project: ["read"] },
+          },
+          owner.cookie
+        )
+      ).status
+    ).toBe(200)
+    const invitation = await (
+      await post(
+        "organization/invite-member",
+        {
+          organizationId: org.id,
+          email: `${randomUUID()}@example.test`,
+          role: "expiring-role",
+        },
+        owner.cookie
+      )
+    ).json()
+    await migrator.query(
+      "UPDATE invitation SET expires_at = clock_timestamp() + interval '5 seconds' WHERE id = $1",
+      [invitation.id]
+    )
+    const lock = await migrator.connect()
+    await lock.query("BEGIN")
+    await lock.query(
+      "SELECT 1 FROM organization_status WHERE organization_id = $1 FOR UPDATE",
+      [org.id]
+    )
+    const deletion = post(
+      "organization/delete-role",
+      { organizationId: org.id, roleName: "expiring-role" },
+      owner.cookie
+    )
+    try {
+      await expect
+        .poll(
+          async () =>
+            Number(
+              (
+                await migrator.query(
+                  "SELECT count(*) FROM pg_locks WHERE locktype = 'transactionid' AND NOT granted"
+                )
+              ).rows[0].count
+            ),
+          { timeout: 10000 }
+        )
+        .toBe(1)
+      await expect
+        .poll(
+          async () =>
+            (
+              await migrator.query(
+                "SELECT expires_at <= clock_timestamp() AS expired FROM invitation WHERE id = $1",
+                [invitation.id]
+              )
+            ).rows[0].expired,
+          { timeout: 10000 }
+        )
+        .toBe(true)
+      await lock.query("COMMIT")
+      expect((await deletion).status).toBe(200)
+      const list = await fetch(
+        `${baseURL}/api/auth/organization/list-roles?organizationId=${org.id}`,
+        { headers: { cookie: owner.cookie } }
+      )
+      expect(await list.json()).toEqual([])
+    } finally {
+      await lock.query("ROLLBACK")
+      await Promise.allSettled([deletion])
+      lock.release()
+    }
+  })
+
+  it("rejects a stale deletion before interpreting changed role references", async () => {
+    const owner = await signup()
+    const recipient = await signup()
+    const org = await organization(owner)
+    expect(
+      (
+        await post(
+          "organization/create-role",
+          {
+            organizationId: org.id,
+            role: "stale-role",
+            permission: { project: ["read"] },
+          },
+          owner.cookie
+        )
+      ).status
+    ).toBe(200)
+    const version = await authorizationVersion(org.id)
+    await runtime.auth.api.addMember({
+      headers: owner.headers,
+      body: {
+        organizationId: org.id,
+        userId: recipient.user.id,
+        role: "stale-role",
+      },
+    })
+    const result = await fetch(`${baseURL}/api/auth/organization/delete-role`, {
+      method: "POST",
+      headers: {
+        origin,
+        cookie: owner.cookie,
+        "content-type": "application/json",
+        "X-Expected-Authz-Version": String(version),
+      },
+      body: JSON.stringify({ organizationId: org.id, roleName: "stale-role" }),
+    })
+    expect(result.status).toBe(409)
+    expect((await result.json()).code).toBe("AUTHORIZATION_VERSION_CONFLICT")
+  })
+
+  it("counts both reference kinds, revokes project:update on the next request, and audits native updates and deletion", async () => {
+    const owner = await signup(),
+      recipient = await signup()
+    const org = await organization(owner)
+    const role = (
+      await (
+        await post(
+          "organization/create-role",
+          {
+            organizationId: org.id,
+            role: "project-editor",
+            permission: { project: ["read", "update"] },
+          },
+          owner.cookie
+        )
+      ).json()
+    ).roleData
+    const member = await runtime.auth.api.addMember({
+      headers: owner.headers,
+      body: {
+        organizationId: org.id,
+        userId: recipient.user.id,
+        role: "project-editor",
+      },
+    })
+    const invitation = await (
+      await post(
+        "organization/invite-member",
+        {
+          organizationId: org.id,
+          email: `${randomUUID()}@example.test`,
+          role: "project-editor",
+        },
+        owner.cookie
+      )
+    ).json()
+    const list = () =>
+      fetch(
+        `${baseURL}/api/auth/organization/list-roles?organizationId=${org.id}`,
+        { headers: { cookie: owner.cookie } }
+      ).then((r) => r.json())
+    expect(await list()).toEqual([
+      expect.objectContaining({
+        id: role.id,
+        memberCount: 1,
+        invitationCount: 1,
+      }),
+    ])
+    const rejected = await post(
+      "organization/delete-role",
+      { organizationId: org.id, roleId: role.id },
+      owner.cookie
+    )
+    expect(rejected.status).toBe(409)
+    expect(await rejected.json()).toMatchObject({
+      code: "ROLE_IN_USE",
+      memberCount: 1,
+      invitationCount: 1,
+    })
+    const project = await (
+      await fetch(`${baseURL}/api/v1/organizations/${org.id}/projects`, {
+        method: "POST",
+        headers: {
+          origin,
+          cookie: owner.cookie,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          name: "Revocation proof",
+          description: null,
+          contentLocale: "en-US",
+        }),
+      })
+    ).json()
+    const patch = (status) =>
+      fetch(
+        `${baseURL}/api/v1/organizations/${org.id}/projects/${project.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            origin,
+            cookie: recipient.cookie,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({ status }),
+        }
+      )
+    expect((await patch("active")).status).toBe(200)
+    const update = await post(
+      "organization/update-role",
+      {
+        organizationId: org.id,
+        roleId: role.id,
+        data: { permission: { project: ["read"] } },
+      },
+      owner.cookie
+    )
+    expect(update.status).toBe(200)
+    expect((await patch("archived")).status).toBe(403)
+    expect(await list()).toEqual([
+      expect.objectContaining({ permission: { project: ["read"] } }),
+    ])
+    expect(
+      (
+        await post(
+          "organization/cancel-invitation",
+          { invitationId: invitation.id },
+          owner.cookie
+        )
+      ).status
+    ).toBe(200)
+    expect(
+      (
+        await post(
+          "organization/update-member-role",
+          { organizationId: org.id, memberId: member.id, role: "member" },
+          owner.cookie
+        )
+      ).status
+    ).toBe(200)
+    expect(
+      (
+        await post(
+          "organization/delete-role",
+          { organizationId: org.id, roleId: role.id },
+          owner.cookie
+        )
+      ).status
+    ).toBe(200)
+    expect(await list()).toEqual([])
+    for (const eventCode of ["role.updated", "role.deleted"]) {
+      const audit = await fetch(
+        `${baseURL}/api/v1/organizations/${org.id}/audit-events?eventCode=${eventCode}`,
+        { headers: { cookie: owner.cookie } }
+      )
+      expect(audit.status).toBe(200)
+      expect((await audit.json()).items).toEqual([
+        expect.objectContaining({
+          eventCode,
+          actorId: owner.user.id,
+          resourceId: role.id,
+          resourceType: "organization_role",
+          result: "succeeded",
+        }),
+      ])
+    }
+    for (const roleName of ["owner", "admin", "member"]) {
+      const builtin = await post(
+        "organization/delete-role",
+        { organizationId: org.id, roleName },
+        owner.cookie
+      )
+      expect(builtin.status).toBe(400)
+      expect((await builtin.json()).code).toBe(
+        "CANNOT_DELETE_A_PRE_DEFINED_ROLE"
+      )
+    }
   })
 
   it("creates and lists delegated roles, assigns them through the native member API, and audits creation", async () => {
@@ -1476,6 +1774,184 @@ describe("S8: Organization integration invariants", () => {
       ).rowCount
     ).toBe(0)
   })
+
+  it.each(["update-role", "delete-role"])(
+    "rolls back native %s and authorization version when role audit fails",
+    async (operation) => {
+      const owner = await signup()
+      const org = await organization(owner)
+      const role = (
+        await (
+          await post(
+            "organization/create-role",
+            {
+              organizationId: org.id,
+              role: "audit-role",
+              permission: { project: ["read", "update"] },
+            },
+            owner.cookie
+          )
+        ).json()
+      ).roleData
+      const version = await authorizationVersion(org.id)
+      await migrator.query(`CREATE FUNCTION s16_fail_role_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.event_code IN ('role.updated', 'role.deleted') THEN RAISE EXCEPTION 'S16 audit failure'; END IF; RETURN NEW; END $$;
+      CREATE TRIGGER s16_fail_role_audit BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION s16_fail_role_audit()`)
+      try {
+        const response = await post(
+          `organization/${operation}`,
+          {
+            organizationId: org.id,
+            roleId: role.id,
+            ...(operation === "update-role"
+              ? { data: { permission: { project: ["read"] } } }
+              : {}),
+          },
+          owner.cookie
+        )
+        expect(response.ok).toBe(false)
+        const list = await fetch(
+          `${baseURL}/api/auth/organization/list-roles?organizationId=${org.id}`,
+          { headers: { cookie: owner.cookie } }
+        )
+        expect(await list.json()).toEqual([
+          expect.objectContaining({
+            id: role.id,
+            permission: { project: ["read", "update"] },
+            authorizationVersion: version,
+          }),
+        ])
+        for (const eventCode of ["role.updated", "role.deleted"]) {
+          const audit = await fetch(
+            `${baseURL}/api/v1/organizations/${org.id}/audit-events?eventCode=${eventCode}`,
+            { headers: { cookie: owner.cookie } }
+          )
+          expect((await audit.json()).items).toEqual([])
+        }
+      } finally {
+        await migrator.query(
+          "DROP TRIGGER s16_fail_role_audit ON audit_events; DROP FUNCTION s16_fail_role_audit()"
+        )
+      }
+    }
+  )
+
+  it.each(["invite-member", "accept-invitation"])(
+    "serializes role deletion with concurrent %s without dangling references",
+    async (operation) => {
+      const owner = await signup(),
+        recipient = await signup()
+      const org = await organization(owner)
+      const role = (
+        await (
+          await post(
+            "organization/create-role",
+            {
+              organizationId: org.id,
+              role: "concurrent-role",
+              permission: { project: ["read"] },
+            },
+            owner.cookie
+          )
+        ).json()
+      ).roleData
+      let invitation
+      if (operation === "accept-invitation")
+        invitation = await (
+          await post(
+            "organization/invite-member",
+            {
+              organizationId: org.id,
+              email: recipient.email,
+              role: "concurrent-role",
+            },
+            owner.cookie
+          )
+        ).json()
+      const lock = await migrator.connect()
+      const lockId = 80160
+      const table =
+        operation === "invite-member" ? "organization_role" : "member"
+      const event = operation === "invite-member" ? "DELETE" : "INSERT"
+      let released = false
+      await lock.query(`SELECT pg_advisory_lock(${lockId})`)
+      await migrator.query(`CREATE FUNCTION s16_reference_barrier() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN PERFORM pg_advisory_xact_lock(${lockId}); RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END; END $$;
+      CREATE TRIGGER s16_reference_barrier BEFORE ${event} ON ${table} FOR EACH ROW EXECUTE FUNCTION s16_reference_barrier()`)
+      const deleting = () =>
+        post(
+          "organization/delete-role",
+          { organizationId: org.id, roleId: role.id },
+          owner.cookie
+        )
+      const referencing = () =>
+        operation === "invite-member"
+          ? post(
+              "organization/invite-member",
+              {
+                organizationId: org.id,
+                email: recipient.email,
+                role: "concurrent-role",
+              },
+              owner.cookie
+            )
+          : post(
+              "organization/accept-invitation",
+              { invitationId: invitation.id },
+              recipient.cookie
+            )
+      const first = operation === "invite-member" ? deleting() : referencing()
+      let second
+      try {
+        await expect
+          .poll(
+            async () =>
+              Number(
+                (
+                  await migrator.query(
+                    `SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND objid = ${lockId} AND NOT granted`
+                  )
+                ).rows[0].count
+              ),
+            { timeout: 10000 }
+          )
+          .toBe(1)
+        second = operation === "invite-member" ? referencing() : deleting()
+        await lock.query(`SELECT pg_advisory_unlock(${lockId})`)
+        released = true
+        const [a, b] = await Promise.all([first, second])
+        expect(a.status).toBe(200)
+        expect(b.ok).toBe(false)
+        const list = await fetch(
+          `${baseURL}/api/auth/organization/list-roles?organizationId=${org.id}`,
+          { headers: { cookie: owner.cookie } }
+        )
+        expect(await list.json()).toEqual(
+          operation === "invite-member"
+            ? []
+            : [
+                expect.objectContaining({
+                  id: role.id,
+                  memberCount: 1,
+                  invitationCount: 0,
+                }),
+              ]
+        )
+        const invitations = await fetch(
+          `${baseURL}/api/auth/organization/list-invitations?organizationId=${org.id}`,
+          { headers: { cookie: owner.cookie } }
+        )
+        expect(
+          (await invitations.json()).filter((item) => item.status === "pending")
+        ).toEqual([])
+      } finally {
+        if (!released) await lock.query(`SELECT pg_advisory_unlock(${lockId})`)
+        await Promise.allSettled([first, second])
+        lock.release()
+        await migrator.query(
+          `DROP TRIGGER s16_reference_barrier ON ${table}; DROP FUNCTION s16_reference_barrier()`
+        )
+      }
+    }
+  )
 
   it("serializes role deletion against concurrent assignment", async () => {
     const owner = await signup(),

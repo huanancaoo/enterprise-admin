@@ -23,6 +23,7 @@
   "ORGANIZATION_SLUG_ALREADY_TAKEN": "معرّف المؤسسة مستخدم بالفعل",
   "ORGANIZATION_SUSPENDED": "هذه المؤسسة موقوفة",
   "PLATFORM_MFA_REQUIRED": "تحقق من المصادقة الثنائية لهذه الجلسة للوصول إلى المنصة.",
+  "ROLE_IN_USE": "الدور ما زال مستخدماً. أزل ارتباطاته أولاً.",
   "ROLE_NOT_FOUND": "الدور غير موجود.",
   "SINGLE_ROLE_REQUIRED": "عيّن دورًا واحدًا فقط لكل عضو.",
   "UNAUTHENTICATED": "يرجى تسجيل الدخول",

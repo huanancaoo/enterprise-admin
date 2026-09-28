@@ -36,6 +36,7 @@ import {
   wrapTransactionalOrganizationEndpoints,
 } from "./auth-transaction.ts"
 import { getAuthRequestContext } from "./auth-request-context.ts"
+import { readRoleReferences } from "./role-references.ts"
 import { createAuthI18n } from "./auth-i18n.ts"
 import {
   assertMemberDirectoryRead,
@@ -392,6 +393,8 @@ export function createAuth(
           email?: string
           resend?: boolean
           invitationId?: string
+          roleName?: string
+          roleId?: string
         }
       }
       const session = await getAuthoritativeSessionFromCtx(endpointContext)
@@ -666,6 +669,95 @@ export function createAuth(
         }
       }
       if (
+        endpointContext.path &&
+        [
+          "/organization/create-role",
+          "/organization/update-role",
+          "/organization/delete-role",
+        ].includes(endpointContext.path)
+      ) {
+        const organizationId =
+          endpointContext.body?.organizationId ??
+          session.session.activeOrganizationId
+        if (
+          !organizationId ||
+          !(await isOrganizationMember(
+            { query: transactionalAdapter.query },
+            organizationId,
+            session.user.id
+          ))
+        )
+          throw new APIError("FORBIDDEN", {
+            code: "FORBIDDEN",
+            message: "FORBIDDEN",
+          })
+        // 先锁组织，再让原生入口重读权限；等待期间撤销的委派权限不能继续使用。
+        await transactionalAdapter.query(
+          "SELECT public.require_active_organization($1)",
+          [organizationId]
+        )
+        if (endpointContext.path === "/organization/delete-role") {
+          // 原生删除只检查成员引用，且没有数量；在同一事务内补齐有效邀请引用策略。
+          const actor = await transactionalAdapter.query<{
+            role: string
+            permission: string | null
+          }>(
+            `SELECT m.role, r.permission FROM member m LEFT JOIN organization_role r
+             ON r.organization_id = m.organization_id AND r.role = m.role
+             WHERE m.organization_id = $1 AND m.user_id = $2`,
+            [organizationId, session.user.id]
+          )
+          const member = actor.rows[0]
+          if (
+            !member ||
+            (!["owner", "admin"].includes(member.role) &&
+              !ac
+                .newRole(JSON.parse(member.permission ?? "{}"))
+                .authorize({ ac: ["delete"] }).success)
+          )
+            throw new APIError("FORBIDDEN", {
+              code: "YOU_ARE_NOT_ALLOWED_TO_DELETE_A_ROLE",
+              message: "YOU_ARE_NOT_ALLOWED_TO_DELETE_A_ROLE",
+            })
+          const version = await transactionalAdapter.query<{
+            authorization_version: number
+          }>(
+            "SELECT authorization_version FROM organization_status WHERE organization_id = $1",
+            [organizationId]
+          )
+          if (
+            version.rows[0].authorization_version !==
+            expectedAuthorizationVersion
+          )
+            throw new APIError("CONFLICT", {
+              code: "AUTHORIZATION_VERSION_CONFLICT",
+              message: "AUTHORIZATION_VERSION_CONFLICT",
+            })
+          const target = await transactionalAdapter.query<{ id: string }>(
+            `SELECT id FROM organization_role WHERE organization_id = $1
+              AND CASE WHEN $2::text IS NOT NULL THEN role = $2 ELSE id::text = $3 END`,
+            [
+              organizationId,
+              endpointContext.body?.roleName ?? null,
+              endpointContext.body?.roleId ?? null,
+            ]
+          )
+          if (target.rows[0]) {
+            const [references] = await readRoleReferences(
+              { query: transactionalAdapter.query },
+              [target.rows[0].id]
+            )
+            if (references.memberCount || references.invitationCount)
+              throw new APIError("CONFLICT", {
+                code: "ROLE_IN_USE",
+                message: "ROLE_IN_USE",
+                memberCount: references.memberCount,
+                invitationCount: references.invitationCount,
+              })
+          }
+        }
+      }
+      if (
         endpointContext.path === "/organization/create-role" &&
         endpointContext.body
       ) {
@@ -790,6 +882,22 @@ export function createAuth(
     },
     hooks: {
       after: createAuthMiddleware(async (ctx) => {
+        if (
+          ctx.path === "/organization/list-roles" &&
+          Array.isArray(ctx.context.returned)
+        ) {
+          const roles = ctx.context.returned as { id: string }[]
+          const references = await readRoleReferences(
+            { query: transactionalAdapter.query },
+            roles.map((role) => role.id)
+          )
+          const byId = new Map(references.map((row) => [row.id, row]))
+          return ctx.json(
+            roles
+              .filter((role) => byId.has(role.id))
+              .map((role) => ({ ...role, ...byId.get(role.id) }))
+          )
+        }
         if (
           ctx.path === "/organization/get-full-organization" &&
           ctx.context.returned &&

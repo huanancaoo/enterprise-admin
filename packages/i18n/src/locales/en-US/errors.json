@@ -23,6 +23,7 @@
   "ORGANIZATION_SLUG_ALREADY_TAKEN": "This organization slug is already taken",
   "ORGANIZATION_SUSPENDED": "This organization is suspended",
   "PLATFORM_MFA_REQUIRED": "Verify two-factor authentication for this session to access the platform.",
+  "ROLE_IN_USE": "The role is still in use. Remove its references first.",
   "ROLE_NOT_FOUND": "Role not found.",
   "SINGLE_ROLE_REQUIRED": "Assign exactly one role to each member.",
   "UNAUTHENTICATED": "Authentication required",
