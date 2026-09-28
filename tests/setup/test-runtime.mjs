@@ -46,10 +46,7 @@ export async function startTestApplication({
       .start()
     resources.defer(() => redis.stop())
     const runtimeURL = database.url("app_runtime", database.passwords[2])
-    const platformURL = database.url("platform_runtime", database.passwords[3])
     const migrationURL = database.url("app_migrator", database.passwords[1])
-    const platformPool = createDatabase(platformURL).pool
-    resources.defer(() => platformPool.end())
     const deployerURL = database.url("platform_deployer", database.passwords[4])
     const deployerPool = createDatabase(deployerURL).pool
     resources.defer(() => deployerPool.end())
@@ -81,7 +78,6 @@ export async function startTestApplication({
     const baseURL = `http://127.0.0.1:${port}`
     const config = {
       databaseURL: runtimeURL,
-      platformDatabaseURL: platformURL,
       redisURL: `redis://${redis.getHost()}:${redis.getMappedPort(6379)}`,
       baseURL,
       secret: randomBytes(32).toString("hex"),
@@ -104,7 +100,6 @@ export async function startTestApplication({
       app,
       runtime: app.get(AuthRuntime),
       migrator,
-      platformPool,
       deployerPool,
       deployerURL,
       baseURL,

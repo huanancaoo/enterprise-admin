@@ -4,7 +4,6 @@ import { readApplicationConfig } from './application-config';
 function environment(defaultLocale: string): NodeJS.ProcessEnv {
   return {
     DATABASE_URL: 'postgres://localhost/test',
-    PLATFORM_DATABASE_URL: 'postgres://localhost/platform-test',
     REDIS_URL: 'redis://localhost:6379',
     BETTER_AUTH_URL: 'http://localhost:3000',
     BETTER_AUTH_SECRET: 'x'.repeat(32),

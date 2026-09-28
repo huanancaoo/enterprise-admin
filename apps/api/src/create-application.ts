@@ -22,7 +22,7 @@ export async function createApplication(
       return email.hooks;
     });
     const app = await NestFactory.create<NestExpressApplication>(
-      AppModule.forRoot(runtime, email!, config.platformDatabaseURL),
+      AppModule.forRoot(runtime, email!),
       { ...options, bodyParser: false, abortOnError: false },
     );
     configureApp(app);

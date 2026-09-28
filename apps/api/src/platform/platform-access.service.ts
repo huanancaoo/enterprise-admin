@@ -2,14 +2,14 @@ import { ForbiddenException, Injectable } from '@nestjs/common';
 import type { PlatformAccess } from '@workspace/contracts';
 import { ApiException } from '../http/api-exception';
 import type { Identity } from '../identity/identity.service';
-import { PlatformRuntime } from './platform-runtime';
+import { AuthRuntime } from '../identity/auth-runtime';
 
 export type PlatformPrincipal = Identity &
   Pick<PlatformAccess, 'role' | 'scope' | 'mfaVerifiedAt'>;
 
 @Injectable()
 export class PlatformAccessService {
-  constructor(private readonly runtime: PlatformRuntime) {}
+  constructor(private readonly runtime: AuthRuntime) {}
 
   async recordDenial(
     identity: Identity | undefined,

@@ -40,12 +40,12 @@
 
 ### 固定函数与数据库身份
 
-保持同一 NestJS 模块化单体。Platform 模块独占 platform_runtime Pool，租户 Repository 不得取得该连接。平台身份、MFA 和动作校验通过后，只执行参数化固定函数。
+2026-09-28 用户确认删除独立平台数据库配置，API 统一使用 `DATABASE_URL` 与 `app_runtime` 连接池；此决定替换此前 Platform 模块独占 `platform_runtime` Pool 的要求。平台身份、MFA 和动作校验通过后，平台访问仍只执行参数化固定函数。
 
 | 身份              | 允许范围                                         | 禁止                                                |
 | ----------------- | ------------------------------------------------ | --------------------------------------------------- |
-| app_runtime       | 既有认证集成、TenantTx/RLS                       | 平台函数、角色继承、平台授权写、DDL/BYPASSRLS       |
-| platform_runtime  | 显式列举的固定函数 EXECUTE                       | 基础表 CRUD、租户业务、SET ROLE 提权、DDL/BYPASSRLS |
+| app_runtime       | 认证集成、TenantTx/RLS、已交付的平台固定函数     | 角色继承、直接平台授权写、DDL/BYPASSRLS             |
+| platform_runtime  | 仅历史迁移回放所需，0024 撤销平台函数执行权限    | 平台函数、基础表 CRUD、SET ROLE 提权、DDL/BYPASSRLS |
 | platform_executor | NOLOGIN，固定函数需要的列级读写和专用审计 policy | 超级用户、表 Owner、DDL/BYPASSRLS、平台任职写入     |
 | app_migrator      | reviewed migration                               | API 日常凭据                                        |
 | 部署授权身份      | 专用 CLI 的任职与审计命令                        | 注入在线 API                                        |
@@ -58,7 +58,7 @@ SECURITY DEFINER 函数由最小权限 NOLOGIN 角色持有，固定安全 searc
 
 ### 发布门禁
 
-生产迁移需撤销现有 platform_runtime 直接列权限，并验证 PUBLIC、函数、视图、继承及连接池隔离；不能只检查 NOBYPASSRLS。任职表默认无授权。现存 organization.enabled 与语言字段的迁移保持唯一事实，不回写为默认 ACTIVE。
+0022 撤销历史 `platform_runtime` 直接列权限，0024 将平台固定函数执行权限转移到 `app_runtime`。发布前验证 PUBLIC、函数、视图、继承及租户 RLS；不能只检查 NOBYPASSRLS。任职表默认无授权。现存 organization.enabled 与语言字段的迁移保持唯一事实，不回写为默认 ACTIVE。
 
 MFA 事实传递、可信 actor/request、组织锁与审计原子性未通过真实故障注入前，相关平台管理能力阻塞。旧 API 不理解停用/撤权约束时不得直接回退上线。实施顺序和完整要求仍以 #8 为准，不能以本 ADR 缩减 S8。
 

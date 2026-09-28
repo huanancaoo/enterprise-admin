@@ -12,11 +12,7 @@ import { TenancyModule } from './tenancy/tenancy.module';
 
 @Module({})
 export class AppModule {
-  static forRoot(
-    runtime: AuthRuntime,
-    email: EmailRuntime,
-    platformDatabaseURL: string,
-  ): DynamicModule {
+  static forRoot(runtime: AuthRuntime, email: EmailRuntime): DynamicModule {
     return {
       module: AppModule,
       imports: [
@@ -27,7 +23,7 @@ export class AppModule {
         TenancyModule,
         OrganizationsModule,
         ProjectsModule,
-        PlatformModule.forRoot(platformDatabaseURL),
+        PlatformModule,
       ],
     };
   }

@@ -70,7 +70,7 @@ PLATFORM_ASSIGNMENT_DATABASE_URL='postgresql://platform_deployer:...@db/enterpri
   --user-id '<verified-user-uuid>' --role platform_admin --reason 'assignment ended'
 ```
 
-API 使用独立的 `PLATFORM_DATABASE_URL` 连接 `platform_runtime`。该角色不能读取平台任职、Session、用户或 assurance 表，只能执行 `read_platform_access(user_id, session_id)` 固定函数；`app_runtime` 不能执行该读取函数，也不能读写 `platform_assignment`。平台认证插件仅在 Better Auth 报告成功的当前 Session TOTP 验证后登记 session assurance。平台身份每次请求都校验当前、未过期 Session、有效任职和 MFA assurance；写操作要求 assurance 时间在 15 分钟内。MFA 启用标记、Membership、账户 metadata 和浏览器状态都不能替代当前 Session 的 TOTP 事实。
+API 的认证、租户与平台模块统一使用 `DATABASE_URL` 对应的 `app_runtime` 连接池。迁移 `0024_shared-runtime-platform-access.sql` 将 `read_platform_access(user_id, session_id)` 与 `record_platform_access_denial(actor_id, reason, request_id)` 的执行权限授予 `app_runtime`，并撤销 `platform_runtime` 的相应权限；`app_runtime` 仍不能直接读写 `platform_assignment`。平台认证插件仅在 Better Auth 报告成功的当前 Session TOTP 验证后登记 session assurance。平台身份每次请求都校验当前、未过期 Session、有效任职和 MFA assurance；写操作要求 assurance 时间在 15 分钟内。MFA 启用标记、Membership、账户 metadata 和浏览器状态都不能替代当前 Session 的 TOTP 事实。
 
 ### 已有数据库升级
 
@@ -90,8 +90,8 @@ MIGRATION_DATABASE_URL='postgresql://app_migrator:...@db/enterprise_admin' pnpm 
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `bootstrap_admin`   | PostgreSQL 初始化/运维角色；不注入应用或迁移进程                                                                       |
 | `app_migrator`      | 非超级用户，持有应用表与迁移 ledger；仅作为迁移时可切换的 `platform_executor` 成员；无创建数据库/角色或 BYPASSRLS 权限 |
-| `app_runtime`       | Better Auth、邮件、租户 Projects 与审计所需最小权限；无平台任职读写权限，仅可执行认证 hook 使用的 assurance 写函数     |
-| `platform_runtime`  | 非 Owner；仅可执行固定的平台身份读取函数，没有平台表或认证凭据表的直接权限                                             |
+| `app_runtime`       | Better Auth、邮件、租户 Projects 与审计所需权限；平台身份、MFA 和拒绝审计通过固定函数处理，无平台任职表直接读写权限    |
+| `platform_runtime`  | 历史迁移使用的角色；0024 后不再具有平台固定函数执行权限，API 不使用该账号                                              |
 | `platform_deployer` | 登录用户、查询目标邮箱验证状态、grant/revoke 平台任职并追加内部审计；没有 DDL 或其他应用表权限                         |
 | `platform_executor` | `NOLOGIN` 函数所有者；只获得固定平台函数读取所需列权限，不是运行时账号                                                 |
 
@@ -138,6 +138,6 @@ TenantTx 品牌阻止普通 db/Pool 作为 Repository 参数；`pnpm lint:bounda
 
 ## 平台访问拒绝审计
 
-迁移 `0023_platform-access-denial-audit.sql` 允许无组织归属的审计事实，并新增固定函数 `record_platform_access_denial(uuid, text, text)`。只有 `platform_runtime` 可调用；函数由受限 NOLOGIN `platform_executor` 执行，仅追加私有的 `platform.access_denied` 事件。`app_runtime`、部署身份和平台运行身份均不能通过该函数读取审计或写入任意事件。
+迁移 `0023_platform-access-denial-audit.sql` 允许无组织归属的审计事实，并新增固定函数 `record_platform_access_denial(uuid, text, text)`。迁移 0024 后只有 API 使用的 `app_runtime` 可调用；函数由受限 NOLOGIN `platform_executor` 执行，仅追加私有的 `platform.access_denied` 事件。`app_runtime` 不能通过该函数读取审计或写入任意事件；部署身份与历史 `platform_runtime` 无调用权限。
 
 `PlatformGuard` 在身份、任职或会话 MFA 校验拒绝时独立写入事件，保存可信 actor、稳定拒绝分类和服务端 requestId；匿名请求的 actorId 为空。事件不关联组织，租户 RLS 不可见，不保存 Cookie、令牌或认证秘密。审计写入失败返回 `503 AUDIT_UNAVAILABLE`，由现有错误日志记录 requestId。

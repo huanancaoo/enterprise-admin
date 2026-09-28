@@ -40,7 +40,7 @@ describe("platform access denial audit", () => {
     }
   }
 
-  it("persists anonymous and tenant denials without exposing them to tenant or platform SQL", async () => {
+  it("persists anonymous and tenant denials without exposing them through runtime RLS", async () => {
     const anonymous = await access()
     expect(anonymous.status).toBe(401)
     const anonymousBody = await anonymous.json()
@@ -96,17 +96,11 @@ describe("platform access denial audit", () => {
       await client.query("ROLLBACK")
       client.release()
     }
-    await expect(
-      environment.platformPool.query("SELECT id FROM audit_events")
-    ).rejects.toMatchObject({ code: "42501" })
+    expect(
+      (await environment.runtime.pool.query("SELECT id FROM audit_events")).rows
+    ).toEqual([])
     await expect(
       environment.runtime.pool.query(
-        "SELECT record_platform_access_denial($1, $2, $3)",
-        [user.user.id, "FORBIDDEN", randomUUID()]
-      )
-    ).rejects.toMatchObject({ code: "42501" })
-    await expect(
-      environment.platformPool.query(
         "SELECT record_platform_access_denial($1, $2, $3)",
         [user.user.id, "arbitrary.reason", randomUUID()]
       )
@@ -136,7 +130,7 @@ describe("platform access denial audit", () => {
   it("returns AUDIT_UNAVAILABLE when the denial cannot be persisted", async () => {
     const user = await signup()
     await environment.migrator.query(
-      "REVOKE EXECUTE ON FUNCTION record_platform_access_denial(uuid,text,text) FROM platform_runtime"
+      "REVOKE EXECUTE ON FUNCTION record_platform_access_denial(uuid,text,text) FROM app_runtime"
     )
     try {
       const response = await access(user.cookie)
@@ -146,7 +140,7 @@ describe("platform access denial audit", () => {
       expect(await readAudit(body.requestId)).toEqual([])
     } finally {
       await environment.migrator.query(
-        "GRANT EXECUTE ON FUNCTION record_platform_access_denial(uuid,text,text) TO platform_runtime"
+        "GRANT EXECUTE ON FUNCTION record_platform_access_denial(uuid,text,text) TO app_runtime"
       )
     }
   })

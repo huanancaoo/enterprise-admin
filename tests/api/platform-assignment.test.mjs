@@ -306,7 +306,7 @@ describe("platform assignment access boundary", () => {
       response.json()
     )
 
-    const activeDatabaseAccess = await environment.platformPool.query(
+    const activeDatabaseAccess = await environment.runtime.pool.query(
       "SELECT * FROM public.read_platform_access($1, $2)",
       [user.user.id, session.session.id]
     )
@@ -334,7 +334,7 @@ describe("platform assignment access boundary", () => {
     })
     expect(secondarySession?.session.id).toBe(session.session.id)
 
-    const databaseAccess = await environment.platformPool.query(
+    const databaseAccess = await environment.runtime.pool.query(
       "SELECT * FROM public.read_platform_access($1, $2)",
       [user.user.id, session.session.id]
     )
@@ -393,29 +393,16 @@ describe("platform assignment access boundary", () => {
     expect(assignments.rowCount).toBe(0)
   })
 
-  it("keeps platform identity independent of organization membership and app_runtime grants", async () => {
+  it("keeps platform identity independent of organization membership with the shared runtime connection", async () => {
     const user = await signup()
     await expect(
       runtime.pool.query("SELECT * FROM platform_assignment")
     ).rejects.toMatchObject({
       code: "42501",
     })
-    await expect(
-      environment.platformPool.query("SELECT * FROM platform_assignment")
-    ).rejects.toMatchObject({
-      code: "42501",
-    })
-    await expect(
-      runtime.pool.query("SELECT public.read_platform_access($1, $2)", [
-        user.user.id,
-        randomUUID(),
-      ])
-    ).rejects.toMatchObject({
-      code: "42501",
-    })
     expect(
       (
-        await environment.platformPool.query(
+        await environment.runtime.pool.query(
           "SELECT * FROM public.read_platform_access($1, $2)",
           [user.user.id, randomUUID()]
         )

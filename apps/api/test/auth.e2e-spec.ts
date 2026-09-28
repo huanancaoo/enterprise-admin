@@ -86,7 +86,6 @@ describe(
     let container: StartedTestContainer | undefined;
     let redis: StartedTestContainer | undefined;
     let app: NestExpressApplication | undefined;
-    let platformDatabase: ReturnType<typeof createDatabase> | undefined;
     let migratorDatabase: ReturnType<typeof createDatabase> | undefined;
     let baseURL: string;
     let cookie = '';
@@ -200,11 +199,9 @@ describe(
         },
       );
       migratorDatabase = createDatabase(url('app_migrator', passwords[1]));
-      platformDatabase = createDatabase(url('platform_runtime', passwords[3]));
       app = await createApplication(
         {
           databaseURL: url('app_runtime', passwords[2]),
-          platformDatabaseURL: url('platform_runtime', passwords[3]),
           redisURL: `redis://${redis.getHost()}:${redis.getMappedPort(6379)}`,
           baseURL: 'http://localhost:3000',
           secret: randomBytes(32).toString('hex'),
@@ -229,7 +226,6 @@ describe(
         if (app) expect(app.get(AuthRuntime).pool.ended).toBe(true);
       } finally {
         await migratorDatabase?.pool.end();
-        await platformDatabase?.pool.end();
         await container?.stop();
         await redis?.stop();
       }
@@ -701,12 +697,6 @@ describe(
         ).toBe(false);
         await expect(
           runtime.pool.query(
-            "UPDATE organization_status SET status = 'SUSPENDED' WHERE organization_id = $1",
-            [a.id],
-          ),
-        ).rejects.toThrow(/permission denied/);
-        await expect(
-          platformDatabase!.pool.query(
             "UPDATE organization_status SET status = 'SUSPENDED' WHERE organization_id = $1",
             [a.id],
           ),

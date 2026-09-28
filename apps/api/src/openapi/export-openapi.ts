@@ -8,7 +8,6 @@ async function exportOpenApi(): Promise<void> {
   const app = await createApplication(
     {
       databaseURL: 'postgresql://localhost/openapi_metadata_only',
-      platformDatabaseURL: 'postgresql://localhost/openapi_metadata_only',
       redisURL: 'redis://127.0.0.1:6379',
       baseURL: 'http://localhost:3000',
       secret: 'openapi-metadata-only-not-a-runtime-secret',

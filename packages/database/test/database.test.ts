@@ -344,11 +344,12 @@ describe(suiteName, { concurrent: false }, () => {
           `SELECT
             has_table_privilege(current_user, 'platform_assignment', 'SELECT') AS read,
             has_table_privilege(current_user, 'platform_assignment', 'INSERT') AS insert,
-            has_function_privilege(current_user, 'read_platform_access(uuid,uuid)', 'EXECUTE') AS read_function
+            has_function_privilege(current_user, 'read_platform_access(uuid,uuid)', 'EXECUTE') AS read_function,
+            has_function_privilege(current_user, 'record_platform_access_denial(uuid,text,text)', 'EXECUTE') AS denial_function
           `
         )
       ).rows[0],
-      { read: false, insert: false, read_function: false }
+      { read: false, insert: false, read_function: true, denial_function: true }
     )
     await assert.rejects(
       platform.query("SELECT user_id FROM platform_assignment"),
@@ -361,23 +362,34 @@ describe(suiteName, { concurrent: false }, () => {
             has_table_privilege(current_user, 'platform_assignment', 'SELECT') AS read_assignment,
             has_table_privilege(current_user, 'platform_session_assurance', 'SELECT') AS read_assurance,
             has_function_privilege(current_user, 'read_platform_access(uuid,uuid)', 'EXECUTE') AS read_function,
-            has_function_privilege(current_user, 'record_platform_session_assurance(uuid,uuid)', 'EXECUTE') AS record_function
+            has_function_privilege(current_user, 'record_platform_session_assurance(uuid,uuid)', 'EXECUTE') AS record_function,
+            has_function_privilege(current_user, 'record_platform_access_denial(uuid,text,text)', 'EXECUTE') AS denial_function
           `
         )
       ).rows[0],
       {
         read_assignment: false,
         read_assurance: false,
-        read_function: true,
+        read_function: false,
         record_function: false,
+        denial_function: false,
       }
     )
     await assert.rejects(
-      runtime.query("SELECT public.read_platform_access($1, $2)", [
+      platform.query("SELECT public.read_platform_access($1, $2)", [
         randomUUID(),
         randomUUID(),
       ]),
       { code: "42501" }
+    )
+    assert.equal(
+      (
+        await runtime.query(
+          "SELECT * FROM public.read_platform_access($1, $2)",
+          [randomUUID(), randomUUID()]
+        )
+      ).rowCount,
+      0
     )
     for (const table of tables) {
       const { rows } = await runtime.query(

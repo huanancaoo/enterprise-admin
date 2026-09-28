@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiException } from '../http/api-exception';
 import type { Identity } from '../identity/identity.service';
 import type { IdentityService } from '../identity/identity.service';
-import type { PlatformRuntime } from './platform-runtime';
+import type { AuthRuntime } from '../identity/auth-runtime';
 import { PlatformAccessService } from './platform-access.service';
 import { PlatformGuard } from './platform.guard';
 
@@ -27,7 +27,7 @@ function makeAccessService(mfaVerifiedAt: Date) {
       ],
     }),
   };
-  const runtime = { pool } as unknown as PlatformRuntime;
+  const runtime = { pool } as unknown as AuthRuntime;
   return { service: new PlatformAccessService(runtime), pool };
 }
 
