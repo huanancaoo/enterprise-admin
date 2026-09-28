@@ -207,7 +207,9 @@ describe("S8: Organization integration invariants", () => {
       "ab",
       "Project-reader",
       "owner",
+      "platform",
       "platform-admin",
+      "platformer",
       "comma,role",
     ]
     for (const role of invalidNames) {
@@ -324,6 +326,34 @@ describe("S8: Organization integration invariants", () => {
       statusCode: 400,
       body: { code: "ROLE_KEY_IMMUTABLE" },
     })
+
+    for (const roleName of ["platform", "platform-admin", "platformer"]) {
+      const rejected = await post(
+        "organization/update-role",
+        {
+          organizationId: org.id,
+          roleName: "project-reader",
+          data: { roleName },
+        },
+        owner.cookie
+      )
+      expect(rejected.status).toBe(400)
+      expect((await rejected.json()).code).toBe("ROLE_NAME_INVALID")
+
+      await expect(
+        runtime.auth.api.updateOrgRole({
+          headers: await versionHeaders(owner, org.id),
+          body: {
+            organizationId: org.id,
+            roleName: "project-reader",
+            data: { roleName },
+          },
+        })
+      ).rejects.toMatchObject({
+        statusCode: 400,
+        body: { code: "ROLE_NAME_INVALID" },
+      })
+    }
 
     const widened = await post(
       "organization/update-role",

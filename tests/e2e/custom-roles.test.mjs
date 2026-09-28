@@ -139,14 +139,23 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
     const roleKey = page.getByLabel("مفتاح الدور", { exact: true })
     await expectUI(roleKey).toBeVisible()
     await expectUI(
+      page.getByText(
+        "استخدم 3–48 حرفاً صغيراً أو رقماً أو شرطة. المفاتيح التي تبدأ بـ platform محجوزة. لا يمكن تغيير المفتاح لاحقاً.",
+        { exact: true }
+      )
+    ).toBeVisible()
+    await expectUI(
       page.getByRole("button", { name: "إنشاء دور", exact: true })
     ).toBeVisible()
 
-    await roleKey.fill("owner")
+    await roleKey.fill("platformer")
     await page.getByRole("button", { name: "إنشاء دور", exact: true }).click()
     await expectUI(roleKey).toHaveAttribute("aria-invalid", "true")
     await expectUI(
-      page.getByText("أدخل مفتاح دور صالحاً وغير محجوز.", { exact: true })
+      page.getByText(
+        "أدخل مفتاح دور صالحاً؛ لا يُسمح بالأسماء المحجوزة أو المفاتيح التي تبدأ بـ platform.",
+        { exact: true }
+      )
     ).toBeVisible()
 
     await roleKey.fill("")

@@ -119,6 +119,15 @@ function assertCustomRolePermissions(permission: unknown) {
   }
 }
 
+function assertPlatformRoleKeyNotReserved(role: unknown) {
+  if (typeof role === "string" && role.startsWith("platform")) {
+    throw new APIError("BAD_REQUEST", {
+      code: "ROLE_NAME_INVALID",
+      message: "ROLE_NAME_INVALID",
+    })
+  }
+}
+
 function assertCustomRoleDefinition(body: Record<string, unknown>) {
   const role = body.role
   if (
@@ -126,8 +135,7 @@ function assertCustomRoleDefinition(body: Record<string, unknown>) {
     role.length < 3 ||
     role.length > 48 ||
     !/^[a-z0-9-]+$/.test(role) ||
-    (builtInOrganizationRoleKeys as readonly string[]).includes(role) ||
-    role.startsWith("platform-")
+    (builtInOrganizationRoleKeys as readonly string[]).includes(role)
   ) {
     throw new APIError("BAD_REQUEST", {
       code: "ROLE_NAME_INVALID",
@@ -135,6 +143,7 @@ function assertCustomRoleDefinition(body: Record<string, unknown>) {
     })
   }
 
+  assertPlatformRoleKeyNotReserved(role)
   assertCustomRolePermissions(body.permission)
 }
 
@@ -143,6 +152,7 @@ function assertCustomRoleUpdate(body: Record<string, unknown>) {
   if (!data || typeof data !== "object" || Array.isArray(data)) return
 
   if ("roleName" in data) {
+    assertPlatformRoleKeyNotReserved(data.roleName)
     throw new APIError("BAD_REQUEST", {
       code: "ROLE_KEY_IMMUTABLE",
       message: "ROLE_KEY_IMMUTABLE",

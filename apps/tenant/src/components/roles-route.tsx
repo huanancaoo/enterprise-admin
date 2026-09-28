@@ -59,7 +59,7 @@ function createRoleSchema(t: RoleTranslation) {
         t("organization:roleNameInvalid")
       )
       .refine(
-        (role) => !role.startsWith("platform-"),
+        (role) => !role.startsWith("platform"),
         t("organization:roleNameInvalid")
       ),
   })
