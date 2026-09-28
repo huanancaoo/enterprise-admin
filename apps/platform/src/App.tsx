@@ -334,6 +334,14 @@ export function PlatformMfaPage() {
 
 export function PlatformAccessDeniedPage() {
   const { t } = useTranslation("auth")
+  const session = useAuthenticatedSession()
+  const navigate = useNavigate()
+
+  async function signOutAndUseAnotherAccount() {
+    if (!session) return
+    if (await session.signOut()) await navigate({ to: "/login" })
+  }
+
   return (
     <main className="mx-auto flex min-h-svh max-w-lg flex-col items-center justify-center gap-3 px-6 text-center">
       <h1 className="text-2xl font-semibold">
@@ -342,9 +350,27 @@ export function PlatformAccessDeniedPage() {
       <p className="text-muted-foreground">
         {t("platformAccessDeniedDescription")}
       </p>
-      <Link className="underline underline-offset-4" to="/login">
-        {t("signIn")}
-      </Link>
+      {session ? (
+        <>
+          <Button
+            disabled={session.signingOut}
+            onClick={() => void signOutAndUseAnotherAccount()}
+          >
+            {session.signingOut
+              ? t("signingOut")
+              : t("signOutAndUseAnotherAccount")}
+          </Button>
+          {session.signOutError && (
+            <p role="alert" className="text-sm text-destructive">
+              {session.signOutError}
+            </p>
+          )}
+        </>
+      ) : (
+        <Link className="underline underline-offset-4" to="/login">
+          {t("signIn")}
+        </Link>
+      )}
     </main>
   )
 }

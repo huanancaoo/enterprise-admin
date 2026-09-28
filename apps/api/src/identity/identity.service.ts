@@ -27,11 +27,22 @@ export class IdentityService {
       query: { disableCookieCache: true },
     });
     if (!result) return null;
+    // Better Auth 次级存储可能仍返回数据库变更前的会话快照。
+    // 会话过期或撤销以当前数据库行判断，不能以该快照授权。
     const user = await this.runtime.pool.query<{
       preferred_locale: string | null;
-    }>('SELECT preferred_locale FROM public."user" WHERE id = $1', [
-      result.user.id,
-    ]);
+    }>(
+      `SELECT account.preferred_locale
+       FROM public."user" AS account
+       INNER JOIN public.session AS active_session
+         ON active_session.user_id = account.id
+        AND active_session.id = $2
+        AND active_session.expires_at > clock_timestamp()
+       WHERE account.id = $1
+       LIMIT 1`,
+      [result.user.id, result.session.id],
+    );
+    if (!user.rows[0]) return null;
     return {
       userId: result.user.id,
       sessionId: result.session.id,

@@ -328,6 +328,11 @@ describe("platform assignment access boundary", () => {
       [session.session.id]
     )
     expect(persistedExpiry.rows[0].expired).toBe(true)
+    const secondarySession = await runtime.auth.api.getSession({
+      headers: new Headers({ cookie: verifiedSessionCookie }),
+      query: { disableCookieCache: true },
+    })
+    expect(secondarySession?.session.id).toBe(session.session.id)
 
     const databaseAccess = await environment.platformPool.query(
       "SELECT * FROM public.read_platform_access($1, $2)",
@@ -335,9 +340,9 @@ describe("platform assignment access boundary", () => {
     )
     expect(databaseAccess.rowCount).toBe(0)
     const expiredPlatformAccess = await platformAccess(verifiedSessionCookie)
-    expect(expiredPlatformAccess.status).toBe(403)
+    expect(expiredPlatformAccess.status).toBe(401)
     expect(await json(expiredPlatformAccess)).toMatchObject({
-      code: "FORBIDDEN",
+      code: "UNAUTHENTICATED",
     })
   })
 

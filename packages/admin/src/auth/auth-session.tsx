@@ -149,7 +149,7 @@ export function AuthenticatedSessionProvider({
         user,
         signingOut: action.pending,
         signOutError: action.error,
-        signOut: () => void action.run(() => client.signOut()),
+        signOut: () => action.run(() => client.signOut()),
       }}
     >
       {children}

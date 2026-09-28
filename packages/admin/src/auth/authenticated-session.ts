@@ -8,7 +8,7 @@ export type AuthenticatedSession = {
     image?: string | null
     lastLoginMethod?: string | null
   }
-  signOut: () => void
+  signOut: () => Promise<boolean>
   signingOut: boolean
   signOutError?: string
 }

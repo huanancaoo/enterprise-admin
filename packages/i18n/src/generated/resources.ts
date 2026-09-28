@@ -63,6 +63,7 @@ export default interface Resources {
     "signInDescription": "使用邮箱和密码登录你的账号。",
     "signInToAcceptInvitation": "请先登录接受邀请的邮箱账号。",
     "signOut": "退出登录",
+    "signOutAndUseAnotherAccount": "退出并使用其他账号登录",
     "signUp": "创建账号",
     "signUpDescription": "创建账号后，选择或创建你的组织。",
     "signedIn": "账户已登录",
