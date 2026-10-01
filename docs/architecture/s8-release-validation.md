@@ -108,9 +108,19 @@ T15 还实际复现了空参数绕过：停用组织已经是当前 Session 的 
 
 完整检查之后只补充了 T01 的 Body 组织目标替换断言，生产代码未改；同一生产构建上的 `s8-authorization.test.mjs` 7 项再次通过。日志分别保存在 `/private/tmp/enterprise-admin-s8-authorization-verify-final.log` 与 `/private/tmp/enterprise-admin-s8-authorization-final-assertions.log`。
 
+## 平台组织 Feature Stories
+
+`apps/platform/src/features/organizations/pages.stories.tsx` 通过内存路由运行正式组织列表、详情、拒绝访问和登录页面，26 个场景覆盖默认、加载、空列表/空状态历史、错误、权限拒绝、401、404、长文本、RTL、慢请求、只读任职、筛选/排序/分页和危险确认。危险确认实际驱动原因与 slug 校验、键盘停用/恢复、提交期间禁用、关闭后的焦点恢复；409 保留输入并要求复核新版本，目标状态已达到时读回 no_change；429 保留输入供手动重试；近期 MFA 场景驱动正式验证码界面。各场景重置自有 MSW 状态，目录和详情从同一状态读回，避免前一 Story 的写入污染后续场景。
+
+本批没有修改生产页面、API、契约或认证实现。MSW 模拟身份、平台任职和验证码结果，只证明 UI 状态与交互；真实认证、授权、MFA、数据库和发布仍以各自真实链路证据为准。各状态先等待正式内容出现再执行 Storybook 内置无障碍检查，避免长文本或 RTL 只检查到加载态。
+
+本批相关检查均退出码 0：全量 Storybook 14 文件、124 项（含新增 26 项）；单元测试根目录 43 项、API 28 项、文档站 3 项，共 74 项；工作区 lint 和类型检查各 16 个任务；Storybook 构建 3 个任务。本批未重跑 API HTTP、真实浏览器业务、数据库、性能或完整 `pnpm verify`，上文完整检查属于对应历史批次。
+
+日志位于 `/private/tmp/enterprise-admin-s8-organizations-stories-regression.log`、`enterprise-admin-s8-organizations-stories-unit.log`、`enterprise-admin-s8-organizations-stories-lint.log`、`enterprise-admin-s8-organizations-stories-typecheck.log` 和 `enterprise-admin-s8-organizations-stories-build.log`。另用已构建的工作台在 1280×1000 视口核对长文本列表、详情与 RTL 确认框：列表/详情的页面 scrollWidth 均为 1280，阿语页面方向为 rtl、slug 输入为 ltr，无浏览器 pageerror；截图为 `/private/tmp/enterprise-admin-s8-organizations-long-text.png`、`enterprise-admin-s8-organizations-detail-long-text.png` 与 `enterprise-admin-s8-organizations-rtl.png`。这些都是 UI fixture，不是新增的真实后台业务验收。
+
 ## 尚未完成的验收
 
-- 补足父规格要求的关键 Feature Stories 状态；不能用 API 或公共 Stories 替代。
+- 平台组织已补足上述 Feature Stories，其他 S8 关键 Feature 状态仍需逐项补足；不能用 API 或公共 Stories 替代。
 - 安全回退入口和 ADR-0002/当前 CLI 的语义冲突等待用户确认；确认后完成实现、文档与对应发布验收。
 
 本机验证与远端 CI、生产部署分别记账；本记录不声称 GitHub Actions 或生产发布已通过。

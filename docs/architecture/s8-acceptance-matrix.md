@@ -52,11 +52,12 @@ T15 另包含空 organizationId/slug 的真实回归：普通原生入口按 tru
 - `tests/e2e/invitations.test.mjs` 验证创建成功但 SMTP 失败、重发真实 429、键盘取消、停用组织中的阿语拒绝；另通过真实 SMTP DATA 后无最终确认验证 unknown 页面、pending 邀请及投递持久化事实，刷新和三语/RTL 展示仍保持真实结果。
 - `tests/e2e/custom-roles.test.mjs` 验证创建/分配、引用管理、英语/阿语确认、阿语 RTL 校验和重复角色错误；键盘与 axe 断言作用于真实弹层。
 - `tests/e2e/locale-settings.test.mjs`、`platform-settings.test.mjs` 验证继承/显式偏好、三语、RTL、键盘和对应界面的 axe；个人设置另暂缓真实当前组织响应，验证读回不会卸载已打开的语言选项，并实际保存阿语。`tests/api/platform-settings.test.mjs` 通过真实 SMTP 核对个人、组织、平台语言继承。排队邮件不因随后设置变化重写历史内容。
-- 平台 Organizations/Users/Audit/Settings 的浏览器文件覆盖相应列表、详情、确认、错误、撤权及语言/键盘/a11y。后台布局另以 MSW 延迟目录读回，核对实际按钮禁用和菜单关闭后的 axe。公共 Stories、后台布局及平台设置 Stories 的范围以真实 Storybook 运行结果为准，不能由这些结果推导全部 S8 Feature 状态均已有 Stories。
+- 平台 Organizations/Users/Audit/Settings 的浏览器文件覆盖相应列表、详情、确认、错误、撤权及语言/键盘/a11y。后台布局另以 MSW 延迟目录读回，核对实际按钮禁用和菜单关闭后的 axe。
+- `apps/platform/src/features/organizations/pages.stories.tsx` 新增 26 个正式页面场景：列表/详情的默认、加载、错误、无权、长文本和 RTL；列表为空、详情无状态历史、401 跳转、404、慢请求、只读任职；筛选/排序/分页和危险确认的校验、停用/恢复、陈旧版本复核、429 重试、近期 MFA、键盘提交与焦点恢复。每个 Story 重置独立 MSW 状态，成功状态由页面重新读取。身份与平台任职是 UI fixture，不作为真实登录、授权或 MFA 证据；公共、布局及这些 Feature Stories 通过仍不能推导全部 S8 Feature 状态均已覆盖。
 
 ## 完整本机检查
 
-当前 SMTP 页面与界面时序修正批次通过完整 `pnpm verify`（退出码 0）：155 项 API、75 项浏览器、98 项 Storybook、24 项数据库、2 项性能及 lint、类型、Schema、生产构建、生成物检查均通过。前一授权批次与本批稳定复现、聚焦回归、完整检查的入口和日志分别记在 [发布验收记录](s8-release-validation.md)，不以历史完整检查替代当前改动验证。远端 CI 与生产部署分别记账，不由本机结果推导。
+最近一次完整 `pnpm verify` 是 SMTP 页面与界面时序修正批次（退出码 0）：155 项 API、75 项浏览器、98 项 Storybook、24 项数据库、2 项性能及 lint、类型、Schema、生产构建、生成物检查均通过。随后平台组织 Stories 批次只修改 Story/MSW 和验收文档；全量 Storybook 14 文件、124 项，单元测试 74 项，lint、类型检查和 Storybook 构建通过。本批未重新执行完整 `pnpm verify`，各批次入口与日志分别记在 [发布验收记录](s8-release-validation.md)。远端 CI 与生产部署分别记账，不由本机结果推导。
 
 ## 尚未解除的门禁
 

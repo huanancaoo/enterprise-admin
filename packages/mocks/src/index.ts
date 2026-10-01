@@ -5,6 +5,12 @@ export type { ProjectsScenario } from "./handlers/projects"
 export { projectScenarios } from "./scenarios/projects"
 export { createPlatformSettingsHandlers } from "./handlers/platform-settings"
 export type { PlatformSettingsScenario } from "./handlers/platform-settings"
+export {
+  createPlatformOrganizationScenario,
+  platformOrganizationActor,
+  platformOrganizationFixture,
+} from "./handlers/platform-organizations"
+export type { PlatformOrganizationsScenario } from "./handlers/platform-organizations"
 export { createProjectHandler } from "./handlers/project-create"
 export {
   createProjectDetailHandler,
