@@ -49,17 +49,17 @@ T15 另包含空 organizationId/slug 的真实回归：普通原生入口按 tru
 
 - `tests/e2e/s8-integration.test.mjs` 串联邀请、真实 SMTP 验证链接、接受、角色分配、编辑成功、撤权后旧草稿拒绝、角色引用阻塞及移除后缓存清除；另串联真实 CLI 任职、页面 TOTP、停用、旧租户拒绝、恢复和平台事件的租户摘要。
 - 同一浏览器上下文两个标签保持不同组织，URL 目标不受共享 activeOrganization 覆盖；退出后两页与历史返回清除身份缓存。真实迟到的组织/个人偏好 HTTP 响应不会覆盖初始化期间手动选择的阿语。
-- `tests/e2e/invitations.test.mjs` 验证创建成功但 SMTP 失败、重发真实 429、键盘取消、停用组织中的阿语拒绝。SMTP unknown 有真实 API 证据，不能将其等同于已验证 unknown 页面展示。
+- `tests/e2e/invitations.test.mjs` 验证创建成功但 SMTP 失败、重发真实 429、键盘取消、停用组织中的阿语拒绝；另通过真实 SMTP DATA 后无最终确认验证 unknown 页面、pending 邀请及投递持久化事实，刷新和三语/RTL 展示仍保持真实结果。
 - `tests/e2e/custom-roles.test.mjs` 验证创建/分配、引用管理、英语/阿语确认、阿语 RTL 校验和重复角色错误；键盘与 axe 断言作用于真实弹层。
-- `tests/e2e/locale-settings.test.mjs`、`platform-settings.test.mjs` 验证继承/显式偏好、三语、RTL、键盘和对应界面的 axe；`tests/api/platform-settings.test.mjs` 通过真实 SMTP 核对个人、组织、平台语言继承。排队邮件不因随后设置变化重写历史内容。
-- 平台 Organizations/Users/Audit/Settings 的浏览器文件覆盖相应列表、详情、确认、错误、撤权及语言/键盘/a11y。公共 Stories 及平台设置 Stories 的范围以真实 Storybook 运行结果为准，不能由公共组件 Stories 推导全部 S8 Feature 状态均已有 Stories。
+- `tests/e2e/locale-settings.test.mjs`、`platform-settings.test.mjs` 验证继承/显式偏好、三语、RTL、键盘和对应界面的 axe；个人设置另暂缓真实当前组织响应，验证读回不会卸载已打开的语言选项，并实际保存阿语。`tests/api/platform-settings.test.mjs` 通过真实 SMTP 核对个人、组织、平台语言继承。排队邮件不因随后设置变化重写历史内容。
+- 平台 Organizations/Users/Audit/Settings 的浏览器文件覆盖相应列表、详情、确认、错误、撤权及语言/键盘/a11y。后台布局另以 MSW 延迟目录读回，核对实际按钮禁用和菜单关闭后的 axe。公共 Stories、后台布局及平台设置 Stories 的范围以真实 Storybook 运行结果为准，不能由这些结果推导全部 S8 Feature 状态均已有 Stories。
 
 ## 完整本机检查
 
-最新生产代码已通过完整 `pnpm verify`（退出码 0）：155 项 API、74 项浏览器、97 项 Storybook、24 项数据库、2 项性能及 lint、类型、Schema、生产构建、生成物检查均通过。随后只补充 T01 Body 目标替换断言，同一构建上的 7 项原生授权测试再次通过。具体入口和日志见 [发布验收记录](s8-release-validation.md)。远端 CI 与生产部署分别记账，不由本机结果推导。
+当前 SMTP 页面与界面时序修正批次通过完整 `pnpm verify`（退出码 0）：155 项 API、75 项浏览器、98 项 Storybook、24 项数据库、2 项性能及 lint、类型、Schema、生产构建、生成物检查均通过。前一授权批次与本批稳定复现、聚焦回归、完整检查的入口和日志分别记在 [发布验收记录](s8-release-validation.md)，不以历史完整检查替代当前改动验证。远端 CI 与生产部署分别记账，不由本机结果推导。
 
 ## 尚未解除的门禁
 
 1. ADR-0002 要求 CLI 创建用户并授予任职，当前实现和 #19 要求对已验证用户 UUID 授权；等待用户决定最终语义，再统一实现、ADR 和部署说明。
 2. 安全回退必须继续拒绝已有停用/撤权事实。数据库 README 目前把 API/双 SPA 发布编排留到 S10；等待用户明确 #24 的本地发布门禁或实际部署入口，再完成对应验证。
-3. SMTP unknown 的页面展示与父规格要求的关键 Feature Stories 状态仍需逐项补足，不能以 API 或公共 Stories 通过代替。
+3. 父规格要求的关键 Feature Stories 状态仍需逐项补足，不能以 API、浏览器或公共 Stories 通过代替。

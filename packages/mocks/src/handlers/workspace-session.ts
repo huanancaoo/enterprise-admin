@@ -1,9 +1,10 @@
-import { http, HttpResponse } from "msw"
+import { delay, http, HttpResponse } from "msw"
 import { organizations } from "../fixtures/projects"
 import type { MyPreferences, OrganizationStatus } from "@workspace/contracts"
 
 export function createWorkspaceSessionHandlers(options?: {
   suspendedIds?: readonly string[]
+  refreshDelay?: number | "infinite"
 }) {
   const suspended = new Set(options?.suspendedIds ?? [])
   let activeId: string = organizations[0].id
@@ -55,11 +56,16 @@ export function createWorkspaceSessionHandlers(options?: {
         effectiveLocaleSource: "request",
       } satisfies MyPreferences)
     ),
-    http.get("*/api/v1/me/organizations", () =>
-      HttpResponse.json(
+    http.get("*/api/v1/me/organizations", async () => {
+      if (
+        activeId !== organizations[0].id &&
+        options?.refreshDelay !== undefined
+      )
+        await delay(options.refreshDelay)
+      return HttpResponse.json(
         teams.map(({ id, name, slug, status }) => ({ id, name, slug, status }))
       )
-    ),
+    }),
     http.get("*/api/v1/organizations/:organizationId/access", ({ params }) => {
       const organizationId = String(params.organizationId)
       const team = teams.find((item) => item.id === organizationId)

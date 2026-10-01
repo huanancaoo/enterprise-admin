@@ -289,92 +289,102 @@ export function RolesRoute() {
           <h2 id="create-role-title" className="text-lg font-semibold">
             {t("organization:createRole")}
           </h2>
-          <form
-            className="max-w-2xl space-y-5"
-            aria-busy={createRole.isPending}
-            onSubmit={(event) => {
-              event.preventDefault()
-              event.stopPropagation()
-              void form.handleSubmit()
-            }}
-          >
-            <FieldGroup>
-              <form.Field name="role">
-                {(field) => {
-                  const invalid =
-                    field.state.meta.isTouched && !field.state.meta.isValid
-                  return (
-                    <Field data-invalid={invalid}>
-                      <FieldLabel htmlFor="custom-role-key">
-                        {t("organization:roleKey")}
-                      </FieldLabel>
-                      <Input
-                        id="custom-role-key"
-                        value={field.state.value}
-                        onChange={(event) =>
-                          field.handleChange(event.target.value)
-                        }
-                        onBlur={field.handleBlur}
-                        minLength={3}
-                        maxLength={48}
-                        autoComplete="off"
-                        aria-invalid={invalid}
-                        required
-                      />
-                      <FieldDescription>
-                        {t("organization:roleKeyDescription")}
-                      </FieldDescription>
-                      {invalid && (
-                        <FieldError errors={field.state.meta.errors} />
-                      )}
-                    </Field>
-                  )
+          {/* 提交包含列表读回与表单重置；期间不可编辑，避免后续输入被迟到的重置清掉。 */}
+          <form.Subscribe selector={(state) => state.isSubmitting}>
+            {(submitting) => (
+              <form
+                className="max-w-2xl space-y-5"
+                aria-busy={submitting}
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  void form.handleSubmit()
                 }}
-              </form.Field>
+              >
+                <fieldset disabled={submitting} className="space-y-5">
+                  <FieldGroup>
+                    <form.Field name="role">
+                      {(field) => {
+                        const invalid =
+                          field.state.meta.isTouched &&
+                          !field.state.meta.isValid
+                        return (
+                          <Field data-invalid={invalid}>
+                            <FieldLabel htmlFor="custom-role-key">
+                              {t("organization:roleKey")}
+                            </FieldLabel>
+                            <Input
+                              id="custom-role-key"
+                              value={field.state.value}
+                              onChange={(event) =>
+                                field.handleChange(event.target.value)
+                              }
+                              onBlur={field.handleBlur}
+                              minLength={3}
+                              maxLength={48}
+                              autoComplete="off"
+                              aria-invalid={invalid}
+                              required
+                            />
+                            <FieldDescription>
+                              {t("organization:roleKeyDescription")}
+                            </FieldDescription>
+                            {invalid && (
+                              <FieldError errors={field.state.meta.errors} />
+                            )}
+                          </Field>
+                        )
+                      }}
+                    </form.Field>
 
-              <Field data-slot="checkbox-group">
-                <FieldLabel>{t("organization:rolePermissions")}</FieldLabel>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {(access.data?.grantablePermissions ?? []).map(
-                    ({ resource, action }) => {
-                      const key = `${resource}:${action}`
-                      const checked = selectedPermissions.includes(key)
-                      return (
-                        <label
-                          key={key}
-                          className="flex items-center gap-2 text-sm"
-                        >
-                          <Checkbox
-                            checked={checked}
-                            disabled={createRole.isPending}
-                            onCheckedChange={(value) =>
-                              setSelectedPermissions((current) =>
-                                value === true
-                                  ? [...current, key]
-                                  : current.filter((item) => item !== key)
-                              )
-                            }
-                          />
-                          {permissionLabel(resource, action, t)}
-                        </label>
-                      )
-                    }
+                    <Field data-slot="checkbox-group">
+                      <FieldLabel>
+                        {t("organization:rolePermissions")}
+                      </FieldLabel>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {(access.data?.grantablePermissions ?? []).map(
+                          ({ resource, action }) => {
+                            const key = `${resource}:${action}`
+                            const checked = selectedPermissions.includes(key)
+                            return (
+                              <label
+                                key={key}
+                                className="flex items-center gap-2 text-sm"
+                              >
+                                <Checkbox
+                                  checked={checked}
+                                  disabled={submitting}
+                                  onCheckedChange={(value) =>
+                                    setSelectedPermissions((current) =>
+                                      value === true
+                                        ? [...current, key]
+                                        : current.filter((item) => item !== key)
+                                    )
+                                  }
+                                />
+                                {permissionLabel(resource, action, t)}
+                              </label>
+                            )
+                          }
+                        )}
+                      </div>
+                    </Field>
+                  </FieldGroup>
+
+                  {formError && (
+                    <p role="alert" className="text-sm text-destructive">
+                      {formError}
+                    </p>
                   )}
-                </div>
-              </Field>
-            </FieldGroup>
-
-            {formError && (
-              <p role="alert" className="text-sm text-destructive">
-                {formError}
-              </p>
+                  <Button type="submit" disabled={submitting}>
+                    {submitting
+                      ? t("common:loading")
+                      : t("organization:createRole")}
+                  </Button>
+                </fieldset>
+              </form>
             )}
-            <Button type="submit" disabled={createRole.isPending}>
-              {createRole.isPending
-                ? t("common:loading")
-                : t("organization:createRole")}
-            </Button>
-          </form>
+          </form.Subscribe>
         </section>
       )}
     </div>

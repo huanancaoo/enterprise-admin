@@ -50,7 +50,6 @@ export function TeamSwitcher({
   const triggerName = activeTeam?.name ?? label
   const triggerLogo = activeTeam?.logo ?? triggerName.slice(0, 1)
 
-  // 空列表不走 Tooltip：TooltipTrigger 不会把 disabled 落到原生按钮上。
   if (teams.length === 0) {
     return (
       <SidebarMenu>

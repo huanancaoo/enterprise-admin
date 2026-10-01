@@ -125,7 +125,7 @@ export async function startTestApplication({
   }
 }
 
-export async function startBrowserApplication({ mail = false } = {}) {
+export async function startBrowserApplication({ mail = false, smtp } = {}) {
   const resources = new AsyncDisposableStack()
   try {
     const tenantPort = await reservePort()
@@ -135,6 +135,7 @@ export async function startBrowserApplication({ mail = false } = {}) {
     const runtime = await startTestApplication({
       origins: [tenantOrigin, platformOrigin],
       mail,
+      smtp,
     })
     resources.defer(() => runtime.close())
     const { preview } = await import("vite")

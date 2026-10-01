@@ -290,11 +290,57 @@ describe("S8-09：浏览器中的个人与组织语言设置", () => {
       })
     ).toBeVisible()
 
-    await page
-      .getByRole("link", { name: "Personal language settings", exact: true })
-      .click()
-    await page.getByRole("combobox", { name: "Language", exact: true }).click()
-    await page.getByRole("option", { name: "العربية", exact: true }).click()
+    const activeOrganizationRequested = Promise.withResolvers()
+    const releaseActiveOrganization = Promise.withResolvers()
+    const releaseAccess = Promise.withResolvers()
+    await page.route(
+      "**/api/auth/organization/get-full-organization*",
+      async (route) => {
+        activeOrganizationRequested.resolve()
+        await releaseActiveOrganization.promise
+        await route.continue()
+      },
+      { times: 1 }
+    )
+    try {
+      await page
+        .getByRole("link", { name: "Personal language settings", exact: true })
+        .click()
+      await activeOrganizationRequested.promise
+      await page.route(
+        `**/api/v1/organizations/${firstOrganizationId}/access`,
+        async (route) => {
+          await releaseAccess.promise
+          await route.continue()
+        },
+        { times: 1 }
+      )
+      const earlySelect = page.getByRole("combobox", {
+        name: "Language",
+        exact: true,
+      })
+      await earlySelect.click()
+      await expectUI(
+        page.getByRole("option", { name: "العربية", exact: true })
+      ).toBeVisible()
+      const activeOrganizationResponse = page.waitForResponse((response) =>
+        response.url().includes("/api/auth/organization/get-full-organization")
+      )
+      releaseActiveOrganization.resolve()
+      await activeOrganizationResponse
+      await expectUI(
+        page.getByRole("button", { name: /语言组织甲/, includeHidden: true })
+      ).toBeVisible()
+      // 组织读回不能将已打开的个人设置表单卸载；旧访问查询被阻断时仍须保留选项。
+      await expectUI(
+        page.getByRole("option", { name: "العربية", exact: true })
+      ).toBeVisible()
+      await page.getByRole("option", { name: "العربية", exact: true }).click()
+    } finally {
+      releaseActiveOrganization.resolve()
+      releaseAccess.resolve()
+      await page.unrouteAll({ behavior: "wait" })
+    }
     await page.getByRole("button", { name: /保存|Save|حفظ/ }).click()
     await expectUI(page.locator("html")).toHaveAttribute("lang", "ar")
     await expectUI(page.locator("html")).toHaveAttribute("dir", "rtl")

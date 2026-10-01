@@ -390,10 +390,34 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
       exact: true,
     })
     await expectUI(createButton).toBeFocused()
-    await page.keyboard.press("Enter")
+    const submitted = Promise.withResolvers()
+    const release = Promise.withResolvers()
+    await page.route(
+      "**/api/auth/organization/create-role",
+      async (route) => {
+        const response = await route.fetch()
+        submitted.resolve()
+        await release.promise
+        await route.fulfill({ response })
+      },
+      { times: 1 }
+    )
+    const creationForm = page.locator("form").filter({ has: roleKey })
+    try {
+      await page.keyboard.press("Enter")
+      await submitted.promise
+      await expectUI(creationForm).toHaveAttribute("aria-busy", "true")
+      await expectUI(roleKey).toBeDisabled()
+      await expectUI(permission).toBeDisabled()
+    } finally {
+      release.resolve()
+      await page.unrouteAll({ behavior: "wait" })
+    }
     await expectUI(
       page.getByText("-keyboard-reader", { exact: true })
     ).toBeVisible()
+    await expectUI(creationForm).toHaveAttribute("aria-busy", "false")
+    await expectUI(roleKey).toHaveValue("")
 
     await roleKey.fill("-keyboard-reader")
     await permission.check()

@@ -540,7 +540,7 @@ function SidebarMenuButton({
       },
       props
     ),
-    render: !tooltip ? render : <TooltipTrigger render={render} />,
+    render,
     state: {
       slot: "sidebar-menu-button",
       sidebar: "menu-button",
@@ -561,7 +561,8 @@ function SidebarMenuButton({
 
   return (
     <Tooltip>
-      {comp}
+      {/* 先将 disabled 落到实际按钮；Tooltip 的同名属性仅停用提示交互。 */}
+      <TooltipTrigger id={props.id} disabled={props.disabled} render={comp} />
       <TooltipContent
         side="right"
         align="center"

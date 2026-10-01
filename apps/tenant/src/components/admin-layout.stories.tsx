@@ -143,3 +143,34 @@ export const SuspendedOrganization: Story = {
     await expect(canvas.queryByRole("alert")).toBeNull()
   },
 }
+
+export const WorkspaceRefreshPending: Story = {
+  parameters: {
+    msw: {
+      handlers: [
+        ...createWorkspaceSessionHandlers({ refreshDelay: "infinite" }),
+        createProjectsHandler(),
+        createProjectDetailHandler(),
+      ],
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const screen = within(canvasElement.ownerDocument.body)
+    await canvas.findByRole("link", { name: "办公空间 1-26" })
+    await userEvent.click(
+      canvas.getByRole("button", { name: /North workspace/ })
+    )
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: /South workspace/ })
+    )
+    const switcher = canvas.getByRole("button", { name: /workspace/ })
+    await waitFor(() => expect(switcher).toHaveAttribute("data-disabled", ""))
+    await expect(switcher).toBeDisabled()
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("menu", { hidden: true })
+      ).not.toBeInTheDocument()
+    )
+  },
+}

@@ -37,13 +37,30 @@ export function useOrganizationWorkspace() {
           slug: input.slug.trim(),
           keepCurrentActiveOrganization: false,
         })
-        if (!result.error) organizationId = result.data.id
+        if (!result.error) {
+          organizationId = result.data.id
+          // 原生写入已切换 Session 的 activeOrganization，目录刷新不能继续保留旧身份事实。
+          queryClient.setQueryData(
+            ["auth", "active-organization"],
+            organizationId
+          )
+        }
         return result
       })
       return ok ? organizationId : undefined
     },
     selectOrganization: (organizationId: string) =>
-      run(() => authClient.organization.setActive({ organizationId })),
+      run(async () => {
+        const result = await authClient.organization.setActive({
+          organizationId,
+        })
+        if (!result.error)
+          queryClient.setQueryData(
+            ["auth", "active-organization"],
+            organizationId
+          )
+        return result
+      }),
   }
 }
 

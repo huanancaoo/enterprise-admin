@@ -1,8 +1,8 @@
-import { createServer } from "node:net"
 import { randomUUID } from "node:crypto"
 import { beforeAll, afterAll, describe, expect, it } from "vitest"
 import { startTestApplication } from "../setup/test-runtime.mjs"
 import { signUpVerified } from "../setup/complete-signup.mjs"
+import { startSmtpAmbiguityServer } from "../setup/smtp-ambiguity.mjs"
 
 describe("native invitation lifecycle and delivery", () => {
   let environment, runtime, migrator, baseURL
@@ -488,36 +488,11 @@ describe("native invitation lifecycle and delivery", () => {
 
 describe("SMTP ambiguity at the protocol boundary", () => {
   it("records unknown when the connection closes after DATA without a final acknowledgement", async () => {
-    const sockets = new Set()
-    const server = createServer((socket) => {
-      sockets.add(socket)
-      socket.on("close", () => sockets.delete(socket))
-      socket.write("220 smtp.test ESMTP\r\n")
-      let buffer = ""
-      let data = false
-      socket.on("data", (chunk) => {
-        buffer += chunk.toString()
-        while (buffer.includes("\r\n")) {
-          const end = buffer.indexOf("\r\n")
-          const line = buffer.slice(0, end)
-          buffer = buffer.slice(end + 2)
-          if (data) {
-            if (line === ".") socket.destroy()
-            continue
-          }
-          if (line.startsWith("EHLO")) socket.write("250 smtp.test\r\n")
-          else if (line === "DATA") {
-            data = true
-            socket.write("354 continue\r\n")
-          } else socket.write("250 OK\r\n")
-        }
-      })
-    })
-    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve))
+    const smtp = await startSmtpAmbiguityServer()
     let environment
     try {
       environment = await startTestApplication({
-        smtp: { host: "127.0.0.1", port: server.address().port, secure: false },
+        smtp: smtp.smtp,
       })
       const { baseURL, migrator, runtime } = environment
       const origin = "http://localhost:3200"
@@ -541,10 +516,10 @@ describe("SMTP ambiguity at the protocol boundary", () => {
       expect(list.find((row) => row.id === created.id).delivery.status).toBe(
         "unknown"
       )
+      expect(smtp.dataTerminations).toBe(1)
     } finally {
       await environment?.close()
-      for (const socket of sockets) socket.destroy()
-      await new Promise((resolve) => server.close(resolve))
+      await smtp.close()
     }
   })
 })

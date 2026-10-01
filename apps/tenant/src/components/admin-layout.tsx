@@ -81,6 +81,9 @@ export function AdminLayout() {
     },
   })
   const currentOrganizationId = organizationId ?? activeOrganization.data
+  // 未读回的组织与已确认的无组织不同，不能先挂载表单再由访问检查将其卸载。
+  const organizationContextPending =
+    !organizationId && activeOrganization.isPending
   const organizations = workspace.workspace.data ?? []
   const onMembers = pathname.startsWith("/app/members/")
   const onRoles = isOrganizationRolesPath(pathname)
@@ -401,7 +404,8 @@ export function AdminLayout() {
           {workspace.error}
         </p>
       )}
-      {currentOrganizationId && access.isPending && (
+      {(organizationContextPending ||
+        (currentOrganizationId && access.isPending)) && (
         <p role="status">{t("organization:loading")}</p>
       )}
       {suspended && (
@@ -436,7 +440,10 @@ export function AdminLayout() {
           })
         }}
       />
-      {!currentOrganizationId || access.isSuccess ? <Outlet /> : null}
+      {!organizationContextPending &&
+      (!currentOrganizationId || access.isSuccess) ? (
+        <Outlet />
+      ) : null}
     </AppShell>
   )
 }
