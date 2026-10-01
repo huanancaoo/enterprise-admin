@@ -1,6 +1,6 @@
 # S8 跨功能与发布验收记录
 
-日期：2026-10-02。对应 [#24](https://github.com/huanancaoo/enterprise-admin/issues/24)。本记录确认迁移安全、固定规模 HTTP 性能及下文列出的组合浏览器流程。安全回退门禁、T01–T28 全项证据对照和 ADR 收尾仍未完成，#24 与父任务 #8 继续保持开放。
+日期：2026-10-02。对应 [#24](https://github.com/huanancaoo/enterprise-admin/issues/24)。本记录确认迁移安全、固定规模 HTTP 性能及下文列出的组合浏览器、授权补充和完整本机检查。[T01–T28 矩阵](s8-acceptance-matrix.md) 逐项列出证据及边界。安全回退、ADR/CLI 一致性和关键 Feature 展示覆盖仍未完成，#24 与父任务 #8 继续保持开放。
 
 ## 迁移安全
 
@@ -62,11 +62,37 @@
 
 截图位于测试输出 `/private/tmp/enterprise-admin-s8-manual-organization-ar.png`、`enterprise-admin-s8-manual-account-ar.png`、`enterprise-admin-s8-role-reference.png` 与 `enterprise-admin-s8-tenant-platform-projection.png`，均为专属测试数据，不含 TOTP URI 或凭据。
 
+## 授权补充与存在性差异修正
+
+新增 `tests/api/s8-authorization.test.mjs`：直接用真实 Cookie 核对跨组织与随机不存在 ID/slug 的同等拒绝，成员/角色/邀请 ID 的拒绝和不变事实，同名角色在 A/B 的权限及分配独立，错误/未验证邮箱的既有 Session 不接受邀请，停用后的完整原生入口目录，以及 auth 写缺 Origin/非法 Origin 的拒绝。T17 通过公开资料写入 platform_admin 名称和提交 role/metadata 后，五个实际平台读入口仍拒绝、任职表仍无记录。
+
+T01 首次真实复现了存在性差异：已存在的外部组织返回 403，不存在的组织返回 400。此前 before hook 发现非成员后直接交给原生处理器，而原生先查组织再查成员。修正将未授权目标统一在前置成员检查拒绝；显式 slug 未匹配也使用同一拒绝。测试比较状态码及完整响应体，原生生命周期仍由 Better Auth 执行，没有放宽原先隔离断言。
+
+T15 还实际复现了空参数绕过：停用组织已经是当前 Session 的 activeOrganization 时，`get-organization?organizationId=` 仍返回 200。原生普通组织入口以 truthy 规则选择当前组织，原解析器却使用 nullish 规则而跳过状态检查。修正区分普通入口与原生动态角色入口的两类规则，事务内的邀请、成员、角色准备也复用同一解析器。回归核对空参数的受保护读/写拒绝、动态角色空 ID 仍为原生 400，以及 organizationId=null 携带 slug 时仍按原生语义清空当前组织。
+
+`platform-audit.test.mjs` 新增强制单连接的 T24：占住 Pool 其余连接，真实平台停用和审计查询与 A/B 并发 HTTP 必然复用唯一剩余连接。8 轮核对各自项目、同一 PID 与事务外无组织上下文；被停用组织的成员仍收到 403。原跨组织读取与数据库隔离测试保留。`packages/database/test/isolation.test.ts` 新增 app.is_platform 伪造、空平台任职结果、SET ROLE/私有任职表拒绝及事务后标记清理，不修改原 8 项断言。
+
+`platform-assignment.test.mjs` 新增生产配置的可信设备密码登录和 GitHub callback 测试：先真实 TOTP 取得有效平台 Session，退出后通过相应入口建立新的真实 Session；其 twoFactorEnabled 仍为 true，但没有当前 Session assurance，平台返回 PLATFORM_MFA_REQUIRED。GitHub 仅三个提供者响应为 fixture，state、callback、Cookie、Session 和守卫不替换；不宣称外部 GitHub 服务登录通过。
+
+`tests/e2e/platform-mfa.test.mjs` 验证真实 owner/admin 的拒绝页面；伪造 localStorage 中的任职/user 后重新进入受保护路由，HTTP 403、无运营导航、数据库无任职。独立测试用户各自使用固定测试 IP，同一个 MFA 流程内地址不变，生产登录限流保留。
+
+首次聚焦检查：补充授权与平台审计共 15 项 HTTP 通过，可信设备/社交 callback 两项生产 HTTP 通过，数据库隔离 9 项通过，平台浏览器 3 项通过。随后新增空参数回归及修正，7 项原生授权回归通过；最新生产代码的完整检查结果见下文。
+
+## 最新完整检查
+
+本批生产代码已通过完整 `pnpm verify`，进程退出码为 0：peer、lint/工程边界、typecheck、i18n、单元测试、真实 API HTTP、固定规模性能、Storybook、浏览器业务、数据库 Schema/隔离、生产构建及 OpenAPI/Orval 可重现检查全部通过。
+
+- API：Nest HTTP 15 项，业务 HTTP 140 项，共 155 项。
+- 浏览器：11 文件、74 项；Storybook：13 文件、97 项；数据库：2 文件、24 项；性能：1 文件、2 项。
+- 文档站内容检查覆盖 38 页；本次架构 Markdown 另进行定向 Prettier 检查，不由文档站页数推导其检查范围。
+
+完整检查之后只补充了 T01 的 Body 组织目标替换断言，生产代码未改；同一生产构建上的 `s8-authorization.test.mjs` 7 项再次通过。日志分别保存在 `/private/tmp/enterprise-admin-s8-authorization-verify-final.log` 与 `/private/tmp/enterprise-admin-s8-authorization-final-assertions.log`。
+
 ## 尚未完成的验收
 
-- 汇总邮件语言、三语、RTL、键盘和无障碍的已有及新增证据，核对失权缓存与迟到响应保护的完整范围。
-- 安全回退门禁、T01–T28 全项对照、ADR/部署 CLI/权限矩阵同步及最终发布验收收尾。
+- 补足 SMTP unknown 的实际页面展示、父规格要求的关键 Feature Stories 状态；不能用 API 或公共 Stories 替代。
+- 安全回退入口和 ADR-0002/当前 CLI 的语义冲突等待用户确认；确认后完成实现、文档与对应发布验收。
 
 本机验证与远端 CI、生产部署分别记账；本记录不声称 GitHub Actions 或生产发布已通过。
 
-迁移/性能批次已通过 `pnpm db:check` 和包含 0037 的 Compose 验证。组合浏览器批次已通过完整 `pnpm test:api`（Nest HTTP 15 项及业务 HTTP 130 项，共 145 项）、`pnpm test:e2e`（11 文件、73 项）、`pnpm test:storybook`（13 文件、97 项）、`pnpm lint`、`pnpm typecheck`、API/双 SPA 生产构建及 `pnpm api:check`；文档内容检查覆盖 38 页。尚未重新执行完整 `pnpm verify`，上述结果不替代待完成的发布验收。
+迁移/性能批次已通过 `pnpm db:check` 和包含 0037 的 Compose 验证。组合浏览器批次已通过完整 `pnpm test:api`（Nest HTTP 15 项及业务 HTTP 130 项，共 145 项）、`pnpm test:e2e`（11 文件、73 项）、`pnpm test:storybook`（13 文件、97 项）、`pnpm lint`、`pnpm typecheck`、API/双 SPA 生产构建及 `pnpm api:check`；文档内容检查覆盖 38 页。这些是此前批次的历史证据，最新结果以上文为准，仍不替代待完成的发布验收。

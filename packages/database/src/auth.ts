@@ -489,9 +489,16 @@ export function createAuth(
         }
       }
       if (endpointContext.path === "/organization/invite-member") {
-        const organizationId =
-          endpointContext.body?.organizationId ??
-          session.session.activeOrganizationId
+        const organizationId = await resolveOrganizationAccessTarget(
+          { query: transactionalAdapter.query },
+          {
+            path: endpointContext.path,
+            activeOrganizationId:
+              session.session.activeOrganizationId ?? undefined,
+            body: endpointContext.body ?? {},
+            query: {},
+          }
+        )
         if (!organizationId) invitationError("ORGANIZATION_NOT_FOUND")
         if (
           !(await isOrganizationMember(
@@ -605,9 +612,16 @@ export function createAuth(
         endpointContext.path &&
         memberManagementWritePaths.has(endpointContext.path)
       ) {
-        const organizationId =
-          endpointContext.body?.organizationId ??
-          session.session.activeOrganizationId
+        const organizationId = await resolveOrganizationAccessTarget(
+          { query: transactionalAdapter.query },
+          {
+            path: endpointContext.path,
+            activeOrganizationId:
+              session.session.activeOrganizationId ?? undefined,
+            body: endpointContext.body ?? {},
+            query: {},
+          }
+        )
         if (
           !organizationId ||
           !(await isOrganizationMember(
@@ -677,9 +691,16 @@ export function createAuth(
           "/organization/delete-role",
         ].includes(endpointContext.path)
       ) {
-        const organizationId =
-          endpointContext.body?.organizationId ??
-          session.session.activeOrganizationId
+        const organizationId = await resolveOrganizationAccessTarget(
+          { query: transactionalAdapter.query },
+          {
+            path: endpointContext.path,
+            activeOrganizationId:
+              session.session.activeOrganizationId ?? undefined,
+            body: endpointContext.body ?? {},
+            query: {},
+          }
+        )
         if (
           !organizationId ||
           !(await isOrganizationMember(
@@ -1032,7 +1053,11 @@ export function createAuth(
             userId
           ))
         )
-          return
+          // 原生入口先读取组织，再以不同状态码拒绝非成员；这里统一拒绝，避免泄露存在性。
+          throw new APIError("FORBIDDEN", {
+            code: "FORBIDDEN",
+            message: "FORBIDDEN",
+          })
         await assertActiveOrganization(organizationQuery, organizationId)
         if (
           ctx.path === "/organization/list-members" ||

@@ -315,3 +315,33 @@ test("未加组织过滤的 UPDATE/DELETE 也不能触及其他组织资源", as
     )
   })
 })
+
+test("伪造 is_platform 不改变 RLS 或平台任职，runtime 不能切换历史平台身份", async () => {
+  for (const ctx of [a, b])
+    await run(ctx, async (tx) => {
+      await tx.execute(sql`SELECT set_config('app.is_platform','true',true)`)
+      for (const table of ["projects", "project_translations"]) {
+        const result = await tx.execute(
+          sql`SELECT organization_id FROM ${sql.identifier(table)}`
+        )
+        assert.deepEqual(result.rows, [{ organization_id: ctx.organizationId }])
+      }
+      const access = await tx.execute(
+        sql`SELECT * FROM public.read_platform_access(${ctx.userId}::uuid,${randomUUID()}::uuid)`
+      )
+      assert.equal(access.rowCount, 0)
+    })
+  for (const statement of [
+    "SET ROLE platform_runtime",
+    "SELECT * FROM platform_assignment",
+  ])
+    await assert.rejects(pool.query(statement), code("42501"))
+  assert.equal(
+    (
+      await pool.query(
+        "SELECT NULLIF(current_setting('app.is_platform',true),'') AS flag"
+      )
+    ).rows[0].flag,
+    null
+  )
+})

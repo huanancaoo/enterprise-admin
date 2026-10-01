@@ -3,7 +3,7 @@ import { signUpVerified } from "../setup/complete-signup.mjs"
 import { execFile } from "node:child_process"
 import { createHmac, randomBytes, randomUUID } from "node:crypto"
 import { promisify } from "node:util"
-import { beforeAll, afterAll, describe, expect, it } from "vitest"
+import { beforeAll, afterAll, describe, expect, it, vi } from "vitest"
 
 function decodeBase32(value) {
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
@@ -274,6 +274,195 @@ describe("platform assignment access boundary", () => {
     const signedOut = await fetchJson("sign-out", {}, verifiedSessionCookie)
     expect(signedOut.status).toBe(200)
     expect((await platformAccess(verifiedSessionCookie)).status).toBe(401)
+  })
+
+  it("T21: trusted-device password sign-in never inherits platform assurance from the previous session", async () => {
+    const user = await signup()
+    await cli(
+      "grant",
+      user.user.id,
+      "platform_admin",
+      "trusted device platform boundary"
+    )
+    const enabled = await fetchJson(
+      "two-factor/enable",
+      {
+        password: user.password,
+        method: "totp",
+        issuer: "Enterprise Admin",
+      },
+      user.cookie
+    )
+    expect(enabled.status).toBe(200)
+    const secret = new URL((await enabled.json()).totpURI).searchParams.get(
+      "secret"
+    )
+    expect(secret).toBeTruthy()
+    const enrolled = await fetchJson(
+      "two-factor/verify-totp",
+      { code: totp(secret) },
+      setCookies(enabled) || user.cookie
+    )
+    expect(enrolled.status).toBe(200)
+    const enrolledCookie = setCookies(enrolled)
+    expect((await fetchJson("sign-out", {}, enrolledCookie)).status).toBe(200)
+    // 可信设备只由一次真实登录挑战的成功验证签发，启用阶段不产生该 Cookie。
+    const challenge = await fetchJson("sign-in/email", {
+      email: user.email,
+      password: user.password,
+    })
+    expect(challenge.status).toBe(200)
+    expect(await challenge.json()).toMatchObject({ twoFactorRedirect: true })
+    const verified = await fetchJson(
+      "two-factor/verify-totp",
+      {
+        code: totp(secret),
+        trustDevice: true,
+      },
+      setCookies(challenge)
+    )
+    expect(verified.status).toBe(200)
+    const verifiedCookie = setCookies(verified)
+    const trustedCookie = verifiedCookie
+      .split("; ")
+      .filter((value) => value.includes("trust_device"))
+      .join("; ")
+    expect(trustedCookie).not.toBe("")
+    const previous = await (await getSession(verifiedCookie)).json()
+    expect((await platformAccess(verifiedCookie)).status).toBe(200)
+    expect((await fetchJson("sign-out", {}, verifiedCookie)).status).toBe(200)
+    const signedIn = await fetchJson(
+      "sign-in/email",
+      { email: user.email, password: user.password },
+      trustedCookie
+    )
+    expect(signedIn.status).toBe(200)
+    expect(await signedIn.json()).not.toHaveProperty("twoFactorRedirect", true)
+    const currentCookie = setCookies(signedIn)
+    const current = await (await getSession(currentCookie)).json()
+    expect(current.user.twoFactorEnabled).toBe(true)
+    expect(current.session.id).not.toBe(previous.session.id)
+    expect(
+      (
+        await migrator.query(
+          "SELECT session_id FROM platform_session_assurance WHERE session_id=$1",
+          [current.session.id]
+        )
+      ).rows
+    ).toEqual([])
+    const denied = await platformAccess(currentCookie)
+    expect(denied.status).toBe(403)
+    expect(await denied.json()).toMatchObject({ code: "PLATFORM_MFA_REQUIRED" })
+  })
+
+  it("T21: a GitHub callback creates a real session without inheriting platform MFA assurance", async () => {
+    const user = await signup()
+    await cli(
+      "grant",
+      user.user.id,
+      "platform_admin",
+      "social login platform boundary"
+    )
+    const enabled = await fetchJson(
+      "two-factor/enable",
+      {
+        password: user.password,
+        method: "totp",
+        issuer: "Enterprise Admin",
+      },
+      user.cookie
+    )
+    expect(enabled.status).toBe(200)
+    const secret = new URL((await enabled.json()).totpURI).searchParams.get(
+      "secret"
+    )
+    expect(secret).toBeTruthy()
+    const verified = await fetchJson(
+      "two-factor/verify-totp",
+      { code: totp(secret) },
+      setCookies(enabled) || user.cookie
+    )
+    expect(verified.status).toBe(200)
+    const verifiedCookie = setCookies(verified)
+    const previous = await (await getSession(verifiedCookie)).json()
+    expect((await platformAccess(verifiedCookie)).status).toBe(200)
+    expect((await fetchJson("sign-out", {}, verifiedCookie)).status).toBe(200)
+
+    const providerRequests = []
+    const originalFetch = globalThis.fetch
+    // 仅替换提供者的三个响应；state、callback、真实 Session 与平台拒绝均走生产 HTTP 入口。
+    const provider = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (input, options) => {
+        const url = new URL(input instanceof Request ? input.url : input)
+        if (!["github.com", "api.github.com"].includes(url.hostname))
+          return originalFetch(input, options)
+        providerRequests.push(url.href)
+        if (url.href === "https://github.com/login/oauth/access_token")
+          return Response.json({
+            access_token: "s8-fixture-token",
+            token_type: "bearer",
+            scope: "user:email",
+          })
+        if (url.href === "https://api.github.com/user")
+          return Response.json({
+            id: "s8-fixture-user",
+            login: "s8-fixture-user",
+            name: "Social login fixture",
+            email: user.email,
+            avatar_url: null,
+          })
+        if (url.href === "https://api.github.com/user/emails")
+          return Response.json([
+            { email: user.email, primary: true, verified: true },
+          ])
+        throw new Error("Unexpected OAuth provider endpoint")
+      })
+    try {
+      const started = await fetchJson("sign-in/social", {
+        provider: "github",
+        callbackURL: `${origin}/platform`,
+        disableRedirect: true,
+      })
+      expect(started.status).toBe(200)
+      const authorization = new URL((await started.json()).url)
+      const state = authorization.searchParams.get("state")
+      expect(state).toBeTruthy()
+      const callback = await fetch(
+        `${baseURL}/api/auth/callback/github?${new URLSearchParams({ code: "s8-fixture-code", state })}`,
+        {
+          headers: { cookie: setCookies(started) },
+          redirect: "manual",
+        }
+      )
+      expect(callback.status).toBe(302)
+      expect(callback.headers.get("location")).toBe(`${origin}/platform`)
+      expect(providerRequests).toEqual([
+        "https://github.com/login/oauth/access_token",
+        "https://api.github.com/user",
+        "https://api.github.com/user/emails",
+      ])
+      const currentCookie = setCookies(callback)
+      const current = await (await getSession(currentCookie)).json()
+      expect(current.user.id).toBe(user.user.id)
+      expect(current.user.twoFactorEnabled).toBe(true)
+      expect(current.session.id).not.toBe(previous.session.id)
+      expect(
+        (
+          await migrator.query(
+            "SELECT session_id FROM platform_session_assurance WHERE session_id=$1",
+            [current.session.id]
+          )
+        ).rows
+      ).toEqual([])
+      const denied = await platformAccess(currentCookie)
+      expect(denied.status).toBe(403)
+      expect(await denied.json()).toMatchObject({
+        code: "PLATFORM_MFA_REQUIRED",
+      })
+    } finally {
+      provider.mockRestore()
+    }
   })
 
   it("rejects an expired session after valid MFA-backed platform access", async () => {

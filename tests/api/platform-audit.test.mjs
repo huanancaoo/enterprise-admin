@@ -529,4 +529,83 @@ describe("platform audit: approved cross-organization projections", () => {
     await cli("revoke", auditor.user.id)
     expect((await request({ purpose }, auditor)).status).toBe(403)
   })
+
+  it("T24: platform audit and suspension reuse the same connection as concurrent A/B tenant reads without retaining platform context", async () => {
+    const target = await environment.runtime.auth.api.createOrganization({
+      headers: tenantA.headers,
+      body: { name: "T24 suspended organization", slug: randomUUID() },
+    })
+    // 占住其余连接，使平台操作和两个组织的真实 HTTP 查询必然复用同一条连接。
+    const held = await Promise.all(
+      Array.from({ length: environment.runtime.pool.options.max - 1 }, () =>
+        environment.runtime.pool.connect()
+      )
+    )
+    try {
+      const connection = await environment.runtime.pool.query(
+        "SELECT pg_backend_pid() AS pid"
+      )
+      const suspended = await fetch(
+        `${environment.baseURL}/api/v1/platform/organizations/${target.id}/suspend`,
+        {
+          method: "POST",
+          headers: {
+            cookie: admin.cookie,
+            origin,
+            "content-type": "application/json",
+            "Idempotency-Key": randomUUID(),
+          },
+          body: JSON.stringify({
+            reason: "T24 connection isolation verification",
+            expectedVersion: 1,
+          }),
+        }
+      )
+      expect(suspended.status).toBe(200)
+      expect(await suspended.json()).toMatchObject({
+        status: "SUSPENDED",
+        changed: true,
+      })
+      for (let n = 0; n < 8; n++) {
+        const audit = await request({ purpose })
+        expect(audit.status).toBe(200)
+        await audit.json()
+        const pages = await Promise.all(
+          [
+            [tenantA, orgA],
+            [tenantB, orgB],
+          ].map(async ([actor, org]) => {
+            const response = await fetch(
+              `${environment.baseURL}/api/v1/organizations/${org.id}/projects`,
+              {
+                headers: { cookie: actor.cookie },
+              }
+            )
+            expect(response.status).toBe(200)
+            return response.json()
+          })
+        )
+        expect(pages[0].items.map((p) => p.id)).toEqual([projectA.id])
+        expect(pages[1].items.map((p) => p.id)).toEqual([projectB.id])
+        const context = await environment.runtime.pool.query(
+          "SELECT pg_backend_pid() AS pid, NULLIF(current_setting('app.organization_id',true),'') AS organization_id"
+        )
+        expect(context.rows).toEqual([
+          { pid: connection.rows[0].pid, organization_id: null },
+        ])
+      }
+      const denied = await fetch(
+        `${environment.baseURL}/api/v1/organizations/${target.id}/projects`,
+        {
+          headers: { cookie: tenantA.cookie },
+        }
+      )
+      expect(denied.status).toBe(403)
+      expect(await denied.json()).toMatchObject({
+        code: "ORGANIZATION_SUSPENDED",
+      })
+    } finally {
+      for (const client of held) client.release()
+    }
+  })
 })

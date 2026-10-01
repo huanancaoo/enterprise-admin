@@ -4,7 +4,15 @@ import { execFile } from "node:child_process"
 import { createHmac, randomBytes, randomUUID } from "node:crypto"
 import { promisify } from "node:util"
 import { expect as expectUI } from "playwright/test"
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest"
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from "vitest"
 
 const exec = promisify(execFile)
 
@@ -96,6 +104,13 @@ describe("platform MFA browser flow", () => {
     ;({ browser, platformOrigin } = environment)
   })
 
+  beforeEach(async () => {
+    // 独立测试用户不共享登录限流分桶；同一 MFA 流程仍使用固定地址和生产限流。
+    page = await browser.newPage({
+      extraHTTPHeaders: { "x-real-ip": `10.${[...randomBytes(3)].join(".")}` },
+    })
+  })
+
   afterEach(async ({ task }) => {
     if (task.result?.state === "fail") {
       console.error(
@@ -104,53 +119,125 @@ describe("platform MFA browser flow", () => {
         await page.locator("body").innerText()
       )
     }
+    await page.context().close()
   })
 
   afterAll(async () => {
     await environment?.close()
   })
 
-  it("keeps an unassigned user's platform content hidden", async () => {
-    const target = account("普通用户")
-    const registered = await signUpVerified(
-      environment.baseURL,
-      platformOrigin,
-      environment.migrator,
-      target
-    )
-    await environment.migrator.query(
-      'UPDATE public."user" SET preferred_locale = $2 WHERE id = $1',
-      [registered.user.id, "ar"]
-    )
-    page = await browser.newPage()
-    await page.goto(`${platformOrigin}/platform`)
-    await selectArabic()
-    await signInArabic(target)
-    await expectUI(
-      page.getByRole("heading", {
-        name: "لا يمكن الوصول إلى إدارة المنصة",
+  it.each(["owner", "admin"])(
+    "keeps tenant %s platform content hidden despite forged client state",
+    async (role) => {
+      const target = account(`Tenant ${role}`)
+      const registered = await signUpVerified(
+        environment.baseURL,
+        platformOrigin,
+        environment.migrator,
+        target
+      )
+      const owner =
+        role === "owner"
+          ? registered
+          : await signUpVerified(
+              environment.baseURL,
+              platformOrigin,
+              environment.migrator
+            )
+      const organization =
+        await environment.runtime.auth.api.createOrganization({
+          headers: owner.headers,
+          body: { name: "Platform denial tenant", slug: randomUUID() },
+        })
+      if (role === "admin")
+        await environment.runtime.auth.api.addMember({
+          headers: owner.headers,
+          body: {
+            organizationId: organization.id,
+            userId: registered.user.id,
+            role,
+          },
+        })
+      expect(
+        (
+          await environment.migrator.query(
+            "SELECT role FROM member WHERE organization_id=$1 AND user_id=$2",
+            [organization.id, registered.user.id]
+          )
+        ).rows
+      ).toEqual([{ role }])
+      await environment.migrator.query(
+        'UPDATE public."user" SET preferred_locale = $2 WHERE id = $1',
+        [registered.user.id, "ar"]
+      )
+      await page.goto(`${platformOrigin}/platform`)
+      await selectArabic()
+      await signInArabic(target)
+      await expectUI(
+        page.getByRole("heading", {
+          name: "لا يمكن الوصول إلى إدارة المنصة",
+          exact: true,
+        })
+      ).toBeVisible()
+      await expectUI(
+        page.getByText("لا يملك هذا الحساب تكليفًا نشطًا في المنصة.", {
+          exact: true,
+        })
+      ).toBeVisible()
+      await expectUI(
+        page.getByRole("link", { name: "المنظمات", exact: true }).last()
+      ).toHaveCount(0)
+      await page.evaluate((userId) => {
+        localStorage.setItem(
+          "platform_assignment",
+          JSON.stringify({ userId, role: "platform_admin", status: "active" })
+        )
+        localStorage.setItem(
+          "user",
+          JSON.stringify({
+            id: userId,
+            role: "platform_admin",
+            metadata: { platformAdmin: true },
+          })
+        )
+      }, registered.user.id)
+      const access = page.waitForResponse(
+        (response) =>
+          new URL(response.url()).pathname === "/api/v1/me/platform" &&
+          response.status() === 403
+      )
+      await page.goto(`${platformOrigin}/platform`)
+      await access
+      await expectUI(
+        page.getByRole("heading", {
+          name: "لا يمكن الوصول إلى إدارة المنصة",
+          exact: true,
+        })
+      ).toBeVisible()
+      await expectUI(
+        page.getByRole("link", { name: "المنظمات", exact: true }).last()
+      ).toHaveCount(0)
+      expect(
+        (
+          await environment.migrator.query(
+            "SELECT user_id FROM platform_assignment WHERE user_id=$1",
+            [registered.user.id]
+          )
+        ).rows
+      ).toEqual([])
+      const switchAccount = page.getByRole("button", {
+        name: "تسجيل الخروج واستخدام حساب آخر لتسجيل الدخول",
         exact: true,
       })
-    ).toBeVisible()
-    await expectUI(
-      page.getByText("لا يملك هذا الحساب تكليفًا نشطًا في المنصة.", {
-        exact: true,
-      })
-    ).toBeVisible()
-    await expectUI(
-      page.getByRole("link", { name: "المنظمات", exact: true }).last()
-    ).toHaveCount(0)
-    const switchAccount = page.getByRole("button", {
-      name: "تسجيل الخروج واستخدام حساب آخر لتسجيل الدخول",
-      exact: true,
-    })
-    await switchAccount.focus()
-    await page.keyboard.press("Enter")
-    await expectUI(page).toHaveURL(/\/login$/)
-    await expectUI(
-      page.getByLabel("البريد الإلكتروني", { exact: true })
-    ).toBeVisible()
-  }, 120_000)
+      await switchAccount.focus()
+      await page.keyboard.press("Enter")
+      await expectUI(page).toHaveURL(/\/login$/)
+      await expectUI(
+        page.getByLabel("البريد الإلكتروني", { exact: true })
+      ).toBeVisible()
+    },
+    120_000
+  )
 
   it("enrolls TOTP before showing the platform shell and challenges subsequent sign-ins", async () => {
     const target = account("平台管理员")
@@ -162,7 +249,6 @@ describe("platform MFA browser flow", () => {
     )
     await grant(registered, "platform_admin")
 
-    page = await browser.newPage()
     await page.goto(`${platformOrigin}/platform`)
     await signIn(target)
     await expectUI(

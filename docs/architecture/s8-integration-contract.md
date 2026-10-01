@@ -1,12 +1,12 @@
 # S8 集成约束
 
-依据 [父规格 #8](https://github.com/huanancaoo/enterprise-admin/issues/8) 与 [验证任务 #9](https://github.com/huanancaoo/enterprise-admin/issues/9) 固化。本文记录平台与组织管理的具体权限和实施约束，不表示功能已交付；证据与发布阻塞见 [S8-00 验证](s8-00-validation.md)。
+依据 [父规格 #8](https://github.com/huanancaoo/enterprise-admin/issues/8) 与后续已确认决定固化。本文记录平台与组织管理的具体权限和实施约束；当前证据与边界见 [T01–T28 矩阵](s8-acceptance-matrix.md) 和 [发布验收记录](s8-release-validation.md)。[S8-00 验证](s8-00-validation.md) 保留最初的技术实验，不代表当前实现状态。
 
 ## 平台集成
 
 ### 身份与任职
 
-复用 Better Auth User/Session。平台权限只来自独立的 platform_role_assignments：userId 唯一、role、status、version、grantedAt/By、revokedAt/By；一位用户最多一个当前平台角色。组织 owner/admin、自定义角色同名字符串、metadata、URL、Cookie 和客户端状态都不产生平台任职。保留平台角色名称，禁止租户创建。
+复用 Better Auth User/Session。平台权限只来自独立的 platform_assignment：userId 唯一、role、status、version、grantedAt/By、revokedAt/By；一位用户最多一个当前平台角色。组织 owner/admin、自定义角色同名字符串、metadata、URL、Cookie 和客户端状态都不产生平台任职。保留平台角色名称，禁止租户创建。
 
 平台角色只由受控部署 CLI 授予/撤销：输入精确 userId、role、reason，检查用户存在且邮箱已验证，使用独立部署凭据并在同一事务审计。拒绝在线运行凭据；无授予/撤销 HTTP 接口、首位注册者或邮箱域名自动授权。每次平台请求重新检查权威 Session 和有效任职，撤销后旧 Session 的下一请求被拒绝。
 
@@ -28,7 +28,7 @@
 
 使用 Better Auth 第二因素验证能力，不自建验证码算法。只从成功验证入口建立事实，不能在普通登录、启用 2FA 或可信设备登录时自动授予。轮换产生的新 Session 不继承旧事实；删除/撤销/过期的 Session 不可通过孤立 assurance 放行。每个请求先验证 Session。不同登录方式尚未验证时不得开放平台访问。
 
-当前生产配置未启用 2FA，也没有 assurance 存储。独立插件实验不能替代生产 Drizzle 集成验收，详见验证记录。
+当前生产配置已启用 TOTP，成功验证只为 Better Auth 实际签发的 Session 登记 assurance。生产 HTTP 测试覆盖启用/错误码、成功验证、可信设备、GitHub callback、新旧 Session、过期和撤权；GitHub 提供者响应是专属 fixture，不属于外部服务登录验收。独立插件实验仍不能替代这些生产 Drizzle 集成证据。
 
 ### 状态与版本的唯一来源
 
@@ -85,11 +85,11 @@ owner 可管理 admin/owner，但始终至少保留一个 owner；admin 不能�
 
 ### 唯一集成路径及验证门禁
 
-当前公开 auth API 不加入调用方 Drizzle 事务；after hook 审计失败也不能撤销已提交写入。不能选择“外层 transaction 包 auth.api”作为原子性实现。
+调用方另行创建的 Drizzle 事务不会自动拥有原生 auth 生命周期事务；after hook 审计失败也不能撤销先前已提交写入。项目通过绑定实际客户端的 transactional auth adapter 和原生 endpoint 包装执行受保护生命周期，不能选择“外层 transaction 包 auth.api”作为原子性实现。
 
 采用父规格规定的数据库级不变量保护与同事务审计触发器路径，Better Auth 仍执行生命周期。before hook 负责拒绝非法业务输入，不能用单独 count 代替并发保证；after hook 不承载必须原子的成功审计。数据库保护覆盖 member、invitation、organization_role 的真实写入，包含原生 HTTP、服务器内部调用和退出路径。
 
-身份集成必须把可信 actor、requestId、组织目标和版本传入实际执行 Better Auth 写入的数据库事务/连接；禁止对 Pool 任意连接 SET 后假定下次写入复用该连接。没有可信上下文时拒绝管理写入。该连接绑定在本次尚未证明，后续实现不得宣称可上线。
+身份集成把可信 actor、requestId、组织目标和版本传入实际执行 Better Auth 写入的数据库事务/连接；禁止对 Pool 任意连接 SET 后假定下次写入复用该连接。没有可信上下文时拒绝管理写入。成员、角色、邀请及 Session 更新的真实故障注入与并发测试核对了业务、版本和同事务成功审计；具体场景见验收矩阵。
 
 组织范围锁覆盖 owner 变化、角色定义/引用、邀请状态转换及授权版本比较递增。Member 组织/用户唯一、角色组织/key 唯一、有效邀请唯一均需审查锁定 Schema 的实际约束。邀请过期不能以依赖 now() 的 partial index 解决。角色被成员或有效邀请引用时禁止删除；删除与分配必须在同一串行边界内重查。
 
