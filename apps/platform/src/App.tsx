@@ -125,6 +125,12 @@ export function PlatformLayout() {
           label: t("common:navigation"),
           items: [
             {
+              title: t("organization:audit"),
+              icon: <LayoutDashboardIcon />,
+              isActive: location.pathname.startsWith("/platform/audit-events"),
+              render: <Link to="/platform/audit-events" search={{}} />,
+            },
+            {
               title: t("organization:platformUsers"),
               icon: <LayoutDashboardIcon />,
               isActive: location.pathname.startsWith("/platform/users"),

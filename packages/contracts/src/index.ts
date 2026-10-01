@@ -223,6 +223,82 @@ export const PlatformAccessSchema = z
   })
   .meta({ id: "PlatformAccess" })
 export type PlatformAccess = z.infer<typeof PlatformAccessSchema>
+// 两个审计事实源保留各自身份，避免相同 UUID 在列表和详情中产生歧义。
+export const PlatformAuditEventIdSchema = z
+  .string()
+  .regex(
+    /^(event|assignment):[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+  )
+export const PlatformAuditQuerySchema = z.strictObject({
+  purpose: z.string().trim().min(1).max(500),
+  organizationId: OrganizationIdSchema.optional(),
+  actorId: UserIdSchema.optional(),
+  eventCode: z.string().trim().min(1).max(120).optional(),
+  from: z.iso.datetime({ offset: true }).optional(),
+  to: z.iso.datetime({ offset: true }).optional(),
+  result: AuditResultSchema.optional(),
+  cursor: z.string().min(1).max(2048).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+})
+export type PlatformAuditQuery = z.infer<typeof PlatformAuditQuerySchema>
+export const PlatformAuditCursorSchema = z.strictObject({
+  audience: z.literal("platform-audit"),
+  filters: PlatformAuditQuerySchema.omit({
+    purpose: true,
+    cursor: true,
+  }).extend({
+    from: z.iso.datetime({ offset: true }),
+    to: z.iso.datetime({ offset: true }),
+    limit: z.number().int().min(1).max(100),
+  }),
+  before: z.strictObject({
+    occurredAt: z.iso.datetime({ offset: true }),
+    id: PlatformAuditEventIdSchema,
+  }),
+})
+export type PlatformAuditCursor = z.infer<typeof PlatformAuditCursorSchema>
+
+export const PlatformAuditPurposeSchema = PlatformAuditQuerySchema.pick({
+  purpose: true,
+})
+export const PlatformAuditEventSchema = z
+  .strictObject({
+    id: PlatformAuditEventIdSchema,
+    occurredAt: z.iso.datetime({ offset: true }),
+    scope: z.enum(["tenant", "platform", "user", "security"]),
+    targetOrganization: z
+      .strictObject({
+        organizationId: OrganizationIdSchema,
+        name: z.string().nullable(),
+      })
+      .nullable(),
+    eventCode: z.string(),
+    actorType: z.enum(["user", "deployment_operator", "system"]),
+    actorId: UserIdSchema.nullable(),
+    actorMaskedEmail: z.string().nullable(),
+    resourceType: z.string().nullable(),
+    resourceId: z.uuid().nullable(),
+    result: AuditResultSchema,
+    metadata: z.strictObject({
+      previousRole: z
+        .enum(["platform_admin", "platform_auditor"])
+        .nullable()
+        .optional(),
+      nextRole: z
+        .enum(["platform_admin", "platform_auditor"])
+        .nullable()
+        .optional(),
+    }),
+  })
+  .meta({ id: "PlatformAuditEvent" })
+export type PlatformAuditEvent = z.infer<typeof PlatformAuditEventSchema>
+export const PlatformAuditPageSchema = z
+  .strictObject({
+    items: z.array(PlatformAuditEventSchema),
+    nextCursor: z.string().nullable(),
+  })
+  .meta({ id: "PlatformAuditPage" })
+export type PlatformAuditPage = z.infer<typeof PlatformAuditPageSchema>
 export const PlatformUsersQuerySchema = z.strictObject({
   q: z.string().trim().max(200).optional(),
   page: z.coerce.number().int().min(1).max(2_147_483_647).default(1),

@@ -40,6 +40,7 @@ export const auditEvents = pgTable(
       table.occurredAt,
       table.id
     ),
+    index("audit_events_occurred_id_idx").on(table.occurredAt, table.id),
     check(
       "audit_events_scope_check",
       sql`${table.scope} IN ('tenant', 'platform', 'user', 'security')`

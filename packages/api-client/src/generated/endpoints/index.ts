@@ -1,6 +1,7 @@
 export * from "./locale-settings/locale-settings"
 export * from "./organizations/organizations"
 export * from "./platform/platform"
+export * from "./platform-audit/platform-audit"
 export * from "./platform-organizations/platform-organizations"
 export * from "./platform-users/platform-users"
 export * from "./projects/projects"

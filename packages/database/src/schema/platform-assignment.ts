@@ -1,4 +1,11 @@
-import { pgTable, text, timestamp, uuid, integer } from "drizzle-orm/pg-core"
+import {
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+  integer,
+  index,
+} from "drizzle-orm/pg-core"
 import { session, user } from "./auth.ts"
 
 export const platformAssignment = pgTable("platform_assignment", {
@@ -29,16 +36,27 @@ export const platformSessionAssurance = pgTable("platform_session_assurance", {
   method: text("method", { enum: ["totp"] }).notNull(),
 })
 
-export const platformAssignmentAudit = pgTable("platform_assignment_audit", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id").notNull(),
-  action: text("action", { enum: ["grant", "revoke"] }).notNull(),
-  previousRole: text("previous_role", {
-    enum: ["platform_admin", "platform_auditor"],
-  }),
-  nextRole: text("next_role", { enum: ["platform_admin", "platform_auditor"] }),
-  result: text("result", { enum: ["changed", "no_change"] }).notNull(),
-  reason: text("reason").notNull(),
-  actor: text("actor").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
-})
+export const platformAssignmentAudit = pgTable(
+  "platform_assignment_audit",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull(),
+    action: text("action", { enum: ["grant", "revoke"] }).notNull(),
+    previousRole: text("previous_role", {
+      enum: ["platform_admin", "platform_auditor"],
+    }),
+    nextRole: text("next_role", {
+      enum: ["platform_admin", "platform_auditor"],
+    }),
+    result: text("result", { enum: ["changed", "no_change"] }).notNull(),
+    reason: text("reason").notNull(),
+    actor: text("actor").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index("platform_assignment_audit_created_id_idx").on(
+      table.createdAt,
+      table.id
+    ),
+  ]
+)

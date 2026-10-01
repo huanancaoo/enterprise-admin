@@ -61,3 +61,7 @@ export {
   suspendPlatformOrganization,
   resumePlatformOrganization,
 } from "./generated/endpoints/platform-organizations/platform-organizations"
+export {
+  listPlatformAuditEvents,
+  getPlatformAuditEvent,
+} from "./generated/endpoints/platform-audit/platform-audit"

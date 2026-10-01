@@ -16,6 +16,7 @@ import {
   PlatformAccessSchema,
   PlatformOrganizationQuerySchema,
   PlatformUsersQuerySchema,
+  PlatformAuditQuerySchema,
   type PlatformAccess,
 } from "@workspace/contracts"
 import {
@@ -38,6 +39,8 @@ import {
   PlatformResetPasswordPage,
 } from "./App"
 import { authClient } from "./lib/auth-client"
+
+import { PlatformAuditPage } from "./features/audit/page"
 
 const rootRoute = createRootRouteWithContext<WorkspaceRouterContext>()({
   component: App,
@@ -154,6 +157,15 @@ const platformUserDetailRoute = createRoute({
   path: "users/$userId",
   component: PlatformUserDetailPage,
 })
+const platformAuditRoute = createRoute({
+  getParentRoute: () => platformRoute,
+  path: "audit-events",
+  validateSearch: (search) =>
+    PlatformAuditQuerySchema.omit({ purpose: true, cursor: true }).parse(
+      search
+    ),
+  component: PlatformAuditPage,
+})
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
@@ -177,6 +189,7 @@ export const router = createRouter({
       platformOrganizationDetailRoute,
       platformUsersRoute,
       platformUserDetailRoute,
+      platformAuditRoute,
     ]),
   ]),
   context: {

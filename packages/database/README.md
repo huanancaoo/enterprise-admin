@@ -105,6 +105,14 @@ MIGRATION_DATABASE_URL='postgresql://app_migrator:...@db/enterprise_admin' pnpm 
 
 完整邮箱由独立 `get_platform_sensitive_profile` 固定函数读取，要求当前有效平台管理员和已验证的 Session MFA，每次携带非空目的。固定函数先提交一次私有敏感读取审计，再返回邮箱；审计失败返回 `AUDIT_UNAVAILABLE`。访问审计只存操作者、目标用户 ID 和输入目的，不存完整邮箱快照。API 响应禁止缓存；前端完整邮箱只保存在本次展开的组件状态中，关闭后销毁，不进入目录 Query Cache。
 
+### 平台跨组织审计
+
+迁移 `0033`–`0035` 为获准运营审计增加全局时间索引、固定 list/get 函数和最小列权限。管理员、审计员均需当前有效任职与 Session MFA，每个请求携带目的；固定函数成功写入一次私有访问审计后才返回，审计故障不返回受限结果。
+
+查询范围固定为批准目录中的组织管理与平台运营事件，以及部署 CLI 原有任职审计。带来源的事件 ID 保留两类历史事实身份；响应不含完整邮箱、内部理由、部署操作者字符串或原始 metadata。`platform_audit_projection` 为受限 executor 的 security_invoker 视图，运行角色不能直接读取；新增策略不放宽 Projects 或租户运行角色 RLS。
+
+默认最近 30 天、最多 90 天及未来时间拒绝由数据库同一时钟决定；API 只传递筛选并签名冻结窗口的游标，不用主机时差改变业务窗口。验收记录见 [S8 平台审计验证](../../docs/architecture/s8-platform-audit-validation.md)。
+
 服务端通过 `createDatabase(runtimeUrl)` 获取 `pool` 和类型化 `db`，调用者在退出时执行 `pool.end()`。包不会自动连接或读取迁移变量。`createAuth` 需要注入 `SecondaryStorage` 与 `trustedProxies`；HTTP 运行时由 API 从 `REDIS_URL` 与 `BETTER_AUTH_TRUSTED_PROXIES` 接入。
 
 ## 验收

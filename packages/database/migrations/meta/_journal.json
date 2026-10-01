@@ -232,6 +232,27 @@
       "when": 1790866613229,
       "tag": "0032_sensitive-profile-audit-event",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1790867902776,
+      "tag": "0033_platform-audit-indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1790867903530,
+      "tag": "0034_platform-audit-queries",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1790871512403,
+      "tag": "0035_platform-audit-clock",
+      "breakpoints": true
     }
   ]
 }
