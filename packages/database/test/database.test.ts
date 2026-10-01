@@ -229,6 +229,7 @@ describe(suiteName, { concurrent: false }, () => {
         "audit_events",
         "invitation_delivery_attempts",
         "invitation_send_events",
+        "operation_receipts",
         "organization_status",
         "platform_assignment",
         "platform_assignment_audit",
@@ -399,6 +400,61 @@ describe(suiteName, { concurrent: false }, () => {
         [`public."${table}"`]
       )
       assert.equal(rows[0].allowed, true, table)
+    }
+  })
+
+  test("组织运营只经受限固定函数进入，收据没有运行时表权限", async () => {
+    const names = [
+      "list_platform_organizations",
+      "get_platform_organization",
+      "transition_platform_organization",
+      "record_platform_organization_failure",
+      "require_platform_organization_access",
+    ]
+    const functions = (
+      await owner.query(
+        `SELECT p.proname, p.prosecdef, p.proconfig, r.rolname AS owner,
+      has_function_privilege('app_runtime', p.oid, 'EXECUTE') AS runtime,
+      has_function_privilege('platform_runtime', p.oid, 'EXECUTE') AS legacy,
+      EXISTS (SELECT 1 FROM aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner)))
+        WHERE grantee = 0 AND privilege_type = 'EXECUTE') AS public
+      FROM pg_proc AS p JOIN pg_namespace AS n ON n.oid = p.pronamespace
+      JOIN pg_roles AS r ON r.oid = p.proowner WHERE n.nspname = 'public' AND p.proname = ANY($1::text[])`,
+        [names]
+      )
+    ).rows
+    assert.equal(functions.length, names.length)
+    for (const fn of functions) {
+      assert.equal(fn.owner, "platform_executor")
+      assert.equal(fn.prosecdef, true)
+      assert.deepEqual(fn.proconfig, [
+        "search_path=pg_catalog",
+        "row_security=on",
+      ])
+      assert.equal(
+        fn.runtime,
+        fn.proname !== "require_platform_organization_access"
+      )
+      assert.equal(fn.legacy, false)
+      assert.equal(fn.public, false)
+    }
+    for (const pool of [runtime, platform, deployer]) {
+      const permissions = (
+        await pool.query(`SELECT has_table_privilege(current_user, 'operation_receipts', 'SELECT') AS read,
+        has_table_privilege(current_user, 'operation_receipts', 'INSERT') AS insert,
+        has_table_privilege(current_user, 'operation_receipts', 'UPDATE') AS update,
+        has_table_privilege(current_user, 'operation_receipts', 'DELETE') AS delete`)
+      ).rows[0]
+      assert.deepEqual(permissions, {
+        read: false,
+        insert: false,
+        update: false,
+        delete: false,
+      })
+      await assert.rejects(
+        pool.query("SELECT * FROM public.operation_receipts"),
+        { code: "42501" }
+      )
     }
   })
 

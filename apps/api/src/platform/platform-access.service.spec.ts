@@ -94,10 +94,14 @@ describe('PlatformGuard recent MFA policy', () => {
       const guard = new PlatformGuard(
         identityService as unknown as IdentityService,
         access as unknown as PlatformAccessService,
+        { trustedOrigins: ['http://localhost:3201'] } as unknown as AuthRuntime,
       );
       const execution = {
         switchToHttp: () => ({
-          getRequest: () => ({ headers: {}, method }),
+          getRequest: () => ({
+            headers: { origin: 'http://localhost:3201' },
+            method,
+          }),
         }),
       } as unknown as ExecutionContext;
 

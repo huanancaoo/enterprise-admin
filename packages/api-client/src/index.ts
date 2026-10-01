@@ -50,3 +50,9 @@ export {
 } from "./query/locale-settings"
 
 export { createProjectMutations } from "./query/project-mutations"
+export {
+  listPlatformOrganizations,
+  getPlatformOrganization,
+  suspendPlatformOrganization,
+  resumePlatformOrganization,
+} from "./generated/endpoints/platform-organizations/platform-organizations"

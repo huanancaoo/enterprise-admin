@@ -12,7 +12,15 @@ import {
 import { ForgotPasswordPage } from "@workspace/admin/auth"
 import type { WorkspaceRouterContext } from "@workspace/admin/auth"
 import { ApiClientError, apiClient } from "@workspace/api-client"
-import { PlatformAccessSchema, type PlatformAccess } from "@workspace/contracts"
+import {
+  PlatformAccessSchema,
+  PlatformOrganizationQuerySchema,
+  type PlatformAccess,
+} from "@workspace/contracts"
+import {
+  PlatformOrganizationsPage,
+  PlatformOrganizationDetailPage,
+} from "./features/organizations/pages"
 import {
   App,
   PlatformAuthTitlePage,
@@ -24,6 +32,7 @@ import {
   PlatformAccessDeniedPage,
   PlatformResetPasswordPage,
 } from "./App"
+import { authClient } from "./lib/auth-client"
 
 const rootRoute = createRootRouteWithContext<WorkspaceRouterContext>()({
   component: App,
@@ -84,7 +93,19 @@ const platformRoute = createRoute({
       )
       return { platformAccess: PlatformAccessSchema.parse(response.data) }
     } catch (error) {
+      if (
+        error instanceof ApiClientError &&
+        [401, 403].includes(error.status)
+      ) {
+        await context.queryClient.cancelQueries({
+          queryKey: ["platform", context.user.id],
+        })
+        context.queryClient.removeQueries({
+          queryKey: ["platform", context.user.id],
+        })
+      }
       if (error instanceof ApiClientError && error.status === 401) {
+        authClient.$store.notify("$sessionSignal")
         throw redirect({ to: "/login" })
       }
       if (
@@ -106,6 +127,17 @@ const platformIndexRoute = createRoute({
   path: "/",
   component: PlatformHome,
 })
+const platformOrganizationsRoute = createRoute({
+  getParentRoute: () => platformRoute,
+  path: "organizations",
+  validateSearch: (search) => PlatformOrganizationQuerySchema.parse(search),
+  component: PlatformOrganizationsPage,
+})
+const platformOrganizationDetailRoute = createRoute({
+  getParentRoute: () => platformRoute,
+  path: "organizations/$organizationId",
+  component: PlatformOrganizationDetailPage,
+})
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
@@ -123,7 +155,11 @@ export const router = createRouter({
     platformAccessDeniedRoute,
     resetPasswordRoute,
     emailVerifiedRoute,
-    platformRoute.addChildren([platformIndexRoute]),
+    platformRoute.addChildren([
+      platformIndexRoute,
+      platformOrganizationsRoute,
+      platformOrganizationDetailRoute,
+    ]),
   ]),
   context: {
     user: null,

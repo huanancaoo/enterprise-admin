@@ -1,4 +1,5 @@
 export * from "./locale-settings/locale-settings"
 export * from "./organizations/organizations"
 export * from "./platform/platform"
+export * from "./platform-organizations/platform-organizations"
 export * from "./projects/projects"

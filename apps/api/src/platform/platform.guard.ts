@@ -3,6 +3,7 @@ import {
   CanActivate,
   createParamDecorator,
   ExecutionContext,
+  ForbiddenException,
   HttpException,
   Injectable,
   InternalServerErrorException,
@@ -12,6 +13,7 @@ import { fromNodeHeaders } from 'better-auth/node';
 import type { Request, Response } from 'express';
 import type { Identity } from '../identity/identity.service';
 import { IdentityService } from '../identity/identity.service';
+import { AuthRuntime } from '../identity/auth-runtime';
 import {
   PlatformAccessService,
   type PlatformPrincipal,
@@ -25,6 +27,7 @@ export class PlatformGuard implements CanActivate {
   constructor(
     private readonly identity: IdentityService,
     private readonly access: PlatformAccessService,
+    private readonly runtime: AuthRuntime,
   ) {}
 
   async canActivate(execution: ExecutionContext): Promise<boolean> {
@@ -33,6 +36,14 @@ export class PlatformGuard implements CanActivate {
     let actor: Identity | undefined;
     try {
       actor = await this.identity.requireIdentity(headers);
+      // Cookie 写请求必须来自配置的可信 Origin，MFA 不替代 CSRF 校验。
+      if (
+        !['GET', 'HEAD', 'OPTIONS'].includes(request.method) &&
+        (!request.headers.origin ||
+          !this.runtime.trustedOrigins.includes(request.headers.origin))
+      ) {
+        throw new ForbiddenException();
+      }
       request[trustedPlatform] = await this.access.requireAccess(
         actor,
         !['GET', 'HEAD', 'OPTIONS'].includes(request.method),

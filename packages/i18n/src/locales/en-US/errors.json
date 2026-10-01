@@ -4,6 +4,7 @@
   "AUTHORIZATION_VERSION_CONFLICT": "Authorization changed. Refresh and try again.",
   "EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION": "Verify your email before handling this invitation.",
   "FORBIDDEN": "Access denied",
+  "IDEMPOTENCY_KEY_REUSED": "This idempotency key was used for a different request. Confirm the operation again.",
   "INTERNAL_ERROR": "Internal server error",
   "INVALID_MEMBER_QUERY": "Invalid member directory query",
   "INVITATION_ALREADY_PENDING": "This email has an active invitation. Resend the existing invitation.",

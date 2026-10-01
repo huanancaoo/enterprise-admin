@@ -105,6 +105,7 @@ function suppressable(hooks: AuthEmailHooks): AuthEmailHooks {
 }
 
 export class AuthRuntime implements OnApplicationShutdown {
+  readonly trustedOrigins: readonly string[];
   readonly pool: ReturnType<typeof createDatabase>['pool'];
   readonly auth: ReturnType<typeof createAuth>;
   readonly auditCursorKey: Buffer;
@@ -114,6 +115,10 @@ export class AuthRuntime implements OnApplicationShutdown {
     config: AuthConfig,
     emailHooks: (pool: AuthRuntime['pool']) => AuthEmailHooks,
   ) {
+    this.trustedOrigins = [
+      new URL(config.baseURL).origin,
+      ...config.trustedOrigins,
+    ];
     this.auditCursorKey = createHmac('sha256', config.secret)
       .update('enterprise-admin:audit-event-cursor:v1')
       .digest();

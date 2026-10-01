@@ -10,6 +10,7 @@ import {
   AlertDialogTrigger,
 } from "@workspace/ui/components/alert-dialog"
 import { Button } from "@workspace/ui/components/button"
+import type { ReactNode } from "react"
 
 export type ConfirmDangerActionProps = {
   triggerLabel: string
@@ -20,7 +21,11 @@ export type ConfirmDangerActionProps = {
   pendingLabel: string
   error?: string
   pending?: boolean
+  confirmDisabled?: boolean
   onConfirm: () => void
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  children?: ReactNode
 }
 
 export function ConfirmDangerAction({
@@ -32,10 +37,19 @@ export function ConfirmDangerAction({
   pendingLabel,
   error,
   pending = false,
+  confirmDisabled = false,
   onConfirm,
+  open,
+  onOpenChange,
+  children,
 }: ConfirmDangerActionProps) {
   return (
-    <AlertDialog>
+    <AlertDialog
+      open={open}
+      onOpenChange={(value) => {
+        if (!pending) onOpenChange?.(value)
+      }}
+    >
       <AlertDialogTrigger
         render={
           <Button
@@ -51,6 +65,7 @@ export function ConfirmDangerAction({
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
+        {children}
         {error && <p role="alert">{error}</p>}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={pending}>
@@ -59,7 +74,7 @@ export function ConfirmDangerAction({
           <AlertDialogAction
             variant="destructive"
             className="bg-destructive text-white hover:bg-destructive/90"
-            disabled={pending}
+            disabled={pending || confirmDisabled}
             onClick={onConfirm}
           >
             {pending ? pendingLabel : confirmLabel}

@@ -95,7 +95,11 @@ MIGRATION_DATABASE_URL='postgresql://app_migrator:...@db/enterprise_admin' pnpm 
 | `platform_deployer` | 登录用户、查询目标邮箱验证状态、grant/revoke 平台任职并追加内部审计；没有 DDL 或其他应用表权限                         |
 | `platform_executor` | `NOLOGIN` 函数所有者；只获得固定平台函数读取所需列权限，不是运行时账号                                                 |
 
-组织运营状态的唯一来源是 `organization_status`（ACTIVE/SUSPENDED 及授权版本）。新组织由 INSERT 触发器初始化为 ACTIVE；缺失状态拒绝访问。`app_runtime` 可读状态与授权版本、可更新 `authorization_version`，不能改 `status`；`platform_runtime` 不能读写该表。平台停用/恢复 HTTP 仍属于后续任务；测试用 migrator 夹具布置状态。
+组织运营状态的唯一来源是 `organization_status`（ACTIVE/SUSPENDED 及授权版本）。新组织由 INSERT 触发器初始化为 ACTIVE；缺失状态拒绝访问。`app_runtime` 可读状态与授权版本、可更新 `authorization_version`，不能直接改 `status`；`platform_runtime` 不能读写该表。
+
+迁移 `0028`–`0030` 提供组织运营查询与启停固定函数，API 通过 `/api/v1/platform/organizations` 调用。查询只投影组织元数据、成员角色计数与启停历史，不返回成员身份字段或 Projects。固定函数由受限 `platform_executor` 执行，设置固定 search_path、启用 row_security 并撤销 PUBLIC 执行权限；`app_runtime` 仅有函数调用权限，不能直接读写 `operation_receipts`。
+
+停用和恢复要求当前平台管理员、15 分钟内的 Session MFA、理由、预期状态版本及幂等键。函数与租户写入锁定同一组织状态行，在同一事务提交状态、成功审计与 24 小时幂等收据；等锁后再次查权，旧收据不能绕过撤权。目标状态未变时记录私有的 `no_change` 尝试，不增加状态版本或重复生成启停事件。运营读取先写成功审计才返回投影；查询和启停失败的审计独立提交，审计不可用时返回失败。恢复只改变运营状态，不延长邀请或重建已移除的成员和平台任职。
 
 服务端通过 `createDatabase(runtimeUrl)` 获取 `pool` 和类型化 `db`，调用者在退出时执行 `pool.end()`。包不会自动连接或读取迁移变量。`createAuth` 需要注入 `SecondaryStorage` 与 `trustedProxies`；HTTP 运行时由 API 从 `REDIS_URL` 与 `BETTER_AUTH_TRUSTED_PROXIES` 接入。
 

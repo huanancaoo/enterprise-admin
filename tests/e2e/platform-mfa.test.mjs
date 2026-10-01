@@ -138,7 +138,7 @@ describe("platform MFA browser flow", () => {
       })
     ).toBeVisible()
     await expectUI(
-      page.getByText("ميزات المنصة غير متاحة بعد.", { exact: true })
+      page.getByRole("link", { name: "المنظمات", exact: true }).last()
     ).toHaveCount(0)
     const switchAccount = page.getByRole("button", {
       name: "تسجيل الخروج واستخدام حساب آخر لتسجيل الدخول",
@@ -169,7 +169,7 @@ describe("platform MFA browser flow", () => {
       page.getByRole("heading", { name: "设置平台双重验证", exact: true })
     ).toBeVisible()
     await expectUI(
-      page.getByText("平台功能尚未开放。", { exact: true })
+      page.getByRole("link", { name: "组织", exact: true }).last()
     ).toHaveCount(0)
 
     await page.getByLabel("密码", { exact: true }).fill(target.password)
@@ -188,7 +188,7 @@ describe("platform MFA browser flow", () => {
       page.getByText("平台管理员 · 全平台范围", { exact: true })
     ).toBeVisible()
     await expectUI(
-      page.getByText("平台功能尚未开放。", { exact: true })
+      page.getByRole("link", { name: "组织", exact: true }).last()
     ).toBeVisible()
     await environment.migrator.query(
       'UPDATE public."user" SET preferred_locale = $2 WHERE id = $1',
@@ -242,7 +242,7 @@ describe("platform MFA browser flow", () => {
       page.getByText("مسؤول المنصة · نطاق المنصة بالكامل", { exact: true })
     ).toBeVisible()
     await expectUI(
-      page.getByText("ميزات المنصة غير متاحة بعد.", { exact: true })
+      page.getByRole("link", { name: "المنظمات", exact: true }).last()
     ).toBeVisible()
     await expectUI(page.locator("html")).toHaveAttribute("lang", "ar")
     await expectUI(page.locator("html")).toHaveAttribute("dir", "rtl")

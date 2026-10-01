@@ -8,6 +8,7 @@ import {
   useNavigate,
   useRouteContext,
   useSearch,
+  useLocation,
 } from "@tanstack/react-router"
 import { useForm } from "@tanstack/react-form"
 import { z } from "zod"
@@ -35,7 +36,7 @@ import {
 } from "@workspace/ui/components/field"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
-import { LayoutDashboardIcon } from "lucide-react"
+import { BuildingIcon, LayoutDashboardIcon } from "lucide-react"
 import { authClient } from "./lib/auth-client"
 
 export function App() {
@@ -91,7 +92,8 @@ export function PlatformLoginPage() {
 }
 
 export function PlatformLayout() {
-  const { t } = useTranslation(["auth", "common"])
+  const { t } = useTranslation(["auth", "common", "organization"])
+  const location = useLocation()
   const session = useAuthenticatedSession()!
   const { platformAccess } = useRouteContext({ from: "/platform" })
   return (
@@ -125,8 +127,24 @@ export function PlatformLayout() {
             {
               title: t("auth:platformTitle"),
               icon: <LayoutDashboardIcon />,
-              isActive: true,
+              isActive: location.pathname === "/platform",
               render: <Link to="/platform" />,
+            },
+            {
+              title: t("organization:platformOrganizations"),
+              icon: <BuildingIcon />,
+              isActive: location.pathname.startsWith("/platform/organizations"),
+              render: (
+                <Link
+                  to="/platform/organizations"
+                  search={{
+                    page: 1,
+                    pageSize: 20,
+                    sortBy: "createdAt",
+                    sortOrder: "desc",
+                  }}
+                />
+              ),
             },
           ],
         },
@@ -376,11 +394,22 @@ export function PlatformAccessDeniedPage() {
 }
 
 export function PlatformHome() {
-  const { t } = useTranslation("auth")
+  const { t } = useTranslation(["auth", "organization"])
   return (
     <div className="space-y-3">
-      <h1 className="text-2xl font-semibold">{t("signedIn")}</h1>
-      <p className="text-muted-foreground">{t("platformUnavailable")}</p>
+      <h1 className="text-2xl font-semibold">{t("auth:signedIn")}</h1>
+      <Link
+        className="underline"
+        to="/platform/organizations"
+        search={{
+          page: 1,
+          pageSize: 20,
+          sortBy: "createdAt",
+          sortOrder: "desc",
+        }}
+      >
+        {t("organization:platformOrganizations")}
+      </Link>
     </div>
   )
 }

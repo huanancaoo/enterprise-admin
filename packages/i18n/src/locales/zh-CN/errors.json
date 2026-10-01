@@ -4,6 +4,7 @@
   "AUTHORIZATION_VERSION_CONFLICT": "授权已变更，请刷新后重试",
   "EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION": "请先验证邮箱再处理邀请",
   "FORBIDDEN": "无权访问此资源",
+  "IDEMPOTENCY_KEY_REUSED": "此幂等键已用于不同请求，请重新确认操作。",
   "INTERNAL_ERROR": "服务器内部错误",
   "INVALID_MEMBER_QUERY": "成员目录查询无效",
   "INVITATION_ALREADY_PENDING": "该邮箱已有有效邀请，请重发已有邀请。",

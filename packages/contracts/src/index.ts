@@ -222,6 +222,86 @@ export const PlatformAccessSchema = z
   })
   .meta({ id: "PlatformAccess" })
 export type PlatformAccess = z.infer<typeof PlatformAccessSchema>
+export const PlatformOrganizationQuerySchema = z.strictObject({
+  q: z.string().trim().max(200).optional(),
+  status: OrganizationStatusSchema.optional(),
+  page: z.coerce.number().int().min(1).max(2_147_483_647).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  sortBy: z
+    .enum(["name", "slug", "createdAt", "memberCount"])
+    .default("createdAt"),
+  sortOrder: z.enum(["asc", "desc"]).default("desc"),
+})
+export type PlatformOrganizationQuery = z.infer<
+  typeof PlatformOrganizationQuerySchema
+>
+export const PlatformOrganizationSchema = OrganizationSummarySchema.extend({
+  createdAt: z.iso.datetime({ offset: true }),
+  memberCount: z.number().int().min(0),
+  version: z.number().int().min(1),
+}).meta({ id: "PlatformOrganization" })
+export const PlatformOrganizationPageSchema = z
+  .strictObject({
+    items: z.array(PlatformOrganizationSchema),
+    page: z.number().int().min(1),
+    pageSize: z.number().int().min(1).max(100),
+    total: z.number().int().min(0),
+  })
+  .meta({ id: "PlatformOrganizationPage" })
+export type PlatformOrganizationPage = z.infer<
+  typeof PlatformOrganizationPageSchema
+>
+export const PlatformOrganizationDetailSchema =
+  PlatformOrganizationSchema.extend({
+    defaultLocale: SupportedLocaleSchema.nullable(),
+    statusChangedAt: z.iso.datetime({ offset: true }),
+    members: z.array(
+      z.strictObject({ role: z.string(), count: z.number().int().min(0) })
+    ),
+    history: z.array(
+      z.strictObject({
+        id: z.uuid(),
+        occurredAt: z.iso.datetime({ offset: true }),
+        eventCode: z.enum([
+          "platform.organization_suspended",
+          "platform.organization_resumed",
+        ]),
+        actorId: z.uuid().nullable(),
+        result: AuditResultSchema,
+        operationId: z.string(),
+      })
+    ),
+  }).meta({ id: "PlatformOrganizationDetail" })
+export type PlatformOrganizationDetail = z.infer<
+  typeof PlatformOrganizationDetailSchema
+>
+export const TransitionOrganizationSchema = z
+  .strictObject({
+    reason: z.string().trim().min(10).max(500),
+    expectedVersion: z.number().int().min(1).max(2_147_483_647),
+  })
+  .meta({ id: "TransitionOrganization" })
+export type TransitionOrganization = z.infer<
+  typeof TransitionOrganizationSchema
+>
+export const IdempotencyKeySchema = z
+  .string()
+  .min(1)
+  .max(128)
+  .regex(/^[A-Za-z0-9:_-]+$/)
+export const OrganizationTransitionResultSchema = z
+  .strictObject({
+    organizationId: OrganizationIdSchema,
+    status: OrganizationStatusSchema,
+    version: z.number().int().min(1),
+    changed: z.boolean(),
+    result: z.enum(["succeeded", "no_change"]),
+    operationId: z.uuid(),
+  })
+  .meta({ id: "OrganizationTransitionResult" })
+export type OrganizationTransitionResult = z.infer<
+  typeof OrganizationTransitionResultSchema
+>
 export const ApiErrorCodeSchema = z
   .enum([
     "VALIDATION_ERROR",
@@ -233,6 +313,7 @@ export const ApiErrorCodeSchema = z
     "AUTHORIZATION_UNAVAILABLE",
     "AUDIT_UNAVAILABLE",
     "VERSION_CONFLICT",
+    "IDEMPOTENCY_KEY_REUSED",
     "INTERNAL_ERROR",
   ])
   .meta({ id: "ApiErrorCode" })
