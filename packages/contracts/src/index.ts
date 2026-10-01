@@ -118,6 +118,21 @@ export const OrganizationAccessSchema = z
   })
   .meta({ id: "OrganizationAccess" })
 export type OrganizationAccess = z.infer<typeof OrganizationAccessSchema>
+
+export const OrganizationRoleAccessSchema = z
+  .strictObject({
+    canRead: z.boolean(),
+    canCreate: z.boolean(),
+    canUpdate: z.boolean(),
+    canDelete: z.boolean(),
+    grantablePermissions: z.array(
+      z.strictObject({ resource: z.string(), action: z.string() })
+    ),
+  })
+  .meta({ id: "OrganizationRoleAccess" })
+export type OrganizationRoleAccess = z.infer<
+  typeof OrganizationRoleAccessSchema
+>
 export const MyPreferencesSchema = z
   .strictObject({
     preferredLocale: SupportedLocaleSchema.nullable(),

@@ -5,7 +5,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import type { TFunction } from "@workspace/i18n"
 import * as z from "zod"
-import { PageHeader, PermissionDeniedState } from "@workspace/admin"
+import { ErrorState, PageHeader, PermissionDeniedState } from "@workspace/admin"
+import { ApiClientError } from "@workspace/api-client"
 import { authErrorMessage } from "@workspace/admin/auth"
 import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
@@ -158,7 +159,13 @@ export function RolesRoute() {
     },
   })
   if (access.isPending) return <div role="status">{t("common:loading")}</div>
-  if (access.error) return <PermissionDeniedState />
+  if (access.error)
+    return access.error instanceof ApiClientError &&
+      access.error.body.code === "FORBIDDEN" ? (
+      <PermissionDeniedState />
+    ) : (
+      <ErrorState onRetry={() => void access.refetch()} />
+    )
   if (!access.data?.canRead) return <PermissionDeniedState />
 
   return (

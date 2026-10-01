@@ -72,7 +72,14 @@ describe("S8-09：浏览器中的个人与组织语言设置", () => {
     await localeSelect.focus()
     await expectUI(localeSelect).toBeFocused()
     await localeSelect.press("Enter")
+    // 菜单通过动画帧转移焦点；后续按键必须等待选项实际获得焦点。
+    await expectUI(
+      page.getByRole("option", { name: "跟随组织或平台默认值", exact: true })
+    ).toBeFocused()
     await page.keyboard.press("End")
+    await expectUI(
+      page.getByRole("option", { name: "العربية", exact: true })
+    ).toBeFocused()
     await page.keyboard.press("Enter")
     await expectUI(localeSelect).toContainText("العربية")
     await page.getByRole("button", { name: "保存", exact: true }).click()

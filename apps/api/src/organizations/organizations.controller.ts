@@ -21,8 +21,10 @@ import {
   OrganizationAccessSchema,
   OrganizationIdSchema,
   OrganizationListSchema,
+  OrganizationRoleAccessSchema,
   type OrganizationAccess,
   type OrganizationList,
+  type OrganizationRoleAccess,
   type AuditEvent,
   type AuditEventsPage,
   type AuditEventsQuery,
@@ -94,6 +96,39 @@ export class OrganizationsController {
       effectiveLocale: effective.locale,
       effectiveLocaleSource: effective.source,
     };
+  }
+
+  @Get('organizations/:organizationId/role-access')
+  @Header('Cache-Control', 'private, no-store')
+  @ApiOperation({ operationId: 'getOrganizationRoleAccess' })
+  @ApiResponse({ status: 200, standardSchema: OrganizationRoleAccessSchema })
+  @ApiResponse({ status: 400, standardSchema: ApiErrorSchema })
+  @ApiResponse({ status: 401, standardSchema: ApiErrorSchema })
+  @ApiResponse({ status: 403, standardSchema: ApiErrorSchema })
+  @ApiResponse({ status: 503, standardSchema: ApiErrorSchema })
+  @ApiResponse({ status: 500, standardSchema: ApiErrorSchema })
+  async roleAccess(
+    @Param('organizationId', { schema: OrganizationIdSchema })
+    organizationId: string,
+    @Headers() headers: IncomingHttpHeaders,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<OrganizationRoleAccess> {
+    const authHeaders = fromNodeHeaders(headers);
+    const actor = await this.identity.requireIdentity(authHeaders);
+    const membership = await this.identity.requireOrganizationMembership(
+      organizationId,
+      actor,
+      response.locals.requestId as string,
+    );
+    const language = getRequestLanguage(response);
+    language.useUserPreference(actor.preferredLocale);
+    language.useOrganizationDefault(membership.defaultLocale);
+    if (membership.status !== 'ACTIVE')
+      throw new ApiException(403, 'ORGANIZATION_SUSPENDED');
+    return this.identity.readOrganizationRoleAccess(
+      authHeaders,
+      organizationId,
+    );
   }
 
   @Get('organizations/:organizationId/audit-events')

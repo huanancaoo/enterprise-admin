@@ -1,6 +1,6 @@
 # S8 跨功能与发布验收记录
 
-日期：2026-10-02。对应 [#24](https://github.com/huanancaoo/enterprise-admin/issues/24)。本记录目前只确认迁移安全与固定规模 HTTP 性能，本任务仍未完成；完整组合业务、缓存与三语稳定性、回退门禁、T01–T28 对照及 ADR 收尾继续阻塞 #24 与父任务 #8 的关闭。
+日期：2026-10-02。对应 [#24](https://github.com/huanancaoo/enterprise-admin/issues/24)。本记录确认迁移安全、固定规模 HTTP 性能及下文列出的组合浏览器流程。安全回退门禁、T01–T28 全项证据对照和 ADR 收尾仍未完成，#24 与父任务 #8 继续保持开放。
 
 ## 迁移安全
 
@@ -44,12 +44,29 @@
 
 真实 API 回归 `tests/api/platform-audit.test.mjs` 8 项通过：保留原权限/撤权、固定窗口、投影脱敏、审计故障与共享 Pool 隔离测试；新增同一时间戳的两类来源跨页、组织/actor/result 筛选、列表与详情一致性及内部理由不泄露。查询失败时仍不返回受限数据。
 
+## 组合浏览器验收
+
+`tests/e2e/s8-integration.test.mjs` 使用生产构建 SPA、真实 API/PostgreSQL、Redis、Mailpit 与邮件 Worker，6 项通过：
+
+- 组织访问、无组织账号个人偏好分别延后真实 HTTP 响应；用户先在页面选阿语，响应返回后仍保持阿语与 RTL。原组织场景已稳定复现迟到响应把阿语改回中文；修正登记继承基线，初始化期间的显式手选优先。
+- 所有者从成员页面发邀请；新收件人从公开页面注册，访问真实 SMTP 邮件中的验证链接，再登录接受邀请。通过正式页面分配自定义角色、成功编辑项目、收回编辑权限；撤权前已打开的草稿下一次提交得到 403，原描述不变。引用阻止删除角色；移除成员的原生 HTTP 成功后旧 Cookie 请求得到 403，页面清掉项目内容；解除引用后删除角色成功。收件人未以 SQL 直接置已验证。
+- 同一浏览器上下文两个标签停留不同组织，共享 Session 的 activeOrganization 改成 B 后，A 标签仍按 URL 读写 A；列表与 HTTP 持久化事实分别核对。B 退出后历史返回和 A 标签均回登录，旧缓存不展示，HTTP 返回 401。
+- 权限读取的 429 展示可重试读取错误，成功重试真实服务端后恢复角色页面。此项使用浏览器响应拦截验证异常展示，不作为授权验收。
+- 平台任职由真实部署 CLI 授予；平台页面完成登录、TOTP 启用和验证码验证后才展示运营导航。页面停用组织后旧租户会话 HTTP 403 且刷新页面清掉项目；页面恢复后同一会话 HTTP 200，项目仍可见。租户审计页面显示两次平台状态事件，列表响应和详情不含内部原因。
+
+连续流程另实际发现权限请求扇出：角色页面每次分别请求 17 个原生权限判断，完整操作在限流窗口中触发 `has-permission` 的 429，角色页面错误显示无权访问并卸载操作弹层。正式修正使用固定的 `role-access` 读取，将判断合并为一个 HTTP 请求，内部仍调用原生授权。完整流程未关闭或提高原生限流，未插入等待跨过限流窗口。
+
+`tests/api/organization-role-access.test.mjs` 4 项真实 HTTP 验证通过：固定 Schema 与 no-store、owner/admin/member/动态角色的实际权限、匿名/跨组织拒绝、同一 Cookie 动态撤权和成员移除、组织停用拒绝。普通 member 原本具有 `ac:read`，其写动作仍为 false；结果不由前端角色名称推断。
+
+完整浏览器回归曾在个人语言设置的键盘选择处失败。延迟测试浏览器动画帧 150ms 后稳定复现：End 和第二个 Enter 仍发送到触发按钮，而非选项。该用例补充打开后的继承选项焦点、End 后的阿语选项焦点断言；同一延迟条件下通过。产品未增加等待或特殊分支，临时帧调度及日志已移除。平台事件详情验收等待真实详情 HTTP 200 和页面完成加载，再核对响应与弹层均不含内部原因。
+
+截图位于测试输出 `/private/tmp/enterprise-admin-s8-manual-organization-ar.png`、`enterprise-admin-s8-manual-account-ar.png`、`enterprise-admin-s8-role-reference.png` 与 `enterprise-admin-s8-tenant-platform-projection.png`，均为专属测试数据，不含 TOTP URI 或凭据。
+
 ## 尚未完成的验收
 
-- 邀请 → 真实邮箱验证接受 → 调整角色 → 撤权，角色引用管理，以及平台 UI MFA → 停用 → 租户拒绝 → 恢复的组合浏览器流程。
-- 双 Tab 不同组织、退出/失权缓存、邮件语言、租户投影与三语、RTL、键盘、无障碍的完整组合证据；先前阿拉伯语切换曾出现一次失败，重跑通过不作为修复证明。
-- 安全回退门禁、T01–T28 全项对照、ADR/部署 CLI/权限矩阵同步，以及最终完整构建、契约生成与验收收尾。
+- 汇总邮件语言、三语、RTL、键盘和无障碍的已有及新增证据，核对失权缓存与迟到响应保护的完整范围。
+- 安全回退门禁、T01–T28 全项对照、ADR/部署 CLI/权限矩阵同步及最终发布验收收尾。
 
 本机验证与远端 CI、生产部署分别记账；本记录不声称 GitHub Actions 或生产发布已通过。
 
-本批次修改后另已通过：完整 `pnpm test:api`（Nest HTTP 15 项及业务 HTTP 126 项，共 141 项）、`pnpm lint`、`pnpm typecheck`、`pnpm db:check`、包含 0037 的 Compose 验证和文档内容检查。本批次没有修改 UI，也尚未重新执行完整 `pnpm verify`；上述结果不替代待完成的组合浏览器和发布验收。
+迁移/性能批次已通过 `pnpm db:check` 和包含 0037 的 Compose 验证。组合浏览器批次已通过完整 `pnpm test:api`（Nest HTTP 15 项及业务 HTTP 130 项，共 145 项）、`pnpm test:e2e`（11 文件、73 项）、`pnpm test:storybook`（13 文件、97 项）、`pnpm lint`、`pnpm typecheck`、API/双 SPA 生产构建及 `pnpm api:check`；文档内容检查覆盖 38 页。尚未重新执行完整 `pnpm verify`，上述结果不替代待完成的发布验收。

@@ -20,6 +20,10 @@ import {
 } from "@workspace/ui/components/field"
 import { Input } from "@workspace/ui/components/input"
 import * as z from "zod"
+import {
+  preserveLocaleOnManualSelection,
+  shouldApplyOrganizationLocale,
+} from "@/lib/organization-locale-sync"
 
 const createOrganizationSchema = (
   t: TFunction<["organization", "common", "validation"]>
@@ -277,11 +281,19 @@ export function OrganizationGate() {
       organizations.length !== 0 ||
       !personalPreferences.isSuccess ||
       personalPreferences.isFetching ||
-      !inheritedLocale ||
-      i18n.resolvedLanguage === inheritedLocale
+      !inheritedLocale
     )
       return
-    void i18n.changeLanguage(inheritedLocale)
+    if (
+      !shouldApplyOrganizationLocale({
+        userId: session.user.id,
+        organizationId: null,
+        locale: inheritedLocale,
+      })
+    )
+      return
+    if (i18n.resolvedLanguage !== inheritedLocale)
+      void i18n.changeLanguage(inheritedLocale)
   }, [
     i18n,
     organizations.length,
@@ -289,6 +301,7 @@ export function OrganizationGate() {
     personalPreferences.isFetching,
     personalPreferences.isSuccess,
     workspace.isSuccess,
+    session.user.id,
   ])
   useDocumentTitle(
     workspace.isPending || workspace.isError
@@ -318,7 +331,17 @@ export function OrganizationGate() {
     return (
       <IdentityPage
         title={t("organization:management")}
-        actions={<LocaleSwitcher align="end" />}
+        actions={
+          <LocaleSwitcher
+            align="end"
+            onLocaleSelect={() =>
+              preserveLocaleOnManualSelection({
+                userId: session.user.id,
+                organizationId: null,
+              })
+            }
+          />
+        }
       >
         <WorkspaceQueryStatus workspace={workspace} />
         {sessionFooter}
@@ -340,7 +363,17 @@ export function OrganizationGate() {
   return (
     <IdentityPage
       title={t("organization:management")}
-      actions={<LocaleSwitcher align="end" />}
+      actions={
+        <LocaleSwitcher
+          align="end"
+          onLocaleSelect={() =>
+            preserveLocaleOnManualSelection({
+              userId: session.user.id,
+              organizationId: null,
+            })
+          }
+        />
+      }
     >
       {error && (
         <p role="alert" className="mb-4 text-center text-sm text-destructive">

@@ -42,6 +42,7 @@ import { isOrganizationRolesPath } from "@/lib/organization-route"
 import {
   cancelOrganizationSwitchLocale,
   preserveLocaleOnOrganizationSwitch,
+  preserveLocaleOnManualSelection,
   shouldApplyOrganizationLocale,
 } from "@/lib/organization-locale-sync"
 import { getOrganizationSettingsPermissionsOptions } from "@/query/organization-settings-permissions"
@@ -105,11 +106,19 @@ export function AdminLayout() {
       activeOrganization.data !== null ||
       !personalPreferences.isSuccess ||
       personalPreferences.isFetching ||
-      !inheritedLocale ||
-      i18n.resolvedLanguage === inheritedLocale
+      !inheritedLocale
     )
       return
-    void i18n.changeLanguage(inheritedLocale)
+    if (
+      !shouldApplyOrganizationLocale({
+        userId: session.user.id,
+        organizationId: null,
+        locale: inheritedLocale,
+      })
+    )
+      return
+    if (i18n.resolvedLanguage !== inheritedLocale)
+      void i18n.changeLanguage(inheritedLocale)
   }, [
     activeOrganization.data,
     activeOrganization.isSuccess,
@@ -118,6 +127,7 @@ export function AdminLayout() {
     personalPreferences.data?.data.effectiveLocale,
     personalPreferences.isFetching,
     personalPreferences.isSuccess,
+    session.user.id,
   ])
   useEffect(() => {
     const nextLocale = access.data?.data.effectiveLocale
@@ -378,6 +388,11 @@ export function AdminLayout() {
           signingOut: session.signingOut,
           error: session.signOutError,
           onSignOut: session.signOut,
+          onLocaleSelect: () =>
+            preserveLocaleOnManualSelection({
+              userId: session.user.id,
+              organizationId: currentOrganizationId ?? null,
+            }),
         },
       }}
     >

@@ -55,16 +55,22 @@ export type LocaleSwitcherProps = {
   variant?: "dropdown" | "icon" | "select" | "submenu"
   align?: "start" | "end" | "center"
   className?: string
+  onLocaleSelect?: () => void
 }
 
 export function LocaleSwitcher({
   variant = "dropdown",
   align = "end",
   className,
+  onLocaleSelect,
 }: LocaleSwitcherProps = {}) {
   const { t, i18n } = useTranslation("common")
   const locale = useUiLocale()
   const id = useId()
+  const selectLocale = (value: string) => {
+    onLocaleSelect?.()
+    void i18n.changeLanguage(value)
+  }
 
   if (variant === "submenu") {
     return (
@@ -77,7 +83,7 @@ export function LocaleSwitcher({
           <DropdownMenuRadioGroup
             value={locale}
             onValueChange={(value) => {
-              if (value) void i18n.changeLanguage(value)
+              if (value) selectLocale(value)
             }}
           >
             {supportedLocales.map((value) => (
@@ -104,7 +110,7 @@ export function LocaleSwitcher({
             supportedLocales.map((value) => [value, localeMeta[value].label])
           )}
           onValueChange={(value) => {
-            if (value !== null) void i18n.changeLanguage(value)
+            if (value !== null) selectLocale(value)
           }}
         >
           <SelectTrigger id={id} className="min-w-32">
@@ -154,7 +160,7 @@ export function LocaleSwitcher({
         <DropdownMenuRadioGroup
           value={locale}
           onValueChange={(value) => {
-            if (value) void i18n.changeLanguage(value)
+            if (value) selectLocale(value)
           }}
         >
           {supportedLocales.map((value) => (

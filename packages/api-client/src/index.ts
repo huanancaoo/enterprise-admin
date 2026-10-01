@@ -8,6 +8,7 @@ export {
 export {
   listMyOrganizations,
   getOrganizationAccess,
+  getOrganizationRoleAccess,
   listOrganizationAuditEvents,
   getOrganizationAuditEvent,
   getListOrganizationAuditEventsQueryOptions,

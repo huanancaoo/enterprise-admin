@@ -4,7 +4,11 @@ import {
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
-import type { OrganizationStatus } from '@workspace/contracts';
+import type {
+  OrganizationRoleAccess,
+  OrganizationStatus,
+} from '@workspace/contracts';
+import { delegableRolePermissions } from '@workspace/permissions';
 import { ApiException } from '../http/api-exception';
 import { AuthRuntime } from './auth-runtime';
 
@@ -138,5 +142,41 @@ export class IdentityService {
       slug: row.slug,
       status: row.status!,
     }));
+  }
+
+  async readOrganizationRoleAccess(
+    headers: Headers,
+    organizationId: string,
+  ): Promise<OrganizationRoleAccess> {
+    const check = async (resource: string, action: string) => {
+      const result = await this.runtime.auth.api.hasPermission({
+        headers,
+        body: { organizationId, permissions: { [resource]: [action] } },
+      });
+      return result.success;
+    };
+    // 固定目录合并为一次读取；判断仍交给原生授权，不复制角色策略。
+    const managementActions = ['read', 'create', 'update', 'delete'] as const;
+    const management = await Promise.all(
+      managementActions.map((action) => check('ac', action)),
+    );
+    const permissions = await Promise.all(
+      Object.entries(delegableRolePermissions).flatMap(([resource, actions]) =>
+        actions.map(async (action) => ({
+          resource,
+          action,
+          allowed: await check(resource, action),
+        })),
+      ),
+    );
+    return {
+      canRead: management[0],
+      canCreate: management[1],
+      canUpdate: management[2],
+      canDelete: management[3],
+      grantablePermissions: permissions
+        .filter((permission) => permission.allowed)
+        .map(({ resource, action }) => ({ resource, action })),
+    };
   }
 }

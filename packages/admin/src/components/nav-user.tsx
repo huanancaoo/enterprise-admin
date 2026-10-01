@@ -41,9 +41,16 @@ export interface NavUserProps {
   signingOut: boolean
   error?: string
   onSignOut: () => void
+  onLocaleSelect?: () => void
 }
 
-export function NavUser({ user, signingOut, error, onSignOut }: NavUserProps) {
+export function NavUser({
+  user,
+  signingOut,
+  error,
+  onSignOut,
+  onLocaleSelect,
+}: NavUserProps) {
   const { t } = useTranslation("auth")
   const { isMobile } = useSidebar()
   const fallback = user.name.trim().slice(0, 2).toUpperCase() || "U"
@@ -109,7 +116,10 @@ export function NavUser({ user, signingOut, error, onSignOut }: NavUserProps) {
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <ThemeSwitcher variant="submenu" />
-              <LocaleSwitcher variant="submenu" />
+              <LocaleSwitcher
+                variant="submenu"
+                onLocaleSelect={onLocaleSelect}
+              />
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>

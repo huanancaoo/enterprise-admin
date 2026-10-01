@@ -23,6 +23,7 @@ import type {
   AuditEventsPage,
   ListOrganizationAuditEventsParams,
   OrganizationAccess,
+  OrganizationRoleAccess,
   OrganizationSummary,
 } from "../../models"
 
@@ -434,6 +435,223 @@ export function useGetOrganizationAccess<
   queryKey: DataTag<QueryKey, TData, TError>
 } {
   const queryOptions = useGetOrganizationAccessQueryOptions(
+    organizationId,
+    options
+  )
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+
+  return withQueryKey(query, queryOptions.queryKey)
+}
+
+export type getOrganizationRoleAccessResponse200 = {
+  data: OrganizationRoleAccess
+  status: 200
+}
+
+export type getOrganizationRoleAccessResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type getOrganizationRoleAccessResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type getOrganizationRoleAccessResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type getOrganizationRoleAccessResponse500 = {
+  data: ApiError
+  status: 500
+}
+
+export type getOrganizationRoleAccessResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type getOrganizationRoleAccessResponseSuccess =
+  getOrganizationRoleAccessResponse200 & {
+    headers: Headers
+  }
+export type getOrganizationRoleAccessResponseError = (
+  | getOrganizationRoleAccessResponse400
+  | getOrganizationRoleAccessResponse401
+  | getOrganizationRoleAccessResponse403
+  | getOrganizationRoleAccessResponse500
+  | getOrganizationRoleAccessResponse503
+) & {
+  headers: Headers
+}
+
+export const getGetOrganizationRoleAccessUrl = (organizationId: string) => {
+  return `/api/v1/organizations/${organizationId}/role-access`
+}
+
+export const getOrganizationRoleAccess = async (
+  organizationId: string,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<getOrganizationRoleAccessResponseSuccess> => {
+  return apiClient<getOrganizationRoleAccessResponseSuccess>(
+    getGetOrganizationRoleAccessUrl(organizationId),
+    {
+      ...options,
+      method: "GET",
+    }
+  )
+}
+
+export const getGetOrganizationRoleAccessQueryKey = (
+  organizationId: string
+) => {
+  return [`/api/v1/organizations/${organizationId}/role-access`] as const
+}
+
+export const getGetOrganizationRoleAccessQueryOptions = <
+  TData = Awaited<ReturnType<typeof getOrganizationRoleAccess>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getOrganizationRoleAccess>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetOrganizationRoleAccessQueryKey(organizationId)
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getOrganizationRoleAccess>>
+  > = ({ signal }) =>
+    getOrganizationRoleAccess(organizationId, { signal, ...requestOptions })
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: organizationId !== null && organizationId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getOrganizationRoleAccess>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetOrganizationRoleAccessQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getOrganizationRoleAccess>>
+>
+export type GetOrganizationRoleAccessQueryError = ErrorType<ApiError>
+
+export function useGetOrganizationRoleAccess<
+  TData = Awaited<ReturnType<typeof getOrganizationRoleAccess>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getOrganizationRoleAccess>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getOrganizationRoleAccess>>,
+          TError,
+          Awaited<ReturnType<typeof getOrganizationRoleAccess>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetOrganizationRoleAccess<
+  TData = Awaited<ReturnType<typeof getOrganizationRoleAccess>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getOrganizationRoleAccess>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getOrganizationRoleAccess>>,
+          TError,
+          Awaited<ReturnType<typeof getOrganizationRoleAccess>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetOrganizationRoleAccess<
+  TData = Awaited<ReturnType<typeof getOrganizationRoleAccess>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getOrganizationRoleAccess>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+
+export function useGetOrganizationRoleAccess<
+  TData = Awaited<ReturnType<typeof getOrganizationRoleAccess>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getOrganizationRoleAccess>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+} {
+  const queryOptions = getGetOrganizationRoleAccessQueryOptions(
     organizationId,
     options
   )
