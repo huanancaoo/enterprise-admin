@@ -51,6 +51,11 @@ export {
 
 export { createProjectMutations } from "./query/project-mutations"
 export {
+  listPlatformUsers,
+  getPlatformUser,
+  getPlatformSensitiveProfile,
+} from "./generated/endpoints/platform-users/platform-users"
+export {
   listPlatformOrganizations,
   getPlatformOrganization,
   suspendPlatformOrganization,

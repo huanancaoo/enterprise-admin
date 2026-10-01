@@ -101,6 +101,10 @@ MIGRATION_DATABASE_URL='postgresql://app_migrator:...@db/enterprise_admin' pnpm 
 
 停用和恢复要求当前平台管理员、15 分钟内的 Session MFA、理由、预期状态版本及幂等键。函数与租户写入锁定同一组织状态行，在同一事务提交状态、成功审计与 24 小时幂等收据；等锁后再次查权，旧收据不能绕过撤权。目标状态未变时记录私有的 `no_change` 尝试，不增加状态版本或重复生成启停事件。运营读取先写成功审计才返回投影；查询和启停失败的审计独立提交，审计不可用时返回失败。恢复只改变运营状态，不延长邀请或重建已移除的成员和平台任职。
 
+迁移 `0031_platform-user-queries.sql` 提供只读用户目录、详情与显式敏感邮箱读取。目录按创建时间和用户 ID 稳定分页，只检索姓名、用户 ID 和脱敏邮箱；列表与详情对管理员、审计员一律返回脱敏邮箱。详情仅包含组织关联与邮箱验证、双重验证状态，不返回认证记录或业务数据。`platform_executor` 只获得必要的身份列权限，不能读取密码、Session token、2FA secret 或恢复码。
+
+完整邮箱由独立 `get_platform_sensitive_profile` 固定函数读取，要求当前有效平台管理员和已验证的 Session MFA，每次携带非空目的。固定函数先提交一次私有敏感读取审计，再返回邮箱；审计失败返回 `AUDIT_UNAVAILABLE`。访问审计只存操作者、目标用户 ID 和输入目的，不存完整邮箱快照。API 响应禁止缓存；前端完整邮箱只保存在本次展开的组件状态中，关闭后销毁，不进入目录 Query Cache。
+
 服务端通过 `createDatabase(runtimeUrl)` 获取 `pool` 和类型化 `db`，调用者在退出时执行 `pool.end()`。包不会自动连接或读取迁移变量。`createAuth` 需要注入 `SecondaryStorage` 与 `trustedProxies`；HTTP 运行时由 API 从 `REDIS_URL` 与 `BETTER_AUTH_TRUSTED_PROXIES` 接入。
 
 ## 验收

@@ -125,6 +125,14 @@ export function PlatformLayout() {
           label: t("common:navigation"),
           items: [
             {
+              title: t("organization:platformUsers"),
+              icon: <LayoutDashboardIcon />,
+              isActive: location.pathname.startsWith("/platform/users"),
+              render: (
+                <Link to="/platform/users" search={{ page: 1, pageSize: 20 }} />
+              ),
+            },
+            {
               title: t("auth:platformTitle"),
               icon: <LayoutDashboardIcon />,
               isActive: location.pathname === "/platform",

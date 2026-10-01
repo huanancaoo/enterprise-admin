@@ -12,6 +12,7 @@ export const InheritedLocaleSourceSchema = z
 export type SupportedLocale = z.infer<typeof SupportedLocaleSchema>
 export const OrganizationIdSchema = z.uuidv4()
 export const ProjectIdSchema = z.uuid()
+export const UserIdSchema = z.uuid()
 export const ProjectStatusSchema = z
   .enum(["draft", "active", "archived"])
   .meta({ id: "ProjectStatus" })
@@ -222,6 +223,58 @@ export const PlatformAccessSchema = z
   })
   .meta({ id: "PlatformAccess" })
 export type PlatformAccess = z.infer<typeof PlatformAccessSchema>
+export const PlatformUsersQuerySchema = z.strictObject({
+  q: z.string().trim().max(200).optional(),
+  page: z.coerce.number().int().min(1).max(2_147_483_647).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+})
+export type PlatformUsersQuery = z.infer<typeof PlatformUsersQuerySchema>
+export const PlatformUserSchema = z
+  .strictObject({
+    userId: z.uuid(),
+    name: z.string(),
+    maskedEmail: z.string(),
+    emailVerified: z.boolean(),
+    createdAt: z.iso.datetime({ offset: true }),
+    organizationCount: z.number().int().min(0),
+  })
+  .meta({ id: "PlatformUser" })
+export const PlatformUsersPageSchema = z
+  .strictObject({
+    items: z.array(PlatformUserSchema),
+    page: z.number().int().min(1),
+    pageSize: z.number().int().min(1).max(100),
+    total: z.number().int().min(0),
+  })
+  .meta({ id: "PlatformUsersPage" })
+export type PlatformUsersPage = z.infer<typeof PlatformUsersPageSchema>
+export const PlatformUserDetailSchema = PlatformUserSchema.extend({
+  twoFactorEnabled: z.boolean(),
+  organizations: z.array(
+    z.strictObject({
+      organizationId: z.uuid(),
+      name: z.string(),
+      slug: z.string(),
+      status: OrganizationStatusSchema,
+      role: z.string(),
+      joinedAt: z.iso.datetime({ offset: true }),
+    })
+  ),
+}).meta({ id: "PlatformUserDetail" })
+export type PlatformUserDetail = z.infer<typeof PlatformUserDetailSchema>
+export const SensitiveProfileQuerySchema = z.strictObject({
+  purpose: z.string().trim().min(1).max(500),
+})
+export type SensitiveProfileQuery = z.infer<typeof SensitiveProfileQuerySchema>
+export const PlatformSensitiveProfileSchema = z
+  .strictObject({
+    userId: z.uuid(),
+    email: z.email(),
+  })
+  .meta({ id: "PlatformSensitiveProfile" })
+export type PlatformSensitiveProfile = z.infer<
+  typeof PlatformSensitiveProfileSchema
+>
 export const PlatformOrganizationQuerySchema = z.strictObject({
   q: z.string().trim().max(200).optional(),
   status: OrganizationStatusSchema.optional(),

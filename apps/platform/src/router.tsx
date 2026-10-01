@@ -15,12 +15,17 @@ import { ApiClientError, apiClient } from "@workspace/api-client"
 import {
   PlatformAccessSchema,
   PlatformOrganizationQuerySchema,
+  PlatformUsersQuerySchema,
   type PlatformAccess,
 } from "@workspace/contracts"
 import {
   PlatformOrganizationsPage,
   PlatformOrganizationDetailPage,
 } from "./features/organizations/pages"
+import {
+  PlatformUsersPage,
+  PlatformUserDetailPage,
+} from "./features/users/pages"
 import {
   App,
   PlatformAuthTitlePage,
@@ -138,6 +143,17 @@ const platformOrganizationDetailRoute = createRoute({
   path: "organizations/$organizationId",
   component: PlatformOrganizationDetailPage,
 })
+const platformUsersRoute = createRoute({
+  getParentRoute: () => platformRoute,
+  path: "users",
+  validateSearch: (search) => PlatformUsersQuerySchema.parse(search),
+  component: PlatformUsersPage,
+})
+const platformUserDetailRoute = createRoute({
+  getParentRoute: () => platformRoute,
+  path: "users/$userId",
+  component: PlatformUserDetailPage,
+})
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
@@ -159,6 +175,8 @@ export const router = createRouter({
       platformIndexRoute,
       platformOrganizationsRoute,
       platformOrganizationDetailRoute,
+      platformUsersRoute,
+      platformUserDetailRoute,
     ]),
   ]),
   context: {
