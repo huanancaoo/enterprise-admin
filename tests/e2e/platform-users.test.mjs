@@ -130,7 +130,7 @@ describe("platform user directory browser flow", () => {
     await dialog.getByLabel("Purpose of access", { exact: true }).fill(purpose)
     await environment.migrator
       .query(`CREATE FUNCTION public.issue21_browser_audit_failure() RETURNS trigger LANGUAGE plpgsql AS $$
-      BEGIN IF NEW.event_code = 'platform.user_sensitive_read' THEN RAISE EXCEPTION 'browser audit failure'; END IF; RETURN NEW; END; $$;
+      BEGIN IF NEW.event_code = 'platform.user_sensitive_viewed' THEN RAISE EXCEPTION 'browser audit failure'; END IF; RETURN NEW; END; $$;
       CREATE TRIGGER issue21_browser_audit_failure BEFORE INSERT ON public.audit_events FOR EACH ROW EXECUTE FUNCTION public.issue21_browser_audit_failure();`)
     try {
       await dialog

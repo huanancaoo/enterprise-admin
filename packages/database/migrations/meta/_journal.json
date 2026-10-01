@@ -225,6 +225,13 @@
       "when": 1790864384900,
       "tag": "0031_platform-user-queries",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1790866613229,
+      "tag": "0032_sensitive-profile-audit-event",
+      "breakpoints": true
     }
   ]
 }

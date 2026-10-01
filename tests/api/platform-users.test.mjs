@@ -155,7 +155,7 @@ describe("platform user directory and sensitive access", () => {
         .status
     ).toBe(400)
     const events = await environment.migrator.query(
-      "SELECT fact FROM public.issue21_committed_audit WHERE fact->>'event_code' = 'platform.user_sensitive_read'"
+      "SELECT fact FROM public.issue21_committed_audit WHERE fact->>'event_code' = 'platform.user_sensitive_viewed'"
     )
     expect(events.rows).toHaveLength(1)
     expect(events.rows[0].fact).toMatchObject({
@@ -194,7 +194,7 @@ describe("platform user directory and sensitive access", () => {
   it("does not return protected projections when access auditing fails", async () => {
     await environment.migrator
       .query(`CREATE FUNCTION public.issue21_fail_audit() RETURNS trigger LANGUAGE plpgsql AS $$
-      BEGIN IF NEW.event_code IN ('platform.users_queried', 'platform.user_viewed', 'platform.user_sensitive_read') THEN RAISE EXCEPTION 'audit failure'; END IF; RETURN NEW; END; $$;
+      BEGIN IF NEW.event_code IN ('platform.users_queried', 'platform.user_viewed', 'platform.user_sensitive_viewed') THEN RAISE EXCEPTION 'audit failure'; END IF; RETURN NEW; END; $$;
       CREATE TRIGGER issue21_fail_audit BEFORE INSERT ON public.audit_events FOR EACH ROW EXECUTE FUNCTION public.issue21_fail_audit();`)
     try {
       for (const path of [
