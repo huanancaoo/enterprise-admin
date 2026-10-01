@@ -40,6 +40,7 @@ import {
 } from "./App"
 import { authClient } from "./lib/auth-client"
 
+import { PlatformSettingsPage } from "./features/settings-page"
 import { PlatformAuditPage } from "./features/audit/page"
 
 const rootRoute = createRootRouteWithContext<WorkspaceRouterContext>()({
@@ -166,6 +167,11 @@ const platformAuditRoute = createRoute({
     ),
   component: PlatformAuditPage,
 })
+const platformSettingsRoute = createRoute({
+  getParentRoute: () => platformRoute,
+  path: "settings",
+  component: PlatformSettingsPage,
+})
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
@@ -190,6 +196,7 @@ export const router = createRouter({
       platformUsersRoute,
       platformUserDetailRoute,
       platformAuditRoute,
+      platformSettingsRoute,
     ]),
   ]),
   context: {

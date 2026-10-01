@@ -37,6 +37,7 @@ import {
 } from "./auth-transaction.ts"
 import { getAuthRequestContext } from "./auth-request-context.ts"
 import { readRoleReferences } from "./role-references.ts"
+import { readPlatformDefaultLocale } from "./platform-locale.ts"
 import { createAuthI18n } from "./auth-i18n.ts"
 import {
   assertMemberDirectoryRead,
@@ -1081,7 +1082,7 @@ export function createAuth(
     plugins: [
       organizationPlugin,
       twoFactor({ issuer: "Enterprise Admin" }) as BetterAuthPlugin,
-      createAuthI18n(),
+      createAuthI18n(() => readPlatformDefaultLocale(pool)),
       // 登录页读 cookie；已登录会话从 user.lastLoginMethod 展示，必须写库。
       lastLoginMethod({ storeInDatabase: true }),
     ],

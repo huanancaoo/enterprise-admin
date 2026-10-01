@@ -9,10 +9,15 @@ import { OrganizationsModule } from './organizations/organizations.module';
 import { PlatformModule } from './platform/platform.module';
 import { ProjectsModule } from './projects/projects.module';
 import { TenancyModule } from './tenancy/tenancy.module';
+import { type DeploymentSummary } from './config/deployment-summary';
 
 @Module({})
 export class AppModule {
-  static forRoot(runtime: AuthRuntime, email: EmailRuntime): DynamicModule {
+  static forRoot(
+    runtime: AuthRuntime,
+    email: EmailRuntime,
+    deployment: DeploymentSummary,
+  ): DynamicModule {
     return {
       module: AppModule,
       imports: [
@@ -23,7 +28,7 @@ export class AppModule {
         TenancyModule,
         OrganizationsModule,
         ProjectsModule,
-        PlatformModule,
+        PlatformModule.forRoot(deployment),
       ],
     };
   }

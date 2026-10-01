@@ -12,4 +12,5 @@ export function createDatabase(connectionString: string) {
 }
 
 export { schema }
+export { readPlatformDefaultLocale } from "./platform-locale.ts"
 export type { OrganizationStatus } from "./organization-status.ts"

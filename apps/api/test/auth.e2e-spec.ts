@@ -96,7 +96,6 @@ describe(
       from: { email: 'noreply@example.test', name: 'Enterprise Admin' },
       encryptionKey: Buffer.alloc(32, 7),
       linkOrigin: origin,
-      defaultLocale: 'zh-CN',
       pollIntervalMs: 50,
       retry: { maxAttempts: 5, baseDelayMs: 50 },
       messageTtlMs: 86_400_000,
@@ -570,7 +569,7 @@ describe(
       const probe = fixture.createNestApplication<NestExpressApplication>({
         logger: false,
       });
-      configureApp(probe);
+      configureApp(probe, () => Promise.resolve('zh-CN'));
       await probe.listen(0, '127.0.0.1');
       const probeURL = await probe.getUrl();
       const ownerCookie = cookie;

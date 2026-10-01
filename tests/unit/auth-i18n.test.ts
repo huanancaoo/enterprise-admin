@@ -22,7 +22,7 @@ describe("Auth i18n error handling", () => {
   })
 
   it("只注册产品三语，并按完整语言标签协商", async () => {
-    const plugin = createAuthI18n() as {
+    const plugin = createAuthI18n(() => Promise.resolve("ar")) as {
       id: string
       options: {
         defaultLocale: string
@@ -72,7 +72,7 @@ describe("Auth i18n error handling", () => {
         headers: new Headers({ "accept-language": "fr" }),
         context: {},
       })
-    ).toBe("zh-CN")
+    ).toBe("ar")
     expect(
       await plugin.options.getLocale({
         headers: new Headers({ "accept-language": "fr" }),

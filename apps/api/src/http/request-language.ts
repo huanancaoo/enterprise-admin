@@ -14,6 +14,7 @@ import {
 } from '@workspace/i18n';
 
 export class RequestLanguage {
+  private platformLocale: SupportedLocale = 'zh-CN';
   private preferredLocale?: string | null;
   private defaultLocale?: string | null;
 
@@ -24,6 +25,7 @@ export class RequestLanguage {
       acceptLanguage: this.acceptLanguage,
       preferredLocale: this.preferredLocale,
       defaultLocale: this.defaultLocale,
+      platformLocale: this.platformLocale,
     });
   }
 
@@ -35,7 +37,12 @@ export class RequestLanguage {
     return resolveInheritedLocale({
       preferredLocale: this.preferredLocale,
       defaultLocale: this.defaultLocale,
+      platformLocale: this.platformLocale,
     });
+  }
+
+  usePlatformDefault(locale: SupportedLocale): void {
+    this.platformLocale = locale;
   }
 
   // 授权链只在对应身份事实验证成功后补充偏好，失败响应沿用已到达的阶段。

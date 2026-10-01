@@ -2,6 +2,8 @@ import type { NestApplicationOptions } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { toNodeHandler } from 'better-auth/node';
+import { readPlatformDefaultLocale } from '@workspace/database';
+import { readDeploymentSummary } from './config/deployment-summary';
 import { runWithAuthRequestContext } from '@workspace/database/auth';
 import { AppModule } from './app.module';
 import type { ApplicationConfig } from './config/application-config';
@@ -22,10 +24,10 @@ export async function createApplication(
       return email.hooks;
     });
     const app = await NestFactory.create<NestExpressApplication>(
-      AppModule.forRoot(runtime, email!),
+      AppModule.forRoot(runtime, email!, readDeploymentSummary(config)),
       { ...options, bodyParser: false, abortOnError: false },
     );
-    configureApp(app);
+    configureApp(app, () => readPlatformDefaultLocale(runtime!.pool));
     // Better Auth 需要原始请求流；Nest 的业务 JSON 解析必须在认证路由之后。
     const server = app.getHttpAdapter().getInstance();
     server.set('trust proxy', config.trustedProxies);

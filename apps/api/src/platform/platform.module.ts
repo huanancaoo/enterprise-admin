@@ -1,4 +1,10 @@
-import { Module } from '@nestjs/common';
+import { Module, type DynamicModule } from '@nestjs/common';
+import {
+  PLATFORM_DEPLOYMENT_SUMMARY,
+  type DeploymentSummary,
+} from '../config/deployment-summary';
+import { PlatformSettings } from './platform-settings';
+import { PlatformSettingsController } from './platform-settings.controller';
 import { PlatformAccessService } from './platform-access.service';
 import { PlatformController } from './platform.controller';
 import { PlatformGuard } from './platform.guard';
@@ -16,6 +22,7 @@ import { PlatformAuditController } from './platform-audit.controller';
     PlatformOrganizationsController,
     PlatformUsersController,
     PlatformAuditController,
+    PlatformSettingsController,
   ],
   providers: [
     PlatformAccessService,
@@ -23,6 +30,16 @@ import { PlatformAuditController } from './platform-audit.controller';
     PlatformOrganizations,
     PlatformUsers,
     PlatformAudit,
+    PlatformSettings,
   ],
 })
-export class PlatformModule {}
+export class PlatformModule {
+  static forRoot(deployment: DeploymentSummary): DynamicModule {
+    return {
+      module: PlatformModule,
+      providers: [
+        { provide: PLATFORM_DEPLOYMENT_SUMMARY, useValue: deployment },
+      ],
+    };
+  }
+}

@@ -22,7 +22,6 @@ async function exportOpenApi(): Promise<void> {
         from: { email: 'noreply@example.test', name: 'OpenAPI' },
         encryptionKey: Buffer.alloc(32, 1),
         linkOrigin: 'http://localhost:3200',
-        defaultLocale: 'zh-CN',
         pollIntervalMs: 1000,
         retry: { maxAttempts: 5, baseDelayMs: 200 },
         messageTtlMs: 86_400_000,

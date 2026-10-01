@@ -234,6 +234,7 @@ describe(suiteName, { concurrent: false }, () => {
         "platform_assignment",
         "platform_assignment_audit",
         "platform_session_assurance",
+        "platform_settings",
       ].sort()
     )
   })

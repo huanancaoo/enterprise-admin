@@ -5,7 +5,11 @@ import { fileURLToPath } from "node:url"
 const config: StorybookConfig = {
   staticDirs: ["../public"],
   framework: "@storybook/react-vite",
-  stories: ["../src/**/*.stories.tsx", "../../tenant/src/**/*.stories.tsx"],
+  stories: [
+    "../src/**/*.stories.tsx",
+    "../../tenant/src/**/*.stories.tsx",
+    "../../platform/src/**/*.stories.tsx",
+  ],
   addons: ["@storybook/addon-vitest", "@storybook/addon-a11y"],
   core: { disableTelemetry: true },
   async viteFinal(config) {

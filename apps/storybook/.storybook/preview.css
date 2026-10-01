@@ -2,3 +2,4 @@
 
 @source "../../../packages/admin/src/**/*.{ts,tsx}";
 @source "../../../apps/tenant/src/**/*.{ts,tsx}";
+@source "../../../apps/platform/src/**/*.{ts,tsx}";

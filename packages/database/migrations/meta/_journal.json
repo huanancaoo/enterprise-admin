@@ -253,6 +253,13 @@
       "when": 1790871512403,
       "tag": "0035_platform-audit-clock",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1790872917860,
+      "tag": "0036_platform-settings",
+      "breakpoints": true
     }
   ]
 }

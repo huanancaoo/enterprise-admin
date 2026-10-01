@@ -1,5 +1,4 @@
 import type { EmailConfig } from '../email/email-config';
-import { emailLocales } from '@workspace/i18n';
 import { parseEmailEncryptionKey } from '../email/email-crypto';
 import { readAuthConfig, type AuthConfig } from '../identity/auth-runtime';
 
@@ -33,14 +32,6 @@ export function readApplicationConfig(
   if (smtpSecure !== 'true' && smtpSecure !== 'false') {
     throw new Error('SMTP_SECURE must be "true" or "false"');
   }
-  const defaultLocale = emailLocales.find(
-    (locale) => locale === required('EMAIL_DEFAULT_LOCALE'),
-  );
-  if (!defaultLocale) {
-    throw new Error(
-      `EMAIL_DEFAULT_LOCALE must be one of ${emailLocales.map((locale) => `"${locale}"`).join(', ')}`,
-    );
-  }
   return {
     ...readAuthConfig(env),
     email: {
@@ -60,7 +51,6 @@ export function readApplicationConfig(
         required('EMAIL_PAYLOAD_ENCRYPTION_KEY'),
       ),
       linkOrigin: required('EMAIL_LINK_ORIGIN'),
-      defaultLocale,
       pollIntervalMs: requiredInt('EMAIL_DISPATCH_INTERVAL_MS'),
       retry: {
         maxAttempts: requiredInt('EMAIL_RETRY_MAX_ATTEMPTS'),

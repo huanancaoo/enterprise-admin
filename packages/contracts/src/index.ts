@@ -223,6 +223,40 @@ export const PlatformAccessSchema = z
   })
   .meta({ id: "PlatformAccess" })
 export type PlatformAccess = z.infer<typeof PlatformAccessSchema>
+export const PlatformSettingsSchema = z
+  .strictObject({
+    platformDefaultLocale: SupportedLocaleSchema,
+    version: z.number().int().min(1),
+    supportedLocales: z.array(SupportedLocaleSchema),
+    environment: z.string(),
+    applicationVersion: z.string(),
+    smtpConfigured: z.boolean(),
+  })
+  .meta({ id: "PlatformSettings" })
+export type PlatformSettings = z.infer<typeof PlatformSettingsSchema>
+export const UpdatePlatformSettingsSchema = z
+  .strictObject({
+    platformDefaultLocale: SupportedLocaleSchema,
+    reason: z.string().trim().min(10).max(500),
+    expectedVersion: z.number().int().min(1),
+  })
+  .meta({ id: "UpdatePlatformSettings" })
+export type UpdatePlatformSettings = z.infer<
+  typeof UpdatePlatformSettingsSchema
+>
+export const PlatformSettingsUpdateResultSchema = PlatformSettingsSchema.pick({
+  platformDefaultLocale: true,
+  version: true,
+})
+  .extend({
+    changed: z.boolean(),
+    result: z.enum(["succeeded", "no_change"]),
+    operationId: z.uuid(),
+  })
+  .meta({ id: "PlatformSettingsUpdateResult" })
+export type PlatformSettingsUpdateResult = z.infer<
+  typeof PlatformSettingsUpdateResultSchema
+>
 // 两个审计事实源保留各自身份，避免相同 UUID 在列表和详情中产生歧义。
 export const PlatformAuditEventIdSchema = z
   .string()

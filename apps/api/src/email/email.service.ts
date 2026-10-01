@@ -1,5 +1,5 @@
 import type { EmailProvider } from './email-provider';
-import { createDatabase } from '@workspace/database';
+import { createDatabase, readPlatformDefaultLocale } from '@workspace/database';
 import type { AuthEmailHooks } from '@workspace/database/auth';
 import { resolveEmailLocale } from '@workspace/i18n';
 import type { EmailConfig } from './email-config';
@@ -121,7 +121,7 @@ export class EmailService {
     );
     const locale = resolveEmailLocale(
       recipient.rows[0]?.preferred_locale ?? data.organization.defaultLocale,
-      this.config.defaultLocale,
+      await readPlatformDefaultLocale(this.pool),
     );
     const rendered = renderInvitationEmail(locale, {
       inviterName: data.inviter.user.name,
@@ -201,7 +201,7 @@ export class EmailService {
   private async enqueue(input: EnqueueInput): Promise<void> {
     const locale = resolveEmailLocale(
       input.requestedLocale,
-      this.config.defaultLocale,
+      await readPlatformDefaultLocale(this.pool),
     );
     const rendered = input.render(locale);
     const payload: EmailPayload = {

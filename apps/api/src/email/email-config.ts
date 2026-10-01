@@ -18,7 +18,6 @@ export type EmailConfig = {
   from: EmailFrom;
   encryptionKey: Buffer;
   linkOrigin: string;
-  defaultLocale: EmailLocale;
   pollIntervalMs: number;
   retry: {
     maxAttempts: number;
@@ -27,4 +26,4 @@ export type EmailConfig = {
   messageTtlMs: number;
 };
 
-export type EmailTemplateLocale = EmailConfig['defaultLocale'];
+export type EmailTemplateLocale = EmailLocale;

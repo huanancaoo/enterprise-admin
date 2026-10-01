@@ -113,6 +113,12 @@ MIGRATION_DATABASE_URL='postgresql://app_migrator:...@db/enterprise_admin' pnpm 
 
 默认最近 30 天、最多 90 天及未来时间拒绝由数据库同一时钟决定；API 只传递筛选并签名冻结窗口的游标，不用主机时差改变业务窗口。验收记录见 [S8 平台审计验证](../../docs/architecture/s8-platform-audit-validation.md)。
 
+### 平台默认语言与部署摘要
+
+迁移 `0036_platform-settings.sql` 建立必有的 `platform_settings` 单例，初始默认语言为 `zh-CN`。`app_runtime` 仅能直接读取单例键与默认语言，不能直接读版本或写入设置；受限 executor 持有固定 get/update 函数。设置查询需有效平台任职和 Session MFA，并先追加私有读取审计；修改仅允许管理员，要求 15 分钟内 MFA、操作原因、预期版本和幂等键。默认语言、版本、私有审计与 24 小时收据在同一事务提交，锁等待后重新查权；相同输入重试返回原结果，版本冲突或同键不同输入拒绝，无实际变化时不增加版本。
+
+语言解析从同一个持久化默认值读取：原生认证、业务 HTTP、Projects 创建基础语言及邮件收件人继承均使用它。修改不批量改写用户或组织偏好，也不强制改变当前 UI 语言。邮件不再使用独立的 `EMAIL_DEFAULT_LOCALE` 环境变量；已经渲染入队的邮件保留当时内容。API 只额外返回支持语言、环境、应用版本与 SMTP 是否配置，不能返回 SMTP 地址、口令或连接串。SMTP 配置状态不代表投递可用性。验收记录见 [S8 平台设置验证](../../docs/architecture/s8-platform-settings-validation.md)。
+
 服务端通过 `createDatabase(runtimeUrl)` 获取 `pool` 和类型化 `db`，调用者在退出时执行 `pool.end()`。包不会自动连接或读取迁移变量。`createAuth` 需要注入 `SecondaryStorage` 与 `trustedProxies`；HTTP 运行时由 API 从 `REDIS_URL` 与 `BETTER_AUTH_TRUSTED_PROXIES` 接入。
 
 ## 验收

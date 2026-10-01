@@ -65,3 +65,8 @@ export {
   listPlatformAuditEvents,
   getPlatformAuditEvent,
 } from "./generated/endpoints/platform-audit/platform-audit"
+
+export {
+  getPlatformSettings,
+  updatePlatformSettings,
+} from "./generated/endpoints/platform-settings/platform-settings"

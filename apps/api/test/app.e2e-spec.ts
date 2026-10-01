@@ -19,7 +19,7 @@ describe('HTTP 横切（e2e）', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    configureApp(app);
+    configureApp(app, () => Promise.resolve('zh-CN'));
     setupSwagger(app);
     await app.init();
   });

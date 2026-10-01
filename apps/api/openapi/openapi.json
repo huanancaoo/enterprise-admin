@@ -2286,6 +2286,166 @@
           "platform-audit"
         ]
       }
+    },
+    "/api/v1/platform/settings": {
+      "get": {
+        "operationId": "getPlatformSettings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformSettings"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "platform-settings"
+        ]
+      },
+      "patch": {
+        "operationId": "updatePlatformSettings",
+        "parameters": [
+          {
+            "name": "idempotency-key",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePlatformSettings"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformSettingsUpdateResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "platform-settings"
+        ]
+      }
     }
   },
   "info": {
@@ -3492,6 +3652,103 @@
           "resourceId",
           "result",
           "metadata"
+        ],
+        "additionalProperties": false
+      },
+      "PlatformSettings": {
+        "type": "object",
+        "properties": {
+          "platformDefaultLocale": {
+            "$ref": "#/components/schemas/SupportedLocale"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "supportedLocales": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SupportedLocale"
+            }
+          },
+          "environment": {
+            "type": "string"
+          },
+          "applicationVersion": {
+            "type": "string"
+          },
+          "smtpConfigured": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "platformDefaultLocale",
+          "version",
+          "supportedLocales",
+          "environment",
+          "applicationVersion",
+          "smtpConfigured"
+        ],
+        "additionalProperties": false
+      },
+      "UpdatePlatformSettings": {
+        "type": "object",
+        "properties": {
+          "platformDefaultLocale": {
+            "$ref": "#/components/schemas/SupportedLocale"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 500
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "platformDefaultLocale",
+          "reason",
+          "expectedVersion"
+        ],
+        "additionalProperties": false
+      },
+      "PlatformSettingsUpdateResult": {
+        "type": "object",
+        "properties": {
+          "platformDefaultLocale": {
+            "$ref": "#/components/schemas/SupportedLocale"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "changed": {
+            "type": "boolean"
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "succeeded",
+              "no_change"
+            ]
+          },
+          "operationId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "platformDefaultLocale",
+          "version",
+          "changed",
+          "result",
+          "operationId"
         ],
         "additionalProperties": false
       }

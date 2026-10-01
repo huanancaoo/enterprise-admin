@@ -1,6 +1,7 @@
 import { and, eq, sql, type SQL } from "drizzle-orm"
 import type { TenantTx } from "../tenant.ts"
 import { organization } from "../schema/auth.ts"
+import { platformSettings } from "../schema/platform-settings.ts"
 import { projects, projectTranslations } from "../schema/projects.ts"
 
 type Locale = typeof projectTranslations.$inferInsert.locale
@@ -65,7 +66,13 @@ export const projectRepository = {
       .from(organization)
       .where(eq(organization.id, tx.context.organizationId))
     if (!row) throw new Error("Authorized organization is missing")
-    return row.locale
+    if (row.locale) return row.locale
+    const [platform] = await tx
+      .select({ locale: platformSettings.defaultLocale })
+      .from(platformSettings)
+      .where(eq(platformSettings.singleton, true))
+    if (!platform) throw new Error("Platform locale setting is missing")
+    return platform.locale
   },
   async listPage(tx: TenantTx, input: ProjectListInput) {
     const name = input.name?.trim()

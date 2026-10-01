@@ -33,6 +33,7 @@ export function resolveLocaleWithSource(input: {
   acceptLanguage?: string | null
   preferredLocale?: string | null
   defaultLocale?: string | null
+  platformLocale?: SupportedLocale
   allowed?: readonly SupportedLocale[]
 }): LocaleResolution {
   const allowed = input.allowed ?? supportedLocales
@@ -56,13 +57,17 @@ export function resolveLocaleWithSource(input: {
   if (preferred) return { locale: preferred, source: "user" }
   const organization = matchSupportedLocale(input.defaultLocale, allowed)
   if (organization) return { locale: organization, source: "organization" }
-  return { locale: platformDefaultLocale, source: "platform" }
+  return {
+    locale: input.platformLocale ?? platformDefaultLocale,
+    source: "platform",
+  }
 }
 
 export function resolveLocale(input: {
   acceptLanguage?: string | null
   preferredLocale?: string | null
   defaultLocale?: string | null
+  platformLocale?: SupportedLocale
   allowed?: readonly SupportedLocale[]
 }): SupportedLocale {
   return resolveLocaleWithSource(input).locale
@@ -71,6 +76,7 @@ export function resolveLocale(input: {
 export function resolveInheritedLocale(input: {
   preferredLocale?: string | null
   defaultLocale?: string | null
+  platformLocale?: SupportedLocale
   allowed?: readonly SupportedLocale[]
 }): InheritedLocaleResolution {
   const resolution = resolveLocaleWithSource(input)
