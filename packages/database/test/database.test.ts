@@ -102,6 +102,50 @@ describe(suiteName, { concurrent: false }, () => {
       env: { PATH: process.env.PATH, MIGRATION_DATABASE_URL: url },
     })
 
+  async function withMigrationFixture(
+    name: string,
+    work: (fixture: {
+      pool: Pool
+      dir: string
+      migrationCount: number
+      run: () => Promise<unknown>
+      through: (lastIndex: number) => Promise<void>
+    }) => Promise<void>
+  ) {
+    await owner.query(`CREATE DATABASE ${name} OWNER app_migrator`)
+    const url = new URL(migrationUrl)
+    url.pathname = `/${name}`
+    const pool = new Pool({ connectionString: url.toString() })
+    const dir = await mkdtemp(join(tmpdir(), "s8-migration-"))
+    try {
+      await mkdir(join(dir, "src"))
+      await cp("src/migrate.ts", join(dir, "src/migrate.ts"))
+      await cp("migrations", join(dir, "migrations"), { recursive: true })
+      await symlink(resolve("node_modules"), join(dir, "node_modules"))
+      const journalPath = join(dir, "migrations/meta/_journal.json")
+      const journal = JSON.parse(await readFile(journalPath, "utf8"))
+      await work({
+        pool,
+        dir,
+        migrationCount: journal.entries.length,
+        run: () => runMigration(join(dir, "src/migrate.ts"), url.toString()),
+        through: (lastIndex) =>
+          writeFile(
+            journalPath,
+            JSON.stringify({
+              ...journal,
+              entries: journal.entries.filter(
+                (entry: { idx: number }) => entry.idx <= lastIndex
+              ),
+            })
+          ),
+      })
+    } finally {
+      await pool.end()
+      await rm(dir, { recursive: true, force: true })
+    }
+  }
+
   beforeAll(async () => {
     const versions = JSON.parse(
       await readFile("../../docs/architecture/versions.json", "utf8")
@@ -238,6 +282,243 @@ describe(suiteName, { concurrent: false }, () => {
       ].sort()
     )
   })
+
+  test("双 one-shot Migrator 在同一空库只提交一份完整迁移历史", async () => {
+    await withMigrationFixture("s8_double_migrator", async (fixture) => {
+      await fixture.pool.query(`CREATE SCHEMA drizzle;
+        CREATE TABLE drizzle.__drizzle_migrations(id serial PRIMARY KEY, hash text NOT NULL, created_at bigint)`)
+      const first = join(fixture.dir, "migrations/0000_chubby_leper_queen.sql")
+      // 扩大两个进程读取同一旧 ledger 的窗口；只改测试副本，不改已应用历史。
+      await writeFile(
+        first,
+        "SELECT pg_sleep(1);\n--> statement-breakpoint\n" +
+          (await readFile(first, "utf8"))
+      )
+      const results = await Promise.allSettled([fixture.run(), fixture.run()])
+      assert.deepEqual(
+        results.map((result) => result.status),
+        ["fulfilled", "fulfilled"]
+      )
+      const journal = JSON.parse(
+        await readFile(
+          join(fixture.dir, "migrations/meta/_journal.json"),
+          "utf8"
+        )
+      )
+      const ledger = await fixture.pool.query(
+        "SELECT created_at, count(*)::int AS copies FROM drizzle.__drizzle_migrations GROUP BY created_at ORDER BY created_at"
+      )
+      assert.equal(ledger.rows.length, journal.entries.length)
+      assert.ok(ledger.rows.every((row) => row.copies === 1))
+      assert.deepEqual(
+        (
+          await fixture.pool.query(
+            "SELECT default_locale,version FROM platform_settings"
+          )
+        ).rows,
+        [{ default_locale: "zh-CN", version: 1 }]
+      )
+    })
+  })
+
+  test("S7 升级保留成员、角色、邀请、个人组织语言和停用事实", async () => {
+    await withMigrationFixture("s8_s7_upgrade", async (fixture) => {
+      await fixture.through(9)
+      await fixture.run()
+      const userId = randomUUID(),
+        organizationId = randomUUID(),
+        memberId = randomUUID(),
+        roleId = randomUUID(),
+        invitationId = randomUUID()
+      await fixture.pool.query(
+        `INSERT INTO public."user"(id,name,email,email_verified,preferred_locale)
+        VALUES($1,'Legacy owner','legacy-owner@example.test',true,'en-US');
+      `,
+        [userId]
+      )
+      await fixture.pool.query(
+        `INSERT INTO organization(id,name,slug,created_at,enabled,default_locale)
+        VALUES($1,'Legacy tenant','legacy-tenant',now(),false,'ar')`,
+        [organizationId]
+      )
+      await fixture.pool.query(
+        `INSERT INTO member(id,organization_id,user_id,role,created_at)
+        VALUES($1,$2,$3,'owner',now())`,
+        [memberId, organizationId, userId]
+      )
+      await fixture.pool.query(
+        `INSERT INTO organization_role(id,organization_id,role,permission)
+        VALUES($1,$2,'legacy-reader','{"project":["read"]}')`,
+        [roleId, organizationId]
+      )
+      await fixture.pool.query(
+        `INSERT INTO invitation(id,organization_id,email,role,status,expires_at,inviter_id)
+        VALUES($1,$2,'legacy-invite@example.test','legacy-reader','pending',now()+interval '1 day',$3)`,
+        [invitationId, organizationId, userId]
+      )
+      await fixture.through(Infinity)
+      await fixture.run()
+      await fixture.run()
+      assert.deepEqual(
+        (
+          await fixture.pool.query(
+            `SELECT u.preferred_locale,o.default_locale,s.status,m.role
+        FROM public."user" u JOIN member m ON m.user_id=u.id
+        JOIN organization o ON o.id=m.organization_id JOIN organization_status s ON s.organization_id=o.id
+        WHERE m.id=$1`,
+            [memberId]
+          )
+        ).rows,
+        [
+          {
+            preferred_locale: "en-US",
+            default_locale: "ar",
+            status: "SUSPENDED",
+            role: "owner",
+          },
+        ]
+      )
+      assert.deepEqual(
+        (
+          await fixture.pool.query(
+            "SELECT id,role,permission FROM organization_role WHERE id=$1",
+            [roleId]
+          )
+        ).rows,
+        [
+          {
+            id: roleId,
+            role: "legacy-reader",
+            permission: '{"project":["read"]}',
+          },
+        ]
+      )
+      assert.deepEqual(
+        (
+          await fixture.pool.query(
+            "SELECT id,status,role FROM invitation WHERE id=$1",
+            [invitationId]
+          )
+        ).rows,
+        [{ id: invitationId, status: "pending", role: "legacy-reader" }]
+      )
+      const ledger = await fixture.pool.query(
+        "SELECT count(*)::int AS count FROM drizzle.__drizzle_migrations"
+      )
+      assert.equal(ledger.rows[0].count, fixture.migrationCount)
+      assert.equal(
+        (await fixture.pool.query("SELECT count(*) FROM platform_assignment"))
+          .rows[0].count,
+        "0"
+      )
+    })
+  })
+
+  test("无 owner 的 S7 旧组织显式阻止升级且不改变原数据或 ledger", async () => {
+    await withMigrationFixture("s8_missing_owner", async (fixture) => {
+      await fixture.through(9)
+      await fixture.run()
+      const organization = await fixture.pool.query(
+        "INSERT INTO organization(name,slug,created_at) VALUES('Missing owner','missing-owner',now()) RETURNING id"
+      )
+      const before = (
+        await fixture.pool.query(
+          "SELECT * FROM drizzle.__drizzle_migrations ORDER BY id"
+        )
+      ).rows
+      await fixture.through(Infinity)
+      await assert.rejects(fixture.run(), (error: { stderr?: string }) =>
+        Boolean(
+          error.stderr?.includes(
+            "S8 upgrade blocked: organization without owner"
+          )
+        )
+      )
+      assert.deepEqual(
+        (
+          await fixture.pool.query(
+            "SELECT * FROM drizzle.__drizzle_migrations ORDER BY id"
+          )
+        ).rows,
+        before
+      )
+      assert.equal(
+        (
+          await fixture.pool.query("SELECT id FROM organization WHERE id=$1", [
+            organization.rows[0].id,
+          ])
+        ).rows.length,
+        1
+      )
+      assert.equal(
+        (await fixture.pool.query("SELECT count(*) FROM member")).rows[0].count,
+        "0"
+      )
+    })
+  })
+
+  test.each(["duplicate membership", "duplicate role"])(
+    "S7 旧数据 %s 显式阻止升级，保留待人工处理的数据与 ledger",
+    async (issue) => {
+      await withMigrationFixture(
+        issue === "duplicate membership"
+          ? "s8_duplicate_member"
+          : "s8_duplicate_role",
+        async (fixture) => {
+          await fixture.through(9)
+          await fixture.run()
+          const userId = randomUUID(),
+            organizationId = randomUUID()
+          await fixture.pool.query(
+            `INSERT INTO public."user"(id,name,email,email_verified)
+             VALUES($1,'Legacy owner','duplicate-owner@example.test',true)`,
+            [userId]
+          )
+          await fixture.pool.query(
+            "INSERT INTO organization(id,name,slug,created_at) VALUES($1,'Legacy duplicate','legacy-duplicate',now())",
+            [organizationId]
+          )
+          await fixture.pool.query(
+            "INSERT INTO member(organization_id,user_id,role,created_at) VALUES($1,$2,'owner',now())",
+            [organizationId, userId]
+          )
+          if (issue === "duplicate membership") {
+            await fixture.pool.query(
+              "INSERT INTO member(organization_id,user_id,role,created_at) VALUES($1,$2,'member',now())",
+              [organizationId, userId]
+            )
+          } else {
+            await fixture.pool.query(
+              `INSERT INTO organization_role(organization_id,role,permission)
+               VALUES($1,'duplicate-reader','{"project":["read"]}'),($1,'duplicate-reader','{"project":["read"]}')`,
+              [organizationId]
+            )
+          }
+          const before = async () => ({
+            ledger: (
+              await fixture.pool.query(
+                "SELECT * FROM drizzle.__drizzle_migrations ORDER BY id"
+              )
+            ).rows,
+            members: (
+              await fixture.pool.query("SELECT * FROM member ORDER BY id")
+            ).rows,
+            roles: (
+              await fixture.pool.query(
+                "SELECT * FROM organization_role ORDER BY id"
+              )
+            ).rows,
+          })
+          const original = await before()
+          await fixture.through(Infinity)
+          await assert.rejects(fixture.run(), (error: { stderr?: string }) =>
+            Boolean(error.stderr?.includes(`S8 upgrade blocked: ${issue}`))
+          )
+          assert.deepEqual(await before(), original)
+        }
+      )
+    }
+  )
 
   test("Owner、角色属性、DDL、TEMP、角色切换和迁移历史访问边界", async () => {
     const roles = (
@@ -804,6 +1085,13 @@ describe(suiteName, { concurrent: false }, () => {
       await runMigration(join(dir, "src/migrate.ts"), backfillUrl)
       const org = await backfill.query<{ id: string }>(
         "INSERT INTO organization (name, slug, created_at, enabled) VALUES ('Legacy Disabled', 'legacy-disabled', now(), false) RETURNING id"
+      )
+      const legacyOwner = await backfill.query<{ id: string }>(
+        "INSERT INTO public.\"user\"(name,email,email_verified) VALUES('Legacy owner','legacy-backfill@example.test',true) RETURNING id"
+      )
+      await backfill.query(
+        "INSERT INTO member(organization_id,user_id,role,created_at) VALUES($1,$2,'owner',now())",
+        [org.rows[0].id, legacyOwner.rows[0].id]
       )
       journal.entries.push(...pending)
       await writeFile(journalPath, JSON.stringify(journal))

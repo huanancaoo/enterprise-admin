@@ -299,6 +299,104 @@ describe("platform audit: approved cross-organization projections", () => {
     ).toBe(400)
   })
 
+  it("pages tied timestamps across both audit sources without losing events or changing detail projections", async () => {
+    const at = new Date(Date.now() - 7 * 86400000).toISOString()
+    const expectedIds = []
+    for (let index = 0; index < 4; index++) {
+      expectedIds.push(
+        await seedEvent(orgA, tenantA, "member.role_changed", at)
+      )
+    }
+    const assignments = [
+      {
+        action: "grant",
+        previous: null,
+        next: "platform_auditor",
+        result: "changed",
+      },
+      {
+        action: "revoke",
+        previous: "platform_auditor",
+        next: null,
+        result: "changed",
+      },
+      {
+        action: "grant",
+        previous: "platform_auditor",
+        next: "platform_auditor",
+        result: "no_change",
+      },
+    ]
+    for (const assignment of assignments) {
+      const id = randomUUID()
+      await environment.deployerPool.query(
+        `INSERT INTO public.platform_assignment_audit
+        (id,user_id,action,previous_role,next_role,result,reason,actor,created_at)
+        VALUES($1,$2,$3,$4,$5,$6,'private-mixed-reason@example.test','private-mixed-operator',$7)`,
+        [
+          id,
+          tenantA.user.id,
+          assignment.action,
+          assignment.previous,
+          assignment.next,
+          assignment.result,
+          at,
+        ]
+      )
+      expectedIds.push(`assignment:${id}`)
+    }
+    const query = { purpose, from: at, to: at, limit: 2 }
+    const events = []
+    let cursor
+    do {
+      const response = await request({
+        ...query,
+        ...(cursor ? { cursor } : {}),
+      })
+      expect(response.status).toBe(200)
+      const page = PlatformAuditPageSchema.parse(await response.json())
+      events.push(...page.items)
+      cursor = page.nextCursor
+    } while (cursor)
+    expect(events.map((event) => event.id)).toEqual(
+      expectedIds.sort().reverse()
+    )
+    for (const event of events) {
+      const response = await request({ purpose }, admin, event.id)
+      expect(response.status).toBe(200)
+      expect(PlatformAuditEventSchema.parse(await response.json())).toEqual(
+        event
+      )
+    }
+    expect(JSON.stringify(events)).not.toContain(
+      "private-mixed-reason@example.test"
+    )
+    expect(JSON.stringify(events)).not.toContain("private-mixed-operator")
+    for (const filter of [
+      { organizationId: orgA.id },
+      { actorId: tenantA.user.id },
+    ]) {
+      const page = await (
+        await request({ ...query, ...filter, limit: 100 })
+      ).json()
+      expect(page.items).toHaveLength(4)
+      expect(page.items.every((event) => event.id.startsWith("event:"))).toBe(
+        true
+      )
+    }
+    const noChange = await (
+      await request({ ...query, result: "no_change", limit: 100 })
+    ).json()
+    expect(noChange.items).toHaveLength(1)
+    expect(noChange.items[0]).toMatchObject({
+      eventCode: "platform.role_granted",
+      metadata: {
+        previousRole: "platform_auditor",
+        nextRole: "platform_auditor",
+      },
+    })
+  })
+
   it("requires purpose, rejects query expansion and invalid windows, and never expands into project or unknown audit data", async () => {
     for (const params of [
       {},

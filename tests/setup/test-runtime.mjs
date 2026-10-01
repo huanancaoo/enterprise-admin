@@ -103,6 +103,7 @@ export async function startTestApplication({
       app,
       runtime: app.get(AuthRuntime),
       migrator,
+      databaseContainer: database.container,
       deployerPool,
       deployerURL,
       baseURL,

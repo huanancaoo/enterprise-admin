@@ -260,6 +260,13 @@
       "when": 1790872917860,
       "tag": "0036_platform-settings",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1790878598634,
+      "tag": "0037_platform-audit-pagination",
+      "breakpoints": true
     }
   ]
 }

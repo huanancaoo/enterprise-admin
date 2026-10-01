@@ -29,7 +29,7 @@ pnpm db:generate
 pnpm --filter @workspace/database exec drizzle-kit generate --custom --name=describe-the-grant
 ```
 
-把授权 SQL 写入生成的文件，与结构迁移一起审查。已执行的 migration 不修改；新变更使用新文件。按提交顺序串行运行一个 migrator，禁止并发执行迁移。
+把授权 SQL 写入生成的文件，与结构迁移一起审查。已执行的 migration 不修改；新变更使用新文件。按提交顺序发布迁移；one-shot 在同一个连接持有数据库 advisory lock，使误启动的第二个 Migrator 等待首个进程结束，再重新读取 ledger，避免重复执行 SQL。
 
 ### 本机 one-shot 进程
 
@@ -41,6 +41,8 @@ node --env-file=.env src/migrate.ts
 ```
 
 若执行环境已注入 `MIGRATION_DATABASE_URL`，可在根目录运行 `pnpm db:migrate`。脚本要求真实连接身份为 `app_migrator`，成功退出 0，缺配置、错误身份或迁移失败均非零退出。Drizzle ledger 位于 `drizzle.__drizzle_migrations`，重复执行不重放已记录的迁移。待执行 SQL 和 ledger 记录在事务中提交；失败回滚。迁移 SQL 必须能够在事务中执行。
+
+S7 首次升级至 S8 组织约束前，迁移入口检查无 owner 的组织、重复成员关系与同组织重复角色。异常会显式阻止升级，保留原数据与 ledger；部署者须按业务事实修正旧数据后重新执行，不会自动授予 owner 或合并重复记录。
 
 ### 独立镜像
 
@@ -112,6 +114,8 @@ MIGRATION_DATABASE_URL='postgresql://app_migrator:...@db/enterprise_admin' pnpm 
 查询范围固定为批准目录中的组织管理与平台运营事件，以及部署 CLI 原有任职审计。带来源的事件 ID 保留两类历史事实身份；响应不含完整邮箱、内部理由、部署操作者字符串或原始 metadata。`platform_audit_projection` 为受限 executor 的 security_invoker 视图，运行角色不能直接读取；新增策略不放宽 Projects 或租户运行角色 RLS。
 
 默认最近 30 天、最多 90 天及未来时间拒绝由数据库同一时钟决定；API 只传递筛选并签名冻结窗口的游标，不用主机时差改变业务窗口。验收记录见 [S8 平台审计验证](../../docs/architecture/s8-platform-audit-validation.md)。
+
+迁移 `0037_platform-audit-pagination.sql` 将列表改为各来源先按已有时间/UUID 索引选取至多一页候选，再合并分页、关联组织及用户、生成脱敏 JSON，避免先投影整个 90 天窗口。公开 ID、时间边界、筛选、游标次序和字段保持一致，仍先验证当前任职/MFA，并在返回前提交私有访问审计；角色权限与 RLS 不变。固定规模 HTTP 性能证据见 [S8 发布验收记录](../../docs/architecture/s8-release-validation.md)。
 
 ### 平台默认语言与部署摘要
 

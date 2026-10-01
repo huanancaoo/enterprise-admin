@@ -25,6 +25,18 @@ export default defineConfig({
           forbidOnly: true,
         },
       },
+      {
+        test: {
+          name: "performance",
+          silent: false,
+          environment: "node",
+          include: ["tests/performance/**/*.test.mjs"],
+          fileParallelism: false,
+          hookTimeout: 300_000,
+          testTimeout: 60_000,
+          forbidOnly: true,
+        },
+      },
     ],
   },
 })
