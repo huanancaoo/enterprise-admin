@@ -1,5 +1,5 @@
 import { useRef, useState } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import {
   ErrorState,
@@ -9,7 +9,12 @@ import {
   type DataTableStatus,
 } from "@workspace/admin"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
-import { getOrganizationAccessOptions } from "@workspace/api-client"
+import {
+  createFileFolder,
+  getFileOperation,
+  getOrganizationAccessOptions,
+  requestLanguageHeader,
+} from "@workspace/api-client"
 import type {
   FileListQuery,
   FileResponse,
@@ -19,11 +24,13 @@ import type {
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
 import { Button } from "@workspace/ui/components/button"
+import { CreateFolderDialog } from "./create-folder-dialog"
 import { FilePreviewSheet } from "./file-preview-sheet"
 import { FileBrowser } from "./file-browser"
 import {
   fileRequestErrorMessage,
   fileRequestIsDenied,
+  fileKeys,
   getFileBreadcrumbsOptions,
   getFileEntriesOptions,
   getFileWorkspaceOptions,
@@ -120,6 +127,9 @@ function AuthorizedFilesWorkspace({
         authorizationVersion={authorizationVersion}
         contentScopeKey={scopeKey}
         workspace={workspace.data}
+        canCreateFolder={
+          permissions.isSuccess && permissions.data.canCreateFolder
+        }
       />
     </ResourceList>
   )
@@ -130,6 +140,7 @@ function FileWorkspaceBrowser({
   authorizationVersion,
   contentScopeKey,
   workspace,
+  canCreateFolder,
   search,
   onSearchChange,
   onOpenFile,
@@ -137,9 +148,13 @@ function FileWorkspaceBrowser({
   authorizationVersion: number
   contentScopeKey: string
   workspace: FileWorkspace
+  canCreateFolder: boolean
 }) {
   const { t } = useTranslation(["files", "common"])
   const locale = useUiLocale()
+  const queryClient = useQueryClient()
+  const [creatingFolder, setCreatingFolder] = useState(false)
+  const creationTrigger = useRef<HTMLButtonElement | null>(null)
   const [preview, setPreview] = useState<FileResponse | null>(null)
   const previewTrigger = useRef<string>("")
   const parentId = search.parentId ?? workspace.root.id
@@ -207,6 +222,16 @@ function FileWorkspaceBrowser({
         page={entries.data}
         search={search}
         status={status}
+        actions={
+          canCreateFolder && (
+            <Button
+              ref={creationTrigger}
+              onClick={() => setCreatingFolder(true)}
+            >
+              {t("files:createFolder")}
+            </Button>
+          )
+        }
         error={
           entries.isError
             ? fileRequestErrorMessage(
@@ -241,6 +266,44 @@ function FileWorkspaceBrowser({
             page: 1,
           }))
         }
+      />
+      <CreateFolderDialog
+        open={creatingFolder}
+        contentScopeKey={contentScopeKey}
+        parent={currentFolder}
+        authorizationVersion={authorizationVersion}
+        canCreate={canCreateFolder}
+        onClose={() => setCreatingFolder(false)}
+        returnFocus={() => creationTrigger.current}
+        createFolder={async (input, signal) =>
+          (
+            await createFileFolder(organizationId, input, {
+              signal,
+              headers: { [requestLanguageHeader]: locale },
+            })
+          ).data
+        }
+        readOperation={async (operationId, signal) =>
+          (
+            await getFileOperation(organizationId, operationId, {
+              signal,
+              headers: { [requestLanguageHeader]: locale },
+            })
+          ).data
+        }
+        onCompleted={() => {
+          void Promise.all(
+            ["list", "breadcrumbs", "workspace"].map((resource) =>
+              queryClient.invalidateQueries({
+                queryKey: [
+                  ...fileKeys.scope(organizationId),
+                  authorizationVersion,
+                  resource,
+                ],
+              })
+            )
+          )
+        }}
       />
       <FilePreviewSheet
         target={

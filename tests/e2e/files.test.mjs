@@ -13,6 +13,10 @@ import {
   expect,
   it,
 } from "vitest"
+import {
+  CreateFolderSchema,
+  FileOperationResponseSchema,
+} from "../../packages/contracts/dist/index.js"
 import { createTenantRunner } from "../../packages/database/dist/tenant.js"
 import { fileRepository } from "../../packages/database/dist/repositories/files.js"
 import { signUpVerified } from "../setup/complete-signup.mjs"
@@ -932,4 +936,369 @@ describe("S9 Files：正式租户产品连接 PostgreSQL 与固定 RustFS", () =
       )
     }
   )
+
+  const folderWrites = (organizationId) => (request) =>
+    request.method() === "POST" &&
+    new URL(request.url()).pathname ===
+      `/api/v1/organizations/${organizationId}/files/folders`
+
+  async function openCreation(name) {
+    await page.getByRole("button", { name: "创建文件夹", exact: true }).click()
+    const dialog = page.getByRole("dialog", { name: "创建文件夹", exact: true })
+    await dialog
+      .getByRole("textbox", { name: "文件夹名称", exact: true })
+      .fill(name)
+    return dialog
+  }
+
+  async function assertEmptyFolderMarker(f, segments) {
+    const marker = await s3.send(
+      new HeadObjectCommand({
+        Bucket: filesConfig.bucket,
+        Key:
+          filesConfig.prefix +
+          "/" +
+          storageKey(
+            {
+              owner: { kind: "organization", id: f.organization.id },
+              area: "files",
+              segments,
+            },
+            true
+          ),
+      })
+    )
+    expect(marker.ContentLength).toBe(0)
+  }
+
+  it("正式创建空文件夹写入当前目录与 RustFS 标记，关闭恢复焦点，刷新保持新层级", async () => {
+    const f = await fixture()
+    await signIn(page, f.owner, environment.tenantOrigin)
+    await page.getByRole("link", { name: "文件", exact: true }).click()
+    await page.getByRole("button", { name: "合同 2026", exact: true }).click()
+    const location = page.url()
+    const dialog = await openCreation("  新合同 目录  ")
+    await expectUI(dialog).toContainText("在“合同 2026”中创建一个空文件夹。")
+    await expectUI(dialog).toHaveCSS("opacity", "1")
+    await page.addScriptTag({
+      path: a11yRequire.resolve("axe-core/axe.min.js"),
+    })
+    expect(
+      await page.evaluate(
+        async () =>
+          (
+            await window.axe.run(document.querySelector('[role="dialog"]'), {
+              runOnly: {
+                type: "tag",
+                values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"],
+              },
+            })
+          ).violations
+      )
+    ).toEqual([])
+    const submitted = page.waitForResponse((response) =>
+      folderWrites(f.organization.id)(response.request())
+    )
+    await dialog
+      .getByRole("button", { name: "创建文件夹", exact: true })
+      .click()
+    const response = await submitted
+    expect(response.status()).toBe(200)
+    const input = CreateFolderSchema.parse(response.request().postDataJSON())
+    const receipt = FileOperationResponseSchema.parse(await response.json())
+    expect(input).toMatchObject({
+      parentId: f.directory.id,
+      name: "新合同 目录",
+    })
+    expect(receipt).toMatchObject({ id: input.operationId, phase: "completed" })
+    const created = await f.run((tx) =>
+      fileRepository.findEntry(tx, receipt.result.entryId)
+    )
+    expect(created).toMatchObject({
+      parentId: f.directory.id,
+      name: "新合同 目录",
+      path: ["合同 2026", "新合同 目录"],
+    })
+    await expectUI(dialog).toHaveCount(0)
+    await expectUI(
+      page.getByRole("button", { name: "创建文件夹", exact: true })
+    ).toBeFocused()
+    expect(page.url()).toBe(location)
+    await expectUI(
+      page.getByRole("button", { name: "新合同 目录", exact: true })
+    ).toBeVisible()
+    await assertEmptyFolderMarker(f, created.path)
+    await page.getByRole("button", { name: "新合同 目录", exact: true }).click()
+    await expectUI(
+      page.getByText("此文件夹暂无文件或子文件夹。", { exact: true })
+    ).toBeVisible()
+    await page.reload()
+    await expectUI(
+      page.getByText("此文件夹暂无文件或子文件夹。", { exact: true })
+    ).toBeVisible()
+    expect(new URL(page.url()).searchParams.get("parentId")).toBe(created.id)
+  })
+
+  it("中文目录名称按246 UTF-8字节校验，超限保留原稿并不发写请求", async () => {
+    const f = await fixture()
+    await signIn(page, f.owner, environment.tenantOrigin)
+    await page.getByRole("link", { name: "文件", exact: true }).click()
+    await page.getByRole("button", { name: "空目录", exact: true }).click()
+    const writes = []
+    page.on("request", (request) => {
+      if (folderWrites(f.organization.id)(request))
+        writes.push(request.postDataJSON())
+    })
+    const name = "你".repeat(82)
+    const dialog = await openCreation(name + "你")
+    const input = dialog.getByRole("textbox", {
+      name: "文件夹名称",
+      exact: true,
+    })
+    await dialog
+      .getByRole("button", { name: "创建文件夹", exact: true })
+      .click()
+    await expectUI(input).toHaveValue(name + "你")
+    await expectUI(input).toHaveAttribute("aria-invalid", "true")
+    await expectUI(dialog).toContainText("文件夹名称过长，请缩短名称。")
+    expect(writes).toHaveLength(0)
+    await input.fill(name)
+    const submitted = page.waitForResponse((response) =>
+      folderWrites(f.organization.id)(response.request())
+    )
+    await dialog
+      .getByRole("button", { name: "创建文件夹", exact: true })
+      .click()
+    const response = await submitted
+    expect(response.status()).toBe(200)
+    expect(writes).toHaveLength(1)
+    expect(Buffer.byteLength(writes[0].name)).toBe(246)
+    expect(writes[0].parentId).toBe(f.empty.id)
+    await expectUI(
+      page.getByRole("button", { name, exact: true })
+    ).toBeVisible()
+    await assertEmptyFolderMarker(f, ["空目录", name])
+  })
+
+  it("同级冲突保留名称与失败操作事实，明确重新创建才产生新身份", async () => {
+    const f = await fixture()
+    await signIn(page, f.owner, environment.tenantOrigin)
+    await page.getByRole("link", { name: "文件", exact: true }).click()
+    const dialog = await openCreation("空目录")
+    const firstResponse = page.waitForResponse((response) =>
+      folderWrites(f.organization.id)(response.request())
+    )
+    await dialog
+      .getByRole("button", { name: "创建文件夹", exact: true })
+      .click()
+    const rejected = await firstResponse
+    expect(rejected.status()).toBe(409)
+    expect(await rejected.json()).toMatchObject({ code: "FILE_NAME_CONFLICT" })
+    const first = CreateFolderSchema.parse(rejected.request().postDataJSON())
+    const failed = await f.run((tx) =>
+      fileRepository.findOperation(tx, first.operationId)
+    )
+    expect(failed).toMatchObject({
+      phase: "failed",
+      errorCode: "FILE_NAME_CONFLICT",
+      committedAt: null,
+    })
+    await expectUI(
+      dialog.getByRole("textbox", { name: "文件夹名称", exact: true })
+    ).toHaveValue("空目录")
+    await expectUI(dialog.getByRole("alert")).toContainText("名称")
+    await dialog
+      .getByRole("textbox", { name: "文件夹名称", exact: true })
+      .fill("明确新建目录")
+    const submitted = page.waitForResponse((response) =>
+      folderWrites(f.organization.id)(response.request())
+    )
+    await dialog.getByRole("button", { name: "重新创建", exact: true }).click()
+    const completed = await submitted
+    expect(completed.status()).toBe(200)
+    const second = CreateFolderSchema.parse(completed.request().postDataJSON())
+    expect(second.operationId).not.toBe(first.operationId)
+    expect(second.parentId).toBe(first.parentId)
+    const unchanged = await f.run((tx) =>
+      fileRepository.findOperation(tx, first.operationId)
+    )
+    expect(unchanged).toMatchObject({
+      phase: "failed",
+      errorCode: "FILE_NAME_CONFLICT",
+      committedAt: null,
+    })
+    await expectUI(
+      page.getByRole("button", { name: "明确新建目录", exact: true })
+    ).toBeVisible()
+    await assertEmptyFolderMarker(f, ["明确新建目录"])
+  })
+
+  it("丢失真实创建响应后查询原UUID，不重复写入且读取正式完成收据", async () => {
+    const f = await fixture()
+    await signIn(page, f.owner, environment.tenantOrigin)
+    await page.getByRole("link", { name: "文件", exact: true }).click()
+    const writes = [],
+      reads = []
+    page.on("request", (request) => {
+      if (folderWrites(f.organization.id)(request))
+        writes.push(request.postDataJSON())
+      if (
+        request.method() === "GET" &&
+        new URL(request.url()).pathname.startsWith(
+          `/api/v1/organizations/${f.organization.id}/files/operations/`
+        )
+      )
+        reads.push(new URL(request.url()).pathname.split("/").at(-1))
+    })
+    await page.route(
+      `**/organizations/${f.organization.id}/files/folders`,
+      async (route) => {
+        // 操作已由真实服务执行；只丢失回程响应，验证客户端按原身份查询而不再次写入。
+        const response = await route.fetch()
+        expect(response.status()).toBe(200)
+        await route.abort("failed")
+      },
+      { times: 1 }
+    )
+    const dialog = await openCreation("已完成但未收到响应")
+    await dialog
+      .getByRole("button", { name: "创建文件夹", exact: true })
+      .click()
+    await expectUI(dialog).toHaveCount(0)
+    await expectUI(
+      page.getByRole("button", { name: "已完成但未收到响应", exact: true })
+    ).toBeVisible()
+    expect(writes).toHaveLength(1)
+    expect(reads).toEqual([writes[0].operationId])
+    const facts = await f.run((tx) =>
+      fileRepository.findOperation(tx, writes[0].operationId)
+    )
+    expect(facts.phase).toBe("completed")
+    await assertEmptyFolderMarker(f, ["已完成但未收到响应"])
+  })
+
+  it("真实创建请求待响应时锁定关闭与键盘重复提交，只发布一个文件夹", async () => {
+    const f = await fixture()
+    await signIn(page, f.owner, environment.tenantOrigin)
+    await page.getByRole("link", { name: "文件", exact: true }).click()
+    const received = Promise.withResolvers(),
+      release = Promise.withResolvers()
+    const writes = []
+    page.on("request", (request) => {
+      if (folderWrites(f.organization.id)(request))
+        writes.push(request.postDataJSON())
+    })
+    await page.route(
+      `**/organizations/${f.organization.id}/files/folders`,
+      async (route) => {
+        const response = await route.fetch()
+        received.resolve(response.status())
+        await release.promise
+        await route.fulfill({ response })
+      },
+      { times: 1 }
+    )
+    const dialog = await openCreation("仅一次创建")
+    try {
+      await dialog
+        .getByRole("button", { name: "创建文件夹", exact: true })
+        .click()
+      expect(await received.promise).toBe(200)
+      await expectUI(
+        dialog.getByRole("textbox", { name: "文件夹名称", exact: true })
+      ).toBeDisabled()
+      await expectUI(
+        dialog.getByRole("button", { name: "取消", exact: true })
+      ).toBeDisabled()
+      await page.keyboard.press("Escape")
+      await page.keyboard.press("Enter")
+      await expectUI(dialog).toBeVisible()
+      expect(writes).toHaveLength(1)
+    } finally {
+      release.resolve()
+      await page.unrouteAll({ behavior: "wait" })
+    }
+    await expectUI(dialog).toHaveCount(0)
+    await expectUI(
+      page.getByRole("button", { name: "仅一次创建", exact: true })
+    ).toBeVisible()
+    expect(writes).toHaveLength(1)
+  })
+
+  it("内置member只读成员可以浏览文件，创建能力按真实权限隐藏", async () => {
+    const f = await fixture()
+    const reader = await signUpVerified(
+      environment.baseURL,
+      environment.tenantOrigin,
+      environment.migrator,
+      { name: "目录只读成员" }
+    )
+    await environment.runtime.auth.api.addMember({
+      headers: f.owner.headers,
+      body: {
+        organizationId: f.organization.id,
+        userId: reader.user.id,
+        role: "member",
+      },
+    })
+    await signIn(page, reader, environment.tenantOrigin)
+    await page.getByRole("link", { name: "文件", exact: true }).click()
+    await expectUI(
+      page.getByRole("button", { name: "资料 00.txt", exact: true })
+    ).toBeVisible()
+    await expectUI(
+      page.getByRole("button", { name: "创建文件夹", exact: true })
+    ).toHaveCount(0)
+    await page.getByRole("button", { name: "空目录", exact: true }).click()
+    await expectUI(
+      page.getByText("此文件夹暂无文件或子文件夹。", { exact: true })
+    ).toBeVisible()
+    await expectUI(
+      page.getByRole("button", { name: "创建文件夹", exact: true })
+    ).toHaveCount(0)
+  })
+
+  it.each([
+    {
+      locale: "English",
+      create: "Create folder",
+      field: "Folder name",
+      name: "English directory",
+    },
+    {
+      locale: "العربية",
+      create: "إنشاء مجلد",
+      field: "اسم المجلد",
+      name: "مجلد عربي",
+    },
+  ])("$locale 的真实创建使用键盘与原层级，阿语保持RTL", async (input) => {
+    const f = await fixture()
+    await signIn(page, f.owner, environment.tenantOrigin)
+    await page.getByRole("link", { name: "文件", exact: true }).click()
+    await page.getByRole("button", { name: "合同 2026", exact: true }).click()
+    await selectLocale(page, f.owner.user.name, input.locale)
+    if (input.locale === "العربية")
+      await expectUI(page.locator("html")).toHaveAttribute("dir", "rtl")
+    const location = page.url()
+    await page.getByRole("button", { name: input.create, exact: true }).click()
+    const dialog = page.getByRole("dialog", { name: input.create, exact: true })
+    const field = dialog.getByRole("textbox", {
+      name: input.field,
+      exact: true,
+    })
+    await field.fill(input.name)
+    const submitted = page.waitForResponse((response) =>
+      folderWrites(f.organization.id)(response.request())
+    )
+    await field.press("Enter")
+    const response = await submitted
+    expect(response.status()).toBe(200)
+    expect(response.request().postDataJSON().parentId).toBe(f.directory.id)
+    await expectUI(dialog).toHaveCount(0)
+    await expectUI(
+      page.getByRole("button", { name: input.name, exact: true })
+    ).toBeVisible()
+    expect(page.url()).toBe(location)
+    await assertEmptyFolderMarker(f, ["合同 2026", input.name])
+  })
 })
