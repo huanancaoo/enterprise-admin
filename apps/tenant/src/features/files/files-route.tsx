@@ -16,6 +16,13 @@ export function FilesRoute() {
       onSearchChange={(updater) =>
         void navigate({ search: (current: FileListQuery) => updater(current) })
       }
+      onOpenVersion={(reference) =>
+        void navigate({
+          to: "/app/files/$organizationId/entries/$entryId",
+          params: { organizationId, entryId: reference.fileId },
+          search: { versionId: reference.versionId },
+        })
+      }
       onOpenFile={(file) =>
         void navigate({
           to: "/app/files/$organizationId/entries/$entryId",

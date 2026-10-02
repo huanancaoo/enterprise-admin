@@ -20,6 +20,7 @@ import type {
   FileResponse,
   FileUsageResponse,
   FileWorkspace,
+  FileVersionReference,
 } from "@workspace/contracts"
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
@@ -27,6 +28,8 @@ import { Button } from "@workspace/ui/components/button"
 import { CreateFolderDialog } from "./create-folder-dialog"
 import { FilePreviewSheet } from "./file-preview-sheet"
 import { FileBrowser } from "./file-browser"
+import { FileUploads } from "./file-uploads"
+import { useFileUploadActions } from "./upload-context"
 import {
   fileRequestErrorMessage,
   fileRequestIsDenied,
@@ -42,6 +45,7 @@ type FilesWorkspaceProps = {
   search: FileListQuery
   onSearchChange: (updater: (current: FileListQuery) => FileListQuery) => void
   onOpenFile: (file: FileResponse) => void
+  onOpenVersion: (reference: FileVersionReference) => void
 }
 
 export function FilesWorkspace(props: FilesWorkspaceProps) {
@@ -121,16 +125,36 @@ function AuthorizedFilesWorkspace({
           )}
         </p>
       )}
-      <FileWorkspaceBrowser
-        {...props}
+      <FileUploads
         key={scopeKey}
+        userId={session.user.id}
+        organizationId={props.organizationId}
         authorizationVersion={authorizationVersion}
         contentScopeKey={scopeKey}
-        workspace={workspace.data}
-        canCreateFolder={
-          permissions.isSuccess && permissions.data.canCreateFolder
+        canUpload={permissions.isSuccess && permissions.data.canUpload}
+        canOverwrite={
+          permissions.isSuccess &&
+          permissions.data.canUpload &&
+          permissions.data.canUpdateFiles
         }
-      />
+        onOpenVersion={props.onOpenVersion}
+      >
+        <FileWorkspaceBrowser
+          {...props}
+          authorizationVersion={authorizationVersion}
+          contentScopeKey={scopeKey}
+          workspace={workspace.data}
+          canUpload={permissions.isSuccess && permissions.data.canUpload}
+          canOverwrite={
+            permissions.isSuccess &&
+            permissions.data.canUpload &&
+            permissions.data.canUpdateFiles
+          }
+          canCreateFolder={
+            permissions.isSuccess && permissions.data.canCreateFolder
+          }
+        />
+      </FileUploads>
     </ResourceList>
   )
 }
@@ -141,6 +165,8 @@ function FileWorkspaceBrowser({
   contentScopeKey,
   workspace,
   canCreateFolder,
+  canUpload,
+  canOverwrite,
   search,
   onSearchChange,
   onOpenFile,
@@ -149,11 +175,14 @@ function FileWorkspaceBrowser({
   contentScopeKey: string
   workspace: FileWorkspace
   canCreateFolder: boolean
+  canUpload: boolean
+  canOverwrite: boolean
 }) {
   const { t } = useTranslation(["files", "common"])
   const locale = useUiLocale()
   const queryClient = useQueryClient()
   const [creatingFolder, setCreatingFolder] = useState(false)
+  const { uploadTriggerId, onUpload, onOverwrite } = useFileUploadActions()
   const creationTrigger = useRef<HTMLButtonElement | null>(null)
   const [preview, setPreview] = useState<FileResponse | null>(null)
   const previewTrigger = useRef<string>("")
@@ -223,14 +252,43 @@ function FileWorkspaceBrowser({
         search={search}
         status={status}
         actions={
-          canCreateFolder && (
-            <Button
-              ref={creationTrigger}
-              onClick={() => setCreatingFolder(true)}
-            >
-              {t("files:createFolder")}
-            </Button>
-          )
+          <div className="flex flex-wrap gap-2">
+            {canCreateFolder && (
+              <Button
+                ref={creationTrigger}
+                onClick={() => setCreatingFolder(true)}
+              >
+                {t("files:createFolder")}
+              </Button>
+            )}
+            {canUpload && (
+              <Button
+                id={uploadTriggerId}
+                onClick={() => onUpload(currentFolder)}
+              >
+                {t("files:uploadFiles")}
+              </Button>
+            )}
+          </div>
+        }
+        renderSelectionActions={
+          canOverwrite
+            ? (selected) => {
+                const file =
+                  selected.length === 1 && selected[0]?.kind === "file"
+                    ? selected[0]
+                    : null
+                return file ? (
+                  <Button
+                    id={`${uploadTriggerId}-overwrite`}
+                    variant="outline"
+                    onClick={() => onOverwrite(file)}
+                  >
+                    {t("files:overwriteFile")}
+                  </Button>
+                ) : null
+              }
+            : undefined
         }
         error={
           entries.isError

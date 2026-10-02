@@ -34,6 +34,7 @@ type UploadQueueProps = {
   onCheck: (id: string) => void
   onDismiss: (id: string) => void
   onOpenResult?: (reference: FileVersionReference) => void
+  emptyFocus?: () => HTMLElement | null
 }
 
 export function UploadQueue({
@@ -42,6 +43,7 @@ export function UploadQueue({
   onCheck,
   onDismiss,
   onOpenResult,
+  emptyFocus,
 }: UploadQueueProps) {
   const { t } = useTranslation(["files", "common"])
   const locale = useUiLocale()
@@ -165,7 +167,8 @@ export function UploadQueue({
                     variant="ghost"
                     onClick={() => {
                       onDismiss(job.id)
-                      heading.current?.focus()
+                      if (jobs.length === 1) emptyFocus?.()?.focus()
+                      else heading.current?.focus()
                     }}
                   >
                     {t("files:dismissUploadRecord")}

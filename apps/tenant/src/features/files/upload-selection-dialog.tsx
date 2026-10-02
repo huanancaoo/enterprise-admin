@@ -52,7 +52,11 @@ type SelectionTarget =
       parent: FolderResponse
       initialFiles?: FileUploadSelection[]
     }
-  | { kind: "overwrite"; target: FileResponse }
+  | {
+      kind: "overwrite"
+      target: FileResponse
+      initialFiles?: FileUploadSelection[]
+    }
 type SelectionFormProps = SelectionTarget & {
   contentScopeKey: string
   canSubmit: boolean
@@ -89,10 +93,7 @@ function SelectionForm(props: SelectionFormProps) {
   useEffect(() => () => registration.current?.abort(), [])
   const form = useForm({
     defaultValues: {
-      items:
-        props.kind === "upload"
-          ? (props.initialFiles ?? [])
-          : ([] as FileUploadSelection[]),
+      items: props.initialFiles ?? ([] as FileUploadSelection[]),
     },
     validators: {
       onSubmit: overwrite ? overwriteSelectionSchema : uploadSelectionSchema,

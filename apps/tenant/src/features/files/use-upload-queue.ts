@@ -16,6 +16,7 @@ import {
   saveUploadRecords,
   uploadRecordKey,
   type FileUploadRecord,
+  type UploadRecordStorage,
 } from "./upload-records"
 import type { FileUploadJobView } from "./upload-queue"
 import type { FileUploadSelection } from "./upload-selection-dialog"
@@ -33,7 +34,7 @@ type Job = FileUploadJobView & {
 type UploadQueueOptions = {
   userId: string
   organizationId: string
-  storage: Storage
+  storage: UploadRecordStorage
   canUpload: boolean
   canOverwrite: boolean
   upload: (

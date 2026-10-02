@@ -18,20 +18,21 @@ const uploadRecordSchema = z.strictObject({
   updatedAt: z.iso.datetime(),
 })
 const uploadRecordsSchema = z.array(uploadRecordSchema)
+export type UploadRecordStorage = Pick<Storage, "getItem" | "setItem">
 export type FileUploadRecord = z.infer<typeof uploadRecordSchema>
 
 export function uploadRecordKey(userId: string, organizationId: string) {
   return `enterprise-admin:file-uploads:${JSON.stringify([userId, organizationId])}`
 }
 export function readUploadRecords(
-  storage: Storage,
+  storage: UploadRecordStorage,
   key: string
 ): FileUploadRecord[] {
   const saved = storage.getItem(key)
   return saved === null ? [] : uploadRecordsSchema.parse(JSON.parse(saved))
 }
 export function saveUploadRecords(
-  storage: Storage,
+  storage: UploadRecordStorage,
   key: string,
   records: FileUploadRecord[]
 ) {
