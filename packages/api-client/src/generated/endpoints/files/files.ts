@@ -25,11 +25,14 @@ import type {
   FilePage,
   FileVersions,
   FileWorkspace,
+  GetFileVersionContentHeaders,
+  GetFileVersionContentParams,
   ListFileEntriesParams,
 } from "../../models"
 
 import { apiClient } from "../../../http/client"
 import type { ErrorType } from "../../../http/client"
+import { binaryApiClient } from "../../../http/client"
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1]
 
@@ -1434,6 +1437,323 @@ export function useGetFileOperation<
   const queryOptions = getGetFileOperationQueryOptions(
     organizationId,
     operationId,
+    options
+  )
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+
+  return withQueryKey(query, queryOptions.queryKey)
+}
+
+export type getFileVersionContentResponse200 = {
+  data: Blob
+  status: 200
+}
+
+export type getFileVersionContentResponse206 = {
+  data: Blob
+  status: 206
+}
+
+export type getFileVersionContentResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type getFileVersionContentResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type getFileVersionContentResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type getFileVersionContentResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type getFileVersionContentResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type getFileVersionContentResponse416 = {
+  data: ApiError
+  status: 416
+}
+
+export type getFileVersionContentResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type getFileVersionContentResponseSuccess = (
+  getFileVersionContentResponse200 | getFileVersionContentResponse206
+) & {
+  headers: Headers
+}
+export type getFileVersionContentResponseError = (
+  | getFileVersionContentResponse400
+  | getFileVersionContentResponse401
+  | getFileVersionContentResponse403
+  | getFileVersionContentResponse404
+  | getFileVersionContentResponse409
+  | getFileVersionContentResponse416
+  | getFileVersionContentResponse503
+) & {
+  headers: Headers
+}
+
+export const getGetFileVersionContentUrl = (
+  organizationId: string,
+  fileId: string,
+  versionId: string,
+  params?: GetFileVersionContentParams
+) => {
+  const normalizedParams = new URLSearchParams()
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value))
+    }
+  })
+
+  const stringifiedParams = normalizedParams.toString()
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/organizations/${organizationId}/files/entries/${fileId}/versions/${versionId}/content?${stringifiedParams}`
+    : `/api/v1/organizations/${organizationId}/files/entries/${fileId}/versions/${versionId}/content`
+}
+
+export const getFileVersionContent = async (
+  organizationId: string,
+  fileId: string,
+  versionId: string,
+  params?: GetFileVersionContentParams,
+  headers?: GetFileVersionContentHeaders,
+  options?: Parameters<typeof binaryApiClient>[1]
+): Promise<getFileVersionContentResponseSuccess> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {}
+    if (h instanceof Headers) return Object.fromEntries(h.entries())
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string]
+        )
+      )
+    }
+    const headers: Record<string, string | readonly string[]> = {}
+    for (const [name, value] of Object.entries<
+      string | readonly string[] | undefined
+    >(h)) {
+      if (value !== undefined) headers[name] = value
+    }
+    return headers
+  }
+  return binaryApiClient<getFileVersionContentResponseSuccess>(
+    getGetFileVersionContentUrl(organizationId, fileId, versionId, params),
+    {
+      ...options,
+      method: "GET",
+      headers: { ...headers, ...getHeaders(options?.headers) },
+    }
+  )
+}
+
+export const getGetFileVersionContentQueryKey = (
+  organizationId: string,
+  fileId: string,
+  versionId: string,
+  params?: GetFileVersionContentParams
+) => {
+  return [
+    `/api/v1/organizations/${organizationId}/files/entries/${fileId}/versions/${versionId}/content`,
+    ...(params ? [params] : []),
+  ] as const
+}
+
+export const getGetFileVersionContentQueryOptions = <
+  TData = Awaited<ReturnType<typeof getFileVersionContent>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  fileId: string,
+  versionId: string,
+  params?: GetFileVersionContentParams,
+  headers?: GetFileVersionContentHeaders,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFileVersionContent>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof binaryApiClient>
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetFileVersionContentQueryKey(organizationId, fileId, versionId, params)
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getFileVersionContent>>
+  > = ({ signal }) =>
+    getFileVersionContent(organizationId, fileId, versionId, params, headers, {
+      signal,
+      ...requestOptions,
+    })
+
+  return {
+    queryKey,
+    queryFn,
+    enabled:
+      organizationId !== null &&
+      organizationId !== undefined &&
+      fileId !== null &&
+      fileId !== undefined &&
+      versionId !== null &&
+      versionId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getFileVersionContent>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetFileVersionContentQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getFileVersionContent>>
+>
+export type GetFileVersionContentQueryError = ErrorType<ApiError>
+
+export function useGetFileVersionContent<
+  TData = Awaited<ReturnType<typeof getFileVersionContent>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  fileId: string,
+  versionId: string,
+  params: undefined | GetFileVersionContentParams,
+  headers: undefined | GetFileVersionContentHeaders,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFileVersionContent>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFileVersionContent>>,
+          TError,
+          Awaited<ReturnType<typeof getFileVersionContent>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof binaryApiClient>
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetFileVersionContent<
+  TData = Awaited<ReturnType<typeof getFileVersionContent>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  fileId: string,
+  versionId: string,
+  params?: GetFileVersionContentParams,
+  headers?: GetFileVersionContentHeaders,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFileVersionContent>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFileVersionContent>>,
+          TError,
+          Awaited<ReturnType<typeof getFileVersionContent>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof binaryApiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetFileVersionContent<
+  TData = Awaited<ReturnType<typeof getFileVersionContent>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  fileId: string,
+  versionId: string,
+  params?: GetFileVersionContentParams,
+  headers?: GetFileVersionContentHeaders,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFileVersionContent>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof binaryApiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+
+export function useGetFileVersionContent<
+  TData = Awaited<ReturnType<typeof getFileVersionContent>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  fileId: string,
+  versionId: string,
+  params?: GetFileVersionContentParams,
+  headers?: GetFileVersionContentHeaders,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFileVersionContent>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof binaryApiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+} {
+  const queryOptions = getGetFileVersionContentQueryOptions(
+    organizationId,
+    fileId,
+    versionId,
+    params,
+    headers,
     options
   )
 

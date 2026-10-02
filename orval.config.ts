@@ -18,6 +18,12 @@ export default defineConfig({
       packageJson: "./packages/api-client/package.json",
       override: {
         operations: {
+          getFileVersionContent: {
+            mutator: {
+              path: "./packages/api-client/src/http/client.ts",
+              name: "binaryApiClient",
+            },
+          },
           getOrganizationAccess: {
             query: {
               queryKey: {

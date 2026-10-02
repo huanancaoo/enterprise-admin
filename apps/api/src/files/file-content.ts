@@ -8,6 +8,7 @@ import { AuthRuntime } from '../identity/auth-runtime';
 import { ApiException } from '../http/api-exception';
 import { FilesRuntime } from './files-runtime';
 import { rethrowFileError } from './file-http-errors';
+import { filePreviewKind } from './file-responses';
 import {
   StorageError,
   type ByteRange,
@@ -40,26 +41,6 @@ function requestedRange(header: string | undefined, total: number) {
   return { start, end } satisfies ByteRange;
 }
 
-const inlineContentTypes = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/gif',
-  'image/webp',
-  'image/avif',
-  'image/bmp',
-  'application/pdf',
-  'text/plain',
-  'application/json',
-  'audio/mpeg',
-  'audio/mp4',
-  'audio/ogg',
-  'audio/wav',
-  'audio/webm',
-  'video/mp4',
-  'video/webm',
-  'video/ogg',
-]);
-
 export function contentDisposition(
   name: string,
   contentType: string,
@@ -67,7 +48,7 @@ export function contentDisposition(
 ): string {
   const mime = contentType.split(';', 1)[0].trim().toLowerCase();
   // 只有明确支持的被动媒体可预览；HTML、SVG 和 Office 的显式 inline 请求必须拒绝。
-  if (requested === 'inline' && !inlineContentTypes.has(mime))
+  if (requested === 'inline' && filePreviewKind(mime) === 'none')
     throw new BadRequestException();
   const encoded = encodeURIComponent(name).replace(
     /[!'()*]/gu,

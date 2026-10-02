@@ -89,6 +89,14 @@ export async function apiClient<T>(
   } as T
 }
 
+export function binaryApiClient<T>(
+  requestPath: string,
+  options: ApiClientRequestOptions = {}
+): Promise<T> {
+  // 生成的二进制契约必须保证 Blob 返回值，不能依据文件自身的 JSON/text MIME 解码。
+  return apiClient<T>(requestPath, { ...options, responseType: "blob" })
+}
+
 async function readResponseData(
   response: Response,
   responseType: ApiClientRequestOptions["responseType"]

@@ -22,6 +22,8 @@ export {
   getFileBreadcrumbs,
   listFileVersions,
   getFileOperation,
+  getFileVersionContent,
+  getGetFileVersionContentUrl,
 } from "./generated/endpoints/files/files"
 export {
   listProjects,

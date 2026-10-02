@@ -1,7 +1,12 @@
 import { createServer, type RequestListener, type Server } from "node:http"
 import type { AddressInfo } from "node:net"
 import { afterEach, describe, expect, it } from "vitest"
-import { ApiClientError, apiClient, configureApiClient } from "../src/index"
+import {
+  ApiClientError,
+  apiClient,
+  configureApiClient,
+  getFileVersionContent,
+} from "../src/index"
 
 type FileResponse = { data: Blob; status: number; headers: Headers }
 
@@ -48,6 +53,39 @@ afterEach(async () => {
 })
 
 describe("受保护文件响应", () => {
+  it.each(["application/json", "text/plain"])(
+    "正式生成内容操作默认按Blob读取%s并传递Range和预览参数",
+    async (contentType) => {
+      const source = Uint8Array.from([0x20, 0xff, 0x80, 0x0a])
+      let requestedUrl: string | undefined
+      let requestedRange: string | undefined
+      await setup((request, response) => {
+        requestedUrl = request.url
+        requestedRange = request.headers.range
+        response.writeHead(206, {
+          "Content-Type": contentType,
+          "Content-Length": source.length,
+          "Content-Range": "bytes 0-3/8",
+        })
+        response.end(source)
+      })
+      const result = await getFileVersionContent(
+        "de07383d-3c46-4a6c-9f3e-fd9c9191bc61",
+        "04054822-25f5-4c6a-9854-63d1d01574b7",
+        "a5e6d781-c0c6-4516-9823-3d9dbf6a0202",
+        { disposition: "inline" },
+        { Range: "bytes=0-3" }
+      )
+      expect(result.status).toBe(206)
+      expect(result.data).toBeInstanceOf(Blob)
+      expect(new Uint8Array(await result.data.arrayBuffer())).toEqual(source)
+      expect(result.headers.get("content-range")).toBe("bytes 0-3/8")
+      expect(requestedUrl).toBe(
+        "/api/v1/organizations/de07383d-3c46-4a6c-9f3e-fd9c9191bc61/files/entries/04054822-25f5-4c6a-9854-63d1d01574b7/versions/a5e6d781-c0c6-4516-9823-3d9dbf6a0202/content?disposition=inline"
+      )
+      expect(requestedRange).toBe("bytes=0-3")
+    }
+  )
   it("显式 Blob 读取保留原始二进制字节、状态与下载头", async () => {
     await setup((_request, response) => {
       response.writeHead(200, {
