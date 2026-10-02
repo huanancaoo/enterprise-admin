@@ -1,7 +1,4 @@
-import {
-  attachmentReferences,
-  useProjectAttachmentAccess,
-} from "./project-attachment-access"
+import { attachmentReferences, useProjectAccess } from "./project-access"
 import { useId, useState } from "react"
 import { useForm } from "@tanstack/react-form"
 import { useQueryClient } from "@tanstack/react-query"
@@ -49,7 +46,7 @@ export function ProjectCreate({ organizationId }: { organizationId: string }) {
   const queryClient = useQueryClient()
   const mutations = createProjectMutations(queryClient, organizationId, locale)
   const id = useId()
-  const access = useProjectAttachmentAccess(organizationId)
+  const access = useProjectAccess(organizationId)
   const [open, setOpen] = useState(false)
   const [failed, setFailed] = useState(false)
   const form = useForm({

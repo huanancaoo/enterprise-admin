@@ -1,7 +1,4 @@
-import {
-  attachmentReferences,
-  useProjectAttachmentAccess,
-} from "./project-attachment-access"
+import { attachmentReferences, useProjectAccess } from "./project-access"
 import { useRef, useState } from "react"
 import { useForm } from "@tanstack/react-form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
@@ -64,7 +61,7 @@ export function ProjectEdit({ organizationId, project }: ProjectEditProps) {
     requestLanguage: uiLocale,
     contentLocale: project.contentLocale,
   })
-  const access = useProjectAttachmentAccess(organizationId)
+  const access = useProjectAccess(organizationId)
   const attachments = useQuery({
     ...getProjectAttachmentsOptions(
       organizationId,
@@ -177,7 +174,7 @@ export function ProjectEditForm({
     organizationId,
     uiLocale
   )
-  const access = useProjectAttachmentAccess(organizationId)
+  const access = useProjectAccess(organizationId)
   // 草稿的比较基线固定于开始编辑；后台读回不会把未修改字段变成覆盖请求。
   const [defaultValues] = useState(() => ({
     targetLocale: initialLocale,

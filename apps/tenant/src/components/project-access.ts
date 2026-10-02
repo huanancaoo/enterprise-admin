@@ -11,7 +11,39 @@ import type {
 import { authClient } from "@/lib/auth-client"
 import { getFilePermissionsOptions } from "@/features/files/file-permissions"
 
-export function useProjectAttachmentAccess(organizationId: string) {
+export function getProjectPermissionsOptions(
+  organizationId: string,
+  authorizationVersion: number
+) {
+  return queryOptions({
+    queryKey: [
+      ...organizationKeys.scope(organizationId),
+      "project-permissions",
+      authorizationVersion,
+    ],
+    retry: false,
+    // 成功权限投影绑定授权版本；同版本挂载复用，版本变化仍检查原生权限。
+    staleTime: Infinity,
+    queryFn: async ({ signal }) => {
+      const check = async (action: "update" | "translate") => {
+        const result = await authClient.organization.hasPermission({
+          organizationId,
+          permissions: { project: [action] },
+          fetchOptions: { signal },
+        })
+        if (result.error) throw new Error(result.error.message)
+        return result.data.success
+      }
+      const [canUpdate, canTranslate] = await Promise.all([
+        check("update"),
+        check("translate"),
+      ])
+      return { canUpdate, canTranslate }
+    },
+  })
+}
+
+export function useProjectAccess(organizationId: string) {
   const session = useAuthenticatedSession()
   const access = useQuery({
     ...getOrganizationAccessOptions(organizationId),
@@ -21,32 +53,7 @@ export function useProjectAttachmentAccess(organizationId: string) {
   const active =
     !!session && access.data?.data.status === "ACTIVE" && !access.isError
   const projects = useQuery({
-    ...queryOptions({
-      queryKey: [
-        ...organizationKeys.scope(organizationId),
-        "project-edit-permissions",
-        version,
-      ],
-      retry: false,
-      // 成功权限投影绑定授权版本；同版本挂载复用，版本变化仍检查原生权限。
-      staleTime: Infinity,
-      queryFn: async ({ signal }) => {
-        const check = async (action: "update" | "translate") => {
-          const result = await authClient.organization.hasPermission({
-            organizationId,
-            permissions: { project: [action] },
-            fetchOptions: { signal },
-          })
-          if (result.error) throw new Error(result.error.message)
-          return result.data.success
-        }
-        const [canUpdate, canTranslate] = await Promise.all([
-          check("update"),
-          check("translate"),
-        ])
-        return { canUpdate, canTranslate }
-      },
-    }),
+    ...getProjectPermissionsOptions(organizationId, version),
     enabled: active,
   })
   const files = useQuery({
@@ -76,7 +83,7 @@ export function useProjectAttachmentAccess(organizationId: string) {
     error: access.error ?? projects.error ?? files.error,
   }
 }
-export type AttachmentAccess = ReturnType<typeof useProjectAttachmentAccess>
+export type ProjectAccess = ReturnType<typeof useProjectAccess>
 
 export function attachmentReferences(
   items: readonly ProjectAttachment[]

@@ -94,6 +94,12 @@ for (const backend of ["Local", "RustFS"])
           ["file", "folder"].includes(resource)
         )
       ).length
+    const projectEditPermissionRequestCount = () =>
+      permissionRequests.filter((permissions) =>
+        permissions.project?.some((action) =>
+          ["update", "translate"].includes(action)
+        )
+      ).length
     async function fixture() {
       const owner = await signUpVerified(
         environment.baseURL,
@@ -383,14 +389,22 @@ for (const backend of ["Local", "RustFS"])
       const next = (await changed.json()).result
       expect(next.versionId).not.toBe(created.result.versionId)
       await library.close()
+      const beforeReloadProjectChecks = projectEditPermissionRequestCount()
       await page.reload()
       await previewBytes(original)
+      await expectUI
+        .poll(
+          () => projectEditPermissionRequestCount() - beforeReloadProjectChecks
+        )
+        .toBe(2)
       const sameVersionChecks = filePermissionRequestCount()
+      const sameVersionProjectChecks = projectEditPermissionRequestCount()
       await page.getByRole("button", { name: "编辑项目", exact: true }).click()
       await expectUI(
         page.getByRole("button", { name: "添加附件", exact: true })
       ).toBeEnabled()
       expect(filePermissionRequestCount()).toBe(sameVersionChecks)
+      expect(projectEditPermissionRequestCount()).toBe(sameVersionProjectChecks)
       await chooseExisting("项目原稿.txt", true)
       await editSave(f, created.project.id)
       await expectUI(
@@ -566,6 +580,7 @@ for (const backend of ["Local", "RustFS"])
       const previousAccess = await request(f, "/access")
       const previousVersion = (await previousAccess.json()).authorizationVersion
       const beforeRevocationChecks = filePermissionRequestCount()
+      const beforeRevocationProjectChecks = projectEditPermissionRequestCount()
       await changeRole(f, editor, {
         project: ["read"],
         file: ["read"],
@@ -579,6 +594,12 @@ for (const backend of ["Local", "RustFS"])
       await expectUI
         .poll(() => filePermissionRequestCount() - beforeRevocationChecks)
         .toBe(10)
+      await expectUI
+        .poll(
+          () =>
+            projectEditPermissionRequestCount() - beforeRevocationProjectChecks
+        )
+        .toBe(2)
       await expectUI(
         page.getByRole("button", { name: "保存项目", exact: true })
       ).toBeDisabled()

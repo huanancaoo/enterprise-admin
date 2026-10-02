@@ -6,7 +6,6 @@ import {
   ApiClientError,
   getOrganizationAccessOptions,
   projectKeys,
-  organizationKeys,
 } from "@workspace/api-client"
 import {
   ErrorState,
@@ -47,7 +46,7 @@ import {
   SelectValue,
 } from "@workspace/ui/components/select"
 import { z } from "zod"
-import { authClient } from "@/lib/auth-client"
+import { getProjectPermissionsOptions } from "@/components/project-access"
 import { getFilePermissionsOptions } from "../files/file-permissions"
 import {
   fileKeys,
@@ -117,35 +116,15 @@ function AuthorizedProjectContent({
     organizationId,
     authorizationVersion,
   ])
-  const permission = useQuery({
-    queryKey: [
-      ...organizationKeys.scope(organizationId),
-      "project-content-permission",
-      authorizationVersion,
-    ],
-    staleTime: Infinity,
-    retry: false,
-    queryFn: async ({ signal }) => {
-      const check = async (action: "update" | "translate") => {
-        const result = await authClient.organization.hasPermission({
-          organizationId,
-          permissions: { project: [action] },
-          fetchOptions: { signal },
-        })
-        if (result.error) throw new Error(result.error.message)
-        return result.data.success
-      }
-      const [update, translate] = await Promise.all([
-        check("update"),
-        check("translate"),
-      ])
-      return update || translate
-    },
-  })
+  const permission = useQuery(
+    getProjectPermissionsOptions(organizationId, authorizationVersion)
+  )
   const files = useQuery(
     getFilePermissionsOptions(organizationId, authorizationVersion)
   )
-  const canEdit = permission.isSuccess && permission.data === true
+  const canEdit =
+    permission.isSuccess &&
+    (permission.data.canUpdate || permission.data.canTranslate)
   const canBrowse = Boolean(
     files.isSuccess && files.data?.canReadFiles && files.data.canReadFolders
   )

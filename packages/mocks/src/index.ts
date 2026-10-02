@@ -75,3 +75,5 @@ export {
   projectAttachmentFile,
   projectAttachmentRoot,
 } from "./handlers/project-attachments"
+
+export { createProjectAccessScenario } from "./handlers/project-access"

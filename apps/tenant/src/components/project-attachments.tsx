@@ -37,10 +37,7 @@ import {
   fileRequestErrorMessage,
 } from "@/features/files/file-queries"
 import { FileUploads } from "@/features/files/file-uploads"
-import {
-  useProjectAttachmentAccess,
-  type AttachmentAccess,
-} from "./project-attachment-access"
+import { useProjectAccess, type ProjectAccess } from "./project-access"
 import { useFileUploadActions } from "@/features/files/upload-context"
 
 export function ProjectAttachmentsField({
@@ -53,7 +50,7 @@ export function ProjectAttachmentsField({
   organizationId: string
   value: ProjectAttachment[]
   onChange: (items: ProjectAttachment[]) => void
-  access: AttachmentAccess
+  access: ProjectAccess
   canChange: boolean
 }) {
   return (
@@ -74,7 +71,7 @@ function AttachmentInteractions({
   organizationId: string
   value: ProjectAttachment[]
   onChange: (items: ProjectAttachment[]) => void
-  access: AttachmentAccess
+  access: ProjectAccess
   canChange: boolean
 }) {
   const { t } = useTranslation(["projects", "files", "common"])
@@ -251,7 +248,7 @@ export function ProjectAttachmentsSection({
 }) {
   const { t } = useTranslation(["projects", "common"])
   const locale = useUiLocale()
-  const access = useProjectAttachmentAccess(organizationId)
+  const access = useProjectAccess(organizationId)
   const query = useQuery({
     ...getProjectAttachmentsOptions(
       organizationId,
@@ -374,7 +371,7 @@ function AttachmentPreview({
 }: {
   organizationId: string
   reference: FileVersionReference
-  access: AttachmentAccess
+  access: ProjectAccess
   onClose: () => void
   returnFocus: () => HTMLElement | null
 }) {
