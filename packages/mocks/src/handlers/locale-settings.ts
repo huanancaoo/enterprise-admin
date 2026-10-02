@@ -75,6 +75,8 @@ export function createLocaleSettingsScenario(
     )
   const readFailure = async (current: LocaleSettingsTarget) => {
     if (target !== current) return
+    // 陈旧版本后的读回有真实等待期，不能由零延迟掩盖提前再次提交。
+    if (scenario === "stale" && failedSave) await delay(700)
     if (scenario === "loading") await delay("infinite")
     if (scenario === "slow") await delay(700)
     if (scenario === "unavailable") return failure(503, "INTERNAL_ERROR")

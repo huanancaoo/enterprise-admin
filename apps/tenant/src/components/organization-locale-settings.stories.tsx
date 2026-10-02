@@ -174,7 +174,9 @@ export const StaleVersion: Story = {
     await expect(await canvas.findByRole("alert")).toHaveTextContent(
       "Another administrator changed these settings."
     )
+    await expect(submit).toBeDisabled()
     await expect(control).toHaveTextContent("العربية")
+    await waitFor(() => expect(submit).toBeEnabled())
     await userEvent.click(submit)
     await expect(await canvas.findByRole("status")).toHaveTextContent(
       "Language settings saved."

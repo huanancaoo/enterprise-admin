@@ -3,7 +3,7 @@ import {
   type LocaleSettingsScenario,
   type LocaleSettingsTarget,
 } from "@workspace/mocks"
-import { expect, userEvent, within } from "storybook/test"
+import { expect, userEvent, waitFor, within } from "storybook/test"
 
 export function localeScenario(
   target: LocaleSettingsTarget,
@@ -19,11 +19,17 @@ export async function chooseLocale(canvasElement: HTMLElement, name: string) {
   const canvas = within(canvasElement)
   const control = await canvas.findByRole("combobox", { name: "Language" })
   await userEvent.click(control)
-  await userEvent.click(
-    await within(canvasElement.ownerDocument.body).findByRole("option", {
-      name,
-    })
+  const screen = within(canvasElement.ownerDocument.body)
+  const option = await screen.findByRole("option", { name })
+  const popup = screen.getByRole("listbox")
+  await userEvent.click(option)
+  // 选值已更新时弹层仍可能在关闭动画中，后续提交与 axe 应检查最终状态。
+  const content = popup.closest<HTMLElement>("[data-slot=select-content]")!
+  await waitFor(() => expect(content).toHaveAttribute("data-closed"))
+  await Promise.all(
+    content.getAnimations().map((animation) => animation.finished)
   )
+  await waitFor(() => expect(popup).not.toBeVisible())
   return {
     canvas,
     control,

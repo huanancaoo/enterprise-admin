@@ -146,7 +146,8 @@ export function PersonalLocaleSettingsRoute() {
           error.body.code === "VERSION_CONFLICT"
         ) {
           setSubmitError(t("versionConflict"))
-          void queryClient.invalidateQueries({
+          // 版本读回前保持提交锁定，下一次写入必须使用最新版本并保留当前草稿。
+          await queryClient.invalidateQueries({
             queryKey: personalPreferencesKey,
           })
         } else {
@@ -362,7 +363,8 @@ export function OrganizationLocaleSettingsRoute({
           error.body.code === "VERSION_CONFLICT"
         ) {
           setSubmitError(t("versionConflict"))
-          void queryClient.invalidateQueries({
+          // 错误提示不代表版本读回完成，不能提前开放下一次提交。
+          await queryClient.invalidateQueries({
             queryKey: localeSettingsKeys.organization(organizationId),
           })
         } else if (error instanceof ApiClientError && error.status === 403) {
