@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
+import { parse as parseContentDisposition } from "content-disposition"
 import { ErrorState, LoadingState } from "@workspace/admin"
 import {
   getFileVersionContent,
@@ -70,12 +71,11 @@ export function FileDownloadButton({ target }: { target: FileContentTarget }) {
         locale
       )
       if (controller.signal.aborted) return
-      // 文件名以受保护响应的 RFC 5987 header 为准，改名后不能沿用页面缓存中的旧名。
-      const encoded = /filename\*=UTF-8''([^;]+)/iu.exec(
+      // 文件名只采用受保护响应的 Content-Disposition，避免沿用页面缓存中的改名前名称。
+      const filename = parseContentDisposition(
         response.headers.get("content-disposition") ?? ""
-      )?.[1]
-      if (!encoded) throw new Error("Missing authorized download filename")
-      const filename = decodeURIComponent(encoded)
+      ).parameters.filename
+      if (!filename) throw new Error("Missing authorized download filename")
       const url = URL.createObjectURL(response.data)
       const anchor = document.createElement("a")
       anchor.href = url

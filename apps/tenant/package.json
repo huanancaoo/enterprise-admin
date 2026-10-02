@@ -21,6 +21,7 @@
     "@workspace/i18n": "workspace:*",
     "@workspace/permissions": "workspace:*",
     "@workspace/ui": "workspace:*",
+    "content-disposition": "3.0.0",
     "lucide-react": "1.46.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",

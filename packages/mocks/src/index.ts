@@ -77,3 +77,7 @@ export {
 } from "./handlers/project-attachments"
 
 export { createProjectAccessScenario } from "./handlers/project-access"
+export {
+  createFileContentScenario,
+  fileContentBytes,
+} from "./handlers/file-content"
