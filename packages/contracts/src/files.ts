@@ -336,3 +336,10 @@ export const FileVersionsSchema = z
   .strictObject({ items: z.array(FileVersionResponseSchema) })
   .meta({ id: "FileVersions" })
 export type FileVersions = z.infer<typeof FileVersionsSchema>
+
+export const FileContentQuerySchema = z
+  .strictObject({
+    disposition: z.enum(["inline", "attachment"]).default("attachment"),
+  })
+  .meta({ id: "FileContentQuery" })
+export type FileContentQuery = z.infer<typeof FileContentQuerySchema>

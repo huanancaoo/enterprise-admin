@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { FileErrorDetailsSchema, fileErrorCodes } from "./files.js"
 
 export * from "./files.js"
 
@@ -494,6 +495,7 @@ export const ApiErrorCodeSchema = z
     "AUDIT_UNAVAILABLE",
     "VERSION_CONFLICT",
     "IDEMPOTENCY_KEY_REUSED",
+    ...fileErrorCodes,
     "INTERNAL_ERROR",
   ])
   .meta({ id: "ApiErrorCode" })
@@ -504,6 +506,7 @@ export const ApiErrorSchema = z
     message: z.string(),
     requestId: z.string().min(1),
     locale: SupportedLocaleSchema,
+    details: FileErrorDetailsSchema.optional(),
   })
   .meta({ id: "ApiError" })
 export type ApiError = z.infer<typeof ApiErrorSchema>

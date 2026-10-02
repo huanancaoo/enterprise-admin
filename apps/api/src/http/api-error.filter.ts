@@ -13,6 +13,7 @@ import {
 } from '@workspace/contracts';
 import { getTranslator } from '@workspace/i18n';
 import { getRequestLanguage } from './request-language';
+import { ApiException } from './api-exception';
 
 @Catch()
 export class ApiErrorFilter implements ExceptionFilter {
@@ -37,6 +38,9 @@ export class ApiErrorFilter implements ExceptionFilter {
       message: getTranslator(locale)(code),
       requestId,
       locale,
+      ...(error instanceof ApiException && error.details
+        ? { details: error.details }
+        : {}),
     };
     response.status(status).json(body);
   }

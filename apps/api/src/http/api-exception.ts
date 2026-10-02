@@ -1,8 +1,18 @@
 import { HttpException } from '@nestjs/common';
-import type { ApiErrorCode } from '@workspace/contracts';
+import {
+  FileErrorDetailsSchema,
+  type ApiErrorCode,
+  type FileErrorDetails,
+} from '@workspace/contracts';
 
 export class ApiException extends HttpException {
-  constructor(status: number, code: ApiErrorCode) {
+  readonly details?: FileErrorDetails;
+
+  constructor(status: number, code: ApiErrorCode, details?: FileErrorDetails) {
     super({ code }, status);
+    this.details =
+      details === undefined
+        ? undefined
+        : Object.freeze(FileErrorDetailsSchema.parse(details));
   }
 }
