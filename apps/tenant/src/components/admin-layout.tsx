@@ -420,6 +420,8 @@ export function AdminLayout() {
           signingOut: session.signingOut,
           error: session.signOutError,
           onSignOut: session.signOut,
+          onPersonalSettings: () =>
+            void navigate({ to: "/app/settings/preferences" }),
           onLocaleSelect: () =>
             preserveLocaleOnManualSelection({
               userId: session.user.id,
@@ -471,8 +473,9 @@ export function AdminLayout() {
           })
         }}
       />
-      {!organizationContextPending &&
-      (!currentOrganizationId || access.isSuccess) ? (
+      {onPersonalSettings ||
+      (!organizationContextPending &&
+        (!currentOrganizationId || access.isSuccess)) ? (
         <Outlet />
       ) : null}
     </AppShell>

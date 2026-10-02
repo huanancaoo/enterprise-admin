@@ -56,3 +56,9 @@ export type {
   ProjectDetailScenario,
   ProjectEditScenario,
 } from "./handlers/project-detail"
+export {
+  createPersonalAvatarScenario,
+  personalAvatarUser,
+  personalAvatarImage,
+} from "./handlers/personal-media"
+export type { PersonalAvatarScenario } from "./handlers/personal-media"

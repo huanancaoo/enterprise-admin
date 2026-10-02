@@ -1,3 +1,4 @@
+import { PersonalAvatarSettings } from "@workspace/admin"
 import { useEffect, useId, useState } from "react"
 import { useForm } from "@tanstack/react-form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
@@ -234,6 +235,7 @@ export function PersonalLocaleSettingsRoute() {
           {t("personalDescription")}
         </p>
       </header>
+      <PersonalAvatarSettings client={authClient} />
       <div className="rounded-xl border p-4 text-sm">
         <dl className="space-y-2">
           <div className="flex gap-2">

@@ -1,3 +1,4 @@
+import { PersonalAvatar } from "@workspace/admin"
 import { useEffect, useRef, useState, type RefObject } from "react"
 import { useParams, useSearch, useNavigate } from "@tanstack/react-router"
 import { useForm } from "@tanstack/react-form"
@@ -12,11 +13,6 @@ import {
 } from "@workspace/api-client"
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@workspace/ui/components/avatar"
 import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -173,14 +169,11 @@ export function MembersRoute() {
                     className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
                   >
                     <div className="flex min-w-0 items-center gap-3">
-                      <Avatar>
-                        {member.user.image ? (
-                          <AvatarImage src={member.user.image} alt="" />
-                        ) : null}
-                        <AvatarFallback>
-                          {member.user.name.slice(0, 1)}
-                        </AvatarFallback>
-                      </Avatar>
+                      <PersonalAvatar
+                        image={member.user.image}
+                        name={member.user.name}
+                        organizationId={self ? undefined : organizationId}
+                      />
                       <div className="min-w-0">
                         <p className="font-medium">
                           {member.user.name}

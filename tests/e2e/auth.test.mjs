@@ -950,7 +950,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
         .getByRole("combobox", { name: currentLanguage, exact: true })
         .click()
       await page.getByRole("option", { name: locale, exact: true }).click()
-      await page.getByRole("button", { name: /保存|Save|حفظ/ }).click()
+      await page.getByRole("button", { name: /^(保存|Save|حفظ)$/ }).click()
       await expectUI(page.locator("html")).toHaveAttribute("lang", localeCode)
       await page.goBack()
     }

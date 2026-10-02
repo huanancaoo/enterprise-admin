@@ -263,6 +263,7 @@ export function OrganizationGate() {
     "validation",
     "auth",
     "errors",
+    "settings",
   ])
   const session = useAuthenticatedSession()!
   const { workspace, pending, error, createOrganization } =
@@ -317,6 +318,12 @@ export function OrganizationGate() {
           {session.user.email}
         </p>
       )}
+      <Button
+        variant="outline"
+        render={<Link to="/app/settings/preferences" />}
+      >
+        {t("settings:personalSettings")}
+      </Button>
       <Button
         variant="ghost"
         disabled={session.signingOut}

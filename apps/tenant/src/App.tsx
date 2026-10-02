@@ -3,7 +3,6 @@ import {
   Outlet,
   useNavigate,
   useParams,
-  useRouteContext,
   useSearch,
 } from "@tanstack/react-router"
 import {
@@ -17,7 +16,9 @@ import {
 import { authClient } from "@/lib/auth-client"
 
 export function App() {
-  const { user } = useRouteContext({ from: "__root__" })
+  // 同账号资料变化不会重跑 root route；头像必须跟随原生 Session 的当前 User 投影。
+  const { data } = authClient.useSession()
+  const user = data?.user
   const outlet = <Outlet />
   if (!user) return outlet
   return (

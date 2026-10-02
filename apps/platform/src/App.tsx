@@ -40,7 +40,9 @@ import { BuildingIcon, LayoutDashboardIcon } from "lucide-react"
 import { authClient } from "./lib/auth-client"
 
 export function App() {
-  const { user } = useRouteContext({ from: "__root__" })
+  // 同账号资料变化不会重跑 root route；头像必须跟随原生 Session 的当前 User 投影。
+  const { data } = authClient.useSession()
+  const user = data?.user
   const outlet = <Outlet />
   if (!user) return outlet
   return (
@@ -92,7 +94,8 @@ export function PlatformLoginPage() {
 }
 
 export function PlatformLayout() {
-  const { t } = useTranslation(["auth", "common", "organization"])
+  const navigate = useNavigate()
+  const { t } = useTranslation(["auth", "common", "organization", "settings"])
   const location = useLocation()
   const session = useAuthenticatedSession()!
   const { platformAccess } = useRouteContext({ from: "/platform" })
@@ -124,6 +127,12 @@ export function PlatformLayout() {
         navigation: {
           label: t("common:navigation"),
           items: [
+            {
+              title: t("settings:personalSettings"),
+              icon: <LayoutDashboardIcon />,
+              isActive: location.pathname === "/platform/personal-settings",
+              render: <Link to="/platform/personal-settings" />,
+            },
             {
               title: t("organization:platformSettings"),
               icon: <LayoutDashboardIcon />,
@@ -178,6 +187,8 @@ export function PlatformLayout() {
           signingOut: session.signingOut,
           error: session.signOutError,
           onSignOut: session.signOut,
+          onPersonalSettings: () =>
+            void navigate({ to: "/platform/personal-settings" }),
         },
       }}
     >

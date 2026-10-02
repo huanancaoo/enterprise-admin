@@ -55,3 +55,6 @@ export {
 export { useDocumentTitle } from "./hooks/use-document-title"
 export { ConfirmDangerAction } from "./components/confirm-danger-action"
 export type { ConfirmDangerActionProps } from "./components/confirm-danger-action"
+
+export { PersonalAvatar } from "./components/personal-avatar"
+export { PersonalAvatarSettings } from "./components/personal-avatar-settings"

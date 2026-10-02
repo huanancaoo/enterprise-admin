@@ -76,7 +76,7 @@ export const RTL: Story = {
     const canvas = within(canvasElement)
     await canvas.findByRole("combobox", { name: "اللغة" })
     await expect(
-      canvas.getByRole("heading", { name: "إعدادات اللغة الشخصية" })
+      canvas.getByRole("heading", { name: "الإعدادات الشخصية" })
     ).toBeVisible()
     await expect(canvasElement.ownerDocument.documentElement).toHaveAttribute(
       "dir",
@@ -209,7 +209,7 @@ export const InheritedRefreshUnavailable: Story = {
       "Language settings saved."
     )
     await expect(
-      canvas.getByRole("heading", { name: "Personal language settings" })
+      canvas.getByRole("heading", { name: "Personal settings" })
     ).toBeVisible()
   },
 }

@@ -29,6 +29,7 @@ const meta = {
     },
     signingOut: false,
     onSignOut: () => undefined,
+    onPersonalSettings: () => undefined,
   },
 } satisfies Meta<typeof NavUser>
 
@@ -50,7 +51,7 @@ export const LanguageMenu: Story = {
       expect(document.documentElement).toHaveAttribute("lang", "en-US")
     )
     await waitFor(() =>
-      expect(screen.queryByRole("menuitemradio")).not.toBeInTheDocument()
+      expect(screen.queryAllByRole("menuitemradio")).toHaveLength(0)
     )
 
     await userEvent.click(canvas.getByRole("button", { name: /测试用户/ }))
@@ -64,7 +65,7 @@ export const LanguageMenu: Story = {
       expect(document.documentElement).toHaveAttribute("lang", "zh-CN")
     )
     await waitFor(() =>
-      expect(screen.queryByRole("menuitemradio")).not.toBeInTheDocument()
+      expect(screen.queryAllByRole("menuitemradio")).toHaveLength(0)
     )
   },
 }
@@ -82,7 +83,7 @@ export const ThemeMenu: Story = {
 
     await waitFor(() => expect(document.documentElement).toHaveClass("dark"))
     await waitFor(() =>
-      expect(screen.queryByRole("menuitemradio")).not.toBeInTheDocument()
+      expect(screen.queryAllByRole("menuitemradio")).toHaveLength(0)
     )
 
     await userEvent.click(canvas.getByRole("button", { name: /测试用户/ }))
@@ -93,7 +94,7 @@ export const ThemeMenu: Story = {
 
     await waitFor(() => expect(document.documentElement).toHaveClass("light"))
     await waitFor(() =>
-      expect(screen.queryByRole("menuitemradio")).not.toBeInTheDocument()
+      expect(screen.queryAllByRole("menuitemradio")).toHaveLength(0)
     )
   },
 }

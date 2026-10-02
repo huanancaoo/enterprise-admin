@@ -1,8 +1,4 @@
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@workspace/ui/components/avatar"
+import { PersonalAvatar } from "./personal-avatar"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,7 +14,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@workspace/ui/components/sidebar"
-import { ChevronsUpDownIcon, LogOutIcon } from "lucide-react"
+import { ChevronsUpDownIcon, LogOutIcon, UserRoundIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import type { TFunction } from "@workspace/i18n"
 import { LocaleSwitcher, ThemeSwitcher } from "./workspace"
@@ -41,6 +37,7 @@ export interface NavUserProps {
   signingOut: boolean
   error?: string
   onSignOut: () => void
+  onPersonalSettings: () => void
   onLocaleSelect?: () => void
 }
 
@@ -49,11 +46,12 @@ export function NavUser({
   signingOut,
   error,
   onSignOut,
+  onPersonalSettings,
   onLocaleSelect,
 }: NavUserProps) {
   const { t } = useTranslation("auth")
+  const { t: settings } = useTranslation("settings")
   const { isMobile } = useSidebar()
-  const fallback = user.name.trim().slice(0, 2).toUpperCase() || "U"
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -63,12 +61,7 @@ export function NavUser({
               <SidebarMenuButton size="lg" className="aria-expanded:bg-muted" />
             }
           >
-            <Avatar>
-              {user.avatar && <AvatarImage src={user.avatar} alt={user.name} />}
-              <AvatarFallback className="text-foreground">
-                {fallback}
-              </AvatarFallback>
-            </Avatar>
+            <PersonalAvatar image={user.avatar} name={user.name} />
             <div className="grid flex-1 text-start text-sm leading-tight">
               <span className="truncate font-medium">{user.name}</span>
               <span className="truncate text-xs">{user.email}</span>
@@ -91,14 +84,7 @@ export function NavUser({
             <DropdownMenuGroup>
               <DropdownMenuLabel className="p-0 font-normal">
                 <div className="flex items-center gap-2 px-1 py-1.5 text-start text-sm">
-                  <Avatar>
-                    {user.avatar && (
-                      <AvatarImage src={user.avatar} alt={user.name} />
-                    )}
-                    <AvatarFallback className="text-foreground">
-                      {fallback}
-                    </AvatarFallback>
-                  </Avatar>
+                  <PersonalAvatar image={user.avatar} name={user.name} />
                   <div className="grid flex-1 text-start text-sm leading-tight">
                     <span className="truncate font-medium">{user.name}</span>
                     <span className="truncate text-xs">{user.email}</span>
@@ -115,6 +101,10 @@ export function NavUser({
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
+              <DropdownMenuItem onClick={onPersonalSettings}>
+                <UserRoundIcon />
+                {settings("personalSettings")}
+              </DropdownMenuItem>
               <ThemeSwitcher variant="submenu" />
               <LocaleSwitcher
                 variant="submenu"

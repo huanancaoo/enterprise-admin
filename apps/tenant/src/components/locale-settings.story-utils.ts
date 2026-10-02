@@ -38,7 +38,7 @@ export async function chooseLocale(canvasElement: HTMLElement, name: string) {
 }
 export async function arabicSaved(canvasElement: HTMLElement) {
   const canvas = within(canvasElement)
-  await canvas.findByRole("heading", { name: "إعدادات اللغة الشخصية" })
+  await canvas.findByRole("heading", { name: "الإعدادات الشخصية" })
   await expect(await canvas.findByRole("status")).toHaveTextContent(
     "تم حفظ إعدادات اللغة."
   )
