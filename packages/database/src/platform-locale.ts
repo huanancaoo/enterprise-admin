@@ -1,8 +1,8 @@
-import type { Pool } from "pg"
+import type { QueryExecutor } from "./organization-status.ts"
 import type { SupportedLocale } from "@workspace/i18n/locale"
 
 export async function readPlatformDefaultLocale(
-  pool: Pick<Pool, "query">
+  pool: QueryExecutor
 ): Promise<SupportedLocale> {
   const result = await pool.query<{ default_locale: SupportedLocale }>(
     "SELECT default_locale FROM public.platform_settings WHERE singleton = true"

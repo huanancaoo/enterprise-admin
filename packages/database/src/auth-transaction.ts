@@ -45,6 +45,22 @@ export function createTransactionalAuthAdapter(pool: Pool) {
     })
   }
 
+  // 调用方拥有事务与连接；纯原生权限复核沿用同一连接，不能再借等待这些行锁的身份 pool。
+  async function withDatabaseClient<T>(
+    client: PoolClient,
+    work: () => Promise<T>
+  ): Promise<T> {
+    const authOptions = options
+    if (!authOptions || !baseAdapter)
+      throw new Error("Better Auth adapter is not initialized")
+    const adapter = drizzleAdapter(drizzle(client), {
+      provider: "pg",
+      schema,
+      transaction: false,
+    })(authOptions)
+    return transactionContext.run({ adapter, client, afterCommit: [] }, work)
+  }
+
   async function run<T>(work: () => Promise<T>): Promise<T> {
     if (transactionContext.getStore()) return work()
     const authOptions = options
@@ -120,7 +136,7 @@ export function createTransactionalAuthAdapter(pool: Pool) {
     context.afterCommit.push(work)
   }
 
-  return { adapterFactory, run, query, deferUntilCommit }
+  return { adapterFactory, run, query, deferUntilCommit, withDatabaseClient }
 }
 
 type EndpointFunction = ((...args: unknown[]) => unknown) & {

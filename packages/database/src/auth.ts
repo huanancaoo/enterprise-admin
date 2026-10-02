@@ -13,7 +13,7 @@ import {
   getSessionFromCtx,
 } from "better-auth/api"
 import { createHmac, randomUUID } from "node:crypto"
-import type { Pool } from "pg"
+import type { Pool, PoolClient } from "pg"
 import {
   builtInOrganizationRoleKeys,
   builtInOrganizationRolePermissions,
@@ -773,7 +773,7 @@ export function createAuth(
     }
   )
 
-  return betterAuth({
+  const auth = betterAuth({
     baseURL,
     basePath: "/api/auth",
     secret,
@@ -1106,9 +1106,17 @@ export function createAuth(
     plugins: [
       organizationPlugin,
       twoFactor({ issuer: "Enterprise Admin" }) as BetterAuthPlugin,
-      createAuthI18n(() => readPlatformDefaultLocale(pool)),
+      createAuthI18n(() =>
+        readPlatformDefaultLocale({ query: transactionalAdapter.query })
+      ),
       // 登录页读 cookie；已登录会话从 user.lastLoginMethod 展示，必须写库。
       lastLoginMethod({ storeInDatabase: true }),
     ],
+  })
+  return Object.assign(auth, {
+    async withDatabaseClient<T>(client: PoolClient, work: () => Promise<T>) {
+      await auth.$context
+      return transactionalAdapter.withDatabaseClient(client, work)
+    },
   })
 }
