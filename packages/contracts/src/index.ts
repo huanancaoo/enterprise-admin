@@ -495,6 +495,8 @@ export const ApiErrorCodeSchema = z
     "AUDIT_UNAVAILABLE",
     "VERSION_CONFLICT",
     "IDEMPOTENCY_KEY_REUSED",
+    "PERSONAL_MEDIA_OPERATION_EXPIRED",
+    "PERSONAL_MEDIA_CONTENT_MISMATCH",
     ...fileErrorCodes,
     "INTERNAL_ERROR",
   ])
