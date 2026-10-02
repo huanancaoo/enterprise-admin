@@ -5,6 +5,7 @@ import type { TenantContext } from '@workspace/database/tenant';
 import { fileRepository } from '@workspace/database/repositories/files';
 import { ApiException } from '../http/api-exception';
 import { FileWriteExecutor } from './file-write-executor';
+import { createFileWriteObjectPlan } from './file-object-plan';
 import type { OrganizationFileOverwrite } from './file-upload-stream';
 import { verifyFileUploadReplay } from './file-uploads';
 import type { StorageAddress } from './storage/storage';
@@ -65,7 +66,7 @@ export class FileOverwrites {
             (version) => version.id === file.currentVersionId,
           );
           if (!current) throw new ApiException(404, 'NOT_FOUND');
-          await fileRepository.addObjects(tx, operationId, [
+          const objects = await fileRepository.addObjects(tx, operationId, [
             {
               id: stagingObjectId,
               entryId: fileId,
@@ -89,7 +90,7 @@ export class FileOverwrites {
               expectedSha256: current.sha256,
             },
           ]);
-          return { file, current };
+          return { file, current, objects };
         });
         const owner = {
           kind: 'organization' as const,
@@ -100,25 +101,11 @@ export class FileOverwrites {
           area: 'staging',
           segments: [versionId],
         };
-        const history: StorageAddress = {
-          owner,
-          area: 'history',
-          segments: [plan.current.id],
-        };
-        const original: StorageAddress = {
-          owner,
-          area: plan.current.storageArea,
-          segments: plan.current.storagePath,
-        };
-        const replacement: StorageAddress = {
-          owner,
-          area: 'files',
-          segments: plan.file.path,
-        };
-        const oldFacts = {
-          bytes: plan.current.bytes,
-          sha256: plan.current.sha256,
-        };
+        const objectPlan = createFileWriteObjectPlan(
+          context,
+          scope,
+          plan.objects,
+        );
         await scope.storage.ensureOwner(owner, scope.signal);
         const newFacts = await scope.storage.write(
           staging,
@@ -136,17 +123,8 @@ export class FileOverwrites {
             scope.leaseId,
           ),
         );
-        await scope.storage.copy(original, history, oldFacts, scope.signal);
-        await scope.write((tx) =>
-          fileRepository.recordPreparedObject(
-            tx,
-            operationId,
-            archiveObjectId,
-            { ...oldFacts, transientBytes: oldFacts.bytes },
-            scope.leaseId,
-          ),
-        );
-        await scope.write(async (tx) => {
+        await objectPlan.prepareTargets();
+        const replacement = await scope.write(async (tx) => {
           // 旧路径在这之前仍属于原版本。备份核对与删除意图确定后，才规划占据该路径的新副本。
           await fileRepository.recordSourceDeletionIntent(
             tx,
@@ -154,41 +132,27 @@ export class FileOverwrites {
             archiveObjectId,
             scope.leaseId,
           );
-          await fileRepository.addObjects(tx, operationId, [
-            {
-              id: replacementObjectId,
-              entryId: fileId,
-              versionId,
-              directory: false,
-              sourceArea: 'staging',
-              sourcePath: [versionId],
-              targetArea: 'files',
-              targetPath: plan.file.path,
-              expectedBytes: newFacts.bytes,
-              expectedSha256: newFacts.sha256,
-            },
-          ]);
+          const [replacement] = await fileRepository.addObjects(
+            tx,
+            operationId,
+            [
+              {
+                id: replacementObjectId,
+                entryId: fileId,
+                versionId,
+                directory: false,
+                sourceArea: 'staging',
+                sourcePath: [versionId],
+                targetArea: 'files',
+                targetPath: plan.file.path,
+                expectedBytes: newFacts.bytes,
+                expectedSha256: newFacts.sha256,
+              },
+            ],
+          );
+          return replacement;
         });
-        await scope.storage.remove(original, scope.signal);
-        await scope.write((tx, now) =>
-          fileRepository.recordObjectDeleted(
-            tx,
-            operationId,
-            archiveObjectId,
-            'source',
-            now,
-          ),
-        );
-        await scope.storage.copy(staging, replacement, newFacts, scope.signal);
-        await scope.write((tx) =>
-          fileRepository.recordPreparedObject(
-            tx,
-            operationId,
-            replacementObjectId,
-            { ...newFacts, transientBytes: 0 },
-            scope.leaseId,
-          ),
-        );
+        await objectPlan.replaceSource(archiveObjectId, replacement);
         await scope.publish((tx) =>
           fileRepository.commitUpload(tx, operationId, {
             fileId,
@@ -200,23 +164,7 @@ export class FileOverwrites {
             expectedRevision: fields.expectedRevision,
           }),
         );
-        await scope.storage.remove(staging, scope.signal);
-        await scope.write(async (tx, now) => {
-          await fileRepository.recordObjectDeleted(
-            tx,
-            operationId,
-            replacementObjectId,
-            'source',
-            now,
-          );
-          await fileRepository.recordObjectDeleted(
-            tx,
-            operationId,
-            stagingObjectId,
-            'target',
-            now,
-          );
-        });
+        await objectPlan.removeSources();
         return scope.complete();
       },
       {

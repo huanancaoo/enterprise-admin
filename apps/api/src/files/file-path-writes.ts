@@ -16,7 +16,6 @@ import {
 import {
   fileRepository,
   type FileEntry,
-  type FileOperationObject,
 } from '@workspace/database/repositories/files';
 import { AuthRuntime } from '../identity/auth-runtime';
 import { IdentityService } from '../identity/identity.service';
@@ -25,9 +24,9 @@ import {
   type PermissionRequest,
 } from '../authorization/authorization.service';
 import { rethrowTenantWriteError } from '../tenancy/tenant-write';
-import { FileWriteExecutor, type FileWriteScope } from './file-write-executor';
+import { FileWriteExecutor } from './file-write-executor';
 import { rethrowFileError } from './file-http-errors';
-import { StorageError, type StorageAddress } from './storage/storage';
+import { createFileWriteObjectPlan } from './file-object-plan';
 
 type PathAction = 'rename' | 'move' | 'trash' | 'restore' | 'purge';
 type PathInput =
@@ -44,20 +43,6 @@ export function filePathPermissions(
   if (action === 'restore' || action === 'purge') return { file: [action] };
   const permission = action === 'trash' ? 'delete' : 'update';
   return kind === 'file' ? { file: [permission] } : { folder: [permission] };
-}
-function address(
-  context: TenantContext,
-  object: FileOperationObject,
-  side: 'source' | 'target',
-): StorageAddress {
-  const area = side === 'source' ? object.sourceArea : object.targetArea;
-  const segments = side === 'source' ? object.sourcePath : object.targetPath;
-  if (!area || !segments) throw new StorageError('STORAGE_RESPONSE_INVALID');
-  return {
-    owner: { kind: 'organization', id: context.organizationId },
-    area,
-    segments,
-  };
 }
 
 @Injectable()
@@ -158,59 +143,14 @@ export class FilePathWrites {
           { kind: 'organization', id: context.organizationId },
           scope.signal,
         );
+        const objectPlan = createFileWriteObjectPlan(context, scope, objects);
         if (action !== 'purge') {
-          // 计划按 UUID 返回；父目录必须先存在，不能依赖数据库返回对象的偶然顺序。
-          const targets = objects
-            .filter((object) => object.targetArea !== null)
-            .sort((a, b) =>
-              a.directory !== b.directory
-                ? a.directory
-                  ? -1
-                  : 1
-                : a.targetPath!.length - b.targetPath!.length,
-            );
-          for (const object of targets) {
-            scope.signal.throwIfAborted();
-            if (object.directory)
-              await scope.storage.createDirectory(
-                address(context, object, 'target'),
-                scope.signal,
-              );
-            else {
-              if (
-                object.expectedBytes === null ||
-                object.expectedSha256 === null
-              )
-                throw new StorageError('STORAGE_RESPONSE_INVALID');
-              await scope.storage.copy(
-                address(context, object, 'source'),
-                address(context, object, 'target'),
-                {
-                  bytes: object.expectedBytes,
-                  sha256: object.expectedSha256,
-                },
-                scope.signal,
-              );
-            }
-            await scope.write((tx) =>
-              fileRepository.recordPreparedObject(
-                tx,
-                operationId,
-                object.id,
-                {
-                  bytes: object.expectedBytes ?? 0,
-                  sha256: object.expectedSha256,
-                  transientBytes: object.directory ? 0 : object.expectedBytes!,
-                },
-                scope.leaseId,
-              ),
-            );
-          }
+          await objectPlan.prepareTargets();
           await scope.publish((tx, now) =>
             fileRepository.commitPathOperation(tx, operationId, now),
           );
         }
-        await this.removeSources(context, scope, objects);
+        await objectPlan.removeSources();
         // purge 的物理删除不可撤销，只有删除事实、生命周期和同事务审计都成功后才发布完成。
         return scope.complete(
           action === 'purge'
@@ -220,37 +160,5 @@ export class FilePathWrites {
         );
       },
     );
-  }
-
-  private async removeSources(
-    context: TenantContext,
-    scope: FileWriteScope,
-    objects: FileOperationObject[],
-  ): Promise<void> {
-    const sources = objects
-      .filter((object) => object.sourceArea !== null)
-      .sort((a, b) =>
-        a.directory !== b.directory
-          ? a.directory
-            ? 1
-            : -1
-          : b.sourcePath!.length - a.sourcePath!.length,
-      );
-    for (const object of sources) {
-      scope.signal.throwIfAborted();
-      const source = address(context, object, 'source');
-      if (object.directory)
-        await scope.storage.removeDirectory(source, scope.signal);
-      else await scope.storage.remove(source, scope.signal);
-      await scope.write((tx, now) =>
-        fileRepository.recordObjectDeleted(
-          tx,
-          scope.operation.id,
-          object.id,
-          'source',
-          now,
-        ),
-      );
-    }
   }
 }
