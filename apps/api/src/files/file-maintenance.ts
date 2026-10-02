@@ -30,6 +30,7 @@ type OperationObject = {
   target_area: StorageAddress['area'] | null;
   target_path: string[] | null;
   source_deleted_at: string | null;
+  source_deletion_started_at: string | null;
   source_restored_at: string | null;
   target_deleted_at: string | null;
   expected_bytes: number | null;
@@ -300,7 +301,8 @@ export class FileMaintenance implements OnModuleDestroy {
     const objects = job.objects
       .filter(
         (object) =>
-          object.source_deleted_at !== null &&
+          (object.source_deletion_started_at !== null ||
+            object.source_deleted_at !== null) &&
           object.source_restored_at === null,
       )
       .sort((a, b) =>

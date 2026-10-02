@@ -238,6 +238,9 @@ importers:
       better-auth:
         specifier: 1.7.5
         version: 1.7.5(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@types/pg@8.23.1)(kysely@0.29.5)(pg@8.23.0))(next@16.3.5(@types/node@26.5.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(pg@8.23.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vitest@4.1.11)
+      busboy:
+        specifier: 1.6.0
+        version: 1.6.0
       ioredis:
         specifier: 5.11.1
         version: 5.11.1(supports-color@8.1.1)
@@ -269,6 +272,9 @@ importers:
       '@nestjs/testing':
         specifier: 12.0.2
         version: 12.0.2(@nestjs/common@12.0.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@12.0.2)(@nestjs/platform-express@12.0.2)
+      '@types/busboy':
+        specifier: 1.5.4
+        version: 1.5.4
       '@types/express':
         specifier: 5.0.6
         version: 5.0.6
@@ -756,12 +762,12 @@ importers:
       '@workspace/contracts':
         specifier: workspace:*
         version: link:../contracts
-      '@workspace/permissions':
-        specifier: workspace:*
-        version: link:../permissions
       '@workspace/i18n':
         specifier: workspace:*
         version: link:../i18n
+      '@workspace/permissions':
+        specifier: workspace:*
+        version: link:../permissions
       '@workspace/ui':
         specifier: workspace:*
         version: link:../ui
@@ -4691,6 +4697,9 @@ packages:
 
   '@types/body-parser@1.19.6':
     resolution: {integrity: sha512-HLFeCYgz89uk22N5Qg3dvGvsv46B8GLvKKo1zKG4NybA8U2DiEO3w9lqGg29t/tfLRJpJ6iQxnVw4OnB7MoM9g==}
+
+  '@types/busboy@1.5.4':
+    resolution: {integrity: sha512-kG7WrUuAKK0NoyxfQHsVE6j1m01s6kMma64E+OZenQABMQyTJop1DumUWcLwAQ2JzpefU7PDYoRDKl8uZosFjw==}
 
   '@types/chai@5.2.3':
     resolution: {integrity: sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA==}
@@ -13179,6 +13188,10 @@ snapshots:
   '@types/body-parser@1.19.6':
     dependencies:
       '@types/connect': 3.4.38
+      '@types/node': 26.5.1
+
+  '@types/busboy@1.5.4':
+    dependencies:
       '@types/node': 26.5.1
 
   '@types/chai@5.2.3':

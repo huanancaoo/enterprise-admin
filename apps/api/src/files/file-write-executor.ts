@@ -132,6 +132,7 @@ export class FileWriteExecutor implements OnModuleDestroy {
     let claimed = false;
     let published: FileOperationResponse | undefined;
     let completed: FileOperationResponse | undefined;
+    let operationSignal: AbortSignal | undefined;
     try {
       return await this.runtime.requirePhysicalScope().run(
         { kind: 'organization', id: context.organizationId },
@@ -201,6 +202,7 @@ export class FileWriteExecutor implements OnModuleDestroy {
               return renewed - (performance.now() - renewStarted);
             },
           );
+          operationSignal = lease.signal;
           const write = <T>(
             callback: (tx: TenantTx, now: Date) => Promise<T>,
           ) =>
@@ -252,7 +254,14 @@ export class FileWriteExecutor implements OnModuleDestroy {
     } catch (error) {
       let failure: unknown;
       try {
-        rethrowFileError(error);
+        // 存储层可能包装取消异常；保留失权或无效请求的原始业务原因。
+        rethrowFileError(
+          operationSignal?.aborted
+            ? operationSignal.reason
+            : signal.aborted
+              ? signal.reason
+              : error,
+        );
       } catch (mapped) {
         failure = mapped;
       }

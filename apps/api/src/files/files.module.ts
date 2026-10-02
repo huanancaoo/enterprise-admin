@@ -9,6 +9,9 @@ import { FilesController } from './files.controller';
 import { FileMaintenance } from './file-maintenance';
 import { FileWrites } from './file-writes';
 import { FileWriteExecutor } from './file-write-executor';
+import { FileUploads } from './file-uploads';
+import { FileUploadsController } from './file-uploads.controller';
+import { FileOverwrites } from './file-overwrites';
 
 @Module({})
 export class FilesModule {
@@ -16,7 +19,11 @@ export class FilesModule {
     return {
       module: FilesModule,
       imports: [AuthorizationModule, TenancyModule],
-      controllers: [FilesController, FileContentController],
+      controllers: [
+        FilesController,
+        FileContentController,
+        FileUploadsController,
+      ],
       providers: [
         { provide: FilesRuntime, useValue: runtime },
         Files,
@@ -24,6 +31,8 @@ export class FilesModule {
         FileMaintenance,
         FileWrites,
         FileWriteExecutor,
+        FileUploads,
+        FileOverwrites,
       ],
     };
   }
