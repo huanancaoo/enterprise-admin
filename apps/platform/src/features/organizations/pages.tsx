@@ -62,6 +62,7 @@ import {
   TableHeader,
   TableRow,
 } from "@workspace/ui/components/table"
+import { OrganizationStoragePolicy } from "../storage-policy/organization-storage-policy"
 import { authClient } from "../../lib/auth-client"
 
 const filterSchema = z.strictObject({
@@ -808,6 +809,10 @@ export function PlatformOrganizationDetailPage() {
           </dd>
         </div>
       </dl>
+      <OrganizationStoragePolicy
+        key={organization.id}
+        organizationId={organization.id}
+      />
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">
           {t("organization:platformMembers")}

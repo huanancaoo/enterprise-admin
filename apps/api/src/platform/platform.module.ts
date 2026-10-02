@@ -1,3 +1,5 @@
+import { PlatformStoragePolicyService } from './platform-storage-policy';
+import { PlatformStoragePolicyController } from './platform-storage-policy.controller';
 import { Module, type DynamicModule } from '@nestjs/common';
 import {
   PLATFORM_DEPLOYMENT_SUMMARY,
@@ -23,6 +25,7 @@ import { PlatformAuditController } from './platform-audit.controller';
     PlatformUsersController,
     PlatformAuditController,
     PlatformSettingsController,
+    PlatformStoragePolicyController,
   ],
   providers: [
     PlatformAccessService,
@@ -31,6 +34,7 @@ import { PlatformAuditController } from './platform-audit.controller';
     PlatformUsers,
     PlatformAudit,
     PlatformSettings,
+    PlatformStoragePolicyService,
   ],
 })
 export class PlatformModule {
