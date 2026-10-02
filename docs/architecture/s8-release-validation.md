@@ -1,6 +1,6 @@
 # S8 跨功能与发布验收记录
 
-日期：2026-10-02。对应 [#24](https://github.com/huanancaoo/enterprise-admin/issues/24)。本记录确认迁移安全、固定规模 HTTP 性能及下文列出的组合浏览器、授权补充、Feature 展示覆盖和完整本机检查。[T01–T28 矩阵](s8-acceptance-matrix.md) 逐项列出证据及边界。安全回退和 ADR/CLI 一致性仍未完成，#24 与父任务 #8 继续保持开放。
+日期：2026-10-02。对应 [#24](https://github.com/huanancaoo/enterprise-admin/issues/24)。本记录确认迁移安全、固定规模 HTTP 性能及下文列出的组合浏览器、授权补充、Feature 展示覆盖和完整本机检查。[T01–T28 矩阵](s8-acceptance-matrix.md) 逐项列出证据及边界。ADR/CLI 已按已完成的 #19 对齐已验证用户 UUID 授权；安全回退仍未完成，#24 与父任务 #8 继续保持开放。
 
 ## 迁移安全
 
@@ -249,7 +249,7 @@ Storybook 构建产物另完成六项原生浏览器检查：键盘创建/更新
 ## 尚未完成的验收
 
 - 平台组织、用户目录、审计、设置、租户审计、个人/组织语言设置、成员、邀请和角色管理已补足上述 Feature Stories；各批次证据仍只覆盖明确列出的状态与流程。
-- 安全回退入口和 ADR-0002/当前 CLI 的语义冲突等待用户确认；确认后完成实现、文档与对应发布验收。
+- 平台任职 CLI 与 [ADR-0002](../adr/0002-platform-assignment.md) 已按完成的 [#19](https://github.com/huanancaoo/enterprise-admin/issues/19) 对齐：grant 只面向已存在且邮箱已验证的用户，CLI 不创建账号或修改验证状态。安全回退入口与实际发布环境仍待明确，对应发布验收尚未完成。
 
 本机验证与远端 CI、生产部署分别记账；本记录不声称 GitHub Actions 或生产发布已通过。
 
