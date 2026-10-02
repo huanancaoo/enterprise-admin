@@ -136,8 +136,8 @@ export function useFileBatch({
       canRead &&
       Boolean(record?.submitted) &&
       !submitting &&
-      // 旧授权的不可读结果只停该 scope 的自动查询；新的授权事实允许重新 GET 同一安全身份。
-      (record?.phase !== "unavailable" || stored.scope !== contentScopeKey) &&
+      // unavailable 是旧响应事实；可信 canRead 下的新挂载先 GET 安全身份一次，本次403才停止自动查询。
+      (record?.phase !== "unavailable" || (!response && !error)) &&
       (!response ||
         (record?.phase !== "settled" && record?.phase !== "pending")),
     retry: false,

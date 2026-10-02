@@ -158,6 +158,7 @@ function Content({
   onRefresh,
   onScopeChange,
   onAuthorizationChange,
+  onAuthorizedRemount,
   onImpact,
 }: {
   scope: string
@@ -168,6 +169,7 @@ function Content({
   onRefresh: () => void
   onScopeChange: () => void
   onAuthorizationChange: () => void
+  onAuthorizedRemount: () => void
   onImpact: (id: string) => void
 }) {
   const [open, setOpen] = useState(false)
@@ -206,6 +208,9 @@ function Content({
       </Button>
       <Button variant="outline" onClick={onAuthorizationChange}>
         Change authorization version
+      </Button>
+      <Button variant="outline" onClick={onAuthorizedRemount}>
+        Remount with new authorization
       </Button>
       <output aria-label="Safe record">
         {sessionStorage.getItem(fileBatchRecordKey(recordScope))}
@@ -328,6 +333,10 @@ function Fixture({
         onAuthorizationChange={() =>
           setAuthorizationVersion((value) => value + 1)
         }
+        onAuthorizedRemount={() => {
+          setAuthorizationVersion((value) => value + 1)
+          setEpoch((value) => value + 1)
+        }}
         onImpact={(value) => setImpacts((previous) => [...previous, value])}
       />
     </>
@@ -728,5 +737,49 @@ export const NewAuthorizationQueriesPreviousUnavailableBatch: Story = {
         name: "Continue original batch",
       })
     ).not.toBeInTheDocument()
+  },
+}
+
+export const AuthorizedRemountQueriesPreviousUnavailableBatch: Story = {
+  args: { mode: "unreadable" },
+  play: async ({ canvasElement }) => {
+    await move(canvasElement)
+    await waitFor(() =>
+      expect(
+        within(canvasElement).getByText(/Automatic status checks stopped/)
+      ).toBeVisible()
+    )
+    const original = posted(canvasElement)[0]!
+    await expect(read(canvasElement)).toEqual([original.batchId])
+    await userEvent.click(
+      within(canvasElement).getByRole("button", {
+        name: "Remount with new authorization",
+      })
+    )
+    await waitFor(() =>
+      expect(read(canvasElement)).toEqual([original.batchId, original.batchId])
+    )
+    await expect(posted(canvasElement)).toHaveLength(1)
+    await expect(
+      within(canvasElement).getAllByText("Completed", { exact: true })
+    ).toHaveLength(2)
+    await expect(
+      within(canvasElement).queryByRole("button", {
+        name: "Continue original batch",
+      })
+    ).not.toBeInTheDocument()
+    const safe = JSON.parse(
+      within(canvasElement).getByLabelText("Safe record").textContent!
+    )
+    await expect(safe[0].batchId).toBe(original.batchId)
+    await expect(Object.keys(safe[0]).sort()).toEqual([
+      "action",
+      "batchId",
+      "createdAt",
+      "itemOperationIds",
+      "phase",
+      "submitted",
+      "updatedAt",
+    ])
   },
 }
