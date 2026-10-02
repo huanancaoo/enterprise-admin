@@ -7,12 +7,14 @@ import { join } from "node:path"
 import { promisify } from "node:util"
 import { afterEach, test, vi } from "vitest"
 import { createBrowserFetcher } from "fumadocs-openapi/playground"
+import { createOpenAPI } from "fumadocs-openapi/server"
 import { encodeRequestData } from "fumadocs-openapi/requests"
 import { createCodeUsageGeneratorRegistry } from "fumadocs-openapi/requests/generators"
 import { registerDefault } from "fumadocs-openapi/requests/generators/all"
 import {
   binaryCodeUsages,
   imageMediaAdapters,
+  imagePlaygroundFetchOptions,
 } from "../lib/openapi-media-adapters"
 
 const images = [
@@ -235,5 +237,100 @@ test("non-image languages and media retain the official generators", () => {
   }
   for (const id of ["js", "python", "java", "csharp", "rust"]) {
     assert.equal(binaryCodeUsages.get(id), defaults.get(id))
+  }
+})
+
+for (const [mediaType, fileName] of images) {
+  test(`formal loaded Playground default sends selected ${mediaType} File type and bytes`, async () => {
+    const sourceDocument = JSON.parse(
+      await readFile(
+        new URL("../../api/openapi/openapi.json", import.meta.url),
+        "utf8"
+      )
+    )
+    const openapi = createOpenAPI({
+      input: { formal: sourceDocument },
+      disableCache: true,
+    })
+    const { bundled } = await openapi.getSchema("formal")
+    const document = bundled as typeof sourceDocument
+    const operation = document.paths["/api/v1/personal-media"].post
+    const defaultMediaType = Object.keys(operation.requestBody.content)[0]!
+    assert.equal(defaultMediaType, "image/jpeg")
+    assert.ok(Object.hasOwn(operation.requestBody.content, mediaType))
+    vi.stubGlobal("document", {
+      baseURI: "https://docs.example.test/",
+      cookie: "",
+    })
+    let sent: Request | undefined
+    vi.stubGlobal("fetch", async (input: URL, init: RequestInit) => {
+      sent = new Request(input, init)
+      return new Response("ok")
+    })
+    const file = new File([bytes], fileName, { type: mediaType })
+    await createBrowserFetcher(imageMediaAdapters, {
+      ...imagePlaygroundFetchOptions,
+      requestTimeout: false,
+    }).fetch(url, requestData(defaultMediaType, file))
+    assert.ok(sent)
+    assert.equal(sent.headers.get("Content-Type"), mediaType)
+    assert.equal(sent.headers.get("Idempotency-Key"), operationId)
+    assert.deepEqual(new Uint8Array(await sent.arrayBuffer()), bytes)
+  })
+}
+
+test("image request hook rejects an undeclared File type without converting to JPEG", async () => {
+  vi.stubGlobal("document", {
+    baseURI: "https://docs.example.test/",
+    cookie: "",
+  })
+  const fetch = vi.fn()
+  vi.stubGlobal("fetch", fetch)
+  await assert.rejects(
+    createBrowserFetcher(imageMediaAdapters, imagePlaygroundFetchOptions).fetch(
+      url,
+      requestData(
+        "image/jpeg",
+        new File([bytes], "image.svg", { type: "image/svg+xml" })
+      )
+    ),
+    /JPEG, PNG, WebP or GIF/
+  )
+  assert.equal(fetch.mock.calls.length, 0)
+})
+
+test("image hook replaces header case-insensitively and retains body and all other request facts", async () => {
+  const file = new File([bytes], "image.png", { type: "image/png" })
+  const input = {
+    body: file,
+    headers: {
+      "content-type": "image/jpeg",
+      "Idempotency-Key": operationId,
+      Cookie: "session=example-session",
+    },
+    method: "POST",
+    credentials: "include" as const,
+  }
+  const result = await imagePlaygroundFetchOptions.onRequestInit!(input)
+  assert.equal(result.body, file)
+  assert.equal(result.method, input.method)
+  assert.equal(result.credentials, input.credentials)
+  const headers = new Headers(result.headers)
+  assert.equal(headers.get("Content-Type"), "image/png")
+  assert.equal(headers.get("Idempotency-Key"), operationId)
+  assert.equal(headers.get("Cookie"), "session=example-session")
+})
+
+test("image hook preserves non-image raw, JSON and multipart requests", async () => {
+  for (const mediaType of [
+    "application/octet-stream",
+    "application/json",
+    "multipart/form-data",
+  ]) {
+    const input = {
+      body: new File([bytes], "image.png", { type: "image/png" }),
+      headers: { "Content-Type": mediaType },
+    }
+    assert.equal(await imagePlaygroundFetchOptions.onRequestInit!(input), input)
   }
 })

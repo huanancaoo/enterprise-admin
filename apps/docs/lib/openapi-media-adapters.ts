@@ -1,4 +1,5 @@
 import type { MediaAdapter } from "fumadocs-openapi"
+import type { BrowserFetcherOptions } from "fumadocs-openapi/playground"
 import { createCodeUsageGeneratorRegistry } from "fumadocs-openapi/requests/generators"
 import { registerDefault } from "fumadocs-openapi/requests/generators/all"
 import { curl } from "fumadocs-openapi/requests/generators/curl"
@@ -136,3 +137,20 @@ ${headerLines}
 }`
   },
 })
+
+export const imagePlaygroundFetchOptions: BrowserFetcherOptions = {
+  onRequestInit(requestInit) {
+    const body = requestInit.body
+    if (!(body instanceof Blob)) return requestInit
+    const headers = new Headers(requestInit.headers)
+    if (!imageFile(headers.get("Content-Type") ?? undefined)) return requestInit
+    if (!imageFile(body.type)) {
+      throw new TypeError(
+        "Choose a JPEG, PNG, WebP or GIF file with its image media type"
+      )
+    }
+    // The Playground fixes bodyMediaType to the first declaration; the selected File carries the actual declared format.
+    headers.set("Content-Type", body.type)
+    return { ...requestInit, headers }
+  },
+}
