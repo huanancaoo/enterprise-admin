@@ -54,10 +54,15 @@ async function openAdminUserMenu(page, userName) {
 
 async function selectAdminLocale(page, userName, currentLanguage, locale) {
   await openAdminUserMenu(page, userName)
-  await page
-    .getByRole("menuitem", { name: currentLanguage, exact: true })
-    .click()
-  await page.getByRole("menuitemradio", { name: locale, exact: true }).click()
+  const language = page.getByRole("menuitem", {
+    name: currentLanguage,
+    exact: true,
+  })
+  await language.focus()
+  await language.press("Enter")
+  const option = page.getByRole("menuitemradio", { name: locale, exact: true })
+  await option.focus()
+  await option.press("Enter")
 }
 
 async function signOutFromAppShell(page, userName) {
