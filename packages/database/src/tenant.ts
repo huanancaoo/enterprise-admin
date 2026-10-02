@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/node-postgres"
-import type { Pool } from "pg"
+import type { Pool, PoolClient } from "pg"
 
 export type TenantContext = Readonly<{
   organizationId: string
@@ -26,8 +26,8 @@ export type TenantTx = Pick<
   readonly context: TenantContext
 }
 
-export function createTenantRunner(pool: Pool) {
-  const db = drizzle(pool)
+export function createTenantRunner(connection: Pool | PoolClient) {
+  const db = drizzle(connection)
   return async function runInTenant<T>(
     context: TenantContext,
     work: (tx: TenantTx) => Promise<T>,

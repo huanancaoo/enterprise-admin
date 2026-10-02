@@ -345,3 +345,79 @@ test("伪造 is_platform 不改变 RLS 或平台任职，runtime 不能切换历
     null
   )
 })
+
+test("PoolClient事务复用已持锁连接，提交回滚后保留物理锁且不遗留组织上下文", async () => {
+  const client = await pool.connect()
+  const observer = await migrator.connect()
+  const lock = Math.floor(Math.random() * 2147483647)
+  try {
+    await client.query("SELECT pg_advisory_lock(25001,$1)", [lock])
+    const runner = createTenantRunner(client)
+    const pid = (await client.query("SELECT pg_backend_pid() AS pid")).rows[0]
+      .pid
+    for (const ctx of [a, b]) {
+      await runner(ctx, async (tx) => {
+        const result = await tx.execute(
+          sql`SELECT organization_id, pg_backend_pid() AS pid FROM projects`
+        )
+        assert.deepEqual(result.rows, [
+          { organization_id: ctx.organizationId, pid },
+        ])
+      })
+      assert.equal(
+        (
+          await client.query(
+            "SELECT NULLIF(current_setting('app.organization_id',true),'') AS org"
+          )
+        ).rows[0].org,
+        null
+      )
+    }
+    const aborted = randomUUID()
+    await assert.rejects(
+      runner(a, async (tx) => {
+        await tx.execute(
+          sql`INSERT INTO projects(id,organization_id,content_locale) VALUES (${aborted},${a.organizationId},'zh-CN')`
+        )
+        throw new Error("held-client rollback")
+      }),
+      /held-client rollback/
+    )
+    await runner(a, async (tx) =>
+      assert.equal(
+        (await tx.execute(sql`SELECT id FROM projects WHERE id=${aborted}`))
+          .rowCount,
+        0
+      )
+    )
+    assert.equal(
+      (
+        await client.query(
+          "SELECT NULLIF(current_setting('app.organization_id',true),'') AS org"
+        )
+      ).rows[0].org,
+      null
+    )
+    assert.equal(
+      (
+        await observer.query(
+          "SELECT pg_try_advisory_lock(25001,$1) AS acquired",
+          [lock]
+        )
+      ).rows[0].acquired,
+      false
+    )
+    assert.equal(
+      (
+        await client.query("SELECT pg_advisory_unlock(25001,$1) AS released", [
+          lock,
+        ])
+      ).rows[0].released,
+      true
+    )
+  } finally {
+    await client.query("SELECT pg_advisory_unlock_all()")
+    client.release()
+    observer.release()
+  }
+})

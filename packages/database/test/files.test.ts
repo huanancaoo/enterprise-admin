@@ -3907,3 +3907,293 @@ test("平台策略读取等待后复核 Session，不能返回已失效身份的
     reader.release()
   }
 })
+
+async function actorWorkspace() {
+  const a = await workspace(),
+    sessionId = randomUUID(),
+    ownerId = randomUUID()
+  await owner.query(
+    "INSERT INTO public.\"user\" (id,name,email,email_verified) VALUES ($1,'file owner',$2,true)",
+    [ownerId, `${ownerId}@example.test`]
+  )
+  await owner.query(
+    "INSERT INTO public.member (id,organization_id,user_id,role,created_at) VALUES ($1,$2,$3,'owner',now())",
+    [randomUUID(), a.context.organizationId, ownerId]
+  )
+  await owner.query(
+    "INSERT INTO public.\"user\" (id,name,email,email_verified) VALUES ($1,'file actor',$2,true)",
+    [a.context.userId, `${a.context.userId}@example.test`]
+  )
+  await owner.query(
+    "INSERT INTO public.session (id,user_id,token,expires_at,updated_at) VALUES ($1,$2,$3,now()+interval '1 hour',now())",
+    [sessionId, a.context.userId, randomUUID()]
+  )
+  await owner.query(
+    "INSERT INTO public.member (id,organization_id,user_id,role,created_at) VALUES ($1,$2,$3,'member',now())",
+    [a.context.membershipId, a.context.organizationId, a.context.userId]
+  )
+  return { ...a, sessionId }
+}
+async function currentActor(context: TenantContext, sessionId: string) {
+  return run(context, async (tx) => {
+    await fileRepository.lockOrganization(tx)
+    return fileRepository.requireCurrentActor(tx, sessionId)
+  })
+}
+async function waitForActorLock(applicationName: string) {
+  for (let i = 0; i < 200; i++) {
+    if (
+      (
+        await owner.query(
+          "SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE application_name=$1 AND wait_event_type='Lock') AS waiting",
+          [applicationName]
+        )
+      ).rows[0]!.waiting
+    )
+      return
+    await new Promise((resolve) => setTimeout(resolve, 10))
+  }
+  assert.fail("actor transaction did not reach its required row lock")
+}
+
+test("文件执行边界核对真实Session和精确成员，返回锁后数据库当前时间", async () => {
+  const a = await actorWorkspace(),
+    b = await actorWorkspace()
+  await run(a.context, async (tx) => {
+    await fileRepository.lockOrganization(tx)
+    const began = (
+      await tx.execute<{ began: string }>(
+        sql`SELECT transaction_timestamp() AS began`
+      )
+    ).rows[0]!.began
+    await tx.execute(sql`SELECT pg_sleep(0.01)`)
+    const now = await fileRepository.requireCurrentActor(tx, a.sessionId)
+    assert.equal(now instanceof Date, true)
+    assert.ok(now.getTime() > new Date(began).getTime())
+  })
+  await assert.rejects(
+    currentActor(a.context, randomUUID()),
+    errorCode("UNAUTHENTICATED")
+  )
+  await assert.rejects(
+    currentActor(a.context, b.sessionId),
+    errorCode("UNAUTHENTICATED")
+  )
+  await assert.rejects(
+    currentActor(
+      { ...a.context, membershipId: b.context.membershipId },
+      a.sessionId
+    ),
+    errorCode("FORBIDDEN")
+  )
+  await assert.rejects(
+    currentActor(
+      { ...a.context, organizationId: b.context.organizationId },
+      a.sessionId
+    ),
+    errorCode("FORBIDDEN")
+  )
+  await owner.query(
+    "UPDATE session SET expires_at=now()-interval '1 minute' WHERE id=$1",
+    [a.sessionId]
+  )
+  await assert.rejects(
+    currentActor(a.context, a.sessionId),
+    errorCode("UNAUTHENTICATED")
+  )
+  await owner.query(
+    "UPDATE session SET expires_at=now()+interval '1 hour' WHERE id=$1",
+    [a.sessionId]
+  )
+  await owner.query("DELETE FROM member WHERE id=$1", [a.context.membershipId])
+  await assert.rejects(
+    currentActor(a.context, a.sessionId),
+    errorCode("FORBIDDEN")
+  )
+})
+
+test("文件执行边界维持Active状态错误，失效Session先于组织状态信息拒绝", async () => {
+  const a = await actorWorkspace()
+  await owner.query(
+    "UPDATE organization_status SET status='SUSPENDED' WHERE organization_id=$1",
+    [a.context.organizationId]
+  )
+  await assert.rejects(currentActor(a.context, a.sessionId), sqlCode("ORS02"))
+  await owner.query(
+    "UPDATE session SET expires_at=now()-interval '1 minute' WHERE id=$1",
+    [a.sessionId]
+  )
+  await assert.rejects(
+    currentActor(a.context, a.sessionId),
+    errorCode("UNAUTHENTICATED")
+  )
+  const b = await actorWorkspace()
+  await owner.query(
+    "DELETE FROM organization_status WHERE organization_id=$1",
+    [b.context.organizationId]
+  )
+  await assert.rejects(currentActor(b.context, b.sessionId), sqlCode("ORS01"))
+})
+
+test("等待Session行锁后核对最新撤销事实，不继续取组织状态", async () => {
+  const a = await actorWorkspace(),
+    blocker = await owner.connect(),
+    client = await runtime.connect()
+  const applicationName = `actor-session-${randomUUID()}`
+  try {
+    await blocker.query("BEGIN")
+    await blocker.query("SELECT id FROM session WHERE id=$1 FOR UPDATE", [
+      a.sessionId,
+    ])
+    await client.query("SELECT set_config('application_name',$1,false)", [
+      applicationName,
+    ])
+    const pending = createTenantRunner(client)(a.context, async (tx) => {
+      await fileRepository.lockOrganization(tx)
+      return fileRepository.requireCurrentActor(tx, a.sessionId)
+    })
+    const rejection = assert.rejects(pending, errorCode("UNAUTHENTICATED"))
+    await waitForActorLock(applicationName)
+    await blocker.query(
+      "UPDATE session SET expires_at=now()-interval '1 minute' WHERE id=$1",
+      [a.sessionId]
+    )
+    await blocker.query("COMMIT")
+    await rejection
+  } finally {
+    await blocker.query("ROLLBACK")
+    blocker.release()
+    client.release()
+  }
+})
+
+test("等待原生组织状态锁后成员已移除，执行边界拒绝旧成员上下文", async () => {
+  const a = await actorWorkspace(),
+    blocker = await owner.connect(),
+    client = await runtime.connect()
+  const applicationName = `actor-member-${randomUUID()}`
+  try {
+    await blocker.query("BEGIN")
+    await blocker.query("SELECT public.require_active_organization($1)", [
+      a.context.organizationId,
+    ])
+    await blocker.query("DELETE FROM member WHERE id=$1", [
+      a.context.membershipId,
+    ])
+    await client.query("SELECT set_config('application_name',$1,false)", [
+      applicationName,
+    ])
+    const pending = createTenantRunner(client)(a.context, async (tx) => {
+      await fileRepository.lockOrganization(tx)
+      return fileRepository.requireCurrentActor(tx, a.sessionId)
+    })
+    const rejection = assert.rejects(pending, errorCode("FORBIDDEN"))
+    await waitForActorLock(applicationName)
+    await blocker.query("COMMIT")
+    await rejection
+  } finally {
+    await blocker.query("ROLLBACK")
+    blocker.release()
+    client.release()
+  }
+})
+
+test("Session在等待status期间自然到期，使用最终数据库时钟拒绝", async () => {
+  const a = await actorWorkspace(),
+    blocker = await owner.connect(),
+    client = await runtime.connect()
+  const applicationName = `actor-expiry-${randomUUID()}`
+  await owner.query(
+    "UPDATE session SET expires_at=clock_timestamp()+interval '250 milliseconds' WHERE id=$1",
+    [a.sessionId]
+  )
+  try {
+    await blocker.query("BEGIN")
+    await blocker.query("SELECT public.require_active_organization($1)", [
+      a.context.organizationId,
+    ])
+    await client.query("SELECT set_config('application_name',$1,false)", [
+      applicationName,
+    ])
+    const pending = createTenantRunner(client)(a.context, async (tx) => {
+      await fileRepository.lockOrganization(tx)
+      return fileRepository.requireCurrentActor(tx, a.sessionId)
+    })
+    const rejection = assert.rejects(pending, errorCode("UNAUTHENTICATED"))
+    await waitForActorLock(applicationName)
+    while (
+      (
+        await owner.query(
+          "SELECT expires_at>clock_timestamp() AS valid FROM session WHERE id=$1",
+          [a.sessionId]
+        )
+      ).rows[0]!.valid
+    )
+      await new Promise((resolve) => setTimeout(resolve, 10))
+    await blocker.query("COMMIT")
+    await rejection
+  } finally {
+    await blocker.query("ROLLBACK")
+    blocker.release()
+    client.release()
+  }
+})
+
+test("成功执行持Session共享锁至提交，撤销按提交后生效", async () => {
+  const a = await actorWorkspace(),
+    client = await runtime.connect(),
+    revoker = await owner.connect()
+  const applicationName = `actor-revoke-${randomUUID()}`
+  let release!: () => void
+  const gate = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  let locked!: () => void
+  const ready = new Promise<void>((resolve) => {
+    locked = resolve
+  })
+  let write: Promise<void> | undefined, revoke: Promise<unknown> | undefined
+  try {
+    write = createTenantRunner(client)(a.context, async (tx) => {
+      await fileRepository.lockOrganization(tx)
+      await fileRepository.requireCurrentActor(tx, a.sessionId)
+      locked()
+      await gate
+      await begin(tx, "create-folder", {
+        parentId: a.root.id,
+        name: "authorized",
+      })
+    })
+    await ready
+    await revoker.query("SELECT set_config('application_name',$1,false)", [
+      applicationName,
+    ])
+    revoke = revoker.query(
+      "UPDATE session SET expires_at=now()-interval '1 minute' WHERE id=$1",
+      [a.sessionId]
+    )
+    await waitForActorLock(applicationName)
+    release()
+    await write
+    await revoke
+    assert.equal(
+      (
+        await owner.query(
+          "SELECT count(*)::integer AS total FROM file_operations WHERE organization_id=$1",
+          [a.context.organizationId]
+        )
+      ).rows[0]!.total,
+      1
+    )
+    await assert.rejects(
+      currentActor(a.context, a.sessionId),
+      errorCode("UNAUTHENTICATED")
+    )
+  } finally {
+    release()
+    await write?.catch(() => {})
+    await revoke?.catch(() => {})
+    client.release()
+    revoker.release()
+  }
+})

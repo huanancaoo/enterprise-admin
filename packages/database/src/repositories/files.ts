@@ -115,6 +115,43 @@ async function lockOrganization(tx: TenantTx): Promise<FileUsage> {
   if (!usage) throw new Error("File storage usage is missing")
   return usage
 }
+// Files 调用方先锁 usage；以默认 read runner 进入，避免提前持有 status。
+// 原生组织写可能先刷新 Session 再锁 status，这里必须沿用 Session → status → member。
+async function requireCurrentActor(
+  tx: TenantTx,
+  sessionId: string
+): Promise<Date> {
+  const active = await tx.execute<{ valid: boolean }>(sql`
+    WITH locked_session AS MATERIALIZED (
+      SELECT expires_at FROM public.session
+      WHERE id = ${sessionId}::uuid AND user_id = ${tx.context.userId}::uuid
+      FOR SHARE
+    )
+    SELECT expires_at > clock_timestamp() AS valid FROM locked_session
+  `)
+  if (!active.rows[0]?.valid) fail("UNAUTHENTICATED")
+  await tx.execute(
+    sql`SELECT public.require_active_organization(${tx.context.organizationId}::uuid)`
+  )
+  const membership = await tx.execute(sql`
+    SELECT id FROM public.member
+    WHERE id = ${tx.context.membershipId}::uuid
+      AND organization_id = ${tx.context.organizationId}::uuid
+      AND user_id = ${tx.context.userId}::uuid
+    FOR SHARE
+  `)
+  if (!membership.rows[0]) fail("FORBIDDEN")
+  // 等待 status/member 可能跨过到期时间；同一数据库时钟同时判断身份并供 lease 使用。
+  const current = await tx.execute<{ now: string; valid: boolean }>(sql`
+    WITH current_clock AS MATERIALIZED (SELECT clock_timestamp() AS now)
+    SELECT current_clock.now, active_session.expires_at > current_clock.now AS valid
+    FROM current_clock, public.session AS active_session
+    WHERE active_session.id = ${sessionId}::uuid
+      AND active_session.user_id = ${tx.context.userId}::uuid
+  `)
+  if (!current.rows[0]?.valid) fail("UNAUTHENTICATED")
+  return new Date(current.rows[0].now)
+}
 async function findEntry(tx: TenantTx, id: string, lock?: "update" | "share") {
   const query = tx
     .select()
@@ -313,6 +350,7 @@ async function recordAudit(
 
 export const fileRepository = {
   lockOrganization,
+  requireCurrentActor,
   findEntry,
   operationObjects,
   reserveNamespace,
