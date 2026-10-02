@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto"
 import { resolve } from "node:path"
 import { signUpVerified } from "../setup/complete-signup.mjs"
 import { startFilesEnvironment } from "../setup/files-environment.mjs"
+import { platformOperator } from "../setup/platform-operator.mjs"
 
 const require = createRequire(resolve("apps/api/package.json"))
 const {
@@ -363,5 +364,127 @@ for (const kind of ["Local", "RustFS"])
             location(value, ["并行" + index])
           )
         ).toBe(true)
+    })
+
+    test("十个真实平台策略写等待usage时，先排队的文件创建仍可完成最终授权", async () => {
+      const fixture = await workspace()
+      const admin = await platformOperator(environment, origin)
+      const blocker = await environment.observer.connect()
+      const ids = []
+      let pending = [],
+        created,
+        timer
+      try {
+        await blocker.query("BEGIN")
+        await blocker.query(
+          "SELECT organization_id FROM file_storage_usage WHERE organization_id=$1 FOR UPDATE",
+          [fixture.organization.id]
+        )
+        created = create(fixture, input(fixture, "平台并发创建"))
+        await vi.waitFor(
+          async () => {
+            const waiting = await environment.observer.query(
+              "SELECT count(*)::int AS count FROM pg_stat_activity WHERE application_name='enterprise-admin:files-physical-scope' AND wait_event_type='Lock' AND query LIKE '%file_storage_usage%'"
+            )
+            expect(waiting.rows[0].count).toBe(1)
+          },
+          { timeout: 10000 }
+        )
+        pending = Array.from({ length: 10 }, () =>
+          fetch(
+            environment.filesBaseURL +
+              `/api/v1/platform/organizations/${fixture.organization.id}/storage-policy`,
+            {
+              method: "PATCH",
+              headers: {
+                cookie: admin.cookie,
+                origin,
+                "content-type": "application/json",
+                "Idempotency-Key": randomUUID(),
+              },
+              body: JSON.stringify({
+                expectedVersion: 1,
+                quotaBytes: 2 ** 30,
+                trashDays: 30,
+                historyDays: 90,
+                reason: "Concurrent approved quota adjustment",
+              }),
+            }
+          )
+        )
+        await vi.waitFor(
+          async () => {
+            const waiting = await environment.observer.query(
+              "SELECT pid FROM pg_stat_activity WHERE usename='app_runtime' AND wait_event_type='Lock' AND query LIKE '%update_platform_storage_policy%'"
+            )
+            ids.splice(0, ids.length, ...waiting.rows.map((row) => row.pid))
+            expect(ids).toHaveLength(10)
+          },
+          { timeout: 10000 }
+        )
+        await blocker.query("COMMIT")
+        const response = await Promise.race([
+          created,
+          new Promise((_, reject) => {
+            timer = setTimeout(
+              () =>
+                reject(
+                  new Error(
+                    "folder final authorization borrowed a pool filled by waiting policy writes"
+                  )
+                ),
+              8000
+            )
+          }),
+        ])
+        expect(response.status).toBe(200)
+        expect((await response.json()).phase).toBe("completed")
+        const responses = await Promise.all(pending)
+        expect(responses.map((response) => response.status).sort()).toEqual([
+          200,
+          ...Array(9).fill(409),
+        ])
+        expect(
+          await environment.physical.directoryExists(
+            location(fixture, ["平台并发创建"])
+          )
+        ).toBe(true)
+      } finally {
+        clearTimeout(timer)
+        await blocker.query("ROLLBACK")
+        // 仅取消本测试观察到的固定函数，失败时也让测试进程释放实际请求。
+        for (const id of ids)
+          await environment.observer.query("SELECT pg_cancel_backend($1)", [id])
+        await Promise.allSettled([...pending, ...(created ? [created] : [])])
+        blocker.release()
+      }
+    })
+
+    test("文件读取在usage等待结束后重新验证已撤销的会话", async () => {
+      const fixture = await workspace()
+      const blocker = await environment.observer.connect()
+      let response
+      try {
+        await blocker.query("BEGIN")
+        await blocker.query(
+          "SELECT organization_id FROM file_storage_usage WHERE organization_id=$1 FOR UPDATE",
+          [fixture.organization.id]
+        )
+        response = request(fixture, "/workspace")
+        await vi.waitFor(async () => {
+          const waiting = await environment.observer.query(
+            "SELECT count(*)::int AS count FROM pg_stat_activity WHERE usename='app_runtime' AND wait_event_type='Lock' AND query LIKE '%file_storage_usage%'"
+          )
+          expect(waiting.rows[0].count).toBe(1)
+        })
+        await environment.observer.query(
+          "DELETE FROM session WHERE user_id=$1",
+          [fixture.actor.user.id]
+        )
+      } finally {
+        await blocker.query("ROLLBACK")
+        blocker.release()
+      }
+      expect((await response).status).toBe(401)
     })
   })

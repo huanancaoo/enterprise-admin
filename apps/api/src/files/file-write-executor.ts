@@ -97,8 +97,9 @@ export class FileWriteExecutor implements OnModuleDestroy {
     headers: Headers,
     permissions: PermissionRequest,
   ): Promise<Date> {
-    await fileRepository.lockOrganization(tx);
     const actor = await this.actors.requireIdentity(headers);
+    // 平台策略写也等待 usage；获取身份必须在持锁前，最终授权则复用持锁连接。
+    await fileRepository.lockOrganization(tx);
     await fileRepository.requireCurrentActor(tx, actor.sessionId);
     await this.authorization.requirePermissionInTransaction(
       client,

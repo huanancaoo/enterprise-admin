@@ -27,6 +27,17 @@ export class AuthorizationService {
     );
   }
 
+  async requireAnyPermissionInTransaction(
+    client: PoolClient,
+    headers: Headers,
+    organizationId: string,
+    alternatives: readonly PermissionRequest[],
+  ): Promise<void> {
+    await this.runtime.auth.withDatabaseClient(client, () =>
+      this.requireAnyPermission(headers, organizationId, alternatives),
+    );
+  }
+
   async requirePermission(
     headers: Headers,
     organizationId: string,

@@ -78,9 +78,10 @@ export class FilesController {
   workspace(
     @Param('organizationId', { schema: OrganizationIdSchema })
     _organizationId: string,
+    @Headers() headers: IncomingHttpHeaders,
     @CurrentTenant() context: TenantContext,
   ): Promise<FileWorkspace> {
-    return this.files.workspace(context);
+    return this.files.workspace(context, fromNodeHeaders(headers));
   }
 
   @Get()
@@ -91,9 +92,10 @@ export class FilesController {
     @Param('organizationId', { schema: OrganizationIdSchema })
     _organizationId: string,
     @Query({ schema: FileListQuerySchema }) query: FileListQuery,
+    @Headers() headers: IncomingHttpHeaders,
     @CurrentTenant() context: TenantContext,
   ): Promise<FilePage> {
-    return this.files.list(context, query);
+    return this.files.list(context, query, fromNodeHeaders(headers));
   }
 
   @Get('folders/:folderId/breadcrumbs')
@@ -104,9 +106,10 @@ export class FilesController {
     @Param('organizationId', { schema: OrganizationIdSchema })
     _organizationId: string,
     @Param('folderId', { schema: FileEntryIdSchema }) id: string,
+    @Headers() headers: IncomingHttpHeaders,
     @CurrentTenant() context: TenantContext,
   ): Promise<FileBreadcrumbs> {
-    return this.files.breadcrumbs(context, id);
+    return this.files.breadcrumbs(context, id, fromNodeHeaders(headers));
   }
 
   @Get('entries/:entryId')
@@ -131,15 +134,23 @@ export class FilesController {
     @Param('organizationId', { schema: OrganizationIdSchema })
     _organizationId: string,
     @Param('entryId', { schema: FileEntryIdSchema }) id: string,
+    @Headers() headers: IncomingHttpHeaders,
     @CurrentTenant() context: TenantContext,
   ): Promise<FileVersions> {
-    return this.files.versions(context, id);
+    return this.files.versions(context, id, fromNodeHeaders(headers));
   }
 
   @Get('operations/:operationId')
   @RequireTenantAny(
     { file: ['read'], folder: ['read'] },
     { folder: ['create'] },
+    { file: ['upload'] },
+    { file: ['update'] },
+    { folder: ['update'] },
+    { file: ['delete'] },
+    { folder: ['delete'] },
+    { file: ['restore'] },
+    { file: ['purge'] },
   )
   @ApiOperation({ operationId: 'getFileOperation' })
   @ApiResponse({ status: 200, standardSchema: FileOperationResponseSchema })
