@@ -37,6 +37,8 @@ function PickerFixture({
     open,
     onOpenChange: setOpen,
   }
+  // 英文驱动只用于验证选择协议，产品文案来自真实的三语组件。
+  // i18next-instrument-ignore
   return (
     <main className="space-y-4 p-6">
       <Button onClick={() => setOpen(true)}>Open picker</Button>
@@ -261,7 +263,13 @@ export const ChineseKeyboardPick: Story = {
   play: async ({ canvasElement }) => {
     const dialog = await open(canvasElement)
     await chooseImage(dialog)
-    dialog.getByRole("button", { name: "使用文件" }).focus()
+    await waitFor(() =>
+      expect(dialog.getByRole("button", { name: "使用文件" })).toBeEnabled()
+    )
+    const confirm = dialog.getByRole("button", { name: "使用文件" })
+    for (let step = 0; document.activeElement !== confirm && step < 30; step++)
+      await userEvent.tab()
+    await expect(confirm).toHaveFocus()
     await userEvent.keyboard("{Enter}")
     await waitFor(() =>
       expect(
@@ -279,7 +287,15 @@ export const ArabicKeyboardPick: Story = {
     const dialog = await open(canvasElement)
     await expect(document.documentElement).toHaveAttribute("dir", "rtl")
     await chooseImage(dialog)
-    dialog.getByRole("button", { name: "استخدام الملف" }).focus()
+    await waitFor(() =>
+      expect(
+        dialog.getByRole("button", { name: "استخدام الملف" })
+      ).toBeEnabled()
+    )
+    const confirm = dialog.getByRole("button", { name: "استخدام الملف" })
+    for (let step = 0; document.activeElement !== confirm && step < 30; step++)
+      await userEvent.tab()
+    await expect(confirm).toHaveFocus()
     await userEvent.keyboard("{Enter}")
     await waitFor(() =>
       expect(
