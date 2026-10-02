@@ -332,9 +332,11 @@ export const SuspendWithKeyboard: Story = {
     await expect(reason).toBeDisabled()
     await expect(dialog.getByRole("button", { name: "Cancel" })).toBeDisabled()
     await waitFor(() =>
-      expect(canvas.getByRole("status")).toHaveTextContent(
-        "Organization suspended."
-      )
+      expect(
+        canvas.getByText("Organization suspended.", {
+          selector: '[role="status"]',
+        })
+      ).toBeVisible()
     )
     await expectClosed(screen)
     await expect(
@@ -360,9 +362,11 @@ export const ResumeWithKeyboard: Story = {
     confirm.focus()
     await userEvent.keyboard("{Enter}")
     await waitFor(() =>
-      expect(canvas.getByRole("status")).toHaveTextContent(
-        "Organization resumed."
-      )
+      expect(
+        canvas.getByText("Organization resumed.", {
+          selector: '[role="status"]',
+        })
+      ).toBeVisible()
     )
     await expectClosed(screen)
     await expect(
@@ -415,9 +419,12 @@ export const StaleVersion: Story = {
     await userEvent.click(review)
     await userEvent.click(confirm)
     await waitFor(() =>
-      expect(canvas.getByRole("status")).toHaveTextContent(
-        "The organization is already in the target state. No change was made."
-      )
+      expect(
+        canvas.getByText(
+          "The organization is already in the target state. No change was made.",
+          { selector: '[role="status"]' }
+        )
+      ).toBeVisible()
     )
     await expectClosed(screen)
     await expect(
@@ -440,9 +447,11 @@ export const RateLimited: Story = {
     await expect(confirm).toBeEnabled()
     await userEvent.click(confirm)
     await waitFor(() =>
-      expect(canvas.getByRole("status")).toHaveTextContent(
-        "Organization suspended."
-      )
+      expect(
+        canvas.getByText("Organization suspended.", {
+          selector: '[role="status"]',
+        })
+      ).toBeVisible()
     )
     await expectClosed(screen)
   },
@@ -464,9 +473,11 @@ export const RecentMfaRequired: Story = {
       dialog.getByRole("button", { name: "Verify and retry" })
     )
     await waitFor(() =>
-      expect(canvas.getByRole("status")).toHaveTextContent(
-        "Organization suspended."
-      )
+      expect(
+        canvas.getByText("Organization suspended.", {
+          selector: '[role="status"]',
+        })
+      ).toBeVisible()
     )
     await expectClosed(screen)
   },
@@ -544,7 +555,9 @@ export const SuspendRTL: Story = {
     await userEvent.keyboard("{Enter}")
     await expect(reason).toBeDisabled()
     await waitFor(() =>
-      expect(canvas.getByRole("status")).toHaveTextContent("تم إيقاف المنظمة.")
+      expect(
+        canvas.getByText("تم إيقاف المنظمة.", { selector: '[role="status"]' })
+      ).toBeVisible()
     )
     await expectClosed(screen)
     await expect(

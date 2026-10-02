@@ -351,10 +351,12 @@ export const FilterAndPagination: Story = {
     ).toBeDisabled()
     await userEvent.click(canvas.getByRole("button", { name: "Previous page" }))
     await waitFor(() => expect(canvas.getAllByRole("row")).toHaveLength(21))
-    await userEvent.type(
-      canvas.getByRole("textbox", { name: "Organization ID" }),
-      "c7dd0a27-4f8a-4aef-8d4c-000000000002"
-    )
+    const organizationId = canvas.getByRole("textbox", {
+      name: "Organization ID",
+    })
+    // 上一页缓存行会先出现；筛选要等当前读回结束后才恢复可编辑。
+    await waitFor(() => expect(organizationId).toBeEnabled())
+    await userEvent.type(organizationId, "c7dd0a27-4f8a-4aef-8d4c-000000000002")
     await userEvent.selectOptions(
       canvas.getByRole("combobox", { name: "Result" }),
       "denied"

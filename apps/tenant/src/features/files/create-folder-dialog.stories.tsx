@@ -160,9 +160,12 @@ async function open(canvasElement: HTMLElement) {
   await userEvent.click(
     within(canvasElement).getByRole("button", { name: "Open creation" })
   )
-  return within(
-    await within(canvasElement.ownerDocument.body).findByRole("dialog")
+  const popup = await within(canvasElement.ownerDocument.body).findByRole(
+    "dialog"
   )
+  // 弹层在进入动画开始时已挂载；后续交互需要等到它实际可见。
+  await waitFor(() => expect(popup).toBeVisible())
+  return within(popup)
 }
 function requests(canvasElement: HTMLElement): CreateFolder[] {
   return JSON.parse(
