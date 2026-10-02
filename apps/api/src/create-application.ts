@@ -25,7 +25,7 @@ export async function createApplication(
       email = new EmailRuntime(pool, config);
       return email.hooks;
     });
-    files = await createFilesRuntime(config.files);
+    files = await createFilesRuntime(config.databaseURL, config.files);
     const app = await NestFactory.create<NestExpressApplication>(
       AppModule.forRoot(runtime, email!, readDeploymentSummary(config), files),
       { ...options, bodyParser: false, abortOnError: false },
