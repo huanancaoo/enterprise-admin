@@ -1342,3 +1342,50 @@ export const SameScopeReadRecoveryClearsDeniedPostLifecycle: Story = {
     await expect(posted(canvasElement)).toEqual([original, original])
   },
 }
+
+export const CachedSafeIdentityRemountSurvivesReadAccessRoundTrip: Story = {
+  args: { mode: "readAccess" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await move(canvasElement)
+    await expectCompleted(canvasElement)
+    const original = posted(canvasElement)[0]!
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Remount from safe records" })
+    )
+    await waitFor(() => expect(read(canvasElement)).toEqual([original.batchId]))
+    await expectCompleted(canvasElement)
+    await expect(
+      canvas.getByText(/Only batch identities were saved/)
+    ).toBeVisible()
+    await expect(
+      canvas.queryByRole("button", { name: "Continue original batch" })
+    ).not.toBeInTheDocument()
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Toggle read access" })
+    )
+    await waitFor(() =>
+      expect(canvas.queryByRole("table")).not.toBeInTheDocument()
+    )
+    await userEvent.click(canvas.getByRole("button", { name: "Check status" }))
+    await expect(read(canvasElement)).toEqual([original.batchId])
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Toggle read access" })
+    )
+    await waitFor(() =>
+      expect(completedReads(canvasElement)).toEqual([
+        original.batchId,
+        original.batchId,
+      ])
+    )
+    await expectCompleted(canvasElement)
+    await expect(read(canvasElement)).toEqual([
+      original.batchId,
+      original.batchId,
+    ])
+    await expect(posted(canvasElement)).toEqual([original])
+    await expect(
+      canvas.queryByRole("button", { name: "Continue original batch" })
+    ).not.toBeInTheDocument()
+  },
+}

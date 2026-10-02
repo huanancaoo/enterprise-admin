@@ -304,8 +304,8 @@ export function useFileBatch({
       if (mutation.isError) resetMutation()
       const key = ["file-batch", contentScopeKey, record?.batchId]
       void client.cancelQueries({ queryKey: key, exact: true })
-      // 同一挂载撤销读取资格时清掉收据；资格恢复后只用安全 UUID 再次 GET。
-      void client.resetQueries({ queryKey: key, exact: true })
+      // 撤销资格时移除整个 Query；恢复后重新绑定实例，首次 GET 的确认基线也随之重建。
+      client.removeQueries({ queryKey: key, exact: true })
     }
   }, [
     canRead,
