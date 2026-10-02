@@ -6,6 +6,7 @@ import {
   ApiClientError,
   getOrganizationAccessOptions,
   projectKeys,
+  organizationKeys,
 } from "@workspace/api-client"
 import {
   ErrorState,
@@ -117,7 +118,11 @@ function AuthorizedProjectContent({
     authorizationVersion,
   ])
   const permission = useQuery({
-    queryKey: ["project-content-permission", contentScopeKey],
+    queryKey: [
+      ...organizationKeys.scope(organizationId),
+      "project-content-permission",
+      authorizationVersion,
+    ],
     staleTime: Infinity,
     retry: false,
     queryFn: async ({ signal }) => {
@@ -223,13 +228,13 @@ function ContentSession(props: PanelProps) {
   const [refreshError, setRefreshError] = useState<
     Partial<Record<SupportedLocale, boolean>>
   >({})
-  const queryKey = [
-    "project-content",
-    props.contentScopeKey,
+  const queryKey = projectKeys.content(
+    props.organizationId,
     props.projectId,
+    props.authorizationVersion,
     locale,
-    language,
-  ]
+    language
+  )
   const query = useQuery({
     queryKey,
     retry: false,

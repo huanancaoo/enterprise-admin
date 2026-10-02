@@ -2,7 +2,13 @@ import { useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import type { Meta, StoryObj } from "@storybook/react-vite"
 import { expect, userEvent, waitFor, within } from "storybook/test"
-import { ApiClientError } from "@workspace/api-client"
+import {
+  ApiClientError,
+  projectKeys,
+  organizationKeys,
+  createProjectMutations,
+  dropOrganizationQueries,
+} from "@workspace/api-client"
 import {
   ProjectContentResponseSchema,
   ProjectRichTextDocumentSchema,
@@ -14,6 +20,7 @@ import {
 } from "@workspace/contracts"
 import {
   createFilePickerScenario,
+  createProjectDeleteHandler,
   filePickerRoot,
   filePickerFolder,
   filePickerImage,
@@ -281,7 +288,12 @@ function Fixture({ fixture, locale = "en-US" }: FixtureProps) {
     <main className="space-y-4 p-6">
       <Button
         onClick={() =>
-          void client.invalidateQueries({ queryKey: ["project-content"] })
+          void client.invalidateQueries({
+            queryKey: projectKeys.contents(
+              filePickerRoot.organizationId,
+              id(3)
+            ),
+          })
         }
       >
         Background refresh
@@ -833,3 +845,135 @@ export const PickerUploadDoesNotSubmitOuterContentForm: Story = {
     )
   },
 }
+
+const cacheBoundary = scenario("references")
+function CacheBoundaryFixture({ deleting = false }: { deleting?: boolean }) {
+  const client = useQueryClient()
+  const [organizationId, setOrganizationId] = useState(
+    filePickerRoot.organizationId
+  )
+  const [visible, setVisible] = useState(true)
+  const [remaining, setRemaining] = useState(-1)
+  const oldOrganization = organizationId === filePickerRoot.organizationId
+  // i18next-instrument-ignore
+  return (
+    <main className="space-y-4 p-6">
+      <Button
+        onClick={async () => {
+          if (deleting) {
+            await createProjectMutations(
+              client,
+              organizationId,
+              "en-US"
+            ).delete(id(3))
+            setVisible(false)
+            setRemaining(
+              client.getQueryCache().findAll({
+                queryKey: projectKeys.contents(organizationId, id(3)),
+              }).length
+            )
+          } else {
+            setOrganizationId(id(4))
+            dropOrganizationQueries(client, organizationId)
+            setRemaining(
+              client
+                .getQueryCache()
+                .findAll({ queryKey: organizationKeys.scope(organizationId) })
+                .length
+            )
+          }
+        }}
+      >
+        {deleting ? "Delete project" : "Switch organization"}
+      </Button>
+      <output aria-label="Removed scope queries">{remaining}</output>
+      {visible && (
+        <ProjectContentPanel
+          userId={userId}
+          organizationId={organizationId}
+          projectId={id(3)}
+          authorizationVersion={1}
+          contentScopeKey={`cache:${organizationId}`}
+          initialLocale="en-US"
+          canEdit={oldOrganization}
+          canBrowse={oldOrganization}
+          canUpload={false}
+          root={oldOrganization ? filePickerRoot : undefined}
+          filePorts={cacheBoundary.filePorts}
+          ports={
+            oldOrganization
+              ? cacheBoundary.contentPorts
+              : {
+                  ...cacheBoundary.contentPorts,
+                  read: async (locale) => ({
+                    locale,
+                    revision: 1,
+                    updatedAt: date,
+                    document: textDocument("New organization content"),
+                  }),
+                }
+          }
+        />
+      )}
+    </main>
+  )
+}
+const cacheHandlers = [
+  ...cacheBoundary.picker.handlers,
+  createProjectDeleteHandler("success"),
+]
+export const ProjectDeletionCancelsAndDropsCanonicalContentCache: Story = {
+  beforeEach: cacheBoundary.reset,
+  parameters: { msw: { handlers: cacheHandlers } },
+  render: () => <CacheBoundaryFixture deleting />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await canvas.findByRole("img", { name: "Old image" })
+    await typeDraft(canvasElement)
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Delete project" })
+    )
+    await waitFor(() =>
+      expect(canvas.getByLabelText("Removed scope queries")).toHaveTextContent(
+        "0"
+      )
+    )
+    await expect(canvas.queryByText("Server content")).toBeNull()
+    await expect(canvasElement.querySelector(".tiptap")).toBeNull()
+  },
+}
+export const OrganizationSwitchDropsBodyAndVersionQueriesAndTemporaryImage: Story =
+  {
+    beforeEach: cacheBoundary.reset,
+    parameters: { msw: { handlers: cacheHandlers } },
+    render: () => <CacheBoundaryFixture />,
+    play: async ({ canvasElement }) => {
+      const canvas = within(canvasElement)
+      const image = await canvas.findByRole("img", { name: "Old image" })
+      const temporary = image.getAttribute("src")!
+      await typeDraft(canvasElement)
+      await userEvent.click(
+        canvas.getAllByRole("button", { name: "Choose file version" })[0]!
+      )
+      const dialog = within(await within(document.body).findByRole("dialog"))
+      await waitFor(() =>
+        expect(dialog.getByRole("button", { name: "Save" })).toBeEnabled()
+      )
+      await userEvent.click(dialog.getByRole("button", { name: "Cancel" }))
+      await waitFor(() =>
+        expect(within(document.body).queryByRole("dialog")).toBeNull()
+      )
+      await userEvent.click(
+        canvas.getByRole("button", { name: "Switch organization" })
+      )
+      await canvas.findByText("New organization content")
+      await expect(
+        canvas.getByLabelText("Removed scope queries")
+      ).toHaveTextContent("0")
+      await expect(canvas.queryByRole("img")).toBeNull()
+      await expect(
+        canvasElement.querySelector(".tiptap")
+      ).not.toHaveTextContent("retained draft")
+      await expect(fetch(temporary)).rejects.toThrow()
+    },
+  }

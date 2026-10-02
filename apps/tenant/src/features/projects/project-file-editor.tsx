@@ -42,7 +42,7 @@ import {
 } from "../files/connected-file-picker"
 import { UploadQueue } from "../files/upload-queue"
 import { UploadSelectionDialog } from "../files/upload-selection-dialog"
-import { fileRequestErrorMessage } from "../files/file-queries"
+import { fileKeys, fileRequestErrorMessage } from "../files/file-queries"
 import { useProjectImageUploads } from "./project-file-editor-uploads"
 import {
   projectFileNodes,
@@ -370,7 +370,8 @@ function EditableProjectFileEditor(
       {versions && (
         <ProjectFileEditorVersionDialog
           node={versions}
-          contentScopeKey={props.contentScopeKey}
+          organizationId={props.organizationId}
+          authorizationVersion={props.authorizationVersion}
           ports={props.ports}
           onClose={() => setVersions(undefined)}
           onPick={(reference) => {
@@ -404,13 +405,15 @@ const versionSchema = z.object({
 })
 function ProjectFileEditorVersionDialog({
   node,
-  contentScopeKey,
+  organizationId,
+  authorizationVersion,
   ports,
   onClose,
   onPick,
 }: {
   node: ProjectFileNode
-  contentScopeKey: string
+  organizationId: string
+  authorizationVersion: number
   ports: ProjectFilePorts
   onClose: () => void
   onPick: (reference: FileVersionReference) => void
@@ -419,8 +422,9 @@ function ProjectFileEditorVersionDialog({
   const id = useId()
   const versions = useQuery({
     queryKey: [
+      ...fileKeys.scope(organizationId),
+      authorizationVersion,
       "project-content-versions",
-      contentScopeKey,
       node.reference.fileId,
     ],
     retry: false,
