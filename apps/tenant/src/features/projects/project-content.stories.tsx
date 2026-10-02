@@ -497,7 +497,7 @@ export const LanguageDraftsSurviveBackgroundRefresh: Story = {
       canvas.getByRole("combobox", { name: "Content language" })
     )
     await userEvent.click(
-      within(document.body).getByRole("option", { name: "العربية" })
+      await within(document.body).findByRole("option", { name: "العربية" })
     )
     await typeDraft(canvasElement, " Arabic draft")
     await expect(
