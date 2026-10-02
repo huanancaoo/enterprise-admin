@@ -289,6 +289,20 @@ export const ArabicFixedVersionPreview: Story = {
   },
 }
 
+async function clickReadyOption(
+  screen: ReturnType<typeof within>,
+  name: string
+) {
+  // 关闭中的原生 Select 仍保留选项 DOM；存在不代表可接收下一次鼠标操作。
+  const option = await waitFor(() => {
+    const current = screen.getByRole("option", { name })
+    expect(current).toBeVisible()
+    expect(getComputedStyle(current).pointerEvents).not.toBe("none")
+    return current
+  })
+  await userEvent.click(option)
+}
+
 const uiDraftScenario = createProjectAttachmentsScenario({
   items: [projectAttachmentItem],
   edit: "conflict",
@@ -314,7 +328,7 @@ export const UiLanguageKeepsEditSessionAndConflict: Story = {
       screen.getByRole("dialog").querySelector<HTMLElement>(`#${id}`)!
     const chooseContentLocale = async (locale: string) => {
       await userEvent.click(field("project-edit-content-locale"))
-      await userEvent.click(await screen.findByRole("option", { name: locale }))
+      await clickReadyOption(screen, locale)
     }
     await chooseContentLocale("English")
     await waitFor(() =>
@@ -328,7 +342,7 @@ export const UiLanguageKeepsEditSessionAndConflict: Story = {
       "Canceled English draft"
     )
     await userEvent.click(field("project-edit-status"))
-    await userEvent.click(await screen.findByRole("option", { name: "活跃" }))
+    await clickReadyOption(screen, "活跃")
     await userEvent.click(
       await dialog().findByRole("button", { name: "移除引用" })
     )
@@ -359,14 +373,12 @@ export const UiLanguageKeepsEditSessionAndConflict: Story = {
     await userEvent.type(name, "English draft")
     await userEvent.type(dialog().getByLabelText("描述"), "English description")
     await userEvent.click(field("project-edit-status"))
-    await userEvent.click(await screen.findByRole("option", { name: "活跃" }))
+    await clickReadyOption(screen, "活跃")
     await userEvent.click(
       await dialog().findByRole("button", { name: "移除引用" })
     )
     await userEvent.click(dialog().getByRole("combobox", { name: "语言" }))
-    await userEvent.click(
-      await screen.findByRole("option", { name: "العربية" })
-    )
+    await clickReadyOption(screen, "العربية")
     await waitFor(() =>
       expect(
         screen.getByRole("dialog").querySelector("#project-edit-name")
@@ -379,9 +391,7 @@ export const UiLanguageKeepsEditSessionAndConflict: Story = {
     await expect(field("project-edit-status")).toHaveTextContent("نشط")
     await expect(dialog().getByText("لا توجد مرفقات")).toBeVisible()
     await userEvent.click(dialog().getByRole("combobox", { name: "اللغة" }))
-    await userEvent.click(
-      await screen.findByRole("option", { name: "简体中文" })
-    )
+    await clickReadyOption(screen, "简体中文")
     await userEvent.click(dialog().getByRole("button", { name: "保存项目" }))
     await expect(await dialog().findByRole("alert")).toHaveTextContent(
       "附件已被其他人修改"
@@ -396,9 +406,7 @@ export const UiLanguageKeepsEditSessionAndConflict: Story = {
       attachments: { expectedRevision: 1, items: [] },
     })
     await userEvent.click(dialog().getByRole("combobox", { name: "语言" }))
-    await userEvent.click(
-      await screen.findByRole("option", { name: "العربية" })
-    )
+    await clickReadyOption(screen, "العربية")
     await waitFor(() =>
       expect(
         dialog().getByRole("button", { name: "حفظ المشروع" })
@@ -407,9 +415,7 @@ export const UiLanguageKeepsEditSessionAndConflict: Story = {
     await expect(name).toHaveValue("English draft")
     await expect(dialog().getByText("لا توجد مرفقات")).toBeVisible()
     await userEvent.click(dialog().getByRole("combobox", { name: "اللغة" }))
-    await userEvent.click(
-      await screen.findByRole("option", { name: "简体中文" })
-    )
+    await clickReadyOption(screen, "简体中文")
     await expect(
       dialog().getByRole("button", { name: "保存项目" })
     ).toBeDisabled()
@@ -460,13 +466,13 @@ export const ContentLanguagesKeepIndependentTextAndSharedDraft: Story = {
       screen.getByRole("dialog").querySelector<HTMLElement>(`#${id}`)!
     const choose = async (locale: string) => {
       await userEvent.click(field("project-edit-content-locale"))
-      await userEvent.click(await screen.findByRole("option", { name: locale }))
+      await clickReadyOption(screen, locale)
     }
     await userEvent.clear(dialog().getByLabelText("项目名称"))
     await userEvent.type(dialog().getByLabelText("项目名称"), "中文草稿")
     await userEvent.type(dialog().getByLabelText("描述"), "中文描述")
     await userEvent.click(field("project-edit-status"))
-    await userEvent.click(await screen.findByRole("option", { name: "活跃" }))
+    await clickReadyOption(screen, "活跃")
     await userEvent.click(
       await dialog().findByRole("button", { name: "移除引用" })
     )
