@@ -39,12 +39,14 @@ export function FileEntryActions({
         </Button>
       )}
       {actions
-        .filter((action) => paths.canPerform(entry, action))
+        .filter((action) => paths.canShow(entry, action))
         .map((action) => (
           <Button
             key={action}
             id={`${paths.pathTriggerId}-${entry.id}-${action}`}
             variant="outline"
+            // 操作占用只禁用已授权入口，保留 Dialog 完成时应返回的同一个触发节点。
+            disabled={!paths.canPerform(entry, action)}
             onClick={() => paths.onAction(entry, action)}
           >
             {labels[action]}

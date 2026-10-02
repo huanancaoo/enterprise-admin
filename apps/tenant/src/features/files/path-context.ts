@@ -4,6 +4,7 @@ import type { FilePathAction } from "./use-file-path-operations"
 
 export const PathActionsContext = createContext<{
   pathTriggerId: string
+  canShow: (entry: FileEntryResponse, action: FilePathAction) => boolean
   canPerform: (entry: FileEntryResponse, action: FilePathAction) => boolean
   onAction: (entry: FileEntryResponse, action: FilePathAction) => void
 } | null>(null)

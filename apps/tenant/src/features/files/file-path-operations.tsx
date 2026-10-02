@@ -27,7 +27,11 @@ import { FileDeleteDialog } from "./file-delete-dialog"
 import { FilePathQueue } from "./file-path-queue"
 import { FileReferenceLocations } from "./file-reference-locations"
 import { fileKeys } from "./file-queries"
-import { canPerformFileAction, type FilePermissions } from "./file-permissions"
+import {
+  canPerformFileAction,
+  canShowFileAction,
+  type FilePermissions,
+} from "./file-permissions"
 import { PathActionsContext } from "./path-context"
 import {
   useFilePathOperations,
@@ -177,6 +181,8 @@ export function FilePathOperations({
     <PathActionsContext
       value={{
         pathTriggerId,
+        canShow: (entry, action) =>
+          canShowFileAction(entry, action, organizationId, permissions),
         canPerform,
         onAction: (entry, action) => {
           if (!canPerform(entry, action)) return

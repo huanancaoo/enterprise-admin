@@ -17,7 +17,7 @@ export type FilePermissions = {
   canDeleteFolders: boolean
 }
 
-export function canPerformFileAction(
+export function canShowFileAction(
   entry: FileEntryResponse,
   action: FilePathAction,
   organizationId: string,
@@ -27,8 +27,7 @@ export function canPerformFileAction(
     !permissions?.canReadFiles ||
     !permissions.canReadFolders ||
     entry.organizationId !== organizationId ||
-    entry.parentId === null ||
-    entry.operationId !== null
+    entry.parentId === null
   )
     return false
   if (action === "restore" || action === "purge")
@@ -44,6 +43,18 @@ export function canPerformFileAction(
     : entry.kind === "folder"
       ? permissions.canUpdateFolders
       : permissions.canUpdateFiles
+}
+
+export function canPerformFileAction(
+  entry: FileEntryResponse,
+  action: FilePathAction,
+  organizationId: string,
+  permissions?: FilePermissions
+) {
+  return (
+    entry.operationId === null &&
+    canShowFileAction(entry, action, organizationId, permissions)
+  )
 }
 
 export function getFilePermissionsOptions(
