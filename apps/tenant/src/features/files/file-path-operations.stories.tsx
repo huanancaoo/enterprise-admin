@@ -116,6 +116,8 @@ function Execution({
 }) {
   const submitted = useRef(0)
   const cleanupFinished = useRef(false)
+  const submittedAt = useRef<number | undefined>(undefined)
+  const [firstReadDelay, setFirstReadDelay] = useState<number>()
   const [error, setError] = useState("")
   const [storage] = useState<Storage>(() =>
     mode === "storageUnavailable"
@@ -137,6 +139,7 @@ function Execution({
     storage,
     canPerform: () => true,
     submit: async (action, entryId, body, signal) => {
+      submittedAt.current = performance.now()
       const first = submitted.current++ === 0
       saved(storage.getItem(filePathRecordKey(userId, organizationId)))
       posts({ action, entryId, body })
@@ -168,6 +171,10 @@ function Execution({
       )
     },
     readOperation: async (operationId, signal) => {
+      if (submittedAt.current !== undefined) {
+        const delay = performance.now() - submittedAt.current
+        setFirstReadDelay((previous) => previous ?? delay)
+      }
       reads(operationId)
       if (mode === "readDenied")
         throw apiError(403, "FORBIDDEN", "Status permission removed")
@@ -198,6 +205,7 @@ function Execution({
   // i18next-instrument-ignore
   return (
     <div className="space-y-4">
+      <output aria-label="First status read delay">{firstReadDelay}</output>
       <Button onClick={() => void start()}>Submit rename</Button>
       <Button
         onClick={() => {
@@ -344,7 +352,16 @@ export const NetworkLossQueriesOriginal: Story = {
 }
 export const ServerFailureQueriesOriginal: Story = {
   args: { mode: "serverUnknown" },
-  play: ({ canvasElement }) => confirmsOriginal(canvasElement),
+  play: async ({ canvasElement }) => {
+    await confirmsOriginal(canvasElement)
+    // 真实首次 GET 在等待窗口之后开始，避免未知提交尚未可读时过早读到404。
+    await expect(
+      Number(
+        within(canvasElement).getByLabelText("First status read delay")
+          .textContent
+      )
+    ).toBeGreaterThanOrEqual(1400)
+  },
 }
 export const RefreshAndStrictModeNeverReplayPost: Story = {
   args: { mode: "restored" },

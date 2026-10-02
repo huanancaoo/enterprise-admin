@@ -480,7 +480,6 @@ function FileWorkspaceBrowser({
         open={creatingFolder}
         contentScopeKey={contentScopeKey}
         parent={currentFolder}
-        authorizationVersion={authorizationVersion}
         canCreate={canCreateFolder}
         onClose={() => setCreatingFolder(false)}
         returnFocus={() => creationTrigger.current}

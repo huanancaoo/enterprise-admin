@@ -6,7 +6,6 @@ import {
   getFileEntry,
   getFileBreadcrumbs,
   listFileVersions,
-  getFileOperation,
   getFileReferenceLocations,
   organizationKeys,
   requestLanguageHeader,
@@ -15,7 +14,6 @@ import type {
   FileBreadcrumbs,
   FileEntryResponse,
   FileListQuery,
-  FileOperationResponse,
   FilePage,
   FileVersions,
   FileWorkspace,
@@ -224,36 +222,5 @@ export function getFileVersionsOptions(
           requestOptions(signal, locale)
         )
       ).data,
-  })
-}
-
-export function getFileOperationOptions(
-  organizationId: string,
-  authorizationVersion: number,
-  operationId: string,
-  locale: SupportedLocale
-) {
-  return queryOptions({
-    queryKey: [
-      ...fileKeys.scope(organizationId),
-      authorizationVersion,
-      "operation",
-      operationId,
-      locale,
-    ],
-    retry: false,
-    queryFn: async ({ signal }): Promise<FileOperationResponse> =>
-      (
-        await getFileOperation(
-          organizationId,
-          operationId,
-          requestOptions(signal, locale)
-        )
-      ).data,
-    refetchInterval: (query) => {
-      if (query.state.error) return false
-      const phase = query.state.data?.phase
-      return phase && phase !== "completed" && phase !== "failed" ? 1500 : false
-    },
   })
 }

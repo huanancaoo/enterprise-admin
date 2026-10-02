@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import type { Meta, StoryObj } from "@storybook/react-vite"
 import { expect, userEvent, waitFor, within } from "storybook/test"
 import { ApiClientError } from "@workspace/api-client"
@@ -62,6 +62,7 @@ type Mode =
   | "conflict"
   | "blockedStorage"
   | "restored"
+  | "immediateReceipt"
 type Submitted = {
   fields: UploadFileFields | OverwriteFileFields
   fileName: string
@@ -195,6 +196,8 @@ function ExecutionFixture({ mode = "complete" }: { mode?: Mode }) {
   const [reads, setReads] = useState<string[]>([])
   const [completed, setCompleted] = useState<string[]>([])
   const [aborted, setAborted] = useState(false)
+  const receiptAt = useRef<number | undefined>(undefined)
+  const [firstReadDelay, setFirstReadDelay] = useState<number>()
   useState(() => {
     if (mode === "restored") {
       const now = parent.createdAt
@@ -260,13 +263,20 @@ function ExecutionFixture({ mode = "complete" }: { mode?: Mode }) {
         "FILE_NAME_CONFLICT",
         "A file with this name already exists"
       )
+    receiptAt.current = performance.now()
     return receipt(
       fields.operationId,
       target ? "overwrite" : "upload",
-      mode === "deniedRead" ? "committed" : "completed"
+      mode === "deniedRead" || mode === "immediateReceipt"
+        ? "committed"
+        : "completed"
     )
   }
   const read = async (operationId: string) => {
+    if (receiptAt.current !== undefined) {
+      const delay = performance.now() - receiptAt.current
+      setFirstReadDelay((previous) => previous ?? delay)
+    }
     setReads((current) => [...current, operationId])
     if (mode === "deniedRead")
       throw error(403, "FORBIDDEN", "File access was removed")
@@ -279,6 +289,7 @@ function ExecutionFixture({ mode = "complete" }: { mode?: Mode }) {
     <div className="space-y-4 p-6">
       <output aria-label="Submitted fields">{JSON.stringify(requests)}</output>
       <output aria-label="Read identities">{JSON.stringify(reads)}</output>
+      <output aria-label="First status read delay">{firstReadDelay}</output>
       <output aria-label="Completed identities">
         {JSON.stringify(completed)}
       </output>
@@ -404,6 +415,26 @@ export const LostResponseReadsSameUuidWithoutWritingAgain: Story = {
     await expect(
       canvas.queryByRole("button", { name: "Upload again" })
     ).not.toBeInTheDocument()
+  },
+}
+export const NonterminalUploadReceiptIsConfirmedImmediately: Story = {
+  args: { mode: "immediateReceipt" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(canvas.getByRole("button", { name: "Queue files" }))
+    await waitFor(() =>
+      expect(canvas.getByLabelText("Completed identities")).toHaveTextContent(
+        submitted(canvasElement)[0]!.fields.operationId
+      )
+    )
+    const operationId = submitted(canvasElement)[0]!.fields.operationId
+    await expect(
+      JSON.parse(canvas.getByLabelText("Read identities").textContent!)
+    ).toEqual([operationId])
+    await expect(submitted(canvasElement)).toHaveLength(1)
+    await expect(
+      Number(canvas.getByLabelText("First status read delay").textContent)
+    ).toBeLessThan(1400)
   },
 }
 export const DeniedStatusStopsPollingAfterSavedReceipt: Story = {

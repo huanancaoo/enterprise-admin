@@ -1,6 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react"
 import { useForm } from "@tanstack/react-form"
-import { useQuery } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
 import { ApiClientError } from "@workspace/api-client"
@@ -12,7 +11,6 @@ import {
   type FileOperationResponse,
   type FolderResponse,
 } from "@workspace/contracts"
-import { useUiLocale } from "@workspace/i18n/react"
 import { Button } from "@workspace/ui/components/button"
 import {
   Dialog,
@@ -29,10 +27,8 @@ import {
   FieldLabel,
 } from "@workspace/ui/components/field"
 import { Input } from "@workspace/ui/components/input"
-import {
-  fileRequestErrorMessage,
-  getFileOperationOptions,
-} from "./file-queries"
+import { fileRequestErrorMessage } from "./file-queries"
+import { useFileOperationObserver } from "./use-file-operation-observer"
 
 const folderFormSchema = z.object({ name: FolderNameSchema })
 
@@ -40,7 +36,6 @@ type CreateFolderDialogProps = {
   open: boolean
   contentScopeKey: string
   parent: FolderResponse
-  authorizationVersion: number
   canCreate: boolean
   onClose: () => void
   onCompleted: (operation: FileOperationResponse) => void
@@ -72,7 +67,6 @@ type CreationState =
 
 function CreateFolderForm({
   parent,
-  authorizationVersion,
   canCreate,
   onClose,
   onCompleted,
@@ -81,41 +75,40 @@ function CreateFolderForm({
   returnFocus,
 }: Omit<CreateFolderDialogProps, "open" | "contentScopeKey">) {
   const { t } = useTranslation(["files", "common", "errors"])
-  const locale = useUiLocale()
   const id = useId()
   const [operationId, setOperationId] = useState(() => crypto.randomUUID())
   const [state, setState] = useState<CreationState>("draft")
   const [error, setError] = useState<string>()
   const [operation, setOperation] = useState<FileOperationResponse>()
+  const [checking, setChecking] = useState(false)
+  const [statusError, setStatusError] = useState<unknown>()
   const request = useRef<AbortController | null>(null)
   useEffect(() => () => request.current?.abort(), [])
   const awaiting =
     state === "submitting" || state === "processing" || state === "unconfirmed"
 
-  const acceptOperation = (value: FileOperationResponse) => {
-    setOperation(value)
-    setError(undefined)
-    if (value.phase === "completed") {
+  const observer = useFileOperationObserver({
+    readOperation,
+    onChange: (_id, observation) => {
+      if (observation.state === "checking") {
+        setChecking(true)
+        setStatusError(undefined)
+      } else if (observation.state === "error") {
+        setChecking(false)
+        setStatusError(observation.error)
+      } else {
+        setChecking(false)
+        setStatusError(undefined)
+        setOperation(observation.operation)
+        setError(undefined)
+        setState(
+          observation.operation.phase === "failed" ? "failed" : "processing"
+        )
+      }
+    },
+    onCompleted: (value) => {
       onCompleted(value)
       onClose()
-    } else if (value.phase === "failed") {
-      setState("failed")
-    } else {
-      setState("processing")
-    }
-  }
-  const status = useQuery({
-    ...getFileOperationOptions(
-      parent.organizationId,
-      authorizationVersion,
-      operationId,
-      locale
-    ),
-    enabled: state === "processing" || state === "unconfirmed",
-    queryFn: async ({ signal }) => {
-      const value = await readOperation(operationId, signal)
-      if (!signal.aborted) acceptOperation(value)
-      return value
     },
   })
   const form = useForm({
@@ -137,11 +130,14 @@ function CreateFolderForm({
       setState("submitting")
       setError(undefined)
       setOperation(undefined)
+      setStatusError(undefined)
       const controller = new AbortController()
       request.current = controller
       try {
         const result = await createFolder(input, controller.signal)
-        if (!controller.signal.aborted) acceptOperation(result)
+        if (!controller.signal.aborted) {
+          observer.accept(result, "now")
+        }
       } catch (failure) {
         if (controller.signal.aborted) return
         setError(
@@ -153,6 +149,8 @@ function CreateFolderForm({
             ? "rejected"
             : "unconfirmed"
         )
+        if (!(failure instanceof ApiClientError && failure.status < 500))
+          void observer.watch(nextId, "now")
       }
     },
   })
@@ -244,10 +242,10 @@ function CreateFolderForm({
                   : t("files:createResultUnconfirmed")}
             </p>
           )}
-          {status.isError && (
+          {statusError !== undefined && (
             <p role="alert" className="text-sm text-destructive">
               {fileRequestErrorMessage(
-                status.error,
+                statusError,
                 t("files:operationStatusUnavailable")
               )}
             </p>
@@ -270,8 +268,8 @@ function CreateFolderForm({
               <Button
                 type="button"
                 variant="outline"
-                disabled={status.isFetching}
-                onClick={() => void status.refetch()}
+                disabled={checking}
+                onClick={() => void observer.check(operationId)}
               >
                 {t("files:checkOperation")}
               </Button>

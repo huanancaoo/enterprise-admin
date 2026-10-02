@@ -136,7 +136,6 @@ function CreationFixture({
         open={open}
         parent={parent}
         contentScopeKey={scope}
-        authorizationVersion={1}
         canCreate={canCreate}
         createFolder={create}
         readOperation={read}

@@ -20,6 +20,7 @@ import {
   type PurgeFileEntry,
 } from "@workspace/contracts"
 import { fileRequestErrorMessage } from "./file-queries"
+import { useFileOperationObserver } from "./use-file-operation-observer"
 
 const pathActionSchema = z.enum(["rename", "move", "trash", "restore", "purge"])
 export type FilePathAction = z.infer<typeof pathActionSchema>
@@ -116,8 +117,6 @@ export function useFilePathOperations(options: Options) {
   const ports = useRef(options)
   const live = useRef(true)
   const requests = useRef(new Map<string, AbortController>())
-  const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
-  const notified = useRef(new Set<string>())
   const [recordError, setRecordError] = useState(!initial.available)
   useEffect(() => {
     ports.current = options
@@ -125,13 +124,10 @@ export function useFilePathOperations(options: Options) {
   useEffect(() => {
     live.current = true
     const pending = requests.current
-    const scheduled = timers.current
     return () => {
       live.current = false
       for (const controller of pending.values()) controller.abort()
-      for (const timer of scheduled.values()) clearTimeout(timer)
       pending.clear()
-      scheduled.clear()
     }
   }, [])
 
@@ -175,9 +171,28 @@ export function useFilePathOperations(options: Options) {
     },
     [persist, replace]
   )
-  const accept = useCallback(
-    (id: string, response: FileOperationResponse) => {
-      const operation = FileOperationResponseSchema.parse(response)
+  const observer = useFileOperationObserver({
+    readOperation: async (id, signal) =>
+      FileOperationResponseSchema.parse(
+        await options.readOperation(id, signal)
+      ),
+    onCompleted: options.onCompleted,
+    onChange: (id, observation) => {
+      if (observation.state === "checking") {
+        update(id, { isChecking: true })
+        return
+      }
+      if (observation.state === "error") {
+        update(id, {
+          isChecking: false,
+          error: fileRequestErrorMessage(
+            observation.error,
+            t("files:pathStatusUnavailable")
+          ),
+        })
+        return
+      }
+      const operation = observation.operation
       update(id, {
         phase: operation.phase,
         updatedAt: operation.updatedAt,
@@ -187,62 +202,13 @@ export function useFilePathOperations(options: Options) {
           ? t(`errors:${operation.errorCode}`)
           : undefined,
       })
-      if (operation.phase === "completed" && !notified.current.has(id)) {
-        notified.current.add(id)
-        ports.current.onCompleted(operation)
-      }
-      return operation
     },
-    [t, update]
-  )
-  const checkRef = useRef<(id: string) => Promise<void>>(async () => undefined)
-  const schedule = useCallback((id: string) => {
-    if (timers.current.has(id) || !live.current) return
-    timers.current.set(
-      id,
-      setTimeout(() => {
-        timers.current.delete(id)
-        void checkRef.current(id)
-      }, 1500)
-    )
-  }, [])
-  const check = useCallback(
-    async (id: string) => {
-      if (requests.current.has(id) || !live.current) return
-      const timer = timers.current.get(id)
-      if (timer) clearTimeout(timer)
-      timers.current.delete(id)
-      const job = current.current.find((value) => value.id === id)
-      if (!job || terminal(job.phase)) return
-      const controller = new AbortController()
-      requests.current.set(id, controller)
-      update(id, { isChecking: true })
-      try {
-        const result = await ports.current.readOperation(id, controller.signal)
-        if (controller.signal.aborted) return
-        const operation = accept(id, result)
-        if (!terminal(operation.phase)) schedule(id)
-      } catch (error) {
-        if (!controller.signal.aborted)
-          update(id, {
-            isChecking: false,
-            error: fileRequestErrorMessage(
-              error,
-              t("files:pathStatusUnavailable")
-            ),
-          })
-      } finally {
-        if (requests.current.get(id) === controller) requests.current.delete(id)
-      }
-    },
-    [accept, schedule, t, update]
-  )
+  })
+  const { accept, watch, check, forget } = observer
   useEffect(() => {
-    checkRef.current = check
-  }, [check])
-  useEffect(() => {
-    for (const job of initial.jobs) if (!terminal(job.phase)) void check(job.id)
-  }, [check, initial.jobs])
+    for (const job of initial.jobs)
+      if (!terminal(job.phase)) void watch(job.id, "now")
+  }, [initial.jobs, watch])
 
   const execute = async (command: FilePathCommand) => {
     if (!initial.available || recordError)
@@ -290,16 +256,16 @@ export function useFilePathOperations(options: Options) {
         error: fileRequestErrorMessage(error, t("files:pathUnconfirmed")),
       })
       if (known) throw error
-      schedule(id)
+      void watch(id)
       return
     } finally {
       if (requests.current.get(id) === controller) requests.current.delete(id)
     }
     if (controller.signal.aborted) return
-    const operation = accept(id, response)
+    const operation = FileOperationResponseSchema.parse(response)
+    accept(operation)
     if (operation.phase === "failed")
       throw new Error(t(`errors:${operation.errorCode!}`))
-    if (!terminal(operation.phase)) schedule(id)
   }
   const dismiss = (id: string) => {
     const job = current.current.find((item) => item.id === id)
@@ -307,6 +273,7 @@ export function useFilePathOperations(options: Options) {
     const next = current.current.filter((item) => item.id !== id)
     try {
       persist(next)
+      forget(id)
       replace(next)
     } catch {
       setRecordError(true)
@@ -315,7 +282,11 @@ export function useFilePathOperations(options: Options) {
   return {
     jobs,
     execute,
-    check,
+    check: async (id: string) => {
+      const job = current.current.find((value) => value.id === id)
+      if (job && !terminal(job.phase) && !requests.current.has(id))
+        await check(id)
+    },
     dismiss,
     recordError,
     available: initial.available && !recordError,

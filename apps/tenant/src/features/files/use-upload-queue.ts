@@ -20,6 +20,7 @@ import {
 } from "./upload-records"
 import type { FileUploadJobView } from "./upload-queue"
 import type { FileUploadSelection } from "./upload-selection-dialog"
+import { useFileOperationObserver } from "./use-file-operation-observer"
 
 export type FileUploadTarget =
   | { kind: "upload"; parent: FolderResponse }
@@ -29,7 +30,6 @@ export type FileUploadDraft = FileUploadTarget & FileUploadSelection
 type Job = FileUploadJobView & {
   record: FileUploadRecord
   draft?: FileUploadDraft
-  watch: boolean
 }
 type UploadQueueOptions = {
   userId: string
@@ -62,7 +62,6 @@ function restore(record: FileUploadRecord): Job {
     createdAt: record.createdAt,
     record,
     status: record.submitted ? "unconfirmed" : "needs-file",
-    watch: record.submitted,
     canRetry: false,
     hasFile: false,
     isChecking: false,
@@ -88,25 +87,16 @@ export function useUploadQueue(options: UploadQueueOptions) {
   const [ready, setReady] = useState(!initial.error)
   const ports = useRef(options)
   const active = useRef<AbortController | null>(null)
-  const readers = useRef(new Map<string, AbortController>())
-  const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
   const live = useRef(true)
-  const completed = useRef(new Set<string>())
   useEffect(() => {
     ports.current = options
   }, [options])
   useEffect(() => {
     live.current = true
     current.current = initial.jobs
-    const requests = readers.current
-    const scheduled = timers.current
     return () => {
       live.current = false
       active.current?.abort()
-      for (const reader of requests.values()) reader.abort()
-      for (const timer of scheduled.values()) clearTimeout(timer)
-      requests.clear()
-      scheduled.clear()
       // 授权范围卸载后释放原 File；持久记录只有操作身份，不能把旧组织草稿带入新范围。
       current.current = []
     }
@@ -140,12 +130,27 @@ export function useUploadQueue(options: UploadQueueOptions) {
     },
     [replace, save]
   )
-  const accept = useCallback(
-    (operation: FileOperationResponse) => {
-      const job = current.current.find((value) => value.id === operation.id)
+  const observer = useFileOperationObserver({
+    readOperation: options.readOperation,
+    onCompleted: options.onCompleted,
+    onChange: (id, observation) => {
+      if (observation.state === "checking") {
+        update(id, { isChecking: true })
+        return
+      }
+      if (observation.state === "error") {
+        update(id, {
+          isChecking: false,
+          error: fileRequestErrorMessage(
+            observation.error,
+            t("files:uploadStatusUnavailable")
+          ),
+        })
+        return
+      }
+      const operation = observation.operation
+      const job = current.current.find((value) => value.id === id)
       if (!job) return
-      const terminal =
-        operation.phase === "completed" || operation.phase === "failed"
       update(job.id, {
         status: operation.phase,
         ...(operation.phase === "completed"
@@ -156,70 +161,19 @@ export function useUploadQueue(options: UploadQueueOptions) {
           ? t(`errors:${operation.errorCode}`)
           : undefined,
         isChecking: false,
-        watch: !terminal,
         record: {
           ...job.record,
           phase: operation.phase,
           updatedAt: operation.updatedAt,
         },
       })
-      if (operation.phase === "completed" && !completed.current.has(job.id)) {
-        completed.current.add(job.id)
-        ports.current.onCompleted(operation)
-      }
     },
-    [t, update]
-  )
-  const check = useCallback(
-    async (id: string) => {
-      if (readers.current.has(id) || !live.current) return
-      const job = current.current.find((value) => value.id === id)
-      if (!job?.record.submitted) return
-      const controller = new AbortController()
-      readers.current.set(id, controller)
-      update(id, { isChecking: true, watch: true })
-      try {
-        const operation = await ports.current.readOperation(
-          id,
-          controller.signal
-        )
-        if (!controller.signal.aborted) {
-          accept(operation)
-          if (operation.phase !== "completed" && operation.phase !== "failed") {
-            timers.current.set(
-              id,
-              setTimeout(() => {
-                timers.current.delete(id)
-                if (live.current) replace([...current.current])
-              }, 1500)
-            )
-          }
-        }
-      } catch (error) {
-        if (!controller.signal.aborted)
-          update(id, {
-            isChecking: false,
-            watch: false,
-            error: fileRequestErrorMessage(
-              error,
-              t("files:uploadStatusUnavailable")
-            ),
-          })
-      } finally {
-        readers.current.delete(id)
-      }
-    },
-    [accept, replace, t, update]
-  )
+  })
+  const { accept, watch, check, forget } = observer
   useEffect(() => {
-    for (const job of jobs)
-      if (
-        job.watch &&
-        !readers.current.has(job.id) &&
-        !timers.current.has(job.id)
-      )
-        void check(job.id)
-  }, [check, jobs])
+    for (const job of initial.jobs)
+      if (job.record.submitted) void watch(job.id, "now")
+  }, [initial.jobs, watch])
 
   useEffect(() => {
     const job = jobs.find((value) => value.status === "queued")
@@ -286,7 +240,7 @@ export function useUploadQueue(options: UploadQueueOptions) {
                 draft.file,
                 controller.signal
               )
-        if (!controller.signal.aborted) accept(operation)
+        if (!controller.signal.aborted) accept(operation, "now")
       } catch (error) {
         if (controller.signal.aborted) return
         const knownFailure =
@@ -294,7 +248,6 @@ export function useUploadQueue(options: UploadQueueOptions) {
         const latest = current.current.find((value) => value.id === job.id)!
         update(job.id, {
           status: knownFailure ? "failed" : "unconfirmed",
-          watch: !knownFailure,
           error: fileRequestErrorMessage(
             error,
             t(
@@ -309,12 +262,13 @@ export function useUploadQueue(options: UploadQueueOptions) {
             updatedAt: new Date().toISOString(),
           },
         })
+        if (!knownFailure) void watch(job.id, "now")
       } finally {
         active.current = null
         if (live.current) replace([...current.current])
       }
     })()
-  }, [accept, jobs, replace, save, t, update])
+  }, [accept, jobs, replace, save, t, update, watch])
 
   const enqueue = (target: FileUploadTarget, items: FileUploadSelection[]) => {
     if (
@@ -341,7 +295,6 @@ export function useUploadQueue(options: UploadQueueOptions) {
         name: item.name,
         bytes: item.file.size,
         status: "queued",
-        watch: false,
         hasFile: true,
         canRetry: false,
         isChecking: false,
@@ -361,6 +314,7 @@ export function useUploadQueue(options: UploadQueueOptions) {
     try {
       save(next)
       setRecordError(false)
+      forget(id)
       replace(next)
     } catch {
       setRecordError(true)
@@ -387,10 +341,8 @@ export function useUploadQueue(options: UploadQueueOptions) {
     ready,
     enqueue,
     check: (id: string) => {
-      const timer = timers.current.get(id)
-      if (timer) clearTimeout(timer)
-      timers.current.delete(id)
-      void check(id)
+      if (current.current.find((job) => job.id === id)?.record.submitted)
+        void check(id)
     },
     dismiss,
     getRetryDraft: (id: string) =>
@@ -398,7 +350,10 @@ export function useUploadQueue(options: UploadQueueOptions) {
     retryRecords: () => {
       try {
         if (!ready) {
-          replace(readUploadRecords(options.storage, key).map(restore))
+          const restored = readUploadRecords(options.storage, key).map(restore)
+          replace(restored)
+          for (const job of restored)
+            if (job.record.submitted) void watch(job.id, "now")
           setReady(true)
         } else save(current.current)
         setRecordError(false)
