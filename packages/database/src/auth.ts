@@ -825,6 +825,24 @@ export function createAuth(
         })
       },
     },
+    databaseHooks: {
+      user: {
+        create: {
+          // OAuth 头像 URL 不属于受控个人媒体，首次账号统一由本人显式上传和保存头像。
+          before: async (user) => ({ data: { ...user, image: null } }),
+        },
+        update: {
+          // 原生资料入口不接收 image；头像引用必须通过个人媒体的显式 CAS 保存。
+          before: async (user) => {
+            if (user.image !== undefined)
+              throw new APIError("BAD_REQUEST", {
+                code: "VALIDATION_ERROR",
+                message: "VALIDATION_ERROR",
+              })
+          },
+        },
+      },
+    },
     user: {
       additionalFields: {
         preferredLocale: {
@@ -1009,6 +1027,8 @@ export function createAuth(
         // hooks.before 早于 orgSessionMiddleware。先会话、再成员、再状态，与封装 API 同一顺序。
         const session = await getSessionFromCtx(ctx, {
           disableCookieCache: true,
+          // 最终发布事务持 Session share 锁；纯权限复核不能在另一个连接刷新同一 Session。
+          disableRefresh: ctx.path === "/organization/has-permission",
         })
         if (!session) return
         const userId = session.user.id

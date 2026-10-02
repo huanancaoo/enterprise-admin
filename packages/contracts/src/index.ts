@@ -4,6 +4,7 @@ import { FileErrorDetailsSchema, fileErrorCodes } from "./files.js"
 export * from "./files.js"
 export { maxFolderNameBytes } from "./file-path.js"
 export * from "./platform-storage.js"
+export * from "./personal-media.js"
 
 export const SupportedLocaleSchema = z
   .enum(["zh-CN", "en-US", "ar"])

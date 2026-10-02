@@ -10,6 +10,7 @@ import { PlatformModule } from './platform/platform.module';
 import { ProjectsModule } from './projects/projects.module';
 import { TenancyModule } from './tenancy/tenancy.module';
 import { type DeploymentSummary } from './config/deployment-summary';
+import { PersonalMediaModule } from './personal-media/personal-media.module';
 import { FilesModule } from './files/files.module';
 import { FilesRuntime } from './files/files-runtime';
 
@@ -32,6 +33,7 @@ export class AppModule {
         OrganizationsModule,
         ProjectsModule,
         FilesModule.forRoot(files),
+        PersonalMediaModule.forRoot(files),
         PlatformModule.forRoot(deployment),
       ],
     };
