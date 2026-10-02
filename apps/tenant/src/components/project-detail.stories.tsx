@@ -337,6 +337,12 @@ export const EditFailureKeepsDraft: Story = {
     const screen = within(canvasElement.ownerDocument.body)
     const dialog = within(await screen.findByRole("dialog"))
     const name = await dialog.findByLabelText("项目名称")
+    // 字段先挂载；保存仍需等弹层可见和原生项目授权就绪。
+    await waitFor(() => {
+      const save = dialog.getByRole("button", { name: "保存项目" })
+      expect(save).toBeVisible()
+      expect(save).toBeEnabled()
+    })
     await userEvent.clear(name)
     await userEvent.type(name, "保留草稿")
     await userEvent.click(dialog.getByRole("button", { name: "保存项目" }))
