@@ -27,9 +27,12 @@ import type {
   GetProjectHeaders,
   ListProjectsHeaders,
   ListProjectsParams,
+  ProjectAttachmentsResponse,
+  ProjectContentResponse,
   ProjectPage,
   ProjectResponse,
   ProjectTranslationResponse,
+  SaveProjectContent,
   SupportedLocale,
   UpdateProject,
   UpdateProjectHeaders,
@@ -81,6 +84,16 @@ export type createProjectResponse403 = {
   status: 403
 }
 
+export type createProjectResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type createProjectResponse409 = {
+  data: ApiError
+  status: 409
+}
+
 export type createProjectResponse500 = {
   data: ApiError
   status: 500
@@ -93,6 +106,8 @@ export type createProjectResponseError = (
   | createProjectResponse400
   | createProjectResponse401
   | createProjectResponse403
+  | createProjectResponse404
+  | createProjectResponse409
   | createProjectResponse500
 ) & {
   headers: Headers
@@ -859,6 +874,11 @@ export type updateProjectResponse404 = {
   status: 404
 }
 
+export type updateProjectResponse409 = {
+  data: ApiError
+  status: 409
+}
+
 export type updateProjectResponse500 = {
   data: ApiError
   status: 500
@@ -872,6 +892,7 @@ export type updateProjectResponseError = (
   | updateProjectResponse401
   | updateProjectResponse403
   | updateProjectResponse404
+  | updateProjectResponse409
   | updateProjectResponse500
 ) & {
   headers: Headers
@@ -1247,4 +1268,664 @@ export function useGetProjectTranslation<
   > & { queryKey: DataTag<QueryKey, TData, TError> }
 
   return withQueryKey(query, queryOptions.queryKey)
+}
+
+export type getProjectAttachmentsResponse200 = {
+  data: ProjectAttachmentsResponse
+  status: 200
+}
+
+export type getProjectAttachmentsResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type getProjectAttachmentsResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type getProjectAttachmentsResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type getProjectAttachmentsResponse500 = {
+  data: ApiError
+  status: 500
+}
+
+export type getProjectAttachmentsResponseSuccess =
+  getProjectAttachmentsResponse200 & {
+    headers: Headers
+  }
+export type getProjectAttachmentsResponseError = (
+  | getProjectAttachmentsResponse401
+  | getProjectAttachmentsResponse403
+  | getProjectAttachmentsResponse404
+  | getProjectAttachmentsResponse500
+) & {
+  headers: Headers
+}
+
+export const getGetProjectAttachmentsUrl = (
+  organizationId: string,
+  projectId: string
+) => {
+  return `/api/v1/organizations/${organizationId}/projects/${projectId}/attachments`
+}
+
+export const getProjectAttachments = async (
+  organizationId: string,
+  projectId: string,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<getProjectAttachmentsResponseSuccess> => {
+  return apiClient<getProjectAttachmentsResponseSuccess>(
+    getGetProjectAttachmentsUrl(organizationId, projectId),
+    {
+      ...options,
+      method: "GET",
+    }
+  )
+}
+
+export const getGetProjectAttachmentsQueryKey = (
+  organizationId: string,
+  projectId: string
+) => {
+  return [
+    `/api/v1/organizations/${organizationId}/projects/${projectId}/attachments`,
+  ] as const
+}
+
+export const getGetProjectAttachmentsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getProjectAttachments>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  projectId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getProjectAttachments>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetProjectAttachmentsQueryKey(organizationId, projectId)
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getProjectAttachments>>
+  > = ({ signal }) =>
+    getProjectAttachments(organizationId, projectId, {
+      signal,
+      ...requestOptions,
+    })
+
+  return {
+    queryKey,
+    queryFn,
+    enabled:
+      organizationId !== null &&
+      organizationId !== undefined &&
+      projectId !== null &&
+      projectId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getProjectAttachments>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetProjectAttachmentsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getProjectAttachments>>
+>
+export type GetProjectAttachmentsQueryError = ErrorType<ApiError>
+
+export function useGetProjectAttachments<
+  TData = Awaited<ReturnType<typeof getProjectAttachments>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  projectId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getProjectAttachments>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getProjectAttachments>>,
+          TError,
+          Awaited<ReturnType<typeof getProjectAttachments>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetProjectAttachments<
+  TData = Awaited<ReturnType<typeof getProjectAttachments>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  projectId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getProjectAttachments>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getProjectAttachments>>,
+          TError,
+          Awaited<ReturnType<typeof getProjectAttachments>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetProjectAttachments<
+  TData = Awaited<ReturnType<typeof getProjectAttachments>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  projectId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getProjectAttachments>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+
+export function useGetProjectAttachments<
+  TData = Awaited<ReturnType<typeof getProjectAttachments>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  projectId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getProjectAttachments>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+} {
+  const queryOptions = getGetProjectAttachmentsQueryOptions(
+    organizationId,
+    projectId,
+    options
+  )
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+
+  return withQueryKey(query, queryOptions.queryKey)
+}
+
+export type getProjectContentResponse200 = {
+  data: ProjectContentResponse
+  status: 200
+}
+
+export type getProjectContentResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type getProjectContentResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type getProjectContentResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type getProjectContentResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type getProjectContentResponse500 = {
+  data: ApiError
+  status: 500
+}
+
+export type getProjectContentResponseSuccess = getProjectContentResponse200 & {
+  headers: Headers
+}
+export type getProjectContentResponseError = (
+  | getProjectContentResponse400
+  | getProjectContentResponse401
+  | getProjectContentResponse403
+  | getProjectContentResponse404
+  | getProjectContentResponse500
+) & {
+  headers: Headers
+}
+
+export const getGetProjectContentUrl = (
+  organizationId: string,
+  projectId: string,
+  locale: SupportedLocale
+) => {
+  return `/api/v1/organizations/${organizationId}/projects/${projectId}/content/${locale}`
+}
+
+export const getProjectContent = async (
+  organizationId: string,
+  projectId: string,
+  locale: SupportedLocale,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<getProjectContentResponseSuccess> => {
+  return apiClient<getProjectContentResponseSuccess>(
+    getGetProjectContentUrl(organizationId, projectId, locale),
+    {
+      ...options,
+      method: "GET",
+    }
+  )
+}
+
+export const getGetProjectContentQueryKey = (
+  organizationId: string,
+  projectId: string,
+  locale: SupportedLocale
+) => {
+  return [
+    `/api/v1/organizations/${organizationId}/projects/${projectId}/content/${locale}`,
+  ] as const
+}
+
+export const getGetProjectContentQueryOptions = <
+  TData = Awaited<ReturnType<typeof getProjectContent>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  projectId: string,
+  locale: SupportedLocale,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getProjectContent>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetProjectContentQueryKey(organizationId, projectId, locale)
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getProjectContent>>
+  > = ({ signal }) =>
+    getProjectContent(organizationId, projectId, locale, {
+      signal,
+      ...requestOptions,
+    })
+
+  return {
+    queryKey,
+    queryFn,
+    enabled:
+      organizationId !== null &&
+      organizationId !== undefined &&
+      projectId !== null &&
+      projectId !== undefined &&
+      locale !== null &&
+      locale !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getProjectContent>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetProjectContentQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getProjectContent>>
+>
+export type GetProjectContentQueryError = ErrorType<ApiError>
+
+export function useGetProjectContent<
+  TData = Awaited<ReturnType<typeof getProjectContent>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  projectId: string,
+  locale: SupportedLocale,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getProjectContent>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getProjectContent>>,
+          TError,
+          Awaited<ReturnType<typeof getProjectContent>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetProjectContent<
+  TData = Awaited<ReturnType<typeof getProjectContent>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  projectId: string,
+  locale: SupportedLocale,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getProjectContent>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getProjectContent>>,
+          TError,
+          Awaited<ReturnType<typeof getProjectContent>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetProjectContent<
+  TData = Awaited<ReturnType<typeof getProjectContent>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  projectId: string,
+  locale: SupportedLocale,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getProjectContent>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+
+export function useGetProjectContent<
+  TData = Awaited<ReturnType<typeof getProjectContent>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  projectId: string,
+  locale: SupportedLocale,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getProjectContent>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+} {
+  const queryOptions = getGetProjectContentQueryOptions(
+    organizationId,
+    projectId,
+    locale,
+    options
+  )
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+
+  return withQueryKey(query, queryOptions.queryKey)
+}
+
+export type saveProjectContentResponse200 = {
+  data: ProjectContentResponse
+  status: 200
+}
+
+export type saveProjectContentResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type saveProjectContentResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type saveProjectContentResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type saveProjectContentResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type saveProjectContentResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type saveProjectContentResponse500 = {
+  data: ApiError
+  status: 500
+}
+
+export type saveProjectContentResponseSuccess =
+  saveProjectContentResponse200 & {
+    headers: Headers
+  }
+export type saveProjectContentResponseError = (
+  | saveProjectContentResponse400
+  | saveProjectContentResponse401
+  | saveProjectContentResponse403
+  | saveProjectContentResponse404
+  | saveProjectContentResponse409
+  | saveProjectContentResponse500
+) & {
+  headers: Headers
+}
+
+export const getSaveProjectContentUrl = (
+  organizationId: string,
+  projectId: string,
+  locale: SupportedLocale
+) => {
+  return `/api/v1/organizations/${organizationId}/projects/${projectId}/content/${locale}`
+}
+
+export const saveProjectContent = async (
+  organizationId: string,
+  projectId: string,
+  locale: SupportedLocale,
+  saveProjectContentBody: SaveProjectContent,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<saveProjectContentResponseSuccess> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {}
+    if (h instanceof Headers) return Object.fromEntries(h.entries())
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string]
+        )
+      )
+    }
+    const headers: Record<string, string | readonly string[]> = {}
+    for (const [name, value] of Object.entries<
+      string | readonly string[] | undefined
+    >(h)) {
+      if (value !== undefined) headers[name] = value
+    }
+    return headers
+  }
+  return apiClient<saveProjectContentResponseSuccess>(
+    getSaveProjectContentUrl(organizationId, projectId, locale),
+    {
+      ...options,
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        ...getHeaders(options?.headers),
+      },
+      body: JSON.stringify(saveProjectContentBody),
+    }
+  )
+}
+
+export const getSaveProjectContentMutationKey = () =>
+  ["saveProjectContent"] as const
+
+export const getSaveProjectContentMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveProjectContent>>,
+    TError,
+    SaveProjectContentMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof saveProjectContent>>,
+  TError,
+  SaveProjectContentMutationVariables,
+  TContext
+> => {
+  const mutationKey = getSaveProjectContentMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof saveProjectContent>>,
+    SaveProjectContentMutationVariables
+  > = (props) => {
+    const { organizationId, projectId, locale, data } = props ?? {}
+
+    return saveProjectContent(
+      organizationId,
+      projectId,
+      locale,
+      data,
+      requestOptions
+    )
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type SaveProjectContentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof saveProjectContent>>
+>
+export type SaveProjectContentMutationBody = SaveProjectContent
+export type SaveProjectContentMutationError = ErrorType<ApiError>
+export type SaveProjectContentMutationVariables = {
+  organizationId: string
+  projectId: string
+  locale: SupportedLocale
+  data: SaveProjectContent
+}
+
+export const useSaveProjectContent = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof saveProjectContent>>,
+      TError,
+      SaveProjectContentMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof saveProjectContent>>,
+  TError,
+  SaveProjectContentMutationVariables,
+  TContext
+> => {
+  return useMutation(getSaveProjectContentMutationOptions(options), queryClient)
 }

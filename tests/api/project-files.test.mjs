@@ -15,6 +15,16 @@ import {
 } from "../../packages/contracts/src/index.ts"
 import { createTenantRunner } from "../../packages/database/dist/tenant.js"
 import { fileRepository } from "../../packages/database/dist/repositories/files.js"
+import {
+  configureApiClient,
+  createProject as sdkCreateProject,
+  updateProject as sdkUpdateProject,
+  getProjectAttachments,
+  getProjectContent,
+  saveProjectContent,
+  getFileVersionContent,
+  ApiClientError,
+} from "../../packages/api-client/src/index.ts"
 
 const origin = "http://localhost:3200"
 const bytes = Buffer.from([0, 255, 128, 10, 13])
@@ -310,6 +320,121 @@ for (const kind of ["Local", "RustFS"])
         }
         visit(document)
       })
+
+    test("正式生成SDK原子保存附件与正文，覆盖后固定版本仅在显式替换时改变", async () => {
+      const f = await fixture(),
+        first = await upload(f, "SDK原图.png", png, "image/png")
+      configureApiClient({
+        baseUrl: environment.filesBaseURL,
+        getHeaders: () => f.actor.headers,
+      })
+      const language = { "Accept-Language": "ar" }
+      const created = await sdkCreateProject(
+        f.organization.id,
+        {
+          name: "SDK项目",
+          description: "仍是纯文本概要",
+          contentLocale: "zh-CN",
+          attachments: [ref(first)],
+        },
+        language
+      )
+      const p = ProjectResponseSchema.parse(created.data)
+      const binding = ProjectAttachmentsResponseSchema.parse(
+        (
+          await getProjectAttachments(f.organization.id, p.id, {
+            headers: language,
+          })
+        ).data
+      )
+      expect(binding).toMatchObject({
+        revision: 1,
+        items: [
+          {
+            ...ref(first),
+            name: "SDK原图.png",
+            bytes: png.length,
+            contentType: "image/png",
+          },
+        ],
+      })
+      const original = fileDoc(ref(first), "SDK正式正文")
+      const saved = await saveProjectContent(
+        f.organization.id,
+        p.id,
+        "zh-CN",
+        {
+          expectedRevision: null,
+          document: original,
+        },
+        { headers: language }
+      )
+      expect(ProjectContentResponseSchema.parse(saved.data)).toMatchObject({
+        locale: "zh-CN",
+        revision: 1,
+        document: original,
+      })
+      const second = await upload(
+        f,
+        "覆盖新版本.txt",
+        Buffer.from("新版本"),
+        "text/plain",
+        {
+          id: first.entryId,
+          revision: 1,
+        }
+      )
+      expect(
+        (await getProjectAttachments(f.organization.id, p.id)).data
+      ).toEqual(binding)
+      expect(
+        (await getProjectContent(f.organization.id, p.id, "zh-CN")).data
+      ).toEqual(saved.data)
+      const old = await getFileVersionContent(
+        f.organization.id,
+        first.entryId,
+        first.versionId
+      )
+      expect(Buffer.from(await old.data.arrayBuffer())).toEqual(png)
+      await sdkUpdateProject(
+        f.organization.id,
+        p.id,
+        {
+          attachments: { expectedRevision: 1, items: [ref(second)] },
+        },
+        language
+      )
+      expect(
+        (await getProjectAttachments(f.organization.id, p.id)).data
+      ).toMatchObject({
+        revision: 2,
+        items: [
+          {
+            ...ref(second),
+            bytes: Buffer.byteLength("新版本"),
+            contentType: "text/plain",
+          },
+        ],
+      })
+      await expect(
+        sdkUpdateProject(
+          f.organization.id,
+          p.id,
+          {
+            attachments: { expectedRevision: 1, items: [] },
+          },
+          language
+        )
+      ).rejects.toMatchObject({
+        name: ApiClientError.name,
+        status: 409,
+        body: { code: "VERSION_CONFLICT", locale: "ar" },
+      })
+      expect(
+        (await getProjectContent(f.organization.id, p.id, "zh-CN")).data
+          .document
+      ).toEqual(original)
+    })
 
     test("创建同事务附件且保持概要，project:read只返回引用，不产生文件读取资格", async () => {
       const f = await fixture(),

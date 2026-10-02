@@ -4,6 +4,7 @@
  * Enterprise Foundation API
  * OpenAPI spec version: 0.1.0
  */
+import type { FileVersionReference } from "./fileVersionReference"
 import type { SupportedLocale } from "./supportedLocale"
 
 export interface CreateProject {
@@ -12,4 +13,5 @@ export interface CreateProject {
   /** @nullable */
   description: string | null
   contentLocale?: SupportedLocale
+  attachments?: FileVersionReference[]
 }

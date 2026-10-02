@@ -43,6 +43,34 @@ export const projectKeys = {
     locale: SupportedLocale
   ) =>
     [...projectKeys.translations(organizationId, projectId), locale] as const,
+  attachments: (organizationId: string, projectId: string) =>
+    [...projectKeys.all(organizationId), "attachments", projectId] as const,
+  attachment: (
+    organizationId: string,
+    projectId: string,
+    authorizationVersion: number,
+    requestLanguage: SupportedLocale
+  ) =>
+    [
+      ...projectKeys.attachments(organizationId, projectId),
+      authorizationVersion,
+      requestLanguage,
+    ] as const,
+  contents: (organizationId: string, projectId: string) =>
+    [...projectKeys.all(organizationId), "content", projectId] as const,
+  content: (
+    organizationId: string,
+    projectId: string,
+    authorizationVersion: number,
+    locale: SupportedLocale,
+    requestLanguage: SupportedLocale
+  ) =>
+    [
+      ...projectKeys.contents(organizationId, projectId),
+      authorizationVersion,
+      locale,
+      requestLanguage,
+    ] as const,
 }
 
 export function listProjectsKey(input: {

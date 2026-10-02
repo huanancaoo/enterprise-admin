@@ -5,9 +5,11 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ProjectStatus } from "./projectStatus"
+import type { UpdateProjectAttachments } from "./updateProjectAttachments"
 import type { UpdateProjectTranslation } from "./updateProjectTranslation"
 
 export interface UpdateProject {
   status?: ProjectStatus
   translation?: UpdateProjectTranslation
+  attachments?: UpdateProjectAttachments
 }

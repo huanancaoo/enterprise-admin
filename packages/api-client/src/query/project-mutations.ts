@@ -62,11 +62,23 @@ export function createProjectMutations(
       await queryClient.cancelQueries({
         queryKey: projectKeys.translations(organizationId, projectId),
       })
+      await queryClient.cancelQueries({
+        queryKey: projectKeys.attachments(organizationId, projectId),
+      })
+      await queryClient.cancelQueries({
+        queryKey: projectKeys.contents(organizationId, projectId),
+      })
       queryClient.removeQueries({
         queryKey: projectKeys.details(organizationId, projectId),
       })
       queryClient.removeQueries({
         queryKey: projectKeys.translations(organizationId, projectId),
+      })
+      queryClient.removeQueries({
+        queryKey: projectKeys.attachments(organizationId, projectId),
+      })
+      queryClient.removeQueries({
+        queryKey: projectKeys.contents(organizationId, projectId),
       })
       return {
         response,

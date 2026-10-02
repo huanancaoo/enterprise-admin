@@ -52,6 +52,9 @@ export {
   deleteProject,
   getProject,
   getProjectTranslation,
+  getProjectAttachments,
+  getProjectContent,
+  saveProjectContent,
   updateProject,
 } from "./generated/endpoints/projects/projects"
 export {
@@ -75,6 +78,10 @@ export {
 } from "./query/use-projects-list"
 export { getProjectDetailOptions } from "./query/use-project-detail"
 export { getProjectTranslationOptions } from "./query/use-project-translation"
+export {
+  getProjectAttachmentsOptions,
+  getProjectContentOptions,
+} from "./query/project-files"
 export {
   getMyPreferencesOptions,
   getOrganizationSettingsOptions,
