@@ -225,11 +225,15 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
         new RequestLanguage(null)
       )
     const module = app.get(Projects)
-    const project = await module.create(moduleContext, {
-      name: "原始名称",
-      description: null,
-      contentLocale: "zh-CN",
-    })
+    const project = await module.create(
+      moduleContext,
+      {
+        name: "原始名称",
+        description: null,
+        contentLocale: "zh-CN",
+      },
+      headers
+    )
     await module.update(
       moduleContext,
       project.id,
@@ -262,7 +266,7 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
       module.getTranslation(moduleContext, project.id, "ar")
     ).rejects.toThrow("Not Found")
     await expect(module.get(contextB, project.id)).rejects.toThrow("Not Found")
-    await module.delete(moduleContext, project.id)
+    await module.delete(moduleContext, project.id, headers)
     await expect(module.get(moduleContext, project.id)).rejects.toThrow(
       "Not Found"
     )

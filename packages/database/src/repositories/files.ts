@@ -1834,6 +1834,24 @@ export const fileRepository = {
     return failed!
   },
 
+  projectAttachments(tx: TenantTx, projectId: string) {
+    return tx
+      .select({
+        fileId: fileReferences.fileId,
+        versionId: fileReferences.versionId,
+      })
+      .from(fileReferences)
+      .where(
+        and(
+          eq(fileReferences.organizationId, tx.context.organizationId),
+          eq(fileReferences.projectId, projectId),
+          eq(fileReferences.kind, "project_attachment"),
+          isNull(fileReferences.locale)
+        )
+      )
+      .orderBy(asc(fileReferences.position), asc(fileReferences.id))
+  },
+
   async references(tx: TenantTx, fileId: string) {
     return tx
       .select()

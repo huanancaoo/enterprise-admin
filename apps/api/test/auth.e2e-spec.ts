@@ -1,3 +1,5 @@
+import { fromNodeHeaders } from 'better-auth/node';
+import type { IncomingHttpHeaders } from 'node:http';
 import { execFile } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
@@ -20,6 +22,7 @@ import { IdentityService } from '../src/identity/identity.service';
 import {
   Controller,
   Get,
+  Headers as RequestHeaders,
   ForbiddenException,
   UnauthorizedException,
   Delete,
@@ -36,6 +39,7 @@ import {
 import { configureApp } from '../src/http/configure-app';
 import { RequestLanguage } from '../src/http/request-language';
 import { Projects } from '../src/projects/projects';
+import { ProjectFiles } from '../src/projects/project-files';
 import { TenantContextService } from '../src/tenancy/tenant-context.service';
 import {
   CurrentTenant,
@@ -59,9 +63,10 @@ class TenantProbeController {
   async remove(
     @CurrentTenant() context: TenantContext,
     @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+    @RequestHeaders() headers: IncomingHttpHeaders,
   ) {
     this.enteredMutations++;
-    await this.projects.delete(context, projectId);
+    await this.projects.delete(context, projectId, fromNodeHeaders(headers));
   }
 
   @Get()
@@ -554,6 +559,10 @@ describe(
           TenantGuard,
           TenantContextService,
           Projects,
+          {
+            provide: ProjectFiles,
+            useValue: app!.get<ProjectFiles>(ProjectFiles),
+          },
           { provide: AuthRuntime, useValue: { pool: runtime.pool } },
           {
             provide: IdentityService,

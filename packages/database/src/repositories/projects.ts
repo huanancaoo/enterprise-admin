@@ -14,7 +14,10 @@ export type ProjectListInput = {
   sortBy: "createdAt" | "updatedAt"
   sortOrder: "asc" | "desc"
 }
-type LocalizedProject = typeof projects.$inferSelect & {
+type LocalizedProject = Omit<
+  typeof projects.$inferSelect,
+  "attachmentsRevision"
+> & {
   resolvedLocale: Locale
   name: string
   description: string | null
@@ -189,6 +192,18 @@ export const projectRepository = {
     return tx
       .update(projects)
       .set({ status, updatedAt: new Date() })
+      .where(
+        and(
+          eq(projects.organizationId, tx.context.organizationId),
+          eq(projects.id, projectId)
+        )
+      )
+  },
+  advanceAttachmentsRevision(tx: TenantTx, projectId: string) {
+    // 仅递增独立附件修订，不回写调用者之前读取的状态或译文。
+    return tx
+      .update(projects)
+      .set({ attachmentsRevision: sql`${projects.attachmentsRevision} + 1` })
       .where(
         and(
           eq(projects.organizationId, tx.context.organizationId),

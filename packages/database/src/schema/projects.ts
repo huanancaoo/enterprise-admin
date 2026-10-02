@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm"
 import {
   check,
   foreignKey,
+  integer,
   pgTable,
   text,
   timestamp,
@@ -20,6 +21,7 @@ export const projects = pgTable(
     status: text("status", { enum: ["draft", "active", "archived"] })
       .notNull()
       .default("draft"),
+    attachmentsRevision: integer("attachments_revision").notNull().default(1),
     contentLocale: text("content_locale", {
       enum: ["zh-CN", "en-US", "ar"],
     }).notNull(),
@@ -34,6 +36,10 @@ export const projects = pgTable(
     unique("projects_organization_id_id_unique").on(
       table.organizationId,
       table.id
+    ),
+    check(
+      "projects_attachments_revision_check",
+      sql`${table.attachmentsRevision} >= 1`
     ),
     check(
       "projects_status_check",

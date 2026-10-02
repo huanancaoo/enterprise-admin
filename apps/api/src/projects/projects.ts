@@ -19,16 +19,16 @@ import {
 } from '@workspace/database/tenant';
 import { projectRepository } from '@workspace/database/repositories/projects';
 import { auditRepository } from '@workspace/database/repositories/audit';
-import { AuthorizationService } from '../authorization/authorization.service';
 import { AuthRuntime } from '../identity/auth-runtime';
-import { runTenantWrite } from '../tenancy/tenant-write';
+import { ProjectFiles } from './project-files';
+import type { PermissionRequest } from '../authorization/authorization.service';
 
 // 调用者提供经组织授权的上下文；项目规则、写入锁与审计必须在本 module 内共同演进。
 @Injectable()
 export class Projects {
   constructor(
     private readonly runtime: AuthRuntime,
-    private readonly authorization: AuthorizationService,
+    private readonly files: ProjectFiles,
   ) {}
 
   private async requireForMutation(tx: TenantTx, projectId: string) {
@@ -41,29 +41,47 @@ export class Projects {
   async create(
     context: TenantContext,
     input: CreateProject,
+    headers: Headers,
   ): Promise<ProjectResponse> {
-    return runTenantWrite(this.runtime.pool, context, async (tx) => {
-      const contentLocale =
-        input.contentLocale ?? (await projectRepository.defaultLocale(tx));
-      const project = await projectRepository.create(tx, {
-        ...input,
-        contentLocale,
-      });
-      // 与项目和基础译文共用 TenantTx，审计失败必须回滚整个创建。
-      await auditRepository.record(tx, {
-        eventCode: 'project.created',
-        resourceId: project.id,
-        fields: { status: project.status, contentLocale },
-      });
-      return {
-        ...project,
-        name: input.name,
-        description: input.description,
-        resolvedLocale: contentLocale,
-        createdAt: project.createdAt.toISOString(),
-        updatedAt: project.updatedAt.toISOString(),
-      };
-    });
+    const files: PermissionRequest = input.attachments?.length
+      ? { file: ['read'] }
+      : {};
+    return this.files.transaction(
+      context,
+      headers,
+      [{ project: ['create'], ...files }],
+      async (tx) => {
+        const contentLocale =
+          input.contentLocale ?? (await projectRepository.defaultLocale(tx));
+        const project = await projectRepository.create(tx, {
+          ...input,
+          contentLocale,
+        });
+        if (input.attachments)
+          await this.files.replaceAttachments(
+            tx,
+            project.id,
+            input.attachments,
+          );
+        // 与项目和基础译文共用 TenantTx，审计失败必须回滚整个创建。
+        await auditRepository.record(tx, {
+          eventCode: 'project.created',
+          resourceId: project.id,
+          fields: { status: project.status, contentLocale },
+        });
+        return {
+          id: project.id,
+          organizationId: project.organizationId,
+          status: project.status,
+          contentLocale: project.contentLocale,
+          name: input.name,
+          description: input.description,
+          resolvedLocale: contentLocale,
+          createdAt: project.createdAt.toISOString(),
+          updatedAt: project.updatedAt.toISOString(),
+        };
+      },
+    );
   }
 
   async list(
@@ -98,21 +116,30 @@ export class Projects {
     };
   }
 
-  async delete(context: TenantContext, projectId: string): Promise<void> {
-    await runTenantWrite(this.runtime.pool, context, async (tx) => {
-      const project = await this.requireForMutation(tx, projectId);
-      const [deleted] = await projectRepository.delete(tx, project.id);
-      if (!deleted) throw new NotFoundException();
-      // 删除与审计共用事务；审计未写入时，级联删除的项目及全部译文必须回滚。
-      await auditRepository.record(tx, {
-        eventCode: 'project.deleted',
-        resourceId: deleted.id,
-        fields: {
-          status: deleted.status,
-          contentLocale: deleted.contentLocale,
-        },
-      });
-    });
+  async delete(
+    context: TenantContext,
+    projectId: string,
+    headers: Headers,
+  ): Promise<void> {
+    await this.files.transaction(
+      context,
+      headers,
+      [{ project: ['delete'] }],
+      async (tx) => {
+        const project = await this.requireForMutation(tx, projectId);
+        const [deleted] = await projectRepository.delete(tx, project.id);
+        if (!deleted) throw new NotFoundException();
+        // 删除与审计共用事务；审计未写入时，级联删除的项目及全部译文必须回滚。
+        await auditRepository.record(tx, {
+          eventCode: 'project.deleted',
+          resourceId: deleted.id,
+          fields: {
+            status: deleted.status,
+            contentLocale: deleted.contentLocale,
+          },
+        });
+      },
+    );
   }
 
   async getTranslation(
@@ -150,16 +177,19 @@ export class Projects {
     input: UpdateProject,
     headers: Headers,
   ): Promise<ProjectResponse> {
-    // translate 只授予内容维护；一旦请求包含状态，必须在写入前重新验证 update。
-    if (input.status !== undefined)
-      await this.authorization.requirePermission(
-        headers,
-        context.organizationId,
-        { project: ['update'] },
-      );
-    const project = await runTenantWrite(
-      this.runtime.pool,
+    // 附件属于项目本身；翻译资格只允许按内容语言维护译文或富文本。
+    const projectAction =
+      input.status !== undefined || input.attachments !== undefined;
+    const files: PermissionRequest = input.attachments?.items.length
+      ? { file: ['read'] }
+      : {};
+    const permissions: readonly PermissionRequest[] = projectAction
+      ? [{ project: ['update'], ...files }]
+      : [{ project: ['update'] }, { project: ['translate'] }];
+    const project = await this.files.transaction(
       context,
+      headers,
+      permissions,
       async (tx) => {
         const current = await this.requireForMutation(tx, projectId);
         let statusChanged = false;
@@ -199,6 +229,21 @@ export class Projects {
             eventCode: 'project.translation.updated',
             resourceId: projectId,
             fields: { locale: input.translation.locale },
+          });
+        }
+        if (input.attachments) {
+          await this.files.replaceAttachments(
+            tx,
+            projectId,
+            input.attachments.items,
+            input.attachments.expectedRevision,
+          );
+          if (!statusChanged && !input.translation)
+            await projectRepository.touch(tx, projectId);
+          await auditRepository.record(tx, {
+            eventCode: 'project.attachments.updated',
+            resourceId: projectId,
+            fields: { revision: current.attachmentsRevision + 1 },
           });
         }
         return projectRepository.findLocalized(tx, projectId);

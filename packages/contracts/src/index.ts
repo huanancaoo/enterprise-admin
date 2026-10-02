@@ -1,4 +1,10 @@
 import { z } from "zod"
+import {
+  ProjectAttachmentsSchema,
+  UpdateProjectAttachmentsSchema,
+  ProjectRichTextDocumentSchema,
+} from "./project-files.js"
+export * from "./project-files.js"
 import { FileErrorDetailsSchema, fileErrorCodes } from "./files.js"
 
 export * from "./files.js"
@@ -10,6 +16,17 @@ export * from "./personal-media.js"
 export const SupportedLocaleSchema = z
   .enum(["zh-CN", "en-US", "ar"])
   .meta({ id: "SupportedLocale" })
+export const ProjectContentResponseSchema = z
+  .strictObject({
+    locale: SupportedLocaleSchema,
+    revision: z.number().int().min(1).nullable(),
+    document: ProjectRichTextDocumentSchema.nullable(),
+    updatedAt: z.iso.datetime().nullable(),
+  })
+  .meta({ id: "ProjectContentResponse" })
+export type ProjectContentResponse = z.infer<
+  typeof ProjectContentResponseSchema
+>
 export const LocaleSourceSchema = z
   .enum(["request", "user", "organization", "platform"])
   .meta({ id: "LocaleSource" })
@@ -37,6 +54,7 @@ export const CreateProjectSchema = z
     name: z.string().trim().min(1),
     description: z.string().nullable(),
     contentLocale: SupportedLocaleSchema.optional(),
+    attachments: ProjectAttachmentsSchema.optional(),
   })
   .meta({ id: "CreateProject" })
 export type CreateProject = z.infer<typeof CreateProjectSchema>
@@ -59,10 +77,13 @@ export const UpdateProjectSchema = z
   .strictObject({
     status: ProjectStatusSchema.optional(),
     translation: UpdateProjectTranslationSchema.optional(),
+    attachments: UpdateProjectAttachmentsSchema.optional(),
   })
   .refine(
     (project) =>
-      project.status !== undefined || project.translation !== undefined,
+      project.status !== undefined ||
+      project.translation !== undefined ||
+      project.attachments !== undefined,
     { message: "At least one project field is required" }
   )
   .meta({ id: "UpdateProject" })

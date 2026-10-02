@@ -55,6 +55,8 @@ export class ProjectsController {
     schema: { type: 'string' },
   })
   @ApiResponse({ status: 201, standardSchema: ProjectResponseSchema })
+  @ApiResponse({ status: 404, standardSchema: ApiErrorSchema })
+  @ApiResponse({ status: 409, standardSchema: ApiErrorSchema })
   @ApiResponse({ status: 400, standardSchema: ApiErrorSchema })
   @ApiResponse({ status: 401, standardSchema: ApiErrorSchema })
   @ApiResponse({ status: 403, standardSchema: ApiErrorSchema })
@@ -63,9 +65,10 @@ export class ProjectsController {
     @Param('organizationId', { schema: OrganizationIdSchema })
     _organizationId: string,
     @Body({ schema: CreateProjectSchema }) input: CreateProject,
+    @Headers() headers: IncomingHttpHeaders,
     @CurrentTenant() context: TenantContext,
   ): Promise<ProjectResponse> {
-    return this.projects.create(context, input);
+    return this.projects.create(context, input, fromNodeHeaders(headers));
   }
 
   @Get()
@@ -130,8 +133,9 @@ export class ProjectsController {
     _organizationId: string,
     @Param('projectId', { schema: ProjectIdSchema }) projectId: string,
     @CurrentTenant() context: TenantContext,
+    @Headers() headers: IncomingHttpHeaders,
   ): Promise<void> {
-    return this.projects.delete(context, projectId);
+    return this.projects.delete(context, projectId, fromNodeHeaders(headers));
   }
 
   @Get(':projectId/translations/:locale')
@@ -158,6 +162,7 @@ export class ProjectsController {
   @Patch(':projectId')
   @RequireTenantAny({ project: ['update'] }, { project: ['translate'] })
   @ApiOperation({ operationId: 'updateProject' })
+  @ApiResponse({ status: 409, standardSchema: ApiErrorSchema })
   @ApiHeader({
     name: 'Accept-Language',
     required: false,

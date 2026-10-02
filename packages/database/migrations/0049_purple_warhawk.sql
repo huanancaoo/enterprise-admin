@@ -1,0 +1,2 @@
+ALTER TABLE "projects" ADD COLUMN "attachments_revision" integer DEFAULT 1 NOT NULL;--> statement-breakpoint
+ALTER TABLE "projects" ADD CONSTRAINT "projects_attachments_revision_check" CHECK ("projects"."attachments_revision" >= 1);
