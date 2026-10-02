@@ -8,6 +8,7 @@ import { Files } from './files';
 import { FilesController } from './files.controller';
 import { FileMaintenance } from './file-maintenance';
 import { FileWrites } from './file-writes';
+import { FileWriteExecutor } from './file-write-executor';
 
 @Module({})
 export class FilesModule {
@@ -22,6 +23,7 @@ export class FilesModule {
         FileContent,
         FileMaintenance,
         FileWrites,
+        FileWriteExecutor,
       ],
     };
   }

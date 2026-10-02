@@ -104,7 +104,7 @@ export async function startFilesEnvironment(kind, resources) {
       .withCommand([
         "node",
         "-e",
-        `const {mkdir}=require('node:fs/promises');const {createApplication}=require('./apps/api/dist/create-application.js');const config=JSON.parse(process.env.FILES_TEST_CONFIG);(async()=>{await mkdir(config.files.root,{recursive:true,mode:0o700});const app=await createApplication(config,{logger:false});await app.listen(3000,'0.0.0.0');console.log('FILES_LINUX_READY');process.on('SIGTERM',()=>app.close().then(()=>process.exit(0)));})().catch(()=>process.exit(1));`,
+        `const {mkdir}=require('node:fs/promises');const {createApplication}=require('./apps/api/dist/create-application.js');const config=JSON.parse(process.env.FILES_TEST_CONFIG);(async()=>{await mkdir(config.files.root,{recursive:true,mode:0o700});const app=await createApplication(config,{logger:false});await app.listen(3000,'0.0.0.0');console.log('FILES_LINUX_READY');process.on('SIGTERM',()=>app.close().then(()=>process.exit(0)));})().catch(error=>{console.error(error.code??error.message);process.exit(1);});`,
       ])
       .withWaitStrategy(Wait.forLogMessage("FILES_LINUX_READY"))
       .start()
