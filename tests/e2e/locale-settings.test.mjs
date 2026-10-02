@@ -349,7 +349,7 @@ describe("S8-09：浏览器中的个人与组织语言设置", () => {
     )
     try {
       await page
-        .getByRole("link", { name: "Personal language settings", exact: true })
+        .getByRole("link", { name: "Personal settings", exact: true })
         .click()
       await activeOrganizationRequested.promise
       await page.route(
@@ -386,7 +386,7 @@ describe("S8-09：浏览器中的个人与组织语言设置", () => {
       releaseAccess.resolve()
       await page.unrouteAll({ behavior: "wait" })
     }
-    await page.getByRole("button", { name: /保存|Save|حفظ/ }).click()
+    await page.getByRole("button", { name: /^(保存|Save|حفظ)$/ }).click()
     await expectUI(page.locator("html")).toHaveAttribute("lang", "ar")
     await expectUI(page.locator("html")).toHaveAttribute("dir", "rtl")
 
@@ -398,7 +398,7 @@ describe("S8-09：浏览器中的个人与组织语言设置", () => {
       .click()
     await expectUI(page.locator("html")).toHaveAttribute("lang", "en-US")
     await page
-      .getByRole("link", { name: "Personal language settings", exact: true })
+      .getByRole("link", { name: "Personal settings", exact: true })
       .click()
     await expectUI(
       page.getByRole("combobox", { name: "Language", exact: true })
