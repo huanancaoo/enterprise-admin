@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { createFormatter } from "@workspace/i18n"
@@ -32,6 +32,7 @@ type Props = {
   readEntry: (id: string, signal: AbortSignal) => Promise<FileEntryResponse>
   onClose: () => void
   returnFocus: () => HTMLElement | null
+  referenceLocations?: ReactNode
 }
 export function FileDeleteDialog(props: Props) {
   return props.open ? (
@@ -169,13 +170,16 @@ function FileDeleteConfirmation(props: Props) {
           </div>
         )}
         {referenced && (
-          <p role="alert" className="text-sm text-destructive">
-            {t("files:referenceWarning", {
-              references: createFormatter(locale).number(
-                impact.data!.referenceCount
-              ),
-            })}
-          </p>
+          <div className="space-y-3">
+            <p role="alert" className="text-sm text-destructive">
+              {t("files:referenceWarning", {
+                references: createFormatter(locale).number(
+                  impact.data!.referenceCount
+                ),
+              })}
+            </p>
+            {props.referenceLocations}
+          </div>
         )}
         {stale && (
           <p role="alert" className="text-sm text-destructive">

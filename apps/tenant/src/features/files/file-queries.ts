@@ -7,6 +7,7 @@ import {
   getFileBreadcrumbs,
   listFileVersions,
   getFileOperation,
+  getFileReferenceLocations,
   organizationKeys,
   requestLanguageHeader,
 } from "@workspace/api-client"
@@ -18,6 +19,7 @@ import type {
   FilePage,
   FileVersions,
   FileWorkspace,
+  FileReferenceLocations,
   FolderResponse,
   SupportedLocale,
 } from "@workspace/contracts"
@@ -55,6 +57,32 @@ export function getFileWorkspaceOptions(
     queryFn: async ({ signal }): Promise<FileWorkspace> =>
       (await getFileWorkspace(organizationId, requestOptions(signal, locale)))
         .data,
+  })
+}
+
+export function getFileReferenceLocationsOptions(
+  organizationId: string,
+  authorizationVersion: number,
+  entryId: string,
+  locale: SupportedLocale
+) {
+  return queryOptions({
+    queryKey: [
+      ...fileKeys.scope(organizationId),
+      authorizationVersion,
+      "references",
+      entryId,
+      locale,
+    ],
+    retry: false,
+    queryFn: async ({ signal }): Promise<FileReferenceLocations> =>
+      (
+        await getFileReferenceLocations(
+          organizationId,
+          entryId,
+          requestOptions(signal, locale)
+        )
+      ).data,
   })
 }
 

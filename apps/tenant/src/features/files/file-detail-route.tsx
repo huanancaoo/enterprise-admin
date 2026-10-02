@@ -1,4 +1,4 @@
-import { useRef, useState } from "react"
+import { useRef, useState, type ReactNode } from "react"
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
@@ -8,11 +8,15 @@ import {
   PermissionDeniedState,
   ResourceList,
 } from "@workspace/admin"
-import { getOrganizationAccessOptions } from "@workspace/api-client"
+import {
+  ApiClientError,
+  getOrganizationAccessOptions,
+} from "@workspace/api-client"
 import {
   type FileResponse,
   type FileVersionResponse,
   type FolderResponse,
+  type FileEntryResponse,
 } from "@workspace/contracts"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import { FileDownloadButton } from "./file-content"
@@ -34,7 +38,13 @@ import {
   fileRequestIsDenied,
   getFileEntryOptions,
   getFileVersionsOptions,
+  getFileWorkspaceOptions,
 } from "./file-queries"
+import { getFilePermissionsOptions } from "./file-permissions"
+import { FileUploads } from "./file-uploads"
+import { FilePathOperations } from "./file-path-operations"
+import { FileEntryActions } from "./file-entry-actions"
+import { FileReferenceLocations } from "./file-reference-locations"
 
 const detailPath = "/app/files/$organizationId/entries/$entryId"
 
@@ -76,9 +86,25 @@ function AuthorizedFileDetail({
 }) {
   const { t } = useTranslation(["files", "common"])
   const locale = useUiLocale()
+  const session = useAuthenticatedSession()!
+  const navigate = useNavigate({ from: detailPath })
+  const scopeKey = JSON.stringify([
+    session.user.id,
+    organizationId,
+    authorizationVersion,
+  ])
   const entry = useQuery(
     getFileEntryOptions(organizationId, authorizationVersion, entryId, locale)
   )
+  const permissions = useQuery(
+    getFilePermissionsOptions(organizationId, authorizationVersion)
+  )
+  const workspace = useQuery({
+    ...getFileWorkspaceOptions(organizationId, authorizationVersion, locale),
+    enabled: Boolean(
+      permissions.data?.canReadFiles && permissions.data.canReadFolders
+    ),
+  })
   if (fileRequestIsDenied(entry.error)) return <PermissionDeniedState />
   if (entry.isError)
     return (
@@ -94,34 +120,205 @@ function AuthorizedFileDetail({
     )
   if (!entry.data)
     return <ResourceList title={t("files:detail")} status="loading" />
-  return (
-    <ResourceList
-      title={entry.data.name}
-      status="ready"
+  const root = workspace.data?.root
+  const managed = root !== undefined && !fileRequestIsDenied(workspace.error)
+  const details = (
+    <FileDetailContent
+      entry={entry.data}
+      authorizationVersion={authorizationVersion}
       actions={
-        <Button
-          variant="outline"
-          render={
-            <Link
-              to="/app/files/$organizationId"
-              params={{ organizationId }}
-              search={{ parentId: entry.data.parentId ?? entry.data.id }}
-            />
-          }
-        >
-          {t("files:openLocation")}
-        </Button>
+        managed ? (
+          <FileEntryActions
+            entry={entry.data}
+            canOverwrite={Boolean(
+              permissions.isSuccess &&
+              permissions.data.canUpload &&
+              permissions.data.canUpdateFiles
+            )}
+          />
+        ) : undefined
+      }
+    />
+  )
+  return managed ? (
+    <FileUploads
+      userId={session.user.id}
+      organizationId={organizationId}
+      authorizationVersion={authorizationVersion}
+      contentScopeKey={scopeKey}
+      canUpload={Boolean(permissions.isSuccess && permissions.data.canUpload)}
+      canOverwrite={Boolean(
+        permissions.isSuccess &&
+        permissions.data.canUpload &&
+        permissions.data.canUpdateFiles
+      )}
+      onOpenVersion={(reference) =>
+        void navigate({
+          params: { organizationId, entryId: reference.fileId },
+          search: { versionId: reference.versionId },
+        })
       }
     >
-      {entry.data.kind === "file" ? (
-        <FileVersionDetails
-          file={entry.data}
-          authorizationVersion={authorizationVersion}
-        />
+      <FilePathOperations
+        userId={session.user.id}
+        organizationId={organizationId}
+        authorizationVersion={authorizationVersion}
+        contentScopeKey={scopeKey}
+        root={root}
+        permissions={permissions.isSuccess ? permissions.data : undefined}
+        onCompleted={(operation) => {
+          if (
+            operation.action === "purge" &&
+            operation.result?.entryId === entryId
+          )
+            void navigate({
+              to: "/app/files/$organizationId",
+              params: { organizationId },
+              search: { state: "trashed" },
+            })
+        }}
+      >
+        {details}
+      </FilePathOperations>
+    </FileUploads>
+  ) : (
+    details
+  )
+}
+
+function FileDetailContent({
+  entry,
+  authorizationVersion,
+  actions,
+}: {
+  entry: FileEntryResponse
+  authorizationVersion: number
+  actions?: ReactNode
+}) {
+  return (
+    <ResourceList
+      title={entry.name}
+      status="ready"
+      actions={
+        <div className="flex flex-wrap gap-2">
+          {actions}
+          <FileDetailLocation
+            entry={entry}
+            authorizationVersion={authorizationVersion}
+          />
+        </div>
+      }
+    >
+      {entry.state === "trashed" ? (
+        <FileTrashDetails entry={entry} />
       ) : (
-        <FolderDetails folder={entry.data} />
+        <>
+          {entry.kind === "file" ? (
+            <FileVersionDetails
+              file={entry}
+              authorizationVersion={authorizationVersion}
+            />
+          ) : (
+            <FolderDetails folder={entry} />
+          )}
+          <FileReferenceLocations
+            organizationId={entry.organizationId}
+            entryId={entry.id}
+            authorizationVersion={authorizationVersion}
+          />
+        </>
       )}
     </ResourceList>
+  )
+}
+
+function FileDetailLocation({
+  entry,
+  authorizationVersion,
+}: {
+  entry: FileEntryResponse
+  authorizationVersion: number
+}) {
+  const { t } = useTranslation("files")
+  const locale = useUiLocale()
+  const parent = useQuery({
+    ...getFileEntryOptions(
+      entry.organizationId,
+      authorizationVersion,
+      entry.parentId ?? entry.id,
+      locale
+    ),
+    enabled: entry.state === "trashed" && entry.parentId !== null,
+  })
+  // 独立回收项的原父目录可能仍有效或已清除；只有读回的回收父目录才能作为回收站浏览位置。
+  if (
+    entry.state === "trashed" &&
+    parent.isError &&
+    !(parent.error instanceof ApiClientError && parent.error.status === 404)
+  )
+    return (
+      <ErrorState
+        message={fileRequestErrorMessage(parent.error, t("openLocation"))}
+        onRetry={() => void parent.refetch()}
+      />
+    )
+  return (
+    <Button
+      variant="outline"
+      disabled={entry.state === "trashed" && parent.isPending}
+      render={
+        <Link
+          to="/app/files/$organizationId"
+          params={{ organizationId: entry.organizationId }}
+          search={
+            entry.state === "trashed"
+              ? {
+                  state: "trashed",
+                  parentId:
+                    parent.data?.state === "trashed"
+                      ? parent.data.id
+                      : undefined,
+                }
+              : { parentId: entry.parentId ?? entry.id }
+          }
+        />
+      }
+    >
+      {t("openLocation")}
+    </Button>
+  )
+}
+
+function FileTrashDetails({ entry }: { entry: FileEntryResponse }) {
+  const { t } = useTranslation("files")
+  const locale = useUiLocale()
+  const format = createFormatter(locale)
+  return (
+    <div className="space-y-3">
+      <p>{t("trashedContentUnavailable")}</p>
+      <dl className="space-y-3 rounded-lg border p-4 text-sm">
+        <div>
+          <dt>{t("originalLocation")}</dt>
+          <dd className="[overflow-wrap:anywhere]">{entry.path.join(" / ")}</dd>
+        </div>
+        <div>
+          <dt>{t("deletedAt")}</dt>
+          <dd>
+            {entry.deletedAt
+              ? format.dateTime(new Date(entry.deletedAt), "UTC")
+              : "—"}
+          </dd>
+        </div>
+        <div>
+          <dt>{t("expiresAt")}</dt>
+          <dd>
+            {entry.expiresAt
+              ? format.dateTime(new Date(entry.expiresAt), "UTC")
+              : t("noExpiry")}
+          </dd>
+        </div>
+      </dl>
+    </div>
   )
 }
 

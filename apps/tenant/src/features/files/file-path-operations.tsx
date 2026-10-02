@@ -19,11 +19,13 @@ import type {
   TrashFileEntry,
   RestoreFileEntry,
   PurgeFileEntry,
+  FileOperationResponse,
 } from "@workspace/contracts"
 import { useUiLocale } from "@workspace/i18n/react"
 import { FileEntryDialog } from "./file-entry-dialog"
 import { FileDeleteDialog } from "./file-delete-dialog"
 import { FilePathQueue } from "./file-path-queue"
+import { FileReferenceLocations } from "./file-reference-locations"
 import { fileKeys } from "./file-queries"
 import { canPerformFileAction, type FilePermissions } from "./file-permissions"
 import { PathActionsContext } from "./path-context"
@@ -45,6 +47,7 @@ export function FilePathOperations({
   root,
   permissions,
   children,
+  onCompleted,
 }: {
   userId: string
   organizationId: string
@@ -53,6 +56,7 @@ export function FilePathOperations({
   root: FolderResponse
   permissions?: FilePermissions
   children: ReactNode
+  onCompleted?: (operation: FileOperationResponse) => void
 }) {
   const locale = useUiLocale()
   const client = useQueryClient()
@@ -131,7 +135,10 @@ export function FilePathOperations({
           headers: { [requestLanguageHeader]: locale },
         })
       ).data,
-    onCompleted: invalidate,
+    onCompleted: (operation) => {
+      invalidate()
+      onCompleted?.(operation)
+    },
   })
   useEffect(() => {
     for (const job of queue.jobs) {
@@ -218,6 +225,13 @@ export function FilePathOperations({
             }
             onClose={() => setSelection(null)}
             returnFocus={returnFocus}
+            referenceLocations={
+              <FileReferenceLocations
+                organizationId={organizationId}
+                entryId={selection.entry.id}
+                authorizationVersion={authorizationVersion}
+              />
+            }
           />
         ) : (
           <FileEntryDialog

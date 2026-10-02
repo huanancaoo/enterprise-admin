@@ -1,5 +1,6 @@
 import { useRef, useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
 import { useTranslation } from "react-i18next"
 import {
   ErrorState,
@@ -373,7 +374,23 @@ function FileWorkspaceBrowser({
             ? (selected) => {
                 const entry = selected.length === 1 ? selected[0] : undefined
                 return entry ? (
-                  <FileEntryActions entry={entry} canOverwrite={canOverwrite} />
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      render={
+                        <Link
+                          to="/app/files/$organizationId/entries/$entryId"
+                          params={{ organizationId, entryId: entry.id }}
+                        />
+                      }
+                    >
+                      {t("files:detail")}
+                    </Button>
+                    <FileEntryActions
+                      entry={entry}
+                      canOverwrite={canOverwrite}
+                    />
+                  </div>
                 ) : selected.length > 1 ? (
                   <div className="flex flex-wrap gap-2">
                     {trash ? (
