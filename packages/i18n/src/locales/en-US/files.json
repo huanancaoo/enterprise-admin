@@ -1,4 +1,5 @@
 {
+  "activeFiles": "Active files",
   "batchChooseDestination": "Choose a destination folder.",
   "batchCleaning": "Committed; cleaning",
   "batchCommitted": "Committed",
@@ -51,6 +52,7 @@
   "createResultUnconfirmed": "The creation result is unconfirmed. Check its status before continuing.",
   "currentVersion": "Current version",
   "dayCount": "{{days}} days",
+  "deletedAt": "Deleted at",
   "destination": "Destination folder",
   "detail": "File details",
   "dismissOperation": "Remove finished task",
@@ -59,6 +61,7 @@
   "downloading": "Preparing download…",
   "emptyFolder": "This folder has no files or subfolders.",
   "emptyText": "This file has no text content.",
+  "emptyTrash": "The trash is empty.",
   "expiresAt": "Expires at",
   "folder": "Folder",
   "folderCreating": "Creating the folder. Wait for the operation to finish.",
@@ -134,6 +137,7 @@
   "textPages": "Text pages",
   "title": "Files",
   "transientBytes": "Temporary operation capacity",
+  "trash": "Trash",
   "trashDays": "Trash retention",
   "trashDescription": "Move this entry and its children to trash. They can be restored later.",
   "trashEntry": "Move to trash",
@@ -167,5 +171,6 @@
   "versionCreatedAt": "Version created at",
   "versions": "Version history",
   "versionState": "Version status",
-  "versionUnavailable": "This version is unavailable. Choose an available version from the history."
+  "versionUnavailable": "This version is unavailable. Choose an available version from the history.",
+  "views": "File views"
 }

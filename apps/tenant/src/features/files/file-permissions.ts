@@ -2,6 +2,19 @@ import { queryOptions } from "@tanstack/react-query"
 import { organizationKeys } from "@workspace/api-client"
 import { authClient } from "@/lib/auth-client"
 
+export type FilePermissions = {
+  canReadFiles: boolean
+  canUpload: boolean
+  canUpdateFiles: boolean
+  canDeleteFiles: boolean
+  canRestore: boolean
+  canPurge: boolean
+  canReadFolders: boolean
+  canCreateFolder: boolean
+  canUpdateFolders: boolean
+  canDeleteFolders: boolean
+}
+
 export function getFilePermissionsOptions(
   organizationId: string,
   authorizationVersion: number
@@ -13,7 +26,7 @@ export function getFilePermissionsOptions(
       authorizationVersion,
     ],
     retry: false,
-    queryFn: async ({ signal }) => {
+    queryFn: async ({ signal }): Promise<FilePermissions> => {
       const check = async (
         permissions: Parameters<
           typeof authClient.organization.hasPermission

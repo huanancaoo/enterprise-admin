@@ -10,11 +10,13 @@ export function FilePathQueue({
   recordError,
   onCheck,
   onDismiss,
+  emptyFocus,
 }: {
   jobs: FilePathJob[]
   recordError: boolean
   onCheck: (id: string) => void
   onDismiss: (id: string) => void
+  emptyFocus?: () => HTMLElement | null
 }) {
   const { t } = useTranslation(["files", "common"])
   const locale = useUiLocale()
@@ -101,7 +103,9 @@ export function FilePathQueue({
                     variant="ghost"
                     onClick={() => {
                       onDismiss(job.id)
-                      heading.current?.focus()
+                      if (jobs.length === 1 && !recordError)
+                        emptyFocus?.()?.focus()
+                      else heading.current?.focus()
                     }}
                   >
                     {t("files:dismissOperation")}

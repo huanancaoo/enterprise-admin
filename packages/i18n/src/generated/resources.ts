@@ -229,6 +229,7 @@ export default interface Resources {
     "YOU_CANNOT_LEAVE_THE_ORGANIZATION_WITHOUT_AN_OWNER": "组织必须保留至少一位所有者"
   },
   "files": {
+    "activeFiles": "有效文件",
     "batchChooseDestination": "请选择目标文件夹。",
     "batchCleaning": "已提交，正在清理",
     "batchCommitted": "已提交",
@@ -281,6 +282,7 @@ export default interface Resources {
     "createResultUnconfirmed": "创建结果尚未确认，请查询状态后继续。",
     "currentVersion": "当前版本",
     "dayCount": "{{days}} 天",
+    "deletedAt": "删除时间",
     "destination": "目标文件夹",
     "detail": "文件详情",
     "dismissOperation": "移除已结束的任务",
@@ -289,6 +291,7 @@ export default interface Resources {
     "downloading": "正在准备下载…",
     "emptyFolder": "此文件夹暂无文件或子文件夹。",
     "emptyText": "此文件没有文本内容。",
+    "emptyTrash": "回收站为空。",
     "expiresAt": "到期时间",
     "folder": "文件夹",
     "folderCreating": "正在创建文件夹，请等待操作完成。",
@@ -364,6 +367,7 @@ export default interface Resources {
     "textPages": "文本分页",
     "title": "文件",
     "transientBytes": "处理中暂存容量",
+    "trash": "回收站",
     "trashDays": "回收站保留期限",
     "trashDescription": "将此条目及子项移入回收站，之后可以恢复。",
     "trashEntry": "移入回收站",
@@ -397,7 +401,8 @@ export default interface Resources {
     "versionCreatedAt": "版本创建时间",
     "versionState": "版本状态",
     "versionUnavailable": "此版本已不可用，请从版本记录中明确选择可用版本。",
-    "versions": "版本记录"
+    "versions": "版本记录",
+    "views": "文件视图"
   },
   "organization": {
     "activate": "激活",

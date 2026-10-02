@@ -41,6 +41,7 @@ export type FileBrowserProps = {
   onLocate?: (entry: FileEntryResponse) => void
   actions?: ReactNode
   renderSelectionActions?: (entries: FileEntryResponse[]) => ReactNode
+  rootLabel?: string
 }
 
 export function FileBrowser({
@@ -60,6 +61,7 @@ export function FileBrowser({
   onLocate,
   actions,
   renderSelectionActions,
+  rootLabel,
 }: FileBrowserProps) {
   const { t } = useTranslation(["files", "common"])
   const locale = useUiLocale()
@@ -145,14 +147,24 @@ export function FileBrowser({
             createFormatter(locale).dateTime(new Date(cell.getValue()), "UTC"),
         }),
         columnHelper.accessor("path", {
-          header: t("files:location"),
-          meta: { label: t("files:location") },
+          header: t(
+            search.state === "trashed"
+              ? "files:originalLocation"
+              : "files:location"
+          ),
+          meta: {
+            label: t(
+              search.state === "trashed"
+                ? "files:originalLocation"
+                : "files:location"
+            ),
+          },
           enableSorting: false,
           cell: ({ row }) => {
             const entry = row.original
             const parentPath =
               entry.path.slice(0, -1).join(" / ") || t("files:root")
-            return search.name && onLocate ? (
+            return search.state === "active" && search.name && onLocate ? (
               <Button
                 variant="link"
                 className="h-auto max-w-full p-0 text-start [overflow-wrap:anywhere] whitespace-normal"
@@ -168,6 +180,32 @@ export function FileBrowser({
             )
           },
         }),
+        ...(search.state === "trashed"
+          ? [
+              columnHelper.accessor("deletedAt", {
+                header: t("files:deletedAt"),
+                enableSorting: false,
+                cell: (cell) =>
+                  cell.getValue()
+                    ? createFormatter(locale).dateTime(
+                        new Date(cell.getValue()!),
+                        "UTC"
+                      )
+                    : t("files:folderSize"),
+              }),
+              columnHelper.accessor("expiresAt", {
+                header: t("files:expiresAt"),
+                enableSorting: false,
+                cell: (cell) =>
+                  cell.getValue()
+                    ? createFormatter(locale).dateTime(
+                        new Date(cell.getValue()!),
+                        "UTC"
+                      )
+                    : t("files:noExpiry"),
+              }),
+            ]
+          : []),
       ]),
     [
       buttonId,
@@ -179,6 +217,7 @@ export function FileBrowser({
       onOpenFolder,
       renderSelectionActions,
       search.name,
+      search.state,
       t,
     ]
   )
@@ -203,7 +242,9 @@ export function FileBrowser({
                   }
                   onClick={() => onOpenFolder(folder)}
                 >
-                  {folder.parentId === null ? t("files:root") : folder.name}
+                  {folder.parentId === null
+                    ? (rootLabel ?? t("files:root"))
+                    : folder.name}
                 </Button>
               </li>
             ))}
@@ -289,7 +330,11 @@ export function FileBrowser({
         }
         empty={
           <p className="text-sm text-muted-foreground">
-            {search.name ? t("files:noSearchResults") : t("files:emptyFolder")}
+            {search.name
+              ? t("files:noSearchResults")
+              : search.state === "trashed" && search.parentId === undefined
+                ? t("files:emptyTrash")
+                : t("files:emptyFolder")}
           </p>
         }
       />

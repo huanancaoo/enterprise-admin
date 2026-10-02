@@ -29,6 +29,8 @@ import { CreateFolderDialog } from "./create-folder-dialog"
 import { FilePreviewSheet } from "./file-preview-sheet"
 import { FileBrowser } from "./file-browser"
 import { FileUploads } from "./file-uploads"
+import { FilePathOperations } from "./file-path-operations"
+import { FileEntryActions } from "./file-entry-actions"
 import { useFileUploadActions } from "./upload-context"
 import {
   fileRequestErrorMessage,
@@ -37,6 +39,7 @@ import {
   getFileBreadcrumbsOptions,
   getFileEntriesOptions,
   getFileWorkspaceOptions,
+  getFileTrashBreadcrumbsOptions,
 } from "./file-queries"
 import { getFilePermissionsOptions } from "./file-permissions"
 
@@ -139,21 +142,44 @@ function AuthorizedFilesWorkspace({
         }
         onOpenVersion={props.onOpenVersion}
       >
-        <FileWorkspaceBrowser
-          {...props}
+        <FilePathOperations
+          key={scopeKey}
+          userId={session.user.id}
+          organizationId={props.organizationId}
           authorizationVersion={authorizationVersion}
           contentScopeKey={scopeKey}
-          workspace={workspace.data}
-          canUpload={permissions.isSuccess && permissions.data.canUpload}
-          canOverwrite={
-            permissions.isSuccess &&
-            permissions.data.canUpload &&
-            permissions.data.canUpdateFiles
-          }
-          canCreateFolder={
-            permissions.isSuccess && permissions.data.canCreateFolder
-          }
-        />
+          root={workspace.data.root}
+          permissions={permissions.isSuccess ? permissions.data : undefined}
+        >
+          <FileWorkspaceBrowser
+            {...props}
+            authorizationVersion={authorizationVersion}
+            contentScopeKey={scopeKey}
+            workspace={workspace.data}
+            canUpload={permissions.isSuccess && permissions.data.canUpload}
+            canOverwrite={
+              permissions.isSuccess &&
+              permissions.data.canUpload &&
+              permissions.data.canUpdateFiles
+            }
+            canCreateFolder={
+              permissions.isSuccess && permissions.data.canCreateFolder
+            }
+            canTrash={
+              permissions.isSuccess &&
+              (permissions.data.canRestore || permissions.data.canPurge)
+            }
+            canManage={
+              permissions.isSuccess &&
+              (permissions.data.canUpdateFiles ||
+                permissions.data.canUpdateFolders ||
+                permissions.data.canDeleteFiles ||
+                permissions.data.canDeleteFolders ||
+                permissions.data.canRestore ||
+                permissions.data.canPurge)
+            }
+          />
+        </FilePathOperations>
       </FileUploads>
     </ResourceList>
   )
@@ -167,6 +193,8 @@ function FileWorkspaceBrowser({
   canCreateFolder,
   canUpload,
   canOverwrite,
+  canTrash,
+  canManage,
   search,
   onSearchChange,
   onOpenFile,
@@ -177,29 +205,40 @@ function FileWorkspaceBrowser({
   canCreateFolder: boolean
   canUpload: boolean
   canOverwrite: boolean
+  canTrash: boolean
+  canManage: boolean
 }) {
   const { t } = useTranslation(["files", "common"])
   const locale = useUiLocale()
   const queryClient = useQueryClient()
   const [creatingFolder, setCreatingFolder] = useState(false)
-  const { uploadTriggerId, onUpload, onOverwrite } = useFileUploadActions()
+  const { uploadTriggerId, onUpload } = useFileUploadActions()
   const creationTrigger = useRef<HTMLButtonElement | null>(null)
   const [preview, setPreview] = useState<FileResponse | null>(null)
   const previewTrigger = useRef<string>("")
   const parentId = search.parentId ?? workspace.root.id
+  const trash = search.state === "trashed"
   const breadcrumbs = useQuery(
-    getFileBreadcrumbsOptions(
-      organizationId,
-      authorizationVersion,
-      parentId,
-      locale
-    )
+    trash
+      ? getFileTrashBreadcrumbsOptions(
+          organizationId,
+          authorizationVersion,
+          search.parentId,
+          workspace.root,
+          locale
+        )
+      : getFileBreadcrumbsOptions(
+          organizationId,
+          authorizationVersion,
+          parentId,
+          locale
+        )
   )
   const entries = useQuery(
     getFileEntriesOptions(
       organizationId,
       authorizationVersion,
-      { ...search, parentId },
+      trash ? search : { ...search, parentId },
       locale
     )
   )
@@ -223,13 +262,13 @@ function FileWorkspaceBrowser({
           onClick={() =>
             onSearchChange((current) => ({
               ...current,
-              parentId: workspace.root.id,
+              parentId: trash ? undefined : workspace.root.id,
               name: undefined,
               page: 1,
             }))
           }
         >
-          {t("files:returnToRoot")}
+          {trash ? t("files:trash") : t("files:returnToRoot")}
         </Button>
       </div>
     )
@@ -244,6 +283,44 @@ function FileWorkspaceBrowser({
         : "ready"
   return (
     <>
+      <div
+        className="flex flex-wrap gap-2"
+        role="group"
+        aria-label={t("files:views")}
+      >
+        <Button
+          variant={trash ? "outline" : "secondary"}
+          aria-pressed={!trash}
+          onClick={() =>
+            onSearchChange((current) => ({
+              ...current,
+              state: "active",
+              parentId: workspace.root.id,
+              name: undefined,
+              page: 1,
+            }))
+          }
+        >
+          {t("files:activeFiles")}
+        </Button>
+        {canTrash && (
+          <Button
+            variant={trash ? "secondary" : "outline"}
+            aria-pressed={trash}
+            onClick={() =>
+              onSearchChange((current) => ({
+                ...current,
+                state: "trashed",
+                parentId: undefined,
+                name: undefined,
+                page: 1,
+              }))
+            }
+          >
+            {t("files:trash")}
+          </Button>
+        )}
+      </div>
       <FileBrowser
         contentScopeKey={contentScopeKey}
         currentFolder={currentFolder}
@@ -251,19 +328,27 @@ function FileWorkspaceBrowser({
         page={entries.data}
         search={search}
         status={status}
+        rootLabel={trash ? t("files:trash") : undefined}
+        canOpenFile={(file) => file.state === "active"}
         actions={
           <div className="flex flex-wrap gap-2">
-            {canCreateFolder && (
+            {!trash && canCreateFolder && (
               <Button
                 ref={creationTrigger}
+                disabled={
+                  status !== "ready" || currentFolder.operationId !== null
+                }
                 onClick={() => setCreatingFolder(true)}
               >
                 {t("files:createFolder")}
               </Button>
             )}
-            {canUpload && (
+            {!trash && canUpload && (
               <Button
                 id={uploadTriggerId}
+                disabled={
+                  status !== "ready" || currentFolder.operationId !== null
+                }
                 onClick={() => onUpload(currentFolder)}
               >
                 {t("files:uploadFiles")}
@@ -272,20 +357,11 @@ function FileWorkspaceBrowser({
           </div>
         }
         renderSelectionActions={
-          canOverwrite
+          canOverwrite || canManage
             ? (selected) => {
-                const file =
-                  selected.length === 1 && selected[0]?.kind === "file"
-                    ? selected[0]
-                    : null
-                return file ? (
-                  <Button
-                    id={`${uploadTriggerId}-overwrite`}
-                    variant="outline"
-                    onClick={() => onOverwrite(file)}
-                  >
-                    {t("files:overwriteFile")}
-                  </Button>
+                const entry = selected.length === 1 ? selected[0] : undefined
+                return entry ? (
+                  <FileEntryActions entry={entry} canOverwrite={canOverwrite} />
                 ) : null
               }
             : undefined
@@ -303,7 +379,8 @@ function FileWorkspaceBrowser({
         onOpenFolder={(folder) =>
           onSearchChange((current) => ({
             ...current,
-            parentId: folder.id,
+            parentId:
+              trash && folder.id === workspace.root.id ? undefined : folder.id,
             name: undefined,
             page: 1,
           }))

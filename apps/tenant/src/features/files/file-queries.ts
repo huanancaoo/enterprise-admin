@@ -18,6 +18,7 @@ import type {
   FilePage,
   FileVersions,
   FileWorkspace,
+  FolderResponse,
   SupportedLocale,
 } from "@workspace/contracts"
 
@@ -106,6 +107,43 @@ export function getFileBreadcrumbsOptions(
           requestOptions(signal, locale)
         )
       ).data,
+  })
+}
+
+export function getFileTrashBreadcrumbsOptions(
+  organizationId: string,
+  authorizationVersion: number,
+  folderId: string | undefined,
+  root: FolderResponse,
+  locale: SupportedLocale
+) {
+  return queryOptions({
+    queryKey: [
+      ...fileKeys.scope(organizationId),
+      authorizationVersion,
+      "breadcrumbs",
+      "trashed",
+      folderId ?? root.id,
+      locale,
+    ],
+    retry: false,
+    queryFn: async ({ signal }): Promise<FileBreadcrumbs> => {
+      const folders: FolderResponse[] = []
+      let id: string | null | undefined = folderId
+      // 回收站不查询有效目录面包屑，也不从 path 文本猜测目录身份。
+      while (id) {
+        const entry: FileEntryResponse = (
+          await getFileEntry(organizationId, id, requestOptions(signal, locale))
+        ).data
+        if (entry.kind !== "folder" || entry.state !== "trashed") {
+          if (!folders.length) throw new Error("Trash folder is unavailable")
+          break
+        }
+        folders.unshift(entry)
+        id = entry.parentId
+      }
+      return { items: [root, ...folders] }
+    },
   })
 }
 
