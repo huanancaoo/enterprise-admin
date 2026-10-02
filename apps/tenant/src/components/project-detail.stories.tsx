@@ -60,9 +60,6 @@ function ProjectDetailStory() {
 
 function ProjectEditStory({ refresh = false }: { refresh?: boolean }) {
   const { t } = useTranslation("projects")
-  const [targetLocale, setTargetLocale] = useState<"zh-CN" | "en-US" | "ar">(
-    "zh-CN"
-  )
   const [initial, setInitial] = useState({
     name: "原始内容",
     description: "原始描述",
@@ -81,8 +78,7 @@ function ProjectEditStory({ refresh = false }: { refresh?: boolean }) {
       <ProjectEditForm
         organizationId={organizations[0].id}
         project={project}
-        targetLocale={targetLocale}
-        onTargetLocaleChange={setTargetLocale}
+        initialLocale="zh-CN"
         attachments={{ revision: 1, items: [] }}
         initial={initial}
         onOpenChange={() => undefined}

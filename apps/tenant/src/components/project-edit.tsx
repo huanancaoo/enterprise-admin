@@ -2,7 +2,7 @@ import {
   attachmentReferences,
   useProjectAttachmentAccess,
 } from "./project-attachment-access"
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useForm } from "@tanstack/react-form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
@@ -16,7 +16,6 @@ import {
 import {
   ProjectStatusSchema,
   ProjectAttachmentSchema,
-  type ProjectAttachment,
   type ProjectAttachmentsResponse,
   SupportedLocaleSchema,
   type ProjectResponse,
@@ -49,51 +48,61 @@ type ProjectEditProps = {
   project: ProjectResponse
 }
 
-type AttachmentDraft = {
-  baseline: ProjectAttachmentsResponse
-  items: ProjectAttachment[]
-  expectedRevision: number
+type TranslationDraft = {
+  baseline: { name: string; description: string | null }
+  name: string
+  description: string
 }
 const contentLocales = ["zh-CN", "en-US", "ar"] as const
 
 export function ProjectEdit({ organizationId, project }: ProjectEditProps) {
   const { t } = useTranslation(["projects", "common", "validation"])
   const [open, setOpen] = useState(false)
-  const [openingVersion, setOpeningVersion] = useState(0)
   const uiLocale = useUiLocale()
+  const [opening, setOpening] = useState({
+    authorizationVersion: 0,
+    requestLanguage: uiLocale,
+    contentLocale: project.contentLocale,
+  })
   const access = useProjectAttachmentAccess(organizationId)
-  const [attachmentDraft, setAttachmentDraft] = useState<AttachmentDraft>()
   const attachments = useQuery({
     ...getProjectAttachmentsOptions(
       organizationId,
       project.id,
-      openingVersion,
-      uiLocale
+      opening.authorizationVersion,
+      opening.requestLanguage
     ),
-    // 初始读回是本次编辑的 CAS 基线；后续授权变化不卸载已输入的草稿。
+    // 附件读回初始化本次编辑的 CAS 基线；界面语言或授权变化不能重建编辑会话。
     enabled: open && access.active,
   })
   const close = (nextOpen: boolean) => {
     setOpen(nextOpen)
-    if (!nextOpen) setAttachmentDraft(undefined)
   }
-  const [targetLocale, setTargetLocale] = useState<SupportedLocale>(
-    project.contentLocale
-  )
   const translation = useQuery({
-    ...getProjectTranslationOptions(organizationId, project.id, targetLocale),
+    ...getProjectTranslationOptions(
+      organizationId,
+      project.id,
+      opening.contentLocale
+    ),
     enabled: open,
   })
   const missingTranslation =
     translation.error instanceof ApiClientError &&
     translation.error.body.code === "NOT_FOUND"
+  const initial =
+    translation.data?.data ??
+    (missingTranslation ? { name: "", description: null } : undefined)
 
   return (
     <>
       <Button
         disabled={!access.canUpdate && !access.canTranslate}
         onClick={() => {
-          setOpeningVersion(access.authorizationVersion)
+          setOpening({
+            authorizationVersion: access.authorizationVersion,
+            requestLanguage: uiLocale,
+            contentLocale: project.contentLocale,
+          })
           setOpen(true)
         }}
       >
@@ -113,40 +122,16 @@ export function ProjectEdit({ organizationId, project }: ProjectEditProps) {
             <LoadingState />
           </FormDialog>
         )}
-      {open &&
-        !translation.isPending &&
-        attachments.data &&
-        missingTranslation && (
-          <ProjectEditForm
-            key={targetLocale}
-            organizationId={organizationId}
-            project={project}
-            targetLocale={targetLocale}
-            onTargetLocaleChange={setTargetLocale}
-            initial={{ name: "", description: null }}
-            attachments={attachments.data}
-            attachmentDraft={attachmentDraft}
-            onAttachmentDraftChange={setAttachmentDraft}
-            onOpenChange={close}
-          />
-        )}
-      {open &&
-        !translation.isPending &&
-        attachments.data &&
-        translation.data && (
-          <ProjectEditForm
-            key={targetLocale}
-            organizationId={organizationId}
-            project={project}
-            targetLocale={targetLocale}
-            onTargetLocaleChange={setTargetLocale}
-            initial={translation.data.data}
-            attachments={attachments.data}
-            attachmentDraft={attachmentDraft}
-            onAttachmentDraftChange={setAttachmentDraft}
-            onOpenChange={close}
-          />
-        )}
+      {open && !translation.isPending && attachments.data && initial && (
+        <ProjectEditForm
+          organizationId={organizationId}
+          project={project}
+          initialLocale={opening.contentLocale}
+          initial={initial}
+          attachments={attachments.data}
+          onOpenChange={close}
+        />
+      )}
       {open &&
         !translation.isPending &&
         !attachments.isPending &&
@@ -174,21 +159,15 @@ export function ProjectEdit({ organizationId, project }: ProjectEditProps) {
 export function ProjectEditForm({
   organizationId,
   project,
-  targetLocale,
-  onTargetLocaleChange,
+  initialLocale,
   initial,
   onOpenChange,
   attachments,
-  attachmentDraft,
-  onAttachmentDraftChange,
 }: ProjectEditProps & {
-  targetLocale: SupportedLocale
-  onTargetLocaleChange: (locale: SupportedLocale) => void
+  initialLocale: SupportedLocale
   initial: { name: string; description: string | null }
   onOpenChange: (open: boolean) => void
   attachments: ProjectAttachmentsResponse
-  attachmentDraft?: AttachmentDraft
-  onAttachmentDraftChange?: (draft: AttachmentDraft) => void
 }) {
   const { t } = useTranslation(["projects", "common", "validation"])
   const uiLocale = useUiLocale()
@@ -200,25 +179,42 @@ export function ProjectEditForm({
   )
   const access = useProjectAttachmentAccess(organizationId)
   // 草稿的比较基线固定于开始编辑；后台读回不会把未修改字段变成覆盖请求。
-  const [translationBaseline] = useState(initial)
-  const [statusBaseline] = useState(project.status)
-  const [attachmentBaseline, setAttachmentBaseline] = useState(
-    attachmentDraft?.baseline ?? attachments
+  const [defaultValues] = useState(() => ({
+    targetLocale: initialLocale,
+    status: project.status,
+    name: initial.name,
+    description: initial.description ?? "",
+    attachments: attachments.items,
+    expectedRevision: attachments.revision,
+  }))
+  const [translationBaseline, setTranslationBaseline] = useState(initial)
+  const [loadedLocale, setLoadedLocale] = useState(initialLocale)
+  const [translationLoad, setTranslationLoad] = useState<
+    { status: "ready" | "loading" } | { status: "error"; message: string }
+  >({ status: "ready" })
+  const translationReady = translationLoad.status === "ready"
+
+  // 仅文字按目标语言分开；状态、附件和冲突修订由同一个编辑表单持有。
+  const translationDrafts = useRef(
+    new Map<SupportedLocale, TranslationDraft>([
+      [
+        initialLocale,
+        {
+          baseline: initial,
+          name: initial.name,
+          description: initial.description ?? "",
+        },
+      ],
+    ])
   )
+  const statusBaseline = defaultValues.status
+  const [attachmentBaseline, setAttachmentBaseline] = useState(attachments)
   const [failure, setFailure] = useState<string>()
   const [conflict, setConflict] = useState(false)
   const [refreshingRevision, setRefreshingRevision] = useState(false)
   const schema = editSchema(translationBaseline, t("validation:projectName"))
   const form = useForm({
-    defaultValues: {
-      targetLocale,
-      status: statusBaseline,
-      name: translationBaseline.name,
-      description: translationBaseline.description ?? "",
-      attachments: attachmentDraft?.items ?? attachments.items,
-      expectedRevision:
-        attachmentDraft?.expectedRevision ?? attachments.revision,
-    },
+    defaultValues,
     validators: { onSubmit: schema },
     onSubmit: async ({ value }) => {
       const description = value.description === "" ? null : value.description
@@ -278,6 +274,55 @@ export function ProjectEditForm({
     },
   })
 
+  const changeTargetLocale = async (locale: SupportedLocale) => {
+    translationDrafts.current.set(loadedLocale, {
+      baseline: translationBaseline,
+      name: form.getFieldValue("name"),
+      description: form.getFieldValue("description"),
+    })
+    form.setFieldValue("targetLocale", locale)
+    setTranslationLoad({ status: "loading" })
+    try {
+      let draft = translationDrafts.current.get(locale)
+      if (!draft) {
+        let baseline: TranslationDraft["baseline"]
+        try {
+          const response = await queryClient.query(
+            getProjectTranslationOptions(organizationId, project.id, locale)
+          )
+          baseline = response.data
+        } catch (error) {
+          // 缺少该语言的译文允许从空内容新建，不能回填另一语言的文本。
+          if (
+            error instanceof ApiClientError &&
+            error.body.code === "NOT_FOUND"
+          )
+            baseline = { name: "", description: null }
+          else throw error
+        }
+        draft = {
+          baseline,
+          name: baseline.name,
+          description: baseline.description ?? "",
+        }
+        translationDrafts.current.set(locale, draft)
+      }
+      setTranslationBaseline(draft.baseline)
+      form.setFieldValue("name", draft.name)
+      form.setFieldValue("description", draft.description)
+      setLoadedLocale(locale)
+      setTranslationLoad({ status: "ready" })
+    } catch (error) {
+      setTranslationLoad({
+        status: "error",
+        message:
+          error instanceof ApiClientError
+            ? error.body.message
+            : t("common:operationFailed"),
+      })
+    }
+  }
+
   const refreshRevision = async () => {
     setRefreshingRevision(true)
     try {
@@ -314,10 +359,20 @@ export function ProjectEditForm({
           title={t("projects:edit")}
           description={t("projects:editDescription")}
           onSubmit={() => void form.handleSubmit()}
-          pending={pending || refreshingRevision}
-          error={failure}
+          pending={
+            pending ||
+            refreshingRevision ||
+            translationLoad.status === "loading"
+          }
+          error={
+            translationLoad.status === "error"
+              ? translationLoad.message
+              : failure
+          }
           submitDisabled={
-            conflict || (!access.canUpdate && !access.canTranslate)
+            !translationReady ||
+            conflict ||
+            (!access.canUpdate && !access.canTranslate)
           }
           submitLabel={t("projects:save")}
         >
@@ -342,14 +397,7 @@ export function ProjectEditForm({
                       )}
                       onValueChange={(value) => {
                         const locale = SupportedLocaleSchema.parse(value)
-                        field.handleChange(locale)
-                        onAttachmentDraftChange?.({
-                          baseline: attachmentBaseline,
-                          items: form.getFieldValue("attachments"),
-                          expectedRevision:
-                            form.getFieldValue("expectedRevision"),
-                        })
-                        onTargetLocaleChange(locale)
+                        void changeTargetLocale(locale)
                       }}
                     >
                       <SelectTrigger
@@ -417,46 +465,58 @@ export function ProjectEditForm({
                 )
               }}
             </form.Field>
-            <form.Field name="name">
-              {(field) => {
-                const invalid =
-                  field.state.meta.isTouched && !field.state.meta.isValid
-                return (
-                  <Field data-invalid={invalid}>
-                    <FieldLabel htmlFor="project-edit-name">
-                      {t("projects:name")}
-                    </FieldLabel>
-                    <Input
-                      id="project-edit-name"
-                      name={field.name}
-                      value={field.state.value}
-                      onChange={(event) =>
-                        field.handleChange(event.target.value)
-                      }
-                      onBlur={field.handleBlur}
-                      aria-invalid={invalid}
-                    />
-                    {invalid && <FieldError errors={field.state.meta.errors} />}
-                  </Field>
-                )
-              }}
-            </form.Field>
-            <form.Field name="description">
-              {(field) => (
-                <Field>
-                  <FieldLabel htmlFor="project-edit-description">
-                    {t("projects:description")}
-                  </FieldLabel>
-                  <Textarea
-                    id="project-edit-description"
-                    name={field.name}
-                    value={field.state.value}
-                    onChange={(event) => field.handleChange(event.target.value)}
-                    onBlur={field.handleBlur}
-                  />
-                </Field>
-              )}
-            </form.Field>
+            {translationReady ? (
+              <>
+                <form.Field name="name">
+                  {(field) => {
+                    const invalid =
+                      field.state.meta.isTouched && !field.state.meta.isValid
+                    return (
+                      <Field data-invalid={invalid}>
+                        <FieldLabel htmlFor="project-edit-name">
+                          {t("projects:name")}
+                        </FieldLabel>
+                        <Input
+                          id="project-edit-name"
+                          name={field.name}
+                          value={field.state.value}
+                          onChange={(event) =>
+                            field.handleChange(event.target.value)
+                          }
+                          onBlur={field.handleBlur}
+                          aria-invalid={invalid}
+                        />
+                        {invalid && (
+                          <FieldError errors={field.state.meta.errors} />
+                        )}
+                      </Field>
+                    )
+                  }}
+                </form.Field>
+                <form.Field name="description">
+                  {(field) => (
+                    <Field>
+                      <FieldLabel htmlFor="project-edit-description">
+                        {t("projects:description")}
+                      </FieldLabel>
+                      <Textarea
+                        id="project-edit-description"
+                        name={field.name}
+                        value={field.state.value}
+                        onChange={(event) =>
+                          field.handleChange(event.target.value)
+                        }
+                        onBlur={field.handleBlur}
+                      />
+                    </Field>
+                  )}
+                </form.Field>
+              </>
+            ) : translationLoad.status === "error" ? (
+              <p role="status">{t("projects:translationLoadFailed")}</p>
+            ) : (
+              <LoadingState />
+            )}
             <form.Field name="attachments" mode="array">
               {(field) => {
                 const invalid =
