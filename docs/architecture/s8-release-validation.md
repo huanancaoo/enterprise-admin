@@ -1,6 +1,6 @@
 # S8 跨功能与发布验收记录
 
-日期：2026-10-02。对应 [#24](https://github.com/huanancaoo/enterprise-admin/issues/24)。本记录确认迁移安全、固定规模 HTTP 性能及下文列出的组合浏览器、授权补充和完整本机检查。[T01–T28 矩阵](s8-acceptance-matrix.md) 逐项列出证据及边界。安全回退、ADR/CLI 一致性和关键 Feature 展示覆盖仍未完成，#24 与父任务 #8 继续保持开放。
+日期：2026-10-02。对应 [#24](https://github.com/huanancaoo/enterprise-admin/issues/24)。本记录确认迁移安全、固定规模 HTTP 性能及下文列出的组合浏览器、授权补充、Feature 展示覆盖和完整本机检查。[T01–T28 矩阵](s8-acceptance-matrix.md) 逐项列出证据及边界。安全回退和 ADR/CLI 一致性仍未完成，#24 与父任务 #8 继续保持开放。
 
 ## 迁移安全
 
@@ -228,9 +228,27 @@ Storybook 生产构建及原生 Chromium 检查通过，日志为 `/private/tmp/
 
 最终源码执行 `pnpm verify`，进程退出码 0：API 155 项（Nest HTTP 15、真实业务 HTTP 140）、浏览器 11 文件/78 项、Storybook 21 文件/341 项、数据库 2 文件/24 项、性能 2 项及单元 74 项全部通过。peer、lint/工程边界、类型、i18n、38 页文档内容、数据库 Schema、生产构建及 OpenAPI/Orval 可重现检查全部通过。日志为 `/private/tmp/enterprise-admin-s8-invitations-verify-final.log`。检查前后本批 9 个源码文件的 SHA-256 一致，清单为 `/private/tmp/enterprise-admin-s8-invitations-source.sha256`；最终验收文档另执行定向格式和内容检查。
 
+## 角色 Feature 状态与真实浏览器补充
+
+新增 47 个正式 `RolesRoute` 场景，通过独立内存路由与 MSW 驱动原生角色客户端。覆盖目录及权限的默认、加载、空态、错误、401/403、内置角色只读权限和数量、空权限、三语/RTL、合法 48 字符标识、慢请求、create/update/delete 独立委派、创建校验、401/403/409/429/503、提交和读回锁定、失败草稿、手动重试、陈旧版本复核、引用阻塞，以及键盘和焦点恢复。未获委派的既有权限可以移除，移除后不能重新授予；关闭并重新复核陈旧角色时使用最新授权版本和引用数量。最终聚焦检查 1 文件/47 项通过，退出码 0，日志为 `/private/tmp/enterprise-admin-s8-roles-stories-fixture-final.log`。
+
+提交前审查发现删除陈旧角色的 mock 在重新复核后，仍对有 2 个成员和 1 个有效邀请引用的角色返回成功。新增阻塞断言实际捕获该 fixture 错误，1 项失败、46 项跳过，日志为 `/private/tmp/enterprise-admin-s8-roles-delete-stale-fixture-red.log`。mock 现在先核对预期授权版本，再读取目标角色的引用事实返回 `ROLE_IN_USE`；重新复核不会解除真实删除约束。修正只涉及新增 fixture 和 Story 断言，未改变服务端策略。
+
+最小 Story 检查实际捕获内置角色缺少权限展示和创建失败的未处理 Promise；日志为 `/private/tmp/enterprise-admin-s8-roles-minimal-red.log`，1 项失败、1 项通过、45 项跳过，并记录 1 个未处理异常。创建表单现在由 mutation 保存服务端错误，失败提交正常结束并保留草稿。内置角色权限声明移到 `@workspace/permissions`，认证配置与页面共用同一来源，保留原有授予；页面显示当前 owner/admin/member 的 24/23/3 项权限。新增三语各 11 个文案键，数量使用 `permissionCount` 插值。
+
+提交中的非原生 Checkbox 原先仅处于 disabled fieldset 内，实际浏览器 Space 仍会改变草稿。原生观测记录从 checked=true 变为 false，日志为 `/private/tmp/enterprise-admin-s8-roles-checkbox-native-observed.log`；虚拟 Story 键盘未复现这一变化，因此不作为该缺陷的证明。更新弹层现在将 mutation pending 显式传给 Checkbox，锁定持续到写入和目录读回完成。原先对 span 使用原生 `toBeDisabled()` 的 Story 断言改为检查其 ARIA 禁用状态，并保留交互断言。
+
+真实旧构建分别复现重复角色创建的 pageerror 和更新期间 Space 改变权限，两次聚焦检查均为 1 项失败、5 项跳过，日志分别为 `/private/tmp/enterprise-admin-s8-roles-create-e2e-old-build.log` 和 `/private/tmp/enterprise-admin-s8-roles-keyboard-e2e-old-build.log`。后者先执行真实服务端更新并确认 HTTP 200，仅暂缓原响应。新 API/双 SPA 构建后，`tests/e2e/custom-roles.test.mjs` 六项全部通过，退出码 0，日志为 `/private/tmp/enterprise-admin-s8-roles-e2e-final.log`。重复创建保留草稿且无 pageerror，手动改正后真实写入成功，数据库核对两个角色及各自 project:read 权限；提交中的原生 Space 保持权限，Escape 保持弹层。
+
+Storybook 构建产物另完成六项原生浏览器检查：键盘创建/更新/删除及焦点恢复、RTL 编辑弹层、合法长标识、390 像素实际窄视口、深色删除弹层与悬停，以及 pending 时原生 Space 与可访问性禁用状态。页面宽度和 scrollWidth 在 1280/390 视口分别相等；浅/深主题实际悬停动画结束后与目标弹层的 axe 均无违规，六项均无 pageerror。日志为 `/private/tmp/enterprise-admin-s8-roles-render-first.log`；截图为 `/private/tmp/enterprise-admin-s8-roles-{native-keyboard,rtl,long-text,long-text-narrow,dark,pending-keyboard}.png`，六张已逐一检查。深色场景通过 class 设置主题，不证明用户偏好的持久化；这些 MSW 渲染场景不替代真实身份、授权、数据库或 SMTP 验收。
+
+## 角色批次完整检查
+
+最终源码执行 `pnpm verify`，进程退出码 0：API 155 项（Nest HTTP 15、真实业务 HTTP 140）、浏览器 11 文件/78 项、Storybook 22 文件/388 项、数据库 2 文件/24 项、性能 2 项及单元 74 项全部通过。peer、lint/工程边界、类型、i18n、38 页文档内容、数据库 Schema、生产构建及 OpenAPI/Orval 可重现检查全部通过。日志为 `/private/tmp/enterprise-admin-s8-roles-verify-final.log`。检查前后本批 15 个源码文件的 SHA-256 一致，清单为 `/private/tmp/enterprise-admin-s8-roles-source.sha256`；最终验收文档另执行定向格式和内容检查。
+
 ## 尚未完成的验收
 
-- 平台组织、用户目录、审计、设置、租户审计、个人/组织语言设置、成员和邀请管理已补足上述 Feature Stories；Roles 仍需逐项补足，不能用 API 或公共 Stories 替代。
+- 平台组织、用户目录、审计、设置、租户审计、个人/组织语言设置、成员、邀请和角色管理已补足上述 Feature Stories；各批次证据仍只覆盖明确列出的状态与流程。
 - 安全回退入口和 ADR-0002/当前 CLI 的语义冲突等待用户确认；确认后完成实现、文档与对应发布验收。
 
 本机验证与远端 CI、生产部署分别记账；本记录不声称 GitHub Actions 或生产发布已通过。

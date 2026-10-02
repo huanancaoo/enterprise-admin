@@ -5,12 +5,7 @@ import {
 } from "better-auth"
 import { lastLoginMethod, organization, twoFactor } from "better-auth/plugins"
 import { createAccessControl } from "better-auth/plugins/access"
-import {
-  defaultStatements,
-  ownerAc,
-  adminAc,
-  memberAc,
-} from "better-auth/plugins/organization/access"
+import { defaultStatements } from "better-auth/plugins/organization/access"
 import {
   APIError,
   createAuthMiddleware,
@@ -21,9 +16,9 @@ import { createHmac, randomUUID } from "node:crypto"
 import type { Pool } from "pg"
 import {
   builtInOrganizationRoleKeys,
+  builtInOrganizationRolePermissions,
   delegableRolePermissions,
   permissionStatements,
-  projectActions,
 } from "@workspace/permissions"
 import {
   isOrganizationMember,
@@ -323,25 +318,9 @@ export function createAuth(
       },
       ac,
       roles: {
-        owner: ac.newRole({
-          ...ownerAc.statements,
-          member: [...ownerAc.statements.member, "read"],
-          project: [...projectActions],
-          tenantSettings: ["read", "update"],
-          audit: ["read"],
-        }),
-        admin: ac.newRole({
-          ...adminAc.statements,
-          member: [...adminAc.statements.member, "read"],
-          project: [...projectActions],
-          tenantSettings: ["read", "update"],
-          audit: ["read"],
-        }),
-        member: ac.newRole({
-          ...memberAc.statements,
-          member: ["read"],
-          project: ["read"],
-        }),
+        owner: ac.newRole(builtInOrganizationRolePermissions.owner),
+        admin: ac.newRole(builtInOrganizationRolePermissions.admin),
+        member: ac.newRole(builtInOrganizationRolePermissions.member),
       },
       dynamicAccessControl: { enabled: true },
       invitationExpiresIn: 60 * 60 * 24 * 7,

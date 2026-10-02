@@ -43,6 +43,8 @@ export {
   longInvitationEmail,
 } from "./handlers/invitations"
 export type { InvitationsScenario } from "./handlers/invitations"
+export { createRolesScenario, longRoleKey } from "./handlers/roles"
+export type { RolesScenario } from "./handlers/roles"
 export { createProjectHandler } from "./handlers/project-create"
 export {
   createProjectDetailHandler,

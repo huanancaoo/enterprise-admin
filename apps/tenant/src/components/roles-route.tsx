@@ -19,7 +19,10 @@ import {
   FieldLabel,
 } from "@workspace/ui/components/field"
 import { Input } from "@workspace/ui/components/input"
-import { builtInOrganizationRoleKeys } from "@workspace/permissions"
+import {
+  builtInOrganizationRoleKeys,
+  builtInOrganizationRolePermissions,
+} from "@workspace/permissions"
 import { authClient } from "@/lib/auth-client"
 import { RoleActionDialog, type RoleAction } from "./role-action-dialog"
 import {
@@ -40,12 +43,22 @@ const permissionLabelKeys = {
   "project:export": "rolePermission_project_export",
   "project:translate": "rolePermission_project_translate",
   "member:read": "rolePermission_member_read",
+  "member:create": "rolePermission_member_create",
   "member:update": "rolePermission_member_update",
   "member:delete": "rolePermission_member_delete",
   "invitation:create": "rolePermission_invitation_create",
   "invitation:cancel": "rolePermission_invitation_cancel",
   "ac:read": "rolePermission_ac_read",
+  "ac:create": "rolePermission_ac_create",
+  "ac:update": "rolePermission_ac_update",
+  "ac:delete": "rolePermission_ac_delete",
+  "organization:update": "rolePermission_organization_update",
+  "organization:delete": "rolePermission_organization_delete",
+  "team:create": "rolePermission_team_create",
+  "team:update": "rolePermission_team_update",
+  "team:delete": "rolePermission_team_delete",
   "tenantSettings:read": "rolePermission_tenantSettings_read",
+  "tenantSettings:update": "rolePermission_tenantSettings_update",
   "audit:read": "rolePermission_audit_read",
 } as const
 
@@ -79,18 +92,25 @@ function RolePermissions({
   permission,
   t,
 }: {
-  permission: Record<string, string[]>
+  permission: Record<string, readonly string[]>
   t: RoleTranslation
 }) {
   const items = Object.entries(permission).flatMap(([resource, actions]) =>
     actions.map((action) => permissionLabel(resource, action, t))
   )
   return (
-    <span className="text-sm text-muted-foreground">
-      {items.length > 0
-        ? items.join("、")
-        : t("organization:roleNoPermissions")}
-    </span>
+    <div className="space-y-1 text-sm text-muted-foreground">
+      <p>
+        {t("organization:rolePermissionCount", {
+          permissionCount: items.length,
+        })}
+      </p>
+      <p>
+        {items.length > 0
+          ? items.join("、")
+          : t("organization:roleNoPermissions")}
+      </p>
+    </div>
   )
 }
 
@@ -150,10 +170,15 @@ export function RolesRoute() {
         const action = selected.slice(separator + 1)
         permission[resource] = [...(permission[resource] ?? []), action]
       }
-      await createRole.mutateAsync({
-        role: value.role,
-        permission,
-      })
+      try {
+        await createRole.mutateAsync({
+          role: value.role,
+          permission,
+        })
+      } catch {
+        // mutation 已保存服务端错误；失败提交结束后保留角色名与权限草稿。
+        return
+      }
       formApi.reset()
       setSelectedPermissions([])
     },
@@ -181,16 +206,19 @@ export function RolesRoute() {
         </h2>
         <ul className="divide-y rounded-md border">
           {builtInOrganizationRoleKeys.map((role) => (
-            <li
-              key={role}
-              className="flex flex-wrap items-center justify-between gap-3 p-4"
-            >
-              <span className="font-medium">
-                {t(`organization:role_${role}`)}
-              </span>
-              <Badge variant="secondary">
-                {t("organization:roleReadOnly")}
-              </Badge>
+            <li key={role} className="space-y-2 p-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="font-medium">
+                  {t(`organization:role_${role}`)}
+                </span>
+                <Badge variant="secondary">
+                  {t("organization:roleReadOnly")}
+                </Badge>
+              </div>
+              <RolePermissions
+                permission={builtInOrganizationRolePermissions[role]}
+                t={t}
+              />
             </li>
           ))}
         </ul>

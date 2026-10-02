@@ -191,11 +191,14 @@ export function RoleActionDialog({
                         key={key}
                         className="flex items-center gap-2 text-sm"
                       >
+                        {/* 非原生复选框的键盘处理不会继承 fieldset 的 disabled。 */}
                         <Checkbox
                           checked={index >= 0}
                           aria-invalid={invalid}
                           onBlur={field.handleBlur}
-                          disabled={!grantable && index < 0}
+                          disabled={
+                            mutation.isPending || (!grantable && index < 0)
+                          }
                           onCheckedChange={(checked) => {
                             if (checked === true) field.pushValue(key)
                             else field.removeValue(index)

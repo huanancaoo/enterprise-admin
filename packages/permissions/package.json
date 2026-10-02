@@ -15,5 +15,8 @@
     "@workspace/typescript-config": "workspace:*",
     "eslint": "10.10.0",
     "typescript": "6.0.3"
+  },
+  "dependencies": {
+    "better-auth": "1.7.5"
   }
 }

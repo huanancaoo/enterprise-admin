@@ -97,6 +97,15 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
     await expectUI(
       page.getByRole("heading", { name: "角色", exact: true })
     ).toBeVisible()
+    const builtIn = page.getByRole("region", { name: "内置角色", exact: true })
+    const builtInMember = builtIn
+      .getByRole("listitem")
+      .filter({ has: page.getByText("成员", { exact: true }) })
+    await expectUI(builtInMember).toContainText("项目：查看")
+    await expectUI(builtInMember).toContainText("成员：查看目录")
+    await expectUI(builtInMember).toContainText("权限数：3")
+    await expectUI(builtInMember).not.toContainText("项目：编辑")
+    await expectUI(builtIn.getByRole("button")).toHaveCount(0)
     await page.getByLabel("角色标识", { exact: true }).fill("project-reader")
     await page
       .getByRole("checkbox", { name: "项目：查看", exact: true })
@@ -318,7 +327,42 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
     await dialog
       .getByRole("checkbox", { name: "项目：编辑", exact: true })
       .uncheck()
-    await dialog.getByRole("button", { name: "确认更新", exact: true }).click()
+    const updateSent = Promise.withResolvers()
+    const releaseUpdate = Promise.withResolvers()
+    await page.route(
+      "**/api/auth/organization/update-role",
+      async (route) => {
+        // 保留实际服务端更新，只暂缓原响应来验证提交中的原生键盘锁定。
+        const response = await route.fetch()
+        updateSent.resolve(response.status())
+        await releaseUpdate.promise
+        await route.fulfill({ response })
+      },
+      { times: 1 }
+    )
+    try {
+      await dialog
+        .getByRole("button", { name: "确认更新", exact: true })
+        .click()
+      expect(await updateSent.promise).toBe(200)
+      await expectUI(dialog.locator("form")).toHaveAttribute(
+        "aria-busy",
+        "true"
+      )
+      const view = dialog.getByRole("checkbox", {
+        name: "项目：查看",
+        exact: true,
+      })
+      await view.focus()
+      await page.keyboard.press("Space")
+      await expectUI(view).toBeChecked()
+      await expectUI(view).toBeDisabled()
+      await page.keyboard.press("Escape")
+      await expectUI(dialog).toBeVisible()
+    } finally {
+      releaseUpdate.resolve()
+      await page.unrouteAll({ behavior: "wait" })
+    }
     await expectUI(dialog).toHaveCount(0)
     await expectUI(row).not.toContainText("项目：编辑")
     await row.getByRole("button", { name: "删除角色", exact: true }).click()
@@ -475,13 +519,15 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
   })
 
   it("在阿语 RTL 下支持键盘创建、校验错误和重复角色错误", async () => {
+    const pageErrors = []
+    page.on("pageerror", (error) => pageErrors.push(error.message))
     const owner = await signUpVerified(
       environment.baseURL,
       environment.tenantOrigin,
       environment.migrator,
       { name: "RTL角色所有者" }
     )
-    await environment.runtime.auth.api.createOrganization({
+    const organization = await environment.runtime.auth.api.createOrganization({
       headers: owner.headers,
       body: {
         name: "RTL角色验收组织",
@@ -582,5 +628,35 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
       "مفتاح الدور مستخدم بالفعل في هذه المؤسسة."
     )
     await expectUI(roleKey).toHaveValue("-keyboard-reader")
+    await expectUI(createButton).toBeEnabled()
+    expect(pageErrors).toEqual([])
+    await roleKey.fill("-corrected-reader")
+    const corrected = page.waitForResponse(
+      (response) =>
+        response.url().endsWith("/organization/create-role") &&
+        response.request().method() === "POST"
+    )
+    await createButton.focus()
+    await page.keyboard.press("Enter")
+    const correction = await corrected
+    expect(correction.status()).toBe(200)
+    await expectUI(
+      page.getByText("-corrected-reader", { exact: true })
+    ).toBeVisible()
+    await expectUI(roleKey).toHaveValue("")
+    const persisted = await environment.migrator.query(
+      "SELECT role, permission FROM organization_role WHERE organization_id = $1 ORDER BY role",
+      [organization.id]
+    )
+    expect(
+      persisted.rows.map((row) => ({
+        role: row.role,
+        permission: JSON.parse(row.permission),
+      }))
+    ).toEqual([
+      { role: "-corrected-reader", permission: { project: ["read"] } },
+      { role: "-keyboard-reader", permission: { project: ["read"] } },
+    ])
+    expect(pageErrors).toEqual([])
   })
 })
