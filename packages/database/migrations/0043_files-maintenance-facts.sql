@@ -1,0 +1,6 @@
+ALTER TABLE "file_operation_objects" ALTER COLUMN "entry_id" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "file_operations" ALTER COLUMN "actor_id" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "file_operations" ADD COLUMN "actor_type" text DEFAULT 'user' NOT NULL;--> statement-breakpoint
+ALTER TABLE "file_operations" ADD COLUMN "maintenance_kind" text;--> statement-breakpoint
+ALTER TABLE "file_operation_objects" ADD CONSTRAINT "file_operation_objects_entry_check" CHECK ("file_operation_objects"."entry_id" IS NOT NULL OR ("file_operation_objects"."directory" AND "file_operation_objects"."version_id" IS NULL));--> statement-breakpoint
+ALTER TABLE "file_operations" ADD CONSTRAINT "file_operations_actor_check" CHECK (("file_operations"."actor_type" = 'user' AND "file_operations"."actor_id" IS NOT NULL AND "file_operations"."maintenance_kind" IS NULL) OR ("file_operations"."actor_type" = 'system' AND "file_operations"."actor_id" IS NULL AND "file_operations"."maintenance_kind" IS NOT NULL AND "file_operations"."maintenance_kind" IN ('history_purge', 'trash_purge') AND "file_operations"."action" = 'purge'));

@@ -72,7 +72,13 @@ export const fileOperations = pgTable(
     organizationId: uuid("organization_id")
       .notNull()
       .references(() => organization.id),
-    actorId: uuid("actor_id").notNull(),
+    actorId: uuid("actor_id"),
+    actorType: text("actor_type", { enum: ["user", "system"] })
+      .notNull()
+      .default("user"),
+    maintenanceKind: text("maintenance_kind", {
+      enum: ["history_purge", "trash_purge"],
+    }),
     action: text("action", {
       enum: [
         "upload",
@@ -129,6 +135,10 @@ export const fileOperations = pgTable(
     check(
       "file_operations_action_check",
       sql`${table.action} IN ('upload', 'overwrite', 'create-folder', 'rename', 'move', 'trash', 'restore', 'purge')`
+    ),
+    check(
+      "file_operations_actor_check",
+      sql`(${table.actorType} = 'user' AND ${table.actorId} IS NOT NULL AND ${table.maintenanceKind} IS NULL) OR (${table.actorType} = 'system' AND ${table.actorId} IS NULL AND ${table.maintenanceKind} IS NOT NULL AND ${table.maintenanceKind} IN ('history_purge', 'trash_purge') AND ${table.action} = 'purge')`
     ),
     check(
       "file_operations_hash_check",
@@ -284,7 +294,8 @@ export const fileOperationObjects = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     organizationId: uuid("organization_id").notNull(),
     operationId: uuid("operation_id").notNull(),
-    entryId: uuid("entry_id").notNull(),
+    // 内部物理目录不是 UI 项，不得伪造 file_entries 身份。
+    entryId: uuid("entry_id"),
     versionId: uuid("version_id"),
     directory: boolean("directory").notNull(),
     sourceArea: text("source_area").$type<FileStorageArea>(),
@@ -312,6 +323,10 @@ export const fileOperationObjects = pgTable(
     index("file_operation_objects_operation_idx").on(
       table.organizationId,
       table.operationId
+    ),
+    check(
+      "file_operation_objects_entry_check",
+      sql`${table.entryId} IS NOT NULL OR (${table.directory} AND ${table.versionId} IS NULL)`
     ),
     check(
       "file_operation_objects_bytes_check",

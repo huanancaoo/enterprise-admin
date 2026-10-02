@@ -2413,3 +2413,1305 @@ test("个人媒体和头像成功审计故障回滚发布/引用/24h期限及收
   )
   await avatar(actor, uploaded.media.id, null)
 })
+
+type MaintenanceJob = {
+  organizationId: string
+  operationId: string
+  mode: string
+  operation: {
+    phase: string
+    committed_at: string | null
+    completed_at: string | null
+    lease_id: string
+    lease_expires_at: string | null
+    actor_type: string
+    result: Record<string, unknown> | null
+  }
+  objects: {
+    id: string
+    entry_id: string | null
+    version_id: string | null
+    directory: boolean
+    source_area: string | null
+    source_path: string[] | null
+    target_area: string | null
+    target_path: string[] | null
+    source_deleted_at: string | null
+    source_restored_at: string | null
+    target_deleted_at: string | null
+  }[]
+}
+async function maintenanceClaim(
+  organizationId: string,
+  kind: string,
+  id: string,
+  leaseId = randomUUID()
+) {
+  const result = (
+    await runtime.query<{ result: MaintenanceJob | null }>(
+      "SELECT public.claim_file_maintenance($1,$2,$3,$4,$5) AS result",
+      [organizationId, kind, id, leaseId, randomUUID()]
+    )
+  ).rows[0]!.result
+  return { job: result, leaseId }
+}
+async function maintenanceFinish(job: MaintenanceJob, leaseId: string) {
+  return (
+    await runtime.query<{ result: MaintenanceJob }>(
+      "SELECT public.finish_file_maintenance($1,$2,$3,$4) AS result",
+      [job.organizationId, job.operationId, leaseId, randomUUID()]
+    )
+  ).rows[0]!.result
+}
+async function maintenanceFact(
+  job: MaintenanceJob,
+  leaseId: string,
+  objectId: string,
+  fact: string,
+  bytes: number | null = null,
+  hash: string | null = null
+) {
+  await runtime.query(
+    "SELECT public.record_file_maintenance_object($1,$2,$3,$4,$5,$6,$7)",
+    [job.organizationId, job.operationId, leaseId, objectId, fact, bytes, hash]
+  )
+}
+async function expiredHistory(
+  context: TenantContext,
+  file: FileEntry,
+  body = "history"
+) {
+  const versionId = randomUUID()
+  // 固定过去的保留事实，实际清理由同一生产 SQL 通道执行，不等待 90 天。
+  await owner.query(
+    `INSERT INTO file_versions(id,organization_id,file_id,bytes,sha256,content_type,storage_area,storage_path,created_by,retired_at,expires_at)
+    VALUES($1,$2,$3,$4,$5,'text/plain','history',$6,$7,now()-interval '91 days',now()-interval '1 day')`,
+    [
+      versionId,
+      context.organizationId,
+      file.id,
+      Buffer.byteLength(body),
+      sha(body),
+      [file.id, versionId],
+      context.userId,
+    ]
+  )
+  await owner.query(
+    "UPDATE file_storage_usage SET used_bytes=used_bytes+$2 WHERE organization_id=$1",
+    [context.organizationId, Buffer.byteLength(body)]
+  )
+  return versionId
+}
+async function personalMaintenanceClaim(
+  userId: string,
+  kind: string,
+  id: string,
+  leaseId = randomUUID()
+) {
+  return {
+    job: (
+      await runtime.query(
+        "SELECT public.claim_personal_media_maintenance($1,$2,$3,$4) AS result",
+        [userId, kind, id, leaseId]
+      )
+    ).rows[0]!.result,
+    leaseId,
+  }
+}
+async function personalMaintenanceFinish(
+  userId: string,
+  kind: string,
+  id: string,
+  leaseId: string
+) {
+  return (
+    await runtime.query(
+      "SELECT public.finish_personal_media_maintenance($1,$2,$3,$4,$5) AS result",
+      [userId, kind, id, leaseId, randomUUID()]
+    )
+  ).rows[0]!.result
+}
+
+test("用户组织操作严格续租不接管过期 token，系统 actor 不得缺失维护类型", async () => {
+  const a = await workspace(),
+    op = await run(a.context, (tx) => begin(tx, "upload")),
+    leaseId = randomUUID(),
+    now = new Date()
+  await run(a.context, (tx) =>
+    fileRepository.claimOperation(tx, op.id, leaseId, now, 1000)
+  )
+  const renewed = await run(a.context, (tx) =>
+    fileRepository.renewOperation(
+      tx,
+      op.id,
+      leaseId,
+      new Date(now.getTime() + 500),
+      1000
+    )
+  )
+  assert.equal(renewed.leaseExpiresAt!.getTime(), now.getTime() + 1500)
+  await assert.rejects(
+    run(a.context, (tx) =>
+      fileRepository.renewOperation(tx, op.id, randomUUID(), now)
+    ),
+    errorCode("FILE_OPERATION_LEASE_CONFLICT")
+  )
+  await assert.rejects(
+    run(a.context, (tx) =>
+      fileRepository.renewOperation(
+        tx,
+        op.id,
+        leaseId,
+        new Date(now.getTime() + 1501)
+      )
+    ),
+    errorCode("FILE_OPERATION_LEASE_CONFLICT")
+  )
+  await assert.rejects(
+    owner.query(
+      "UPDATE file_operations SET actor_type='system',actor_id=NULL WHERE organization_id=$1 AND id=$2",
+      [a.context.organizationId, op.id]
+    ),
+    sqlCode("23514")
+  )
+})
+
+test("个人上传严格续租复核 Session，并拒绝过期和其他 token", async () => {
+  const actor = await identityActor(),
+    operationId = randomUUID(),
+    leaseId = randomUUID()
+  await runtime.query(
+    "SELECT public.begin_personal_media_upload($1,$2,$3,$4,4,$5)",
+    [actor.actorId, actor.sessionId, operationId, sha("renew"), randomUUID()]
+  )
+  await runtime.query(
+    "SELECT public.claim_personal_media_upload($1,$2,$3,$4)",
+    [actor.actorId, actor.sessionId, operationId, leaseId]
+  )
+  await assert.rejects(
+    runtime.query("SELECT public.renew_personal_media_upload($1,$2,$3,$4)", [
+      actor.actorId,
+      actor.sessionId,
+      operationId,
+      randomUUID(),
+    ]),
+    databaseMessage("FILE_OPERATION_LEASE_CONFLICT")
+  )
+  const renewed = (
+    await runtime.query(
+      "SELECT public.renew_personal_media_upload($1,$2,$3,$4) AS result",
+      [actor.actorId, actor.sessionId, operationId, leaseId]
+    )
+  ).rows[0]!.result
+  assert.equal(renewed.lease_id, leaseId)
+  assert.equal(Date.parse(renewed.lease_expires_at) > Date.now(), true)
+  await owner.query(
+    "UPDATE personal_media_operations SET lease_expires_at=now()-interval '1 second' WHERE user_id=$1 AND id=$2",
+    [actor.actorId, operationId]
+  )
+  await assert.rejects(
+    runtime.query("SELECT public.renew_personal_media_upload($1,$2,$3,$4)", [
+      actor.actorId,
+      actor.sessionId,
+      operationId,
+      leaseId,
+    ]),
+    databaseMessage("FILE_OPERATION_LEASE_CONFLICT")
+  )
+  await runtime.query(
+    "SELECT public.claim_personal_media_upload($1,$2,$3,$4)",
+    [actor.actorId, actor.sessionId, operationId, leaseId]
+  )
+  await owner.query("DELETE FROM session WHERE id=$1", [actor.sessionId])
+  await assert.rejects(
+    runtime.query("SELECT public.renew_personal_media_upload($1,$2,$3,$4)", [
+      actor.actorId,
+      actor.sessionId,
+      operationId,
+      leaseId,
+    ]),
+    databaseMessage("UNAUTHENTICATED")
+  )
+})
+
+test("个人内容共享锁等待后重新校验 Session，等待期间撤销不能返回 locator", async () => {
+  const actor = await identityActor(),
+    uploaded = await personalUpload(actor),
+    blocker = await owner.connect(),
+    reader = await runtime.connect(),
+    applicationName = `personal-read-${randomUUID()}`
+  try {
+    await blocker.query("BEGIN")
+    await blocker.query(
+      "SELECT id FROM personal_media WHERE id=$1 FOR UPDATE",
+      [uploaded.media.id]
+    )
+    await reader.query("SELECT set_config('application_name',$1,false)", [
+      applicationName,
+    ])
+    const pending = reader.query(
+      "SELECT public.get_personal_media_content($1,$2,$3,NULL)",
+      [actor.actorId, actor.sessionId, uploaded.media.id]
+    )
+    const rejection = assert.rejects(
+      pending,
+      databaseMessage("UNAUTHENTICATED")
+    )
+    let waiting = false
+    for (let i = 0; i < 200; i++) {
+      waiting = (
+        await owner.query(
+          "SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE application_name=$1 AND wait_event_type='Lock') AS waiting",
+          [applicationName]
+        )
+      ).rows[0]!.waiting
+      if (waiting) break
+      await new Promise((resolve) => setTimeout(resolve, 10))
+    }
+    assert.equal(waiting, true)
+    await owner.query("DELETE FROM session WHERE id=$1", [actor.sessionId])
+    await blocker.query("COMMIT")
+    await rejection
+    assert.equal(
+      (
+        await owner.query("SELECT purged_at FROM personal_media WHERE id=$1", [
+          uploaded.media.id,
+        ])
+      ).rows[0]!.purged_at,
+      null
+    )
+  } finally {
+    await blocker.query("ROLLBACK")
+    blocker.release()
+    reader.release()
+  }
+})
+
+test("维护最小列授权和固定函数边界不开放文件名称、正文或业务引用", async () => {
+  const result = (
+    await runtime.query(`SELECT
+    has_table_privilege('platform_executor','file_entries','SELECT') AS full_entries,
+    has_column_privilege('platform_executor','file_entries','name','SELECT') AS names,
+    has_column_privilege('platform_executor','file_entries','path','SELECT') AS paths,
+    has_column_privilege('platform_executor','file_versions','content_type','SELECT') AS content,
+    has_column_privilege('platform_executor','file_references','project_id','SELECT') AS projects,
+    has_column_privilege('platform_executor','file_references','reference_key','SELECT') AS reference_keys,
+    has_function_privilege('app_runtime','public.require_file_maintenance_lease(uuid,uuid,uuid,boolean)','EXECUTE') AS helper,
+    has_function_privilege('platform_runtime','public.claim_file_maintenance(uuid,text,uuid,uuid,text)','EXECUTE') AS legacy,
+    has_function_privilege('platform_deployer','public.claim_personal_media_maintenance(uuid,text,uuid,uuid)','EXECUTE') AS deployer`)
+  ).rows[0]!
+  for (const value of Object.values(result)) assert.equal(value, false)
+  const a = await workspace(),
+    file = await upload(a.context, a.root.id, "active.txt")
+  assert.equal(
+    (
+      await maintenanceClaim(
+        a.context.organizationId,
+        "history",
+        file.currentVersionId!
+      )
+    ).job,
+    null
+  )
+  assert.equal(
+    (await maintenanceClaim(a.context.organizationId, "trash", file.id)).job,
+    null
+  )
+  const op = await run(a.context, (tx) => begin(tx, "upload"))
+  assert.equal(
+    (await maintenanceClaim(a.context.organizationId, "operation", op.id)).job,
+    null
+  )
+  await assert.rejects(
+    runtime.query("SELECT public.get_file_maintenance_candidates(101)"),
+    databaseMessage("VALIDATION_ERROR")
+  )
+  const candidates = (
+    await runtime.query(
+      "SELECT public.get_file_maintenance_candidates(100) AS result"
+    )
+  ).rows[0]!.result as Record<string, unknown>[]
+  for (const candidate of candidates)
+    assert.deepEqual(Object.keys(candidate).sort(), [
+      "id",
+      "kind",
+      "organizationId",
+    ])
+})
+
+test("未引用历史到期清理只删除历史版本，认领互斥、严格续租与旧 token 拒绝", async () => {
+  const a = await workspace(),
+    file = await upload(a.context, a.root.id, "keep.txt", "live"),
+    versionId = await expiredHistory(a.context, file, "past")
+  const claims = await Promise.all([
+    maintenanceClaim(a.context.organizationId, "history", versionId),
+    maintenanceClaim(a.context.organizationId, "history", versionId),
+  ])
+  assert.equal(claims.filter((c) => c.job).length, 1)
+  const { job, leaseId } = claims.find((c) => c.job)!,
+    task = job!
+  assert.equal(task.mode, "history_purge")
+  assert.equal(task.operation.actor_type, "system")
+  const busyCandidates = (
+    await runtime.query(
+      "SELECT public.get_file_maintenance_candidates(100) AS result"
+    )
+  ).rows[0]!.result as { id: string }[]
+  assert.equal(
+    busyCandidates.some((candidate) => candidate.id === versionId),
+    false
+  )
+  assert.equal("plans" in task.operation, false)
+  assert.equal("input" in task.operation, false)
+  assert.deepEqual(task.objects[0]!.source_path, [file.id, versionId])
+  await assert.rejects(
+    run(a.context, (tx) =>
+      fileRepository.findVersion(tx, file.id, file.currentVersionId!)
+    ),
+    errorCode("FILE_OPERATION_IN_PROGRESS")
+  )
+  await runtime.query("SELECT public.renew_file_maintenance($1,$2,$3)", [
+    task.organizationId,
+    task.operationId,
+    leaseId,
+  ])
+  await assert.rejects(
+    runtime.query("SELECT public.renew_file_maintenance($1,$2,$3)", [
+      task.organizationId,
+      task.operationId,
+      randomUUID(),
+    ]),
+    databaseMessage("FILE_OPERATION_LEASE_CONFLICT")
+  )
+  await owner.query(
+    "UPDATE file_operations SET lease_expires_at=now()-interval '1 second' WHERE organization_id=$1 AND id=$2",
+    [task.organizationId, task.operationId]
+  )
+  await assert.rejects(
+    runtime.query("SELECT public.renew_file_maintenance($1,$2,$3)", [
+      task.organizationId,
+      task.operationId,
+      leaseId,
+    ]),
+    databaseMessage("FILE_OPERATION_LEASE_CONFLICT")
+  )
+  const takeover = await maintenanceClaim(
+    task.organizationId,
+    "operation",
+    task.operationId
+  )
+  assert.equal(takeover.job!.operationId, task.operationId)
+  await assert.rejects(
+    maintenanceFact(task, leaseId, task.objects[0]!.id, "source_deleted"),
+    databaseMessage("FILE_OPERATION_LEASE_CONFLICT")
+  )
+  await assert.rejects(
+    maintenanceFinish(task, takeover.leaseId),
+    databaseMessage("FILE_OPERATION_NOT_READY")
+  )
+  await maintenanceFact(
+    task,
+    takeover.leaseId,
+    task.objects[0]!.id,
+    "source_deleted"
+  )
+  await maintenanceFact(
+    task,
+    takeover.leaseId,
+    task.objects[0]!.id,
+    "source_deleted"
+  )
+  const finished = await maintenanceFinish(task, takeover.leaseId)
+  assert.equal(finished.operation.phase, "completed")
+  assert.notEqual(finished.operation.committed_at, null)
+  assert.notEqual(finished.operation.completed_at, null)
+  await maintenanceFinish(task, takeover.leaseId)
+  assert.equal(
+    (await run(a.context, (tx) => fileRepository.usage(tx)))!.usedBytes,
+    4
+  )
+  const entry = (await run(a.context, (tx) =>
+    fileRepository.findEntry(tx, file.id)
+  ))!
+  assert.equal(entry.state, "active")
+  assert.equal(entry.revision, file.revision)
+  assert.equal(entry.currentVersionId, file.currentVersionId)
+  const facts = (
+    await owner.query("SELECT purged_at FROM file_versions WHERE id=$1", [
+      versionId,
+    ])
+  ).rows[0]!
+  assert.notEqual(facts.purged_at, null)
+  assert.equal(
+    (
+      await owner.query(
+        "SELECT count(*)::integer AS total FROM audit_events WHERE operation_id=$1 AND event_code='file.history_purged' AND actor_type='system' AND actor_id IS NULL",
+        [task.operationId]
+      )
+    ).rows[0]!.total,
+    1
+  )
+})
+
+test("历史引用排除到期清理，解除后才认领，当前版本永不清理", async () => {
+  const a = await workspace(),
+    file = await upload(a.context, a.root.id, "reference.txt"),
+    versionId = await expiredHistory(a.context, file)
+  const project = await run(a.context, (tx) =>
+    projectRepository.create(tx, {
+      name: "reference",
+      description: null,
+      contentLocale: "zh-CN",
+    })
+  )
+  const business = {
+    projectId: project.id,
+    kind: "project_attachment" as const,
+    locale: null,
+  }
+  await run(a.context, (tx) =>
+    fileRepository.replaceReferences(tx, business, [
+      { fileId: file.id, versionId, referenceKey: randomUUID(), position: 0 },
+    ])
+  )
+  assert.equal(
+    (await maintenanceClaim(a.context.organizationId, "history", versionId))
+      .job,
+    null
+  )
+  const candidates = (
+    await runtime.query(
+      "SELECT public.get_file_maintenance_candidates(100) AS result"
+    )
+  ).rows[0]!.result as { id: string }[]
+  assert.equal(
+    candidates.some((c) => c.id === versionId),
+    false
+  )
+  await run(a.context, (tx) =>
+    fileRepository.replaceReferences(tx, business, [])
+  )
+  const { job, leaseId } = await maintenanceClaim(
+    a.context.organizationId,
+    "history",
+    versionId
+  )
+  assert.notEqual(job, null)
+  await assert.rejects(
+    run(a.context, (tx) =>
+      fileRepository.replaceReferences(tx, business, [
+        { fileId: file.id, versionId, referenceKey: randomUUID(), position: 0 },
+      ])
+    ),
+    errorCode("FILE_OPERATION_IN_PROGRESS")
+  )
+  await maintenanceFact(job!, leaseId, job!.objects[0]!.id, "source_deleted")
+  await maintenanceFinish(job!, leaseId)
+  assert.equal(
+    (
+      await maintenanceClaim(
+        a.context.organizationId,
+        "history",
+        file.currentVersionId!
+      )
+    ).job,
+    null
+  )
+})
+
+test("回收批次到期清理保留独立子批次，停用组织和成员不存在仍按系统结算", async () => {
+  const a = await workspace(),
+    parent = await folder(a.context, a.root.id, "parent"),
+    child = await folder(a.context, parent.id, "child"),
+    file = await upload(a.context, child.id, "file.txt", "bytes")
+  const deletedChild = await pathOperation(a.context, child, "trash", {
+    now: new Date(Date.now() - 31 * 86400000),
+  })
+  const deletedParent = await pathOperation(a.context, parent, "trash", {
+    now: new Date(Date.now() - 31 * 86400000),
+  })
+  await owner.query(
+    "UPDATE organization_status SET status='SUSPENDED' WHERE organization_id=$1",
+    [a.context.organizationId]
+  )
+  const parentTask = await maintenanceClaim(
+    a.context.organizationId,
+    "trash",
+    deletedParent.id
+  )
+  assert.equal(parentTask.job!.objects.length, 1)
+  assert.deepEqual(parentTask.job!.objects[0]!.source_path, [parent.id])
+  await maintenanceFact(
+    parentTask.job!,
+    parentTask.leaseId,
+    parentTask.job!.objects[0]!.id,
+    "source_deleted"
+  )
+  await maintenanceFinish(parentTask.job!, parentTask.leaseId)
+  assert.equal(
+    (await run(a.context, (tx) => fileRepository.findEntry(tx, child.id)))!
+      .state,
+    "trashed"
+  )
+  assert.equal(
+    (await run(a.context, (tx) => fileRepository.usage(tx)))!.usedBytes,
+    5
+  )
+  const childTask = await maintenanceClaim(
+    a.context.organizationId,
+    "trash",
+    deletedChild.id
+  )
+  assert.equal(childTask.job!.objects.length, 2)
+  assert.equal(
+    childTask.job!.objects.some(
+      (x) => x.entry_id === file.id && x.version_id === file.currentVersionId
+    ),
+    true
+  )
+  await assert.rejects(
+    maintenanceFinish(childTask.job!, childTask.leaseId),
+    databaseMessage("FILE_OPERATION_NOT_READY")
+  )
+  for (const object of childTask.job!.objects)
+    await maintenanceFact(
+      childTask.job!,
+      childTask.leaseId,
+      object.id,
+      "source_deleted"
+    )
+  await maintenanceFinish(childTask.job!, childTask.leaseId)
+  assert.equal(
+    (await run(a.context, (tx) => fileRepository.usage(tx)))!.usedBytes,
+    0
+  )
+  assert.equal(
+    (await run(a.context, (tx) => fileRepository.findEntry(tx, file.id)))!
+      .state,
+    "purged"
+  )
+})
+
+test("提交后维护只清理确切源，错误保留名称和容量，重跑完成后才允许重用", async () => {
+  const a = await workspace(),
+    file = await upload(a.context, a.root.id, "source.txt", "body"),
+    operation = await run(a.context, (tx) => begin(tx, "rename"))
+  const preparedPath = await run(a.context, (tx) =>
+    fileRepository.preparePathOperation(tx, operation.id, {
+      entryId: file.id,
+      expectedRevision: file.revision,
+      name: "target.txt",
+      now: new Date(),
+    })
+  )
+  await run(a.context, async (tx) => {
+    await prepared(tx, operation.id, preparedPath.objects)
+    await fileRepository.commitPathOperation(tx, operation.id, new Date())
+  })
+  const { job, leaseId } = await maintenanceClaim(
+    a.context.organizationId,
+    "operation",
+    operation.id
+  )
+  assert.equal(job!.mode, "finish_commit")
+  await assert.rejects(
+    maintenanceFact(job!, leaseId, job!.objects[0]!.id, "target_deleted"),
+    databaseMessage("FILE_OPERATION_NOT_READY")
+  )
+  await runtime.query(
+    "SELECT public.record_file_maintenance_error($1,$2,$3,$4)",
+    [job!.organizationId, job!.operationId, leaseId, "STORAGE_UNAVAILABLE"]
+  )
+  assert.equal(
+    (await run(a.context, (tx) => fileRepository.usage(tx)))!.transientBytes,
+    4
+  )
+  await assert.rejects(
+    upload(a.context, a.root.id, "source.txt"),
+    errorCode("FILE_OPERATION_IN_PROGRESS")
+  )
+  const next = await maintenanceClaim(
+    a.context.organizationId,
+    "operation",
+    operation.id
+  )
+  await maintenanceFact(
+    next.job!,
+    next.leaseId,
+    next.job!.objects[0]!.id,
+    "source_deleted"
+  )
+  await maintenanceFinish(next.job!, next.leaseId)
+  const reopened = await upload(a.context, a.root.id, "source.txt")
+  assert.notEqual(reopened.id, file.id)
+  assert.equal(
+    (await run(a.context, (tx) => fileRepository.usage(tx)))!.transientBytes,
+    0
+  )
+})
+
+test("过期未提交操作必须恢复已删除源并删除所有目标，才释放预留和 busy", async () => {
+  const a = await workspace(),
+    file = await upload(a.context, a.root.id, "old.txt", "keep"),
+    op = await run(a.context, (tx) => begin(tx, "rename"))
+  const result = await run(a.context, (tx) =>
+    fileRepository.preparePathOperation(tx, op.id, {
+      entryId: file.id,
+      expectedRevision: file.revision,
+      name: "new.txt",
+      now: new Date(),
+    })
+  )
+  await run(a.context, async (tx) => {
+    await prepared(tx, op.id, result.objects)
+    await fileRepository.recordObjectDeleted(
+      tx,
+      op.id,
+      result.objects[0]!.id,
+      "source",
+      new Date()
+    )
+  })
+  await owner.query(
+    "UPDATE file_operations SET expires_at=now()-interval '1 second' WHERE organization_id=$1 AND id=$2",
+    [a.context.organizationId, op.id]
+  )
+  const { job, leaseId } = await maintenanceClaim(
+    a.context.organizationId,
+    "operation",
+    op.id
+  )
+  assert.equal(job!.mode, "abort_uncommitted")
+  await assert.rejects(
+    maintenanceFinish(job!, leaseId),
+    databaseMessage("FILE_OPERATION_NOT_READY")
+  )
+  await assert.rejects(
+    maintenanceFact(
+      job!,
+      leaseId,
+      job!.objects[0]!.id,
+      "source_restored",
+      4,
+      sha("fake")
+    ),
+    databaseMessage("FILE_CONTENT_MISMATCH")
+  )
+  await maintenanceFact(
+    job!,
+    leaseId,
+    job!.objects[0]!.id,
+    "source_restored",
+    4,
+    sha("keep")
+  )
+  await assert.rejects(
+    maintenanceFinish(job!, leaseId),
+    databaseMessage("FILE_OPERATION_NOT_READY")
+  )
+  await maintenanceFact(job!, leaseId, job!.objects[0]!.id, "target_deleted")
+  const finished = await maintenanceFinish(job!, leaseId)
+  assert.equal(finished.operation.phase, "failed")
+  assert.equal(finished.operation.committed_at, null)
+  assert.equal(finished.operation.completed_at, null)
+  assert.equal(
+    (await run(a.context, (tx) => fileRepository.findEntry(tx, file.id)))!
+      .busyOperationId,
+    null
+  )
+  assert.deepEqual(
+    (await run(a.context, (tx) => fileRepository.findEntry(tx, file.id)))!.path,
+    ["old.txt"]
+  )
+  assert.equal(
+    (await run(a.context, (tx) => fileRepository.usage(tx)))!.transientBytes,
+    0
+  )
+  const uploadOp = await run(a.context, async (tx) => {
+    const op = await begin(tx, "upload")
+    await fileRepository.reserveUpload(tx, op.id, {
+      parentId: a.root.id,
+      name: "expired.txt",
+      declaredBytes: 10,
+    })
+    return op
+  })
+  await owner.query(
+    "UPDATE file_operations SET expires_at=now()-interval '1 second' WHERE organization_id=$1 AND id=$2",
+    [a.context.organizationId, uploadOp.id]
+  )
+  assert.equal(
+    (await run(a.context, (tx) => fileRepository.usage(tx)))!.reservedBytes,
+    10
+  )
+  const uploadTask = await maintenanceClaim(
+    a.context.organizationId,
+    "operation",
+    uploadOp.id
+  )
+  await maintenanceFinish(uploadTask.job!, uploadTask.leaseId)
+  assert.equal(
+    (await run(a.context, (tx) => fileRepository.usage(tx)))!.reservedBytes,
+    0
+  )
+})
+
+test("用户 purge 物理删除后审计失败仍保留意图和容量，系统续跑诚实审计并只结算一次", async () => {
+  const a = await workspace(),
+    file = await upload(a.context, a.root.id, "irreversible.txt", "charge"),
+    trashed = await pathOperation(a.context, file, "trash"),
+    op = await run(a.context, (tx) => begin(tx, "purge"))
+  const result = await run(a.context, (tx) =>
+    fileRepository.preparePathOperation(tx, op.id, {
+      entryId: file.id,
+      expectedRevision: trashed.revision,
+      now: new Date(),
+    })
+  )
+  await run(a.context, (tx) =>
+    fileRepository.recordObjectDeleted(
+      tx,
+      op.id,
+      result.objects[0]!.id,
+      "source",
+      new Date()
+    )
+  )
+  await assert.rejects(
+    run(a.context, (tx) =>
+      fileRepository.failOperation(tx, op.id, "STORAGE_UNAVAILABLE", new Date())
+    ),
+    errorCode("FILE_OPERATION_NOT_READY")
+  )
+  await assert.rejects(
+    run(a.context, (tx) =>
+      fileRepository.recordSourceRestored(
+        tx,
+        op.id,
+        result.objects[0]!.id,
+        { bytes: 6, sha256: sha("charge") },
+        new Date()
+      )
+    ),
+    errorCode("FILE_OPERATION_NOT_READY")
+  )
+  const { job, leaseId } = await maintenanceClaim(
+    a.context.organizationId,
+    "operation",
+    op.id
+  )
+  assert.equal(job!.mode, "finish_purge")
+  assert.equal(job!.operation.committed_at, null)
+  assert.equal(job!.objects[0]!.target_area, null)
+  for (const object of job!.objects)
+    await maintenanceFact(job!, leaseId, object.id, "source_deleted")
+  await owner.query(`CREATE FUNCTION public.fail_files_maintenance_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+    IF NEW.operation_id='${op.id}' THEN RAISE EXCEPTION 'maintenance audit failure'; END IF; RETURN NEW; END $$;
+    CREATE TRIGGER files_maintenance_audit_failure BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION public.fail_files_maintenance_audit()`)
+  try {
+    await assert.rejects(
+      maintenanceFinish(job!, leaseId),
+      databaseMessage("AUDIT_UNAVAILABLE")
+    )
+    const failed = (
+      await owner.query(
+        "SELECT state,busy_operation_id FROM file_entries WHERE id=$1",
+        [file.id]
+      )
+    ).rows[0]!
+    assert.equal(failed.state, "trashed")
+    assert.equal(failed.busy_operation_id, op.id)
+    assert.equal(
+      (await run(a.context, (tx) => fileRepository.usage(tx)))!.usedBytes,
+      6
+    )
+    const facts = (
+      await owner.query(
+        "SELECT committed_at,actor_id,actor_type FROM file_operations WHERE organization_id=$1 AND id=$2",
+        [a.context.organizationId, op.id]
+      )
+    ).rows[0]!
+    assert.equal(facts.committed_at, null)
+    assert.equal(facts.actor_type, "user")
+    assert.equal(facts.actor_id, a.context.userId)
+    assert.equal(
+      (
+        await owner.query(
+          "SELECT source_deleted_at FROM file_operation_objects WHERE id=$1",
+          [result.objects[0]!.id]
+        )
+      ).rows[0]!.source_deleted_at !== null,
+      true
+    )
+  } finally {
+    await owner.query(
+      "DROP TRIGGER files_maintenance_audit_failure ON audit_events; DROP FUNCTION public.fail_files_maintenance_audit()"
+    )
+  }
+  await maintenanceFinish(job!, leaseId)
+  await maintenanceFinish(job!, leaseId)
+  assert.equal(
+    (await run(a.context, (tx) => fileRepository.usage(tx)))!.usedBytes,
+    0
+  )
+  const audit = (
+    await owner.query(
+      "SELECT actor_type,actor_id,fields FROM audit_events WHERE operation_id=$1 AND event_code='file.purged'",
+      [op.id]
+    )
+  ).rows
+  assert.equal(audit.length, 1)
+  assert.equal(audit[0]!.actor_type, "system")
+  assert.equal(audit[0]!.actor_id, null)
+  assert.equal(audit[0]!.fields.initiatedBy, a.context.userId)
+})
+
+test("个人当前头像不被认领；过期旧媒体删除故障保留事实并由新 lease 完成", async () => {
+  const actor = await identityActor(),
+    first = await personalUpload(actor, "first"),
+    next = await personalUpload(actor, "next")
+  const image = (await avatar(actor, first.media.id, null)).image
+  await avatar(actor, next.media.id, image)
+  await owner.query(
+    "UPDATE personal_media SET expires_at=now()-interval '1 second' WHERE user_id=$1 AND id=$2",
+    [actor.actorId, first.media.id]
+  )
+  assert.equal(
+    (await personalMaintenanceClaim(actor.actorId, "media", next.media.id)).job,
+    null
+  )
+  const claims = await Promise.all([
+    personalMaintenanceClaim(actor.actorId, "media", first.media.id),
+    personalMaintenanceClaim(actor.actorId, "media", first.media.id),
+  ])
+  assert.equal(claims.filter((c) => c.job).length, 1)
+  const { job, leaseId } = claims.find((c) => c.job)!
+  assert.deepEqual(job.storagePath, [first.media.id])
+  assert.equal(job.operationId !== null, true)
+  await runtime.query(
+    "SELECT public.renew_personal_media_maintenance($1,$2,$3,$4)",
+    [actor.actorId, "media", first.media.id, leaseId]
+  )
+  await runtime.query(
+    "SELECT public.record_personal_media_maintenance_error($1,$2,$3,$4,$5)",
+    [actor.actorId, "media", first.media.id, leaseId, "STORAGE_UNAVAILABLE"]
+  )
+  assert.equal(
+    (
+      await owner.query("SELECT purged_at FROM personal_media WHERE id=$1", [
+        first.media.id,
+      ])
+    ).rows[0]!.purged_at,
+    null
+  )
+  await assert.rejects(
+    runtime.query(
+      "SELECT public.renew_personal_media_maintenance($1,$2,$3,$4)",
+      [actor.actorId, "media", first.media.id, leaseId]
+    ),
+    databaseMessage("FILE_OPERATION_LEASE_CONFLICT")
+  )
+  const takeover = await personalMaintenanceClaim(
+    actor.actorId,
+    "media",
+    first.media.id
+  )
+  assert.equal(takeover.job.operationId, job.operationId)
+  await assert.rejects(
+    personalMaintenanceFinish(actor.actorId, "media", first.media.id, leaseId),
+    databaseMessage("FILE_OPERATION_LEASE_CONFLICT")
+  )
+  await personalMaintenanceFinish(
+    actor.actorId,
+    "media",
+    first.media.id,
+    takeover.leaseId
+  )
+  await personalMaintenanceFinish(
+    actor.actorId,
+    "media",
+    first.media.id,
+    takeover.leaseId
+  )
+  assert.equal((await personalRead(actor, next.media.id)).id, next.media.id)
+  assert.equal(
+    (
+      await owner.query(
+        "SELECT count(*)::integer AS total FROM audit_events WHERE operation_id=$1 AND event_code='personal_media.purged' AND actor_type='system' AND actor_id IS NULL",
+        [job.operationId]
+      )
+    ).rows[0]!.total,
+    1
+  )
+})
+
+test("过期个人上传无 Session 也清理固定目标，审计故障不标记已清理", async () => {
+  const actor = await identityActor(),
+    operationId = randomUUID()
+  const begun = (
+    await runtime.query(
+      "SELECT public.begin_personal_media_upload($1,$2,$3,$4,4,$5) AS result",
+      [
+        actor.actorId,
+        actor.sessionId,
+        operationId,
+        sha("abandoned"),
+        randomUUID(),
+      ]
+    )
+  ).rows[0]!.result
+  await owner.query("DELETE FROM session WHERE id=$1", [actor.sessionId])
+  await owner.query(
+    "UPDATE personal_media_operations SET expires_at=now()-interval '1 second' WHERE user_id=$1 AND id=$2",
+    [actor.actorId, operationId]
+  )
+  const candidates = (
+    await runtime.query(
+      "SELECT public.get_personal_media_maintenance_candidates(100) AS result"
+    )
+  ).rows[0]!.result as { id: string; kind: string }[]
+  assert.equal(
+    candidates.some((c) => c.id === operationId && c.kind === "upload"),
+    true
+  )
+  const { job, leaseId } = await personalMaintenanceClaim(
+    actor.actorId,
+    "upload",
+    operationId
+  )
+  assert.deepEqual(job.storagePath, [begun.operation.media_id])
+  await owner.query(`CREATE FUNCTION public.fail_personal_cleanup_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+    IF NEW.operation_id='${operationId}' THEN RAISE EXCEPTION 'personal cleanup audit failure'; END IF; RETURN NEW; END $$;
+    CREATE TRIGGER personal_cleanup_audit_failure BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION public.fail_personal_cleanup_audit()`)
+  try {
+    await assert.rejects(
+      personalMaintenanceFinish(actor.actorId, "upload", operationId, leaseId),
+      databaseMessage("AUDIT_UNAVAILABLE")
+    )
+    const facts = (
+      await owner.query(
+        "SELECT phase,cleaned_at FROM personal_media_operations WHERE user_id=$1 AND id=$2",
+        [actor.actorId, operationId]
+      )
+    ).rows[0]!
+    assert.equal(facts.phase, "preparing")
+    assert.equal(facts.cleaned_at, null)
+  } finally {
+    await owner.query(
+      "DROP TRIGGER personal_cleanup_audit_failure ON audit_events; DROP FUNCTION public.fail_personal_cleanup_audit()"
+    )
+  }
+  const finished = await personalMaintenanceFinish(
+    actor.actorId,
+    "upload",
+    operationId,
+    leaseId
+  )
+  assert.equal(finished.phase, "failed")
+  assert.equal(finished.cleanedAt !== null, true)
+  await personalMaintenanceFinish(actor.actorId, "upload", operationId, leaseId)
+  assert.equal(
+    (await personalMaintenanceClaim(actor.actorId, "upload", operationId)).job,
+    null
+  )
+  assert.equal(
+    (
+      await owner.query(
+        "SELECT count(*)::integer AS total FROM personal_media WHERE user_id=$1",
+        [actor.actorId]
+      )
+    ).rows[0]!.total,
+    0
+  )
+})
+
+test("正式操作已知失败用严格 token 移交后立即清理，不等待24h或伪造成员上下文", async () => {
+  const a = await workspace(),
+    operation = await run(a.context, (tx) => begin(tx, "upload")),
+    leaseId = randomUUID(),
+    fileId = randomUUID(),
+    versionId = randomUUID()
+  await run(a.context, (tx) =>
+    fileRepository.claimOperation(tx, operation.id, leaseId, new Date())
+  )
+  const objects = await run(a.context, async (tx) => {
+    await fileRepository.reserveUpload(tx, operation.id, {
+      parentId: a.root.id,
+      name: "failed.txt",
+      declaredBytes: 4,
+    })
+    const objects = await fileRepository.addObjects(tx, operation.id, [
+      {
+        entryId: fileId,
+        versionId,
+        directory: false,
+        targetArea: "files",
+        targetPath: ["failed.txt"],
+        expectedBytes: 4,
+        expectedSha256: sha("body"),
+      },
+    ])
+    await prepared(tx, operation.id, objects)
+    return objects
+  })
+  assert.equal(
+    (
+      await maintenanceClaim(
+        a.context.organizationId,
+        "operation",
+        operation.id
+      )
+    ).job,
+    null
+  )
+  await assert.rejects(
+    runtime.query("SELECT public.handoff_file_operation_failure($1,$2,$3,$4)", [
+      a.context.organizationId,
+      operation.id,
+      randomUUID(),
+      "FORBIDDEN",
+    ]),
+    databaseMessage("FILE_OPERATION_LEASE_CONFLICT")
+  )
+  await owner.query(
+    "UPDATE organization_status SET status='SUSPENDED' WHERE organization_id=$1",
+    [a.context.organizationId]
+  )
+  await owner.query(
+    "UPDATE file_operations SET lease_expires_at=now()-interval '1 second' WHERE organization_id=$1 AND id=$2",
+    [a.context.organizationId, operation.id]
+  )
+  await runtime.query(
+    "SELECT public.handoff_file_operation_failure($1,$2,$3,$4)",
+    [a.context.organizationId, operation.id, leaseId, "FORBIDDEN"]
+  )
+  const candidates = (
+    await runtime.query(
+      "SELECT public.get_file_maintenance_candidates(100) AS result"
+    )
+  ).rows[0]!.result as { id: string }[]
+  assert.equal(
+    candidates.some((c) => c.id === operation.id),
+    true
+  )
+  const next = await maintenanceClaim(
+    a.context.organizationId,
+    "operation",
+    operation.id
+  )
+  assert.equal(next.job!.mode, "abort_uncommitted")
+  await assert.rejects(
+    runtime.query("SELECT public.handoff_file_operation_failure($1,$2,$3,$4)", [
+      a.context.organizationId,
+      operation.id,
+      leaseId,
+      "FORBIDDEN",
+    ]),
+    databaseMessage("FILE_OPERATION_LEASE_CONFLICT")
+  )
+  await assert.rejects(
+    maintenanceFinish(next.job!, next.leaseId),
+    databaseMessage("FILE_OPERATION_NOT_READY")
+  )
+  await maintenanceFact(
+    next.job!,
+    next.leaseId,
+    objects[0]!.id,
+    "target_deleted"
+  )
+  const finished = await maintenanceFinish(next.job!, next.leaseId)
+  assert.equal(finished.operation.phase, "failed")
+  assert.equal(
+    (await run(a.context, (tx) => fileRepository.usage(tx)))!.reservedBytes,
+    0
+  )
+  const fact = (
+    await owner.query(
+      "SELECT actor_id,actor_type,request_hash,error_code FROM file_operations WHERE organization_id=$1 AND id=$2",
+      [a.context.organizationId, operation.id]
+    )
+  ).rows[0]!
+  assert.equal(fact.actor_id, a.context.userId)
+  assert.equal(fact.actor_type, "user")
+  assert.equal(fact.request_hash, operation.requestHash)
+  assert.equal(fact.error_code, "FORBIDDEN")
+})
+
+test("单file回收和恢复记录内部目录，不增加UI项；source-only目录无需prepared但必须清理", async () => {
+  const a = await workspace(),
+    file = await upload(a.context, a.root.id, "single.txt"),
+    trashOp = await run(a.context, (tx) => begin(tx, "trash"))
+  const trashPlan = await run(a.context, (tx) =>
+    fileRepository.preparePathOperation(tx, trashOp.id, {
+      entryId: file.id,
+      expectedRevision: file.revision,
+      now: new Date(),
+    })
+  )
+  const internal = trashPlan.objects.find((x) => x.entryId === null)!
+  assert.equal(internal.directory, true)
+  assert.equal(internal.sourceArea, null)
+  assert.equal(internal.targetArea, "trash")
+  assert.deepEqual(internal.targetPath, [file.id])
+  await assert.rejects(
+    run(a.context, (tx) =>
+      fileRepository.commitPathOperation(tx, trashOp.id, new Date())
+    ),
+    errorCode("FILE_OPERATION_NOT_READY")
+  )
+  await run(a.context, async (tx) => {
+    await prepared(tx, trashOp.id, trashPlan.objects)
+    await fileRepository.commitPathOperation(tx, trashOp.id, new Date())
+    await complete(tx, trashOp.id, trashPlan.objects)
+  })
+  assert.equal(
+    (
+      await owner.query(
+        "SELECT count(*)::integer AS total FROM file_entries WHERE organization_id=$1",
+        [a.context.organizationId]
+      )
+    ).rows[0]!.total,
+    2
+  )
+  const trashed = (await run(a.context, (tx) =>
+      fileRepository.findEntry(tx, file.id)
+    ))!,
+    restoreOp = await run(a.context, (tx) => begin(tx, "restore"))
+  const restorePlan = await run(a.context, (tx) =>
+    fileRepository.preparePathOperation(tx, restoreOp.id, {
+      entryId: file.id,
+      expectedRevision: trashed.revision,
+      now: new Date(),
+    })
+  )
+  const sourceDirectory = restorePlan.objects.find((x) => x.entryId === null)!
+  assert.equal(sourceDirectory.targetArea, null)
+  assert.equal(sourceDirectory.sourceArea, "trash")
+  assert.deepEqual(sourceDirectory.sourcePath, [file.id])
+  await assert.rejects(
+    run(a.context, (tx) =>
+      fileRepository.recordPreparedObject(
+        tx,
+        restoreOp.id,
+        sourceDirectory.id,
+        { bytes: 0, sha256: null, transientBytes: 0 }
+      )
+    ),
+    errorCode("FILE_OPERATION_NOT_READY")
+  )
+  await run(a.context, async (tx) => {
+    await prepared(tx, restoreOp.id, restorePlan.objects)
+    await fileRepository.commitPathOperation(tx, restoreOp.id, new Date())
+  })
+  for (const object of restorePlan.objects.filter((x) => x.entryId !== null))
+    await run(a.context, (tx) =>
+      fileRepository.recordObjectDeleted(
+        tx,
+        restoreOp.id,
+        object.id,
+        "source",
+        new Date()
+      )
+    )
+  await assert.rejects(
+    run(a.context, (tx) =>
+      fileRepository.finishOperation(tx, restoreOp.id, new Date())
+    ),
+    errorCode("FILE_OPERATION_NOT_READY")
+  )
+  await run(a.context, async (tx) => {
+    await fileRepository.recordObjectDeleted(
+      tx,
+      restoreOp.id,
+      sourceDirectory.id,
+      "source",
+      new Date()
+    )
+    await fileRepository.finishOperation(tx, restoreOp.id, new Date())
+  })
+  assert.deepEqual(
+    (await run(a.context, (tx) => fileRepository.findEntry(tx, file.id)))!.path,
+    ["single.txt"]
+  )
+  await assert.rejects(
+    owner.query(
+      "INSERT INTO file_operation_objects(organization_id,operation_id,entry_id,directory,source_area,source_path) VALUES($1,$2,NULL,false,'trash',$3)",
+      [a.context.organizationId, restoreOp.id, [file.id]]
+    ),
+    sqlCode("23514")
+  )
+})
+
+test("从folder回收批次恢复单file不清理仍被兄弟共享的批次根", async () => {
+  const a = await workspace(),
+    directory = await folder(a.context, a.root.id, "batch"),
+    first = await upload(a.context, directory.id, "first.txt"),
+    second = await upload(a.context, directory.id, "second.txt")
+  await pathOperation(a.context, directory, "trash")
+  const trashed = (await run(a.context, (tx) =>
+      fileRepository.findEntry(tx, first.id)
+    ))!,
+    op = await run(a.context, (tx) => begin(tx, "restore"))
+  const plan = await run(a.context, (tx) =>
+    fileRepository.preparePathOperation(tx, op.id, {
+      entryId: first.id,
+      expectedRevision: trashed.revision,
+      parentId: a.root.id,
+      now: new Date(),
+    })
+  )
+  assert.equal(plan.objects.length, 1)
+  assert.equal(plan.objects[0]!.entryId, first.id)
+  assert.equal(
+    plan.objects.some(
+      (x) =>
+        x.directory &&
+        JSON.stringify(x.sourcePath) === JSON.stringify([directory.id])
+    ),
+    false
+  )
+  await run(a.context, async (tx) => {
+    await prepared(tx, op.id, plan.objects)
+    await fileRepository.commitPathOperation(tx, op.id, new Date())
+    await complete(tx, op.id, plan.objects)
+  })
+  const remaining = (await run(a.context, (tx) =>
+    fileRepository.findEntry(tx, second.id)
+  ))!
+  assert.equal(remaining.state, "trashed")
+  assert.equal(remaining.trashRootId, directory.id)
+})
+
+test("系统单file到期 purge 在文件和内部批次目录均删除后才结算", async () => {
+  const a = await workspace(),
+    file = await upload(a.context, a.root.id, "expired-single.txt", "size")
+  await pathOperation(a.context, file, "trash", {
+    now: new Date(Date.now() - 31 * 86400000),
+  })
+  const { job, leaseId } = await maintenanceClaim(
+    a.context.organizationId,
+    "trash",
+    file.id
+  )
+  assert.equal(job!.objects.length, 2)
+  const content = job!.objects.find((x) => !x.directory)!,
+    internal = job!.objects.find((x) => x.entry_id === null)!
+  assert.equal(internal.directory, true)
+  assert.deepEqual(internal.source_path, [file.id])
+  assert.equal(internal.target_area, null)
+  await maintenanceFact(job!, leaseId, content.id, "source_deleted")
+  await assert.rejects(
+    maintenanceFinish(job!, leaseId),
+    databaseMessage("FILE_OPERATION_NOT_READY")
+  )
+  assert.equal(
+    (await run(a.context, (tx) => fileRepository.usage(tx)))!.usedBytes,
+    4
+  )
+  await maintenanceFact(job!, leaseId, internal.id, "source_deleted")
+  await maintenanceFinish(job!, leaseId)
+  assert.equal(
+    (await run(a.context, (tx) => fileRepository.usage(tx)))!.usedBytes,
+    0
+  )
+})

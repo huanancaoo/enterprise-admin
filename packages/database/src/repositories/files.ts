@@ -527,6 +527,35 @@ export const fileRepository = {
     return claimed
   },
 
+  async renewOperation(
+    tx: TenantTx,
+    id: string,
+    leaseId: string,
+    now: Date,
+    leaseMilliseconds = 120_000
+  ) {
+    await lockOrganization(tx)
+    const operation = await requireOperation(tx, id)
+    // 续租不承担过期接管；迟到的执行者必须停止物理 I/O。
+    if (
+      operation.completedAt ||
+      operation.phase === "failed" ||
+      operation.leaseId !== leaseId ||
+      !operation.leaseExpiresAt ||
+      operation.leaseExpiresAt <= now
+    )
+      fail("FILE_OPERATION_LEASE_CONFLICT")
+    const [renewed] = await tx
+      .update(fileOperations)
+      .set({
+        leaseExpiresAt: new Date(now.getTime() + leaseMilliseconds),
+        updatedAt: now,
+      })
+      .where(operationScope(tx, id))
+      .returning()
+    return renewed!
+  },
+
   async reserveUpload(
     tx: TenantTx,
     operationId: string,
@@ -1061,6 +1090,14 @@ export const fileRepository = {
       typeof fileOperationObjects.$inferInsert,
       "organizationId" | "operationId"
     >[] = []
+    if (root.kind === "file" && trashing)
+      objects.push({
+        entryId: null,
+        directory: true,
+        targetArea: "trash",
+        targetPath: [root.id],
+        expectedBytes: 0,
+      })
     for (const entry of affected) {
       const plan = plans.find((candidate) => candidate.id === entry.id)!
       if (entry.kind === "folder") {
@@ -1117,6 +1154,19 @@ export const fileRepository = {
           })
       }
     }
+    // 只有独立 file 回收批次拥有这个根；从 folder 批次摘出文件不能删除共享根。
+    if (
+      root.kind === "file" &&
+      (restoring || purging) &&
+      root.trashRootId === root.id
+    )
+      objects.push({
+        entryId: null,
+        directory: true,
+        sourceArea: "trash",
+        sourcePath: [root.id],
+        expectedBytes: 0,
+      })
     return { plans, objects: await this.addObjects(tx, operationId, objects) }
   },
 
@@ -1172,6 +1222,7 @@ export const fileRepository = {
     let purgedBytes = 0
     for (const object of objects)
       if (object.versionId) {
+        if (!object.entryId) fail("FILE_OPERATION_NOT_READY")
         const [version] = await tx
           .select()
           .from(fileVersions)
@@ -1293,6 +1344,7 @@ export const fileRepository = {
     const usage = await lockOrganization(tx)
     const operation = await requireOperation(tx, operationId)
     assertNotCommitted(operation)
+    if (operation.action === "purge") fail("FILE_OPERATION_NOT_READY")
     const [object] = await tx
       .select()
       .from(fileOperationObjects)
@@ -1409,6 +1461,9 @@ export const fileRepository = {
         .returning()
       return failed!
     }
+    // 已准备的永久删除意图由系统继续完成，不能按可恢复操作释放事实。
+    if (operation.action === "purge" && operation.plans.length)
+      fail("FILE_OPERATION_NOT_READY")
     const objects = await operationObjects(tx, operationId)
     if (
       objects.some(
