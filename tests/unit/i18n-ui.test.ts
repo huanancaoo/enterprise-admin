@@ -48,12 +48,13 @@ describe("UI locale and formatting", () => {
       new Intl.NumberFormat("ar").format(1234)
     )
   })
-  it("ships all seven namespaces with the same non-empty keys in every locale", () => {
+  it("ships all eight namespaces with the same non-empty keys in every locale", () => {
     for (const locale of supportedLocales) {
       expect(Object.keys(resources[locale]).sort()).toEqual([
         "auth",
         "common",
         "errors",
+        "files",
         "organization",
         "projects",
         "settings",
