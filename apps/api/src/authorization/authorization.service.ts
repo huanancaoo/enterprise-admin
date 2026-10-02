@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { APIError } from 'better-auth/api';
 import { AuthRuntime } from '../identity/auth-runtime';
+import type { PoolClient } from 'pg';
 import type { PermissionRequest } from '@workspace/permissions';
 
 export type { PermissionRequest } from '@workspace/permissions';
@@ -13,6 +14,18 @@ export type { PermissionRequest } from '@workspace/permissions';
 @Injectable()
 export class AuthorizationService {
   constructor(private readonly runtime: AuthRuntime) {}
+
+  async requirePermissionInTransaction(
+    client: PoolClient,
+    headers: Headers,
+    organizationId: string,
+    permissions: PermissionRequest,
+  ): Promise<void> {
+    // 最终授权沿持锁事务读取，避免原生组织写占满连接池时无法完成提交。
+    await this.runtime.auth.withDatabaseClient(client, () =>
+      this.requirePermission(headers, organizationId, permissions),
+    );
+  }
 
   async requirePermission(
     headers: Headers,

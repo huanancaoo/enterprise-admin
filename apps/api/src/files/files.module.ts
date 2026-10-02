@@ -7,6 +7,7 @@ import { FileContentController } from './file-content.controller';
 import { Files } from './files';
 import { FilesController } from './files.controller';
 import { FileMaintenance } from './file-maintenance';
+import { FileWrites } from './file-writes';
 
 @Module({})
 export class FilesModule {
@@ -20,6 +21,7 @@ export class FilesModule {
         Files,
         FileContent,
         FileMaintenance,
+        FileWrites,
       ],
     };
   }

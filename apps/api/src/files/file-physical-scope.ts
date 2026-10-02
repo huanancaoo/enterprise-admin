@@ -14,7 +14,7 @@ export class FilePhysicalScope {
 
   async run<T>(
     owner: StorageOwner,
-    work: (signal: AbortSignal) => Promise<T>,
+    work: (signal: AbortSignal, client: PoolClient) => Promise<T>,
     shutdown?: AbortSignal,
   ): Promise<T> {
     storageKey({ owner, area: 'files', segments: [] }, true);
@@ -83,7 +83,7 @@ export class FilePhysicalScope {
       ]);
       locked = true;
       controller.signal.throwIfAborted();
-      const result = await work(controller.signal);
+      const result = await work(controller.signal, client);
       controller.signal.throwIfAborted();
       return result;
     } catch (error) {

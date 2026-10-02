@@ -22,16 +22,23 @@ export async function runTenantWrite<T>(
   try {
     return await createTenantRunner(pool)(context, work, 'write');
   } catch (error) {
-    const code = sqlstate(error);
-    if (code === 'ORS02') throw new ApiException(403, 'ORGANIZATION_SUSPENDED');
-    if (code === 'ORS01') {
-      logger.error({
-        event: 'organization.status.missing',
-        organizationId: context.organizationId,
-        requestId: context.requestId,
-      });
-      throw new ApiException(503, 'AUTHORIZATION_UNAVAILABLE');
-    }
-    throw error;
+    rethrowTenantWriteError(error, context);
   }
+}
+
+export function rethrowTenantWriteError(
+  error: unknown,
+  context: TenantContext,
+): never {
+  const code = sqlstate(error);
+  if (code === 'ORS02') throw new ApiException(403, 'ORGANIZATION_SUSPENDED');
+  if (code === 'ORS01') {
+    logger.error({
+      event: 'organization.status.missing',
+      organizationId: context.organizationId,
+      requestId: context.requestId,
+    });
+    throw new ApiException(503, 'AUTHORIZATION_UNAVAILABLE');
+  }
+  throw error;
 }

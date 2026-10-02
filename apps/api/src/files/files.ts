@@ -154,6 +154,7 @@ export class Files {
   async operation(
     context: TenantContext,
     id: string,
+    headers: Headers,
   ): Promise<FileOperationResponse> {
     this.runtime.requireStorage();
     const operation = await createTenantRunner(this.identity.pool)(
@@ -161,6 +162,14 @@ export class Files {
       (tx) => fileRepository.findOperation(tx, id),
     );
     if (!operation) throw new NotFoundException();
+    await this.authorization.requireAnyPermission(
+      headers,
+      context.organizationId,
+      operation.actorId === context.userId &&
+        operation.action === 'create-folder'
+        ? [{ file: ['read'], folder: ['read'] }, { folder: ['create'] }]
+        : [{ file: ['read'], folder: ['read'] }],
+    );
     return fileOperationResponse(operation);
   }
 }

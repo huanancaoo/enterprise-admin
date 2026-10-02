@@ -43,6 +43,11 @@ function publicDetails(facts: Record<string, unknown> | undefined) {
 
 export function rethrowFileError(error: unknown): never {
   if (error instanceof FileRepositoryError) {
+    if (error.code === 'UNAUTHENTICATED')
+      throw new ApiException(401, 'UNAUTHENTICATED');
+    if (error.code === 'FORBIDDEN') throw new ApiException(403, 'FORBIDDEN');
+    if (error.code === 'FILE_OPERATION_LEASE_CONFLICT')
+      throw new ApiException(409, 'FILE_OPERATION_IN_PROGRESS');
     if (
       [
         'FILE_NOT_FOUND',

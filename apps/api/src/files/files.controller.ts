@@ -1,9 +1,19 @@
-import { Controller, Get, Headers, Param, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  HttpCode,
+  Param,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { fromNodeHeaders } from 'better-auth/node';
 import type { IncomingHttpHeaders } from 'node:http';
 import {
   ApiErrorSchema,
+  CreateFolderSchema,
   FileBreadcrumbsSchema,
   FileEntryIdSchema,
   FileEntryResponseSchema,
@@ -21,6 +31,7 @@ import {
   type FilePage,
   type FileVersions,
   type FileWorkspace,
+  type CreateFolder,
 } from '@workspace/contracts';
 import type { TenantContext } from '@workspace/database/tenant';
 import {
@@ -29,6 +40,7 @@ import {
   RequireTenantAny,
 } from '../tenancy/tenant.guard';
 import { Files } from './files';
+import { FileWrites } from './file-writes';
 
 @ApiTags('files')
 @Controller('organizations/:organizationId/files')
@@ -39,7 +51,25 @@ import { Files } from './files';
 @ApiResponse({ status: 409, standardSchema: ApiErrorSchema })
 @ApiResponse({ status: 503, standardSchema: ApiErrorSchema })
 export class FilesController {
-  constructor(private readonly files: Files) {}
+  constructor(
+    private readonly files: Files,
+    private readonly writes: FileWrites,
+  ) {}
+
+  @Post('folders')
+  @HttpCode(200)
+  @RequireTenant({ folder: ['create'] })
+  @ApiOperation({ operationId: 'createFileFolder' })
+  @ApiResponse({ status: 200, standardSchema: FileOperationResponseSchema })
+  createFolder(
+    @Param('organizationId', { schema: OrganizationIdSchema })
+    _organizationId: string,
+    @Body({ schema: CreateFolderSchema }) input: CreateFolder,
+    @Headers() headers: IncomingHttpHeaders,
+    @CurrentTenant() context: TenantContext,
+  ): Promise<FileOperationResponse> {
+    return this.writes.createFolder(context, fromNodeHeaders(headers), input);
+  }
 
   @Get('workspace')
   @RequireTenant({ file: ['read'], folder: ['read'] })
@@ -107,15 +137,19 @@ export class FilesController {
   }
 
   @Get('operations/:operationId')
-  @RequireTenant({ file: ['read'], folder: ['read'] })
+  @RequireTenantAny(
+    { file: ['read'], folder: ['read'] },
+    { folder: ['create'] },
+  )
   @ApiOperation({ operationId: 'getFileOperation' })
   @ApiResponse({ status: 200, standardSchema: FileOperationResponseSchema })
   operation(
     @Param('organizationId', { schema: OrganizationIdSchema })
     _organizationId: string,
     @Param('operationId', { schema: FileOperationIdSchema }) id: string,
+    @Headers() headers: IncomingHttpHeaders,
     @CurrentTenant() context: TenantContext,
   ): Promise<FileOperationResponse> {
-    return this.files.operation(context, id);
+    return this.files.operation(context, id, fromNodeHeaders(headers));
   }
 }

@@ -100,14 +100,16 @@ export async function startFilesEnvironment(kind, resources) {
       .withBindMounts([{ source: resolve("."), target: "/app", mode: "ro" }])
       .withWorkingDir("/app")
       .withEnvironment({ FILES_TEST_CONFIG: JSON.stringify(applicationConfig) })
+      .withExposedPorts(3000)
       .withCommand([
         "node",
         "-e",
-        "console.log('FILES_LINUX_READY');setInterval(()=>{},60000)",
+        `const {mkdir}=require('node:fs/promises');const {createApplication}=require('./apps/api/dist/create-application.js');const config=JSON.parse(process.env.FILES_TEST_CONFIG);(async()=>{await mkdir(config.files.root,{recursive:true,mode:0o700});const app=await createApplication(config,{logger:false});await app.listen(3000,'0.0.0.0');console.log('FILES_LINUX_READY');process.on('SIGTERM',()=>app.close().then(()=>process.exit(0)));})().catch(()=>process.exit(1));`,
       ])
       .withWaitStrategy(Wait.forLogMessage("FILES_LINUX_READY"))
       .start()
     resources.defer(() => container.stop())
+    environment.filesBaseURL = `http://${container.getHost()}:${container.getMappedPort(3000)}`
     invoke = async (input) => {
       const response = await container.exec([
         "node",
@@ -122,6 +124,7 @@ export async function startFilesEnvironment(kind, resources) {
       return JSON.parse(response.output.trim()).result
     }
   } else {
+    environment.filesBaseURL = environment.baseURL
     const storage = environment.app.get(FilesRuntime).requireStorage()
     invoke = async (input) => {
       if (input.method === "maintenance")

@@ -22,13 +22,7 @@ export class ApiErrorFilter implements ExceptionFilter {
   catch(error: unknown, host: ArgumentsHost): void {
     const response = host.switchToHttp().getResponse<Response>();
     const status = error instanceof HttpException ? error.getStatus() : 500;
-    const codes: Record<number, ApiErrorCode> = {
-      400: 'VALIDATION_ERROR',
-      401: 'UNAUTHENTICATED',
-      403: 'FORBIDDEN',
-      404: 'NOT_FOUND',
-    };
-    const code = declaredCode(error) ?? codes[status] ?? 'INTERNAL_ERROR';
+    const code = apiFailureCode(error);
     const locale = getRequestLanguage(response).writeTo(response);
     const requestId = response.locals.requestId as string;
     if (status >= 500)
@@ -44,6 +38,17 @@ export class ApiErrorFilter implements ExceptionFilter {
     };
     response.status(status).json(body);
   }
+}
+
+export function apiFailureCode(error: unknown): ApiErrorCode {
+  const status = error instanceof HttpException ? error.getStatus() : 500;
+  const codes: Record<number, ApiErrorCode> = {
+    400: 'VALIDATION_ERROR',
+    401: 'UNAUTHENTICATED',
+    403: 'FORBIDDEN',
+    404: 'NOT_FOUND',
+  };
+  return declaredCode(error) ?? codes[status] ?? 'INTERNAL_ERROR';
 }
 
 function declaredCode(error: unknown): ApiErrorCode | undefined {

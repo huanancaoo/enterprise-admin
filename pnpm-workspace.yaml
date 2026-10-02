@@ -2,6 +2,12 @@ packages:
   - "apps/*"
   - "packages/*"
 
+# Linux 容器挂载工作区执行 Local 存储验收，需要同时安装本机和 Linux 的图片解码依赖。
+supportedArchitectures:
+  os: [current, linux]
+  cpu: [current]
+  libc: [glibc]
+
 allowBuilds:
   "@parcel/watcher": false
   "@scarf/scarf": false
