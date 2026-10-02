@@ -23,6 +23,8 @@ import type {
 import type {
   ApiError,
   CreateFolder,
+  ExecuteFileBatch,
+  FileBatchResponse,
   FileBreadcrumbs,
   FileEntryImpact,
   FileEntryResponse,
@@ -3396,4 +3398,383 @@ export const usePurgeFileEntry = <
   TContext
 > => {
   return useMutation(getPurgeFileEntryMutationOptions(options), queryClient)
+}
+export type executeFileBatchResponse200 = {
+  data: FileBatchResponse
+  status: 200
+}
+
+export type executeFileBatchResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type executeFileBatchResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type executeFileBatchResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type executeFileBatchResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type executeFileBatchResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type executeFileBatchResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type executeFileBatchResponseSuccess = executeFileBatchResponse200 & {
+  headers: Headers
+}
+export type executeFileBatchResponseError = (
+  | executeFileBatchResponse400
+  | executeFileBatchResponse401
+  | executeFileBatchResponse403
+  | executeFileBatchResponse404
+  | executeFileBatchResponse409
+  | executeFileBatchResponse503
+) & {
+  headers: Headers
+}
+
+export const getExecuteFileBatchUrl = (organizationId: string) => {
+  return `/api/v1/organizations/${organizationId}/files/batches`
+}
+
+export const executeFileBatch = async (
+  organizationId: string,
+  executeFileBatchBody: ExecuteFileBatch,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<executeFileBatchResponseSuccess> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {}
+    if (h instanceof Headers) return Object.fromEntries(h.entries())
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string]
+        )
+      )
+    }
+    const headers: Record<string, string | readonly string[]> = {}
+    for (const [name, value] of Object.entries<
+      string | readonly string[] | undefined
+    >(h)) {
+      if (value !== undefined) headers[name] = value
+    }
+    return headers
+  }
+  return apiClient<executeFileBatchResponseSuccess>(
+    getExecuteFileBatchUrl(organizationId),
+    {
+      ...options,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...getHeaders(options?.headers),
+      },
+      body: JSON.stringify(executeFileBatchBody),
+    }
+  )
+}
+
+export const getExecuteFileBatchMutationKey = () =>
+  ["executeFileBatch"] as const
+
+export const getExecuteFileBatchMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof executeFileBatch>>,
+    TError,
+    ExecuteFileBatchMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof executeFileBatch>>,
+  TError,
+  ExecuteFileBatchMutationVariables,
+  TContext
+> => {
+  const mutationKey = getExecuteFileBatchMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof executeFileBatch>>,
+    ExecuteFileBatchMutationVariables
+  > = (props) => {
+    const { organizationId, data } = props ?? {}
+
+    return executeFileBatch(organizationId, data, requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type ExecuteFileBatchMutationResult = NonNullable<
+  Awaited<ReturnType<typeof executeFileBatch>>
+>
+export type ExecuteFileBatchMutationBody = ExecuteFileBatch
+export type ExecuteFileBatchMutationError = ErrorType<ApiError>
+export type ExecuteFileBatchMutationVariables = {
+  organizationId: string
+  data: ExecuteFileBatch
+}
+
+export const useExecuteFileBatch = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof executeFileBatch>>,
+      TError,
+      ExecuteFileBatchMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof executeFileBatch>>,
+  TError,
+  ExecuteFileBatchMutationVariables,
+  TContext
+> => {
+  return useMutation(getExecuteFileBatchMutationOptions(options), queryClient)
+}
+export type getFileBatchResponse200 = {
+  data: FileBatchResponse
+  status: 200
+}
+
+export type getFileBatchResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type getFileBatchResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type getFileBatchResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type getFileBatchResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type getFileBatchResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type getFileBatchResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type getFileBatchResponseSuccess = getFileBatchResponse200 & {
+  headers: Headers
+}
+export type getFileBatchResponseError = (
+  | getFileBatchResponse400
+  | getFileBatchResponse401
+  | getFileBatchResponse403
+  | getFileBatchResponse404
+  | getFileBatchResponse409
+  | getFileBatchResponse503
+) & {
+  headers: Headers
+}
+
+export const getGetFileBatchUrl = (organizationId: string, batchId: string) => {
+  return `/api/v1/organizations/${organizationId}/files/batches/${batchId}`
+}
+
+export const getFileBatch = async (
+  organizationId: string,
+  batchId: string,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<getFileBatchResponseSuccess> => {
+  return apiClient<getFileBatchResponseSuccess>(
+    getGetFileBatchUrl(organizationId, batchId),
+    {
+      ...options,
+      method: "GET",
+    }
+  )
+}
+
+export const getGetFileBatchQueryKey = (
+  organizationId: string,
+  batchId: string
+) => {
+  return [
+    `/api/v1/organizations/${organizationId}/files/batches/${batchId}`,
+  ] as const
+}
+
+export const getGetFileBatchQueryOptions = <
+  TData = Awaited<ReturnType<typeof getFileBatch>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  batchId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getFileBatch>>, TError, TData>
+    >
+    request?: SecondParameter<typeof apiClient>
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetFileBatchQueryKey(organizationId, batchId)
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getFileBatch>>> = ({
+    signal,
+  }) => getFileBatch(organizationId, batchId, { signal, ...requestOptions })
+
+  return {
+    queryKey,
+    queryFn,
+    enabled:
+      organizationId !== null &&
+      organizationId !== undefined &&
+      batchId !== null &&
+      batchId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getFileBatch>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetFileBatchQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getFileBatch>>
+>
+export type GetFileBatchQueryError = ErrorType<ApiError>
+
+export function useGetFileBatch<
+  TData = Awaited<ReturnType<typeof getFileBatch>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  batchId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getFileBatch>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFileBatch>>,
+          TError,
+          Awaited<ReturnType<typeof getFileBatch>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetFileBatch<
+  TData = Awaited<ReturnType<typeof getFileBatch>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  batchId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getFileBatch>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFileBatch>>,
+          TError,
+          Awaited<ReturnType<typeof getFileBatch>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetFileBatch<
+  TData = Awaited<ReturnType<typeof getFileBatch>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  batchId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getFileBatch>>, TError, TData>
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+
+export function useGetFileBatch<
+  TData = Awaited<ReturnType<typeof getFileBatch>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  batchId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getFileBatch>>, TError, TData>
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+} {
+  const queryOptions = getGetFileBatchQueryOptions(
+    organizationId,
+    batchId,
+    options
+  )
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+
+  return withQueryKey(query, queryOptions.queryKey)
 }

@@ -2,6 +2,11 @@ import { afterAll, beforeAll, describe, expect, test } from "vitest"
 import { createHash, randomUUID } from "node:crypto"
 import { createRequire } from "node:module"
 import { resolve } from "node:path"
+import {
+  configureApiClient,
+  executeFileBatch,
+  getFileBatch,
+} from "../../packages/api-client/src/index.ts"
 import { createTenantRunner } from "../../packages/database/dist/tenant.js"
 import { fileRepository } from "../../packages/database/dist/repositories/files.js"
 import { signUpVerified } from "../setup/complete-signup.mjs"
@@ -265,6 +270,46 @@ for (const kind of ["Local", "RustFS"])
           [ids]
         )
       ).rows[0].count
+
+    test("正式生成SDK执行批量移动并通过同一batchId读取固定版本与根映射", async () => {
+      const f = await workspace(),
+        tree = await folder(f, "sdk-tree"),
+        child = await upload(f, "sdk.bin", tree),
+        target = await folder(f, "sdk-target")
+      const value = input("move", [child, tree], { parentId: target.id })
+      configureApiClient({
+        baseUrl: environment.filesBaseURL,
+        getHeaders: () => f.actor.headers,
+      })
+      const result = await executeFileBatch(f.organization.id, value)
+      expect(result.status).toBe(200)
+      expect(result.data.items).toMatchObject([
+        {
+          index: 0,
+          entryId: child.id,
+          requestedOperationId: value.items[0].operationId,
+          rootIndex: 1,
+          operationId: value.items[1].operationId,
+          state: "covered",
+          operation: { phase: "completed" },
+        },
+        {
+          index: 1,
+          entryId: tree.id,
+          rootIndex: 1,
+          state: "completed",
+          operation: { phase: "completed" },
+        },
+      ])
+      const saved = await getFileBatch(f.organization.id, value.batchId)
+      expect(saved.status).toBe(200)
+      expect(saved.data).toEqual(result.data)
+      expect((await entry(f, child.id)).currentVersionId).toBe(child.versionId)
+      expect(
+        await bytes(address(f, "files", [target.name, tree.name, child.name]))
+      ).toEqual(child.body)
+      expect(await bytes(child.location)).toBeNull()
+    })
 
     test("固定 child-before-parent 分组与请求序号，根冲突和 revision 失败独立于成功根", async () => {
       const f = await workspace(),

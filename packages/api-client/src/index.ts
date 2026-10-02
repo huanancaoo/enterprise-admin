@@ -33,6 +33,8 @@ export {
   trashFileEntry,
   restoreFileEntry,
   purgeFileEntry,
+  executeFileBatch,
+  getFileBatch,
 } from "./generated/endpoints/files/files"
 export {
   uploadPersonalMedia,
