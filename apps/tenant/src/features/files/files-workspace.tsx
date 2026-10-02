@@ -348,8 +348,11 @@ function FileWorkspaceBrowser({
             {!trash && canCreateFolder && (
               <Button
                 ref={creationTrigger}
+                // 创建使用当前目录身份，子项后台刷新不影响该身份；关闭 Dialog 时入口仍需接收焦点。
                 disabled={
-                  status !== "ready" || currentFolder.operationId !== null
+                  status === "loading" ||
+                  status === "error" ||
+                  currentFolder.operationId !== null
                 }
                 onClick={() => setCreatingFolder(true)}
               >
