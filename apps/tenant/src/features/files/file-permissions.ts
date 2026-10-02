@@ -56,6 +56,8 @@ export function getFilePermissionsOptions(
       "file-permissions",
       authorizationVersion,
     ],
+    // 授权版本变化会创建新查询；同一版本的成功权限投影无需因选择器重挂载而重复请求。
+    staleTime: Infinity,
     retry: false,
     queryFn: async ({ signal }): Promise<FilePermissions> => {
       const check = async (
