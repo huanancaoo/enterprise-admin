@@ -5,6 +5,16 @@ import { signUpVerified } from "../setup/complete-signup.mjs"
 import { platformOperator } from "../setup/platform-operator.mjs"
 import { startTestApplication } from "../setup/test-runtime.mjs"
 
+const fileActions = ["read", "upload", "update", "delete", "restore", "purge"]
+const folderActions = ["read", "create", "update", "delete"]
+const filePermissions = [
+  ...fileActions.map((action) => ({ resource: "file", action })),
+  ...folderActions.map((action) => ({ resource: "folder", action })),
+]
+const filePermissionKeys = filePermissions.map(
+  ({ resource, action }) => `${resource}:${action}`
+)
+
 describe("organization role permission projection", () => {
   let environment,
     owner,
@@ -19,8 +29,8 @@ describe("organization role permission projection", () => {
     fetch(`${environment.baseURL}/api/v1/organizations/${id}/role-access`, {
       headers: { cookie: actor.cookie, origin },
     })
-  const versionHeaders = async () => {
-    const headers = new Headers(owner.headers)
+  const versionHeaders = async (actor = owner) => {
+    const headers = new Headers(actor.headers)
     const state = await environment.migrator.query(
       "SELECT authorization_version FROM organization_status WHERE organization_id = $1",
       [organization.id]
@@ -30,6 +40,28 @@ describe("organization role permission projection", () => {
       String(state.rows[0].authorization_version)
     )
     return headers
+  }
+  const authRequest = async (actor, path, body, versioned = false) => {
+    const headers = versioned
+      ? await versionHeaders(actor)
+      : new Headers(actor.headers)
+    headers.set("content-type", "application/json")
+    return fetch(`${environment.baseURL}/api/auth/organization/${path}`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ organizationId: organization.id, ...body }),
+    })
+  }
+  const checkFilePermissions = async (actor, allowedPermissions) => {
+    for (const { resource, action } of filePermissions) {
+      const response = await authRequest(actor, "has-permission", {
+        permissions: { [resource]: [action] },
+      })
+      expect(response.status).toBe(200)
+      expect(await response.json()).toMatchObject({
+        success: allowedPermissions.includes(`${resource}:${action}`),
+      })
+    }
   }
   beforeAll(async () => {
     environment = await startTestApplication({ origins: [origin] })
@@ -92,7 +124,10 @@ describe("organization role permission projection", () => {
       canUpdate: true,
       canDelete: true,
     })
-    expect(access.grantablePermissions).toHaveLength(13)
+    expect(access.grantablePermissions).toHaveLength(23)
+    expect(access.grantablePermissions).toEqual(
+      expect.arrayContaining(filePermissions)
+    )
     const adminResponse = await read(orgAdmin)
     expect(adminResponse.status).toBe(200)
     expect(
@@ -109,6 +144,8 @@ describe("organization role permission projection", () => {
       canDelete: false,
       grantablePermissions: [
         { resource: "project", action: "read" },
+        { resource: "file", action: "read" },
+        { resource: "folder", action: "read" },
         { resource: "member", action: "read" },
       ],
     })
@@ -126,6 +163,73 @@ describe("organization role permission projection", () => {
         { resource: "project", action: "update" },
       ],
     })
+  })
+
+  it("authorizes every file and folder action for owner and admin, only reads for member, and no implicit custom grants", async () => {
+    await checkFilePermissions(owner, filePermissionKeys)
+    await checkFilePermissions(orgAdmin, filePermissionKeys)
+    await checkFilePermissions(member, ["file:read", "folder:read"])
+    await checkFilePermissions(editor, [])
+  })
+
+  it("accepts explicit file and folder delegation and revokes it for the existing custom member cookie", async () => {
+    const granted = await authRequest(
+      owner,
+      "update-role",
+      {
+        roleId: role.id,
+        data: {
+          permission: {
+            project: ["read", "update"],
+            file: fileActions,
+            folder: folderActions,
+          },
+        },
+      },
+      true
+    )
+    expect(granted.status).toBe(200)
+    expect((await granted.json()).roleData.permission).toEqual({
+      project: ["read", "update"],
+      file: fileActions,
+      folder: folderActions,
+    })
+    await checkFilePermissions(editor, filePermissionKeys)
+    const projection = await read(editor)
+    expect(projection.status).toBe(200)
+    expect(OrganizationRoleAccessSchema.parse(await projection.json())).toEqual(
+      {
+        canRead: false,
+        canCreate: false,
+        canUpdate: false,
+        canDelete: false,
+        grantablePermissions: [
+          { resource: "project", action: "read" },
+          { resource: "project", action: "update" },
+          ...filePermissions,
+        ],
+      }
+    )
+    const revoked = await authRequest(
+      owner,
+      "update-role",
+      {
+        roleId: role.id,
+        data: { permission: { project: ["read", "update"] } },
+      },
+      true
+    )
+    expect(revoked.status).toBe(200)
+    await checkFilePermissions(editor, [])
+    const afterRevocation = await read(editor)
+    expect(afterRevocation.status).toBe(200)
+    expect(
+      OrganizationRoleAccessSchema.parse(await afterRevocation.json())
+        .grantablePermissions
+    ).toEqual([
+      { resource: "project", action: "read" },
+      { resource: "project", action: "update" },
+    ])
   })
 
   it("rejects anonymous and other-organization reads before returning permission facts", async () => {
