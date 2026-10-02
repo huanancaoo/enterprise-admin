@@ -118,6 +118,7 @@ function AuthorizedProjectContent({
   ])
   const permission = useQuery({
     queryKey: ["project-content-permission", contentScopeKey],
+    staleTime: Infinity,
     retry: false,
     queryFn: async ({ signal }) => {
       const check = async (action: "update" | "translate") => {
@@ -139,12 +140,13 @@ function AuthorizedProjectContent({
   const files = useQuery(
     getFilePermissionsOptions(organizationId, authorizationVersion)
   )
+  const canEdit = permission.isSuccess && permission.data === true
   const canBrowse = Boolean(
-    files.data?.canReadFiles && files.data.canReadFolders
+    files.isSuccess && files.data?.canReadFiles && files.data.canReadFolders
   )
   const workspace = useQuery({
     ...getFileWorkspaceOptions(organizationId, authorizationVersion, locale),
-    enabled: Boolean(permission.data && canBrowse),
+    enabled: canEdit && canBrowse,
   })
   if (permission.isPending || files.isPending) return <LoadingState />
   return (
@@ -164,7 +166,7 @@ function AuthorizedProjectContent({
         authorizationVersion={authorizationVersion}
         contentScopeKey={contentScopeKey}
         initialLocale={initialLocale}
-        canEdit={permission.data === true}
+        canEdit={canEdit}
         canBrowse={canBrowse}
         canUpload={canBrowse && files.data?.canUpload === true}
         root={workspace.data?.root}
