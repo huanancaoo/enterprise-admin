@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
+import { useMutation } from "@tanstack/react-query"
 import { ApiClientError } from "@workspace/api-client"
 import {
   OverwriteFileFieldsSchema,
@@ -175,100 +176,106 @@ export function useUploadQueue(options: UploadQueueOptions) {
       if (job.record.submitted) void watch(job.id, "now")
   }, [initial.jobs, watch])
 
+  const { mutate, isPending, reset } = useMutation<
+    FileOperationResponse,
+    unknown,
+    { id: string; signal: AbortSignal }
+  >({
+    // File 只由领域队列持有；Mutation 缓存的 variables 不包含原始内容。
+    gcTime: 0,
+    retry: false,
+    networkMode: "always",
+    mutationFn: async ({ id, signal }) => {
+      signal.throwIfAborted()
+      const job = current.current.find((value) => value.id === id)!
+      const draft = job.draft!
+      update(id, { status: "hashing" })
+      // 串行处理原 File，避免多文件同时读取 100 MiB 内容；指纹与发送的文件来自同一对象。
+      const digest = await crypto.subtle.digest(
+        "SHA-256",
+        await draft.file.arrayBuffer()
+      )
+      signal.throwIfAborted()
+      const contentSha256 = Array.from(new Uint8Array(digest), (byte) =>
+        byte.toString(16).padStart(2, "0")
+      ).join("")
+      const fields =
+        draft.kind === "upload"
+          ? UploadFileFieldsSchema.parse({
+              operationId: id,
+              parentId: draft.parent.id,
+              name: draft.name,
+              declaredBytes: draft.file.size,
+              contentSha256,
+            })
+          : OverwriteFileFieldsSchema.parse({
+              operationId: id,
+              expectedRevision: draft.target.revision,
+              declaredBytes: draft.file.size,
+              contentSha256,
+            })
+      const next = current.current.map((value) =>
+        value.id === id
+          ? {
+              ...value,
+              status: "submitting" as const,
+              record: {
+                ...value.record,
+                submitted: true,
+                phase: "unconfirmed" as const,
+                updatedAt: new Date().toISOString(),
+              },
+            }
+          : value
+      )
+      // 请求发出前必须留下可找回的 UUID；刷新在这个边界之后只查询事实，绝不自动重发。
+      save(next)
+      replace(next)
+      return draft.kind === "upload"
+        ? ports.current.upload(fields as UploadFileFields, draft.file, signal)
+        : ports.current.overwrite(
+            draft.target.id,
+            fields as OverwriteFileFields,
+            draft.file,
+            signal
+          )
+    },
+    onSuccess: (operation, { signal }) => {
+      if (!signal.aborted && live.current) accept(operation, "now")
+    },
+    onError: (error, { id, signal }) => {
+      if (signal.aborted || !live.current) return
+      const latest = current.current.find((value) => value.id === id)!
+      const knownFailure =
+        !latest.record.submitted ||
+        (error instanceof ApiClientError && error.status < 500)
+      update(id, {
+        status: knownFailure ? "failed" : "unconfirmed",
+        error: fileRequestErrorMessage(
+          error,
+          t(knownFailure ? "common:operationFailed" : "files:uploadUnconfirmed")
+        ),
+        record: {
+          ...latest.record,
+          phase: knownFailure ? "failed" : "unconfirmed",
+          updatedAt: new Date().toISOString(),
+        },
+      })
+      if (!knownFailure) void watch(id, "now")
+    },
+    onSettled: (_operation, _error, { signal }) => {
+      if (active.current?.signal === signal) active.current = null
+      if (live.current) reset()
+    },
+  })
   useEffect(() => {
+    if (isPending) return
     const job = jobs.find((value) => value.status === "queued")
-    if (!job?.draft || active.current) return
+    if (!job?.draft) return
     const controller = new AbortController()
     active.current = controller
-    void (async () => {
-      const draft = job.draft!
-      let submitted = false
-      try {
-        update(job.id, { status: "hashing" })
-        // 串行处理原 File，避免多文件同时读取 100 MiB 内容；指纹与发送的文件来自同一对象。
-        const digest = await crypto.subtle.digest(
-          "SHA-256",
-          await draft.file.arrayBuffer()
-        )
-        if (controller.signal.aborted) return
-        const contentSha256 = Array.from(new Uint8Array(digest), (byte) =>
-          byte.toString(16).padStart(2, "0")
-        ).join("")
-        const fields =
-          draft.kind === "upload"
-            ? UploadFileFieldsSchema.parse({
-                operationId: job.id,
-                parentId: draft.parent.id,
-                name: draft.name,
-                declaredBytes: draft.file.size,
-                contentSha256,
-              })
-            : OverwriteFileFieldsSchema.parse({
-                operationId: job.id,
-                expectedRevision: draft.target.revision,
-                declaredBytes: draft.file.size,
-                contentSha256,
-              })
-        const next = current.current.map((value) =>
-          value.id === job.id
-            ? {
-                ...value,
-                status: "submitting" as const,
-                record: {
-                  ...value.record,
-                  submitted: true,
-                  phase: "unconfirmed" as const,
-                  updatedAt: new Date().toISOString(),
-                },
-              }
-            : value
-        )
-        // 请求发出前必须留下可找回的 UUID；刷新在这个边界之后只查询事实，绝不自动重发。
-        save(next)
-        replace(next)
-        submitted = true
-        const operation =
-          draft.kind === "upload"
-            ? await ports.current.upload(
-                fields as UploadFileFields,
-                draft.file,
-                controller.signal
-              )
-            : await ports.current.overwrite(
-                draft.target.id,
-                fields as OverwriteFileFields,
-                draft.file,
-                controller.signal
-              )
-        if (!controller.signal.aborted) accept(operation, "now")
-      } catch (error) {
-        if (controller.signal.aborted) return
-        const knownFailure =
-          !submitted || (error instanceof ApiClientError && error.status < 500)
-        const latest = current.current.find((value) => value.id === job.id)!
-        update(job.id, {
-          status: knownFailure ? "failed" : "unconfirmed",
-          error: fileRequestErrorMessage(
-            error,
-            t(
-              knownFailure
-                ? "common:operationFailed"
-                : "files:uploadUnconfirmed"
-            )
-          ),
-          record: {
-            ...latest.record,
-            phase: knownFailure ? "failed" : "unconfirmed",
-            updatedAt: new Date().toISOString(),
-          },
-        })
-        if (!knownFailure) void watch(job.id, "now")
-      } finally {
-        active.current = null
-        if (live.current) replace([...current.current])
-      }
-    })()
-  }, [accept, jobs, replace, save, t, update, watch])
+    mutate({ id: job.id, signal: controller.signal })
+  }, [isPending, jobs, mutate])
 
   const enqueue = (target: FileUploadTarget, items: FileUploadSelection[]) => {
     if (

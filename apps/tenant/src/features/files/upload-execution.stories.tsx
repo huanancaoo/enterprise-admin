@@ -1,4 +1,17 @@
-import { useEffect, useRef, useState } from "react"
+import {
+  StrictMode,
+  useEffect,
+  useRef,
+  useState,
+  type ComponentProps,
+} from "react"
+import { createRoot, type Root } from "react-dom/client"
+import { I18nextProvider, useTranslation } from "react-i18next"
+import {
+  QueryClientProvider,
+  useMutationState,
+  useQueryClient,
+} from "@tanstack/react-query"
 import type { Meta, StoryObj } from "@storybook/react-vite"
 import { expect, userEvent, waitFor, within } from "storybook/test"
 import { ApiClientError } from "@workspace/api-client"
@@ -63,6 +76,7 @@ type Mode =
   | "blockedStorage"
   | "restored"
   | "immediateReceipt"
+  | "latePost"
 type Submitted = {
   fields: UploadFileFields | OverwriteFileFields
   fileName: string
@@ -157,7 +171,7 @@ function Execution({
           }),
           name: mode === "overwrite" ? file.name : "Private.txt",
         },
-        ...(mode === "complete"
+        ...(mode === "complete" || mode === "latePost"
           ? [
               {
                 file: new File([], "Empty.txt", { type: "text/plain" }),
@@ -188,7 +202,54 @@ function Execution({
     </>
   )
 }
-function ExecutionFixture({ mode = "complete" }: { mode?: Mode }) {
+function StrictExecutionRoot({
+  scopeKey,
+  ...props
+}: ComponentProps<typeof Execution> & { scopeKey: string }) {
+  const client = useQueryClient()
+  const { i18n } = useTranslation()
+  const container = useRef<HTMLDivElement | null>(null)
+  const root = useRef<Root | undefined>(undefined)
+  useEffect(() => {
+    // 实际 Strict 根重跑挂载 effects；后续 props 更新保留同一个上传队列实例。
+    const mounted = createRoot(container.current!)
+    root.current = mounted
+    return () => {
+      root.current = undefined
+      // 独立根的卸载发生在父树提交完成后；组织切换仍由内部 key 同步卸载队列。
+      queueMicrotask(() => mounted.unmount())
+    }
+  }, [])
+  useEffect(() => {
+    root.current!.render(
+      <StrictMode>
+        <QueryClientProvider client={client}>
+          <I18nextProvider i18n={i18n}>
+            <Execution key={scopeKey} {...props} />
+          </I18nextProvider>
+        </QueryClientProvider>
+      </StrictMode>
+    )
+  }, [client, i18n, props, scopeKey])
+  return <div ref={container} />
+}
+function MutationCacheProbe() {
+  const snapshot = useMutationState({
+    select: ({ state }) => ({
+      variables: Object.keys(state.variables ?? {}).sort(),
+      binaryResult: state.data instanceof Blob || state.context instanceof Blob,
+    }),
+  })
+  // i18next-instrument-ignore
+  return <output aria-label="Mutation cache">{JSON.stringify(snapshot)}</output>
+}
+function ExecutionFixture({
+  mode = "complete",
+  strict = false,
+}: {
+  mode?: Mode
+  strict?: boolean
+}) {
   const [userId] = useState(() => crypto.randomUUID())
   const [organizationId, setOrganizationId] = useState(id(2))
   const [generation, setGeneration] = useState(0)
@@ -196,6 +257,8 @@ function ExecutionFixture({ mode = "complete" }: { mode?: Mode }) {
   const [reads, setReads] = useState<string[]>([])
   const [completed, setCompleted] = useState<string[]>([])
   const [aborted, setAborted] = useState(false)
+  const [resolvedPosts, setResolvedPosts] = useState<string[]>([])
+  const pending = useRef<Array<() => void>>([])
   const receiptAt = useRef<number | undefined>(undefined)
   const [firstReadDelay, setFirstReadDelay] = useState<number>()
   useState(() => {
@@ -256,6 +319,12 @@ function ExecutionFixture({ mode = "complete" }: { mode?: Mode }) {
           { once: true }
         )
       )
+    if (mode === "latePost") {
+      signal.addEventListener("abort", () => setAborted(true), { once: true })
+      // adapter 故意忽略取消，验证旧响应不能影响新作用域的上传队列。
+      await new Promise<void>((resolve) => pending.current.push(resolve))
+      setResolvedPosts((previous) => [...previous, fields.operationId])
+    }
     if (mode === "lost") throw new TypeError("Connection was lost")
     if (mode === "conflict")
       throw error(
@@ -284,6 +353,16 @@ function ExecutionFixture({ mode = "complete" }: { mode?: Mode }) {
       throw error(404, "NOT_FOUND", "The task was not accepted")
     return receipt(operationId, "upload")
   }
+  const scopeKey = JSON.stringify([organizationId, generation])
+  const executionProps = {
+    userId,
+    organizationId,
+    mode,
+    submit,
+    read,
+    completed: (operation: FileOperationResponse) =>
+      setCompleted((current) => [...current, operation.id]),
+  }
   // i18next-instrument-ignore
   return (
     <div className="space-y-4 p-6">
@@ -295,23 +374,26 @@ function ExecutionFixture({ mode = "complete" }: { mode?: Mode }) {
       </output>
       <output aria-label="Scope request aborted">{String(aborted)}</output>
       <output aria-label="Storage key">{uploadRecordKey(userId, id(2))}</output>
+      <output aria-label="Resolved posts">
+        {JSON.stringify(resolvedPosts)}
+      </output>
+      <MutationCacheProbe />
       <Button onClick={() => setGeneration((current) => current + 1)}>
         Reload queue
       </Button>
       <Button onClick={() => setOrganizationId(id(20))}>
         Change organization
       </Button>
-      <Execution
-        key={JSON.stringify([organizationId, generation])}
-        userId={userId}
-        organizationId={organizationId}
-        mode={mode}
-        submit={submit}
-        read={read}
-        completed={(operation) =>
-          setCompleted((current) => [...current, operation.id])
-        }
-      />
+      {mode === "latePost" && (
+        <Button onClick={() => pending.current.shift()?.()}>
+          Release next POST
+        </Button>
+      )}
+      {strict ? (
+        <StrictExecutionRoot scopeKey={scopeKey} {...executionProps} />
+      ) : (
+        <Execution key={scopeKey} {...executionProps} />
+      )}
     </div>
   )
 }
@@ -571,6 +653,106 @@ export const OrganizationChangeReleasesDraftAndAbortsPost: Story = {
     await expect(saved(canvasElement)[0]).toMatchObject({
       submitted: true,
       phase: "unconfirmed",
+    })
+  },
+}
+export const StrictModeSendsEachQueuedFileOnceAndReleasesMutationCache: Story =
+  {
+    args: { strict: true },
+    play: async ({ canvasElement }) => {
+      const canvas = within(canvasElement)
+      await userEvent.click(
+        await canvas.findByRole("button", { name: "Queue files" })
+      )
+      await waitFor(() => expect(submitted(canvasElement)).toHaveLength(2))
+      const identities = submitted(canvasElement).map(
+        ({ fields }) => fields.operationId
+      )
+      await waitFor(() =>
+        expect(
+          JSON.parse(canvas.getByLabelText("Completed identities").textContent!)
+        ).toEqual(identities)
+      )
+      await expect(new Set(identities).size).toBe(2)
+      await waitFor(() =>
+        expect(canvas.getByLabelText("Mutation cache")).toHaveTextContent("[]")
+      )
+      await userEvent.click(
+        canvas.getByRole("button", { name: "Reload queue" })
+      )
+      await waitFor(() =>
+        expect(
+          canvas.getAllByText("Upload completed", { exact: true })
+        ).toHaveLength(2)
+      )
+      await expect(submitted(canvasElement)).toHaveLength(2)
+    },
+  }
+export const LatePostCannotResetNextScopesPendingMutation: Story = {
+  args: { mode: "latePost", strict: true },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(
+      await canvas.findByRole("button", { name: "Queue files" })
+    )
+    await waitFor(() => expect(submitted(canvasElement)).toHaveLength(1))
+    const oldId = submitted(canvasElement)[0]!.fields.operationId
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Change organization" })
+    )
+    await waitFor(() =>
+      expect(canvas.getByLabelText("Scope request aborted")).toHaveTextContent(
+        "true"
+      )
+    )
+    await userEvent.click(
+      await canvas.findByRole("button", { name: "Queue files" })
+    )
+    await waitFor(() => expect(submitted(canvasElement)).toHaveLength(2))
+    await expect(
+      JSON.parse(canvas.getByLabelText("Mutation cache").textContent!)
+    ).toEqual([
+      { variables: ["id", "signal"], binaryResult: false },
+      { variables: ["id", "signal"], binaryResult: false },
+    ])
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Release next POST" })
+    )
+    await waitFor(() =>
+      expect(canvas.getByLabelText("Resolved posts")).toHaveTextContent(oldId)
+    )
+    await waitFor(() =>
+      expect(
+        JSON.parse(canvas.getByLabelText("Mutation cache").textContent!)
+      ).toHaveLength(1)
+    )
+    await expect(submitted(canvasElement)).toHaveLength(2)
+    await expect(
+      canvas.getByLabelText("Completed identities")
+    ).toHaveTextContent("[]")
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Release next POST" })
+    )
+    await waitFor(() => expect(submitted(canvasElement)).toHaveLength(3))
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Release next POST" })
+    )
+    const newIds = submitted(canvasElement)
+      .slice(1)
+      .map(({ fields }) => fields.operationId)
+    await waitFor(() =>
+      expect(
+        JSON.parse(canvas.getByLabelText("Completed identities").textContent!)
+      ).toEqual(newIds)
+    )
+    await waitFor(() =>
+      expect(canvas.getByLabelText("Mutation cache")).toHaveTextContent("[]")
+    )
+    await expect(submitted(canvasElement)).toHaveLength(3)
+    await expect(saved(canvasElement)[0]).toMatchObject({
+      id: oldId,
+      phase: "unconfirmed",
+      submitted: true,
     })
   },
 }

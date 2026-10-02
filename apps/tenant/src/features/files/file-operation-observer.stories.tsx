@@ -1,5 +1,6 @@
 import { StrictMode, useCallback, useEffect, useRef, useState } from "react"
 import { createRoot } from "react-dom/client"
+import { QueryClientProvider, useQueryClient } from "@tanstack/react-query"
 import type { Meta, StoryObj } from "@storybook/react-vite"
 import { expect, userEvent, waitFor, within } from "storybook/test"
 import {
@@ -70,26 +71,32 @@ function StrictObservationRoot({
   read,
   completed,
 }: Omit<ScopeProps, "automatic">) {
+  const client = useQueryClient()
   const container = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
     // StrictMode 必须位于测试根，嵌套 StrictMode 不会重跑非 Strict 父树的首次 effects。
     const root = createRoot(container.current!)
     root.render(
       <StrictMode>
-        <ObservationScope read={read} completed={completed} automatic />
+        <QueryClientProvider client={client}>
+          <ObservationScope read={read} completed={completed} automatic />
+        </QueryClientProvider>
       </StrictMode>
     )
-    return () => root.unmount()
-  }, [read, completed])
+    // 独立 React 根在父树提交结束后卸载，避免跨根同步卸载打断父树提交。
+    return () => queueMicrotask(() => root.unmount())
+  }, [client, read, completed])
   return <div ref={container} />
 }
 
 type Mode = "lateRead" | "scope" | "error" | "failed" | "strict"
 function Fixture({ mode = "lateRead" }: { mode?: Mode }) {
+  const client = useQueryClient()
   const [scope, setScope] = useState(1)
   const [reads, setReads] = useState<string[]>([])
   const [completions, setCompletions] = useState(0)
   const [aborted, setAborted] = useState(false)
+  const [cachedQueries, setCachedQueries] = useState(0)
   const calls = useRef(0)
   const pending = useRef<Array<() => void>>([])
   const read = useCallback(
@@ -109,12 +116,21 @@ function Fixture({ mode = "lateRead" }: { mode?: Mode }) {
     [mode]
   )
   const completed = useCallback(() => setCompletions((count) => count + 1), [])
+  useEffect(() => {
+    const cache = client.getQueryCache()
+    return cache.subscribe(() =>
+      setCachedQueries(
+        cache.findAll({ queryKey: ["file-operation-observation"] }).length
+      )
+    )
+  }, [client])
   // i18next-instrument-ignore
   return (
     <main className="space-y-4 p-6">
       <output aria-label="Read identities">{JSON.stringify(reads)}</output>
       <output aria-label="Completion count">{completions}</output>
       <output aria-label="Read aborted">{String(aborted)}</output>
+      <output aria-label="Cached observations">{cachedQueries}</output>
       <Button onClick={() => setScope((value) => value + 1)}>
         Change scope
       </Button>
@@ -149,6 +165,9 @@ export const PostReceiptCancelsAndSupersedesOldGet: Story = {
     const canvas = within(canvasElement)
     await userEvent.click(canvas.getByRole("button", { name: "Watch UUID" }))
     await waitFor(() => expect(reads(canvasElement)).toEqual([operationId]))
+    await userEvent.click(canvas.getByRole("button", { name: "Check UUID" }))
+    await userEvent.click(canvas.getByRole("button", { name: "Check UUID" }))
+    await expect(reads(canvasElement)).toEqual([operationId])
     await userEvent.click(
       canvas.getByRole("button", { name: "Accept POST receipt" })
     )
@@ -175,16 +194,35 @@ export const ScopeCancellationIgnoresLateCompletion: Story = {
     const canvas = within(canvasElement)
     await userEvent.click(canvas.getByRole("button", { name: "Watch UUID" }))
     await waitFor(() => expect(reads(canvasElement)).toEqual([operationId]))
+    await expect(
+      canvas.getByLabelText("Cached observations")
+    ).toHaveTextContent("1")
     await userEvent.click(canvas.getByRole("button", { name: "Change scope" }))
     await expect(canvas.getByLabelText("Read aborted")).toHaveTextContent(
       "true"
     )
+    await expect(
+      canvas.getByLabelText("Cached observations")
+    ).toHaveTextContent("0")
+    await expect(canvas.getByLabelText("Observation")).toHaveTextContent("idle")
+    await userEvent.click(canvas.getByRole("button", { name: "Watch UUID" }))
+    await waitFor(() =>
+      expect(reads(canvasElement)).toEqual([operationId, operationId])
+    )
     await userEvent.click(
       canvas.getByRole("button", { name: "Release old GET" })
     )
-    await expect(canvas.getByLabelText("Observation")).toHaveTextContent("idle")
+    await expect(canvas.getByLabelText("Observation")).toHaveTextContent(
+      "checking"
+    )
     await expect(canvas.getByLabelText("Completion count")).toHaveTextContent(
       "0"
+    )
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Release old GET" })
+    )
+    await waitFor(() =>
+      expect(canvas.getByLabelText("Completion count")).toHaveTextContent("1")
     )
   },
 }
