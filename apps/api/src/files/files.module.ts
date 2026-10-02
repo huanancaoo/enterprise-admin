@@ -6,6 +6,7 @@ import { FileContent } from './file-content';
 import { FileContentController } from './file-content.controller';
 import { Files } from './files';
 import { FilesController } from './files.controller';
+import { FileMaintenance } from './file-maintenance';
 
 @Module({})
 export class FilesModule {
@@ -18,6 +19,7 @@ export class FilesModule {
         { provide: FilesRuntime, useValue: runtime },
         Files,
         FileContent,
+        FileMaintenance,
       ],
     };
   }

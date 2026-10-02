@@ -13,6 +13,10 @@ export class FilesRuntime implements OnApplicationShutdown {
     private readonly physicalScope?: FilePhysicalScope,
   ) {}
 
+  get enabled(): boolean {
+    return this.storage !== undefined && this.physicalScope !== undefined;
+  }
+
   requireStorage(): FileStorage {
     if (!this.storage) throw new NotFoundException();
     return this.storage;

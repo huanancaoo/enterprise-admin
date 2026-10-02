@@ -62,6 +62,11 @@ export async function startTestApplication({
     )
     const migrator = createDatabase(migrationURL).pool
     resources.defer(() => migrator.end())
+    // FORCE RLS 同样约束迁移角色；测试观察持久事实时使用独立管理员连接，应用仍只持有运行角色。
+    const observer = createDatabase(
+      database.url("bootstrap_admin", database.passwords[0])
+    ).pool
+    resources.defer(() => observer.end())
     let mailpitOrigin
     let smtp = { host: "127.0.0.1", port: await reservePort(), secure: false }
     if (mail) {
@@ -105,6 +110,7 @@ export async function startTestApplication({
       app,
       runtime: app.get(AuthRuntime),
       migrator,
+      observer,
       databaseContainer: database.container,
       deployerPool,
       deployerURL,
