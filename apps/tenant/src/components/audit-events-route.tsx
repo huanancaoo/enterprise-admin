@@ -3,11 +3,13 @@ import { useNavigate, useParams, useSearch } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { useForm } from "@tanstack/react-form"
 import { useTranslation } from "react-i18next"
+import { XIcon } from "lucide-react"
 import type { AuditEvent } from "@workspace/contracts"
 import { PageHeader } from "@workspace/admin"
 import { Button } from "@workspace/ui/components/button"
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -511,7 +513,23 @@ export function AuditEventsRoute() {
         open={Boolean(selectedEventId)}
         onOpenChange={(open) => !open && setSelectedEventId("")}
       >
-        <DialogContent>
+        {/* 详情没有固定内容长度；在弹层内滚动，避免长事实被视口截断。 */}
+        <DialogContent
+          className="max-h-[calc(100dvh-2rem)] overflow-y-auto"
+          showCloseButton={false}
+        >
+          <DialogClose
+            render={
+              <Button
+                variant="ghost"
+                className="absolute end-4 top-4"
+                size="icon-sm"
+              />
+            }
+          >
+            <XIcon />
+            <span className="sr-only">{t("common:close")}</span>
+          </DialogClose>
           <DialogHeader>
             <DialogTitle>
               {details.data

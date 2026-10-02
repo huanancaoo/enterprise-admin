@@ -17,10 +17,15 @@ import {
   platformOrganizationActor,
   platformUserFixture,
 } from "@workspace/mocks"
-import { PlatformAccessDeniedPage, PlatformLoginPage } from "../App"
+import {
+  PlatformAccessDeniedPage,
+  PlatformLoginPage,
+  PlatformMfaPage,
+} from "../App"
 import { authClient } from "../lib/auth-client"
 import { PlatformUsersPage, PlatformUserDetailPage } from "./users/pages"
 import { PlatformAuditPage } from "./audit/page"
+import { PlatformSettingsPage } from "./settings-page"
 
 function StoryLogin() {
   const { t } = useTranslation("auth")
@@ -36,12 +41,16 @@ export function PlatformReadPageStory({
   detail = false,
   auditor = false,
 }: {
-  page: "users" | "audit"
+  page: "users" | "audit" | "settings"
   detail?: boolean
   auditor?: boolean
 }) {
   const [router] = useState(() => {
-    const root = createRootRoute()
+    const root = createRootRoute({
+      beforeLoad: () => ({
+        user: { ...platformOrganizationActor, twoFactorEnabled: true },
+      }),
+    })
     const platform = createRoute({
       getParentRoute: () => root,
       path: "platform",
@@ -97,18 +106,35 @@ export function PlatformReadPageStory({
       path: "login",
       component: StoryLogin,
     })
+    const settings = createRoute({
+      getParentRoute: () => platform,
+      path: "settings",
+      component: () => (
+        <main className="mx-auto max-w-5xl p-6">
+          <PlatformSettingsPage />
+        </main>
+      ),
+    })
+    const mfa = createRoute({
+      getParentRoute: () => platform,
+      path: "mfa",
+      validateSearch: (search) => ({ challenge: search.challenge === true }),
+      component: PlatformMfaPage,
+    })
     return createRouter({
       routeTree: root.addChildren([
-        platform.addChildren([users, user, audit, denied]),
+        platform.addChildren([users, user, audit, settings, mfa, denied]),
         login,
       ]),
       history: createMemoryHistory({
         initialEntries: [
-          page === "audit"
-            ? "/platform/audit-events"
-            : detail
-              ? `/platform/users/${platformUserFixture.userId}`
-              : "/platform/users",
+          page === "settings"
+            ? "/platform/settings"
+            : page === "audit"
+              ? "/platform/audit-events"
+              : detail
+                ? `/platform/users/${platformUserFixture.userId}`
+                : "/platform/users",
         ],
       }),
     })

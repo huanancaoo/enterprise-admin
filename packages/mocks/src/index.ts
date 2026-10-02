@@ -3,7 +3,7 @@ export { createWorkspaceSessionHandlers } from "./handlers/workspace-session"
 export { createProjectsHandler } from "./handlers/projects"
 export type { ProjectsScenario } from "./handlers/projects"
 export { projectScenarios } from "./scenarios/projects"
-export { createPlatformSettingsHandlers } from "./handlers/platform-settings"
+export { createPlatformSettingsScenario } from "./handlers/platform-settings"
 export type { PlatformSettingsScenario } from "./handlers/platform-settings"
 export {
   createPlatformOrganizationScenario,
@@ -22,6 +22,12 @@ export {
   platformAuditFixture,
 } from "./handlers/platform-audit"
 export type { PlatformAuditScenario } from "./handlers/platform-audit"
+export {
+  createOrganizationAuditScenario,
+  organizationAuditFixture,
+  organizationAuditSummary,
+} from "./handlers/organization-audit"
+export type { OrganizationAuditScenario } from "./handlers/organization-audit"
 export { createProjectHandler } from "./handlers/project-create"
 export {
   createProjectDetailHandler,

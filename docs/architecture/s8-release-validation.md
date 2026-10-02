@@ -140,9 +140,29 @@ T15 还实际复现了空参数绕过：停用组织已经是当前 Session 的 
 
 另核对已构建工作台的用户敏感读取 RTL 弹层、审计 RTL 详情和长文本详情，均为 1280×1000 视口，页面 scrollWidth=clientWidth=1280、无浏览器 pageerror；审计弹层自身 scrollWidth=clientWidth=448，长字段完整换行。实际截图已查看，路径为 `/private/tmp/enterprise-admin-s8-users-rtl.png`、`enterprise-admin-s8-audit-rtl.png` 和 `enterprise-admin-s8-audit-long-text.png`。审计渲染日志为同目录的 `enterprise-admin-s8-audit-render.log`；工作台自动运行详情 Story 的交互后再等待弹层内容和动画结束，避免重复操作隐藏在弹层后的筛选表单。此核对仍限于 UI fixture、当前 Chromium 和上述视口，不增加真实后台或移动端验收结论。
 
+## 平台设置与租户审计 Feature Stories
+
+平台设置从 13 个场景增至 21 个。默认、空 SMTP 配置、只读、加载、错误、长文本、三语/RTL 和慢请求明确等待实际内容，避免内置 axe 只检查到加载态；保存实际选择英语、键盘提交、核对字段和按钮禁用、成功读回及原因清空。另覆盖读取重试、错误原因、陈旧版本保留草稿并显式丢弃重载、429/503 保留输入供手动重试，以及保存失权、会话失效和近期 MFA 的正式页面跳转。fixture 每次重跑重置版本与失败状态，语言变更和版本读回来自同一份状态。
+
+新增租户审计 26 个场景，通过内存路由运行正式审计 Feature。覆盖默认、加载、空、错误、权限拒绝、401/429、慢请求、重试、长文本、三语/RTL；详情覆盖加载、503/404/403/401、长文本、RTL、平台摘要和系统操作者。筛选/游标分页作用于同一批相对时间记录；无效 actor、倒置日期和超过 90 天的范围保留原列表。键盘打开与 Escape 关闭后恢复原事件按钮焦点。这里的 401/403 使用 Feature 自身的读取错误展示，不作为全应用登录跳转或授权撤销证据。
+
+两个新增场景实际复现了租户审计缺陷：结构化长事实使弹层顶部超出视口 192 像素，RTL 关闭按钮仍使用英语 Close。审计详情改在弹层内滚动，保留原 X 关闭样式并从 common catalog 读取 Close/关闭/إغلاق；三语类型由 `i18next-cli types` 重新生成。公共 Dialog 的接口、其他调用者、审计 API 和可见投影未修改。
+
+首次工作台回归还复现了停用组织布局场景过早读取切换器：访问拒绝已出现，但独立组织目录仍在加载。将目录响应延迟 300ms 后，最小检查稳定重现该失败；现在等待实际组织按钮再切换，原菜单关闭、另一组织加载和拒绝提示清除断言保留。审计空状态也明确等待空文案，避免把同为 status 的加载提示当成最终结果。没有增加产品等待或异常分支。
+
+最终聚焦检查 3 文件、50 项全部通过，退出码 0：平台设置 21、租户审计 26、后台布局 3。第一次两个 Feature 检查为 44 通过、3 失败；最小失败检查为长详情、RTL 关闭标签和停用布局 3 项失败。日志为 `/private/tmp/enterprise-admin-s8-settings-tenant-audit-first.log`、`enterprise-admin-s8-audit-layout-minimal-red.log` 和 `enterprise-admin-s8-settings-tenant-audit-focused.log`。首次设置命令实际运行了全量 185 个场景，设置 21 项通过但布局 1 项失败；不能把该日志宣称为全量通过。
+
+## 设置与租户审计批次完整检查
+
+本批完整 `pnpm verify` 的日志记录所有检查通过，并结束于 OpenAPI/Orval 可重现检查成功：API 155 项（Nest HTTP 15、业务 HTTP 140），浏览器 11 文件/75 项，Storybook 17 文件/211 项，数据库 2 文件/24 项，固定规模性能 1 文件/2 项。单元测试根目录 43、API 28、文档站 3 项，共 74 项；peer、lint/工程边界、typecheck、i18n、38 页文档内容、数据库 Schema 和生产构建均通过。日志为 `/private/tmp/enterprise-admin-s8-settings-tenant-audit-verify-final.log`。本批净增 34 个 Storybook 场景；并未替代已有真实 HTTP、数据库或组合浏览器验证。
+
+验证前后本批 13 个源码文件 SHA-256 一致，列表为 `/private/tmp/enterprise-admin-s8-settings-audit-source-before.txt` 和 `enterprise-admin-s8-settings-audit-source-after.txt`。手写源码和两份验收文档共 14 个文件通过定向 Prettier 检查；`resources.ts` 保留 i18next-cli 的标准生成格式，由 `types --ci` 验证可重现，不人工格式化生成文件。
+
+核对完整检查生成的工作台产物：平台设置长部署摘要、平台设置 RTL、租户审计 RTL 详情及长详情在 1280×720 视口的页面 scrollWidth=clientWidth=1280，无浏览器 pageerror。长详情 top=16、bottom=704，clientHeight=688、scrollHeight=1284，弹层宽度及 scrollWidth 均为 448；原生 End 键使 scrollTop 从 0 到 595，Escape 后事件按钮恢复焦点。原生浏览器检查退出码 0，日志为 `/private/tmp/enterprise-admin-s8-settings-audit-render.log`。截图已查看，路径为同目录的 `enterprise-admin-s8-platform-settings-long-text.png`、`enterprise-admin-s8-platform-settings-rtl.png`、`enterprise-admin-s8-tenant-audit-rtl.png`、`enterprise-admin-s8-tenant-audit-long-text.png` 和 `enterprise-admin-s8-tenant-audit-long-text-keyboard.png`。这些证据限于 UI fixture、当前 Chromium 和上述视口，真实授权、隔离、邮件及发布仍按各自链路验收。
+
 ## 尚未完成的验收
 
-- 平台组织、用户目录和审计已补足上述 Feature Stories，其他 S8 关键 Feature 状态仍需逐项补足；不能用 API 或公共 Stories 替代。
+- 平台组织、用户目录、审计、设置及租户审计已补足上述 Feature Stories；Members/Invitations/Roles 和个人/组织语言设置仍需逐项补足，不能用 API 或公共 Stories 替代。
 - 安全回退入口和 ADR-0002/当前 CLI 的语义冲突等待用户确认；确认后完成实现、文档与对应发布验收。
 
 本机验证与远端 CI、生产部署分别记账；本记录不声称 GitHub Actions 或生产发布已通过。

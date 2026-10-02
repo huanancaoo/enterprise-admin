@@ -80,6 +80,7 @@ export default interface Resources {
     "cancel": "取消",
     "clearFilters": "清除筛选",
     "clearSelection": "取消选择",
+    "close": "关闭",
     "codeBlock": "代码块",
     "collapseRow": "收起行",
     "columnSettings": "列设置",

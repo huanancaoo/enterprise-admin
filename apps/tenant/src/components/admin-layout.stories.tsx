@@ -117,6 +117,8 @@ export const SuspendedOrganization: Story = {
       handlers: [
         ...createWorkspaceSessionHandlers({
           suspendedIds: [organizations[0].id],
+          // 访问拒绝先到达时，切换器仍需等待独立的组织目录。
+          listDelay: 300,
         }),
         createProjectsHandler(),
         createProjectDetailHandler(),
@@ -131,7 +133,7 @@ export const SuspendedOrganization: Story = {
     )
     await expect(canvas.queryByRole("table")).toBeNull()
     await userEvent.click(
-      canvas.getByRole("button", { name: /North workspace/ })
+      await canvas.findByRole("button", { name: /North workspace/ })
     )
     await userEvent.click(
       await screen.findByRole("menuitem", { name: /South workspace/ })

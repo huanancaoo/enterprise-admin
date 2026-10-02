@@ -5,6 +5,7 @@ import type { MyPreferences, OrganizationStatus } from "@workspace/contracts"
 export function createWorkspaceSessionHandlers(options?: {
   suspendedIds?: readonly string[]
   refreshDelay?: number | "infinite"
+  listDelay?: number
 }) {
   const suspended = new Set(options?.suspendedIds ?? [])
   let activeId: string = organizations[0].id
@@ -57,6 +58,7 @@ export function createWorkspaceSessionHandlers(options?: {
       } satisfies MyPreferences)
     ),
     http.get("*/api/v1/me/organizations", async () => {
+      if (options?.listDelay !== undefined) await delay(options.listDelay)
       if (
         activeId !== organizations[0].id &&
         options?.refreshDelay !== undefined
