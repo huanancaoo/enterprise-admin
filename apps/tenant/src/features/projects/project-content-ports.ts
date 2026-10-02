@@ -8,6 +8,7 @@ import {
   saveProjectContent,
   uploadOrganizationFile,
 } from "@workspace/api-client"
+import { parse as parseContentDisposition } from "content-disposition"
 import { SaveProjectContentSchema } from "@workspace/contracts"
 import type {
   FileEntryResponse,
@@ -116,14 +117,14 @@ export function createProjectFilePorts(
         options(signal)
       )
       signal.throwIfAborted()
-      const encoded = /filename\*=UTF-8''([^;]+)/iu.exec(
+      const filename = parseContentDisposition(
         response.headers.get("content-disposition") ?? ""
-      )?.[1]
-      if (!encoded) throw new Error("Missing authorized download filename")
+      ).parameters.filename
+      if (!filename) throw new Error("Missing authorized download filename")
       const url = URL.createObjectURL(response.data)
       const anchor = document.createElement("a")
       anchor.href = url
-      anchor.download = decodeURIComponent(encoded)
+      anchor.download = filename
       anchor.click()
       setTimeout(() => URL.revokeObjectURL(url), 0)
     },

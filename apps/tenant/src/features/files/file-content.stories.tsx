@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import type { Meta, StoryObj } from "@storybook/react-vite"
 import { expect, spyOn, userEvent, waitFor, within } from "storybook/test"
 import {
@@ -7,19 +7,54 @@ import {
   filePickerImage,
 } from "@workspace/mocks"
 import { Button } from "@workspace/ui/components/button"
+import { RichTextEditor } from "@workspace/admin"
 import { FileDownloadButton, type FileContentTarget } from "./file-content"
+import { createProjectFilePorts } from "../projects/project-content-ports"
 
 const target: FileContentTarget = {
   file: { ...filePickerImage, name: "stale-page-name.bin" },
   version: filePickerImage.currentVersion,
 }
-function DownloadFixture() {
+function ProjectAttachmentFixture() {
+  const [controller] = useState(() => new AbortController())
+  useEffect(() => () => controller.abort(), [controller])
+  const ports = createProjectFilePorts(target.file.organizationId, "en-US")
+  return (
+    <RichTextEditor
+      variant="field"
+      editable={false}
+      contentScopeKey="project-download-scope"
+      value={{
+        type: "doc",
+        content: [
+          {
+            type: "fileAttachment",
+            attrs: {
+              fileId: target.file.id,
+              versionId: target.version.id,
+              label: "Cached project attachment",
+            },
+          },
+        ],
+      }}
+      resolveImage={ports.image}
+      downloadFile={(reference) => ports.download(reference, controller.signal)}
+      getFileErrorMessage={(error) => (error as Error).message}
+    />
+  )
+}
+function DownloadFixture({ project = false }: { project?: boolean }) {
   const [mounted, setMounted] = useState(true)
   // i18next-instrument-ignore
   return (
     <main className="space-y-4 p-6">
       <Button onClick={() => setMounted(false)}>Leave authorized scope</Button>
-      {mounted && <FileDownloadButton target={target} />}
+      {mounted &&
+        (project ? (
+          <ProjectAttachmentFixture />
+        ) : (
+          <FileDownloadButton target={target} />
+        ))}
     </main>
   )
 }
@@ -87,15 +122,24 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-function downloadStory(header: string, filename: string): Story {
+function downloadStory(
+  header: string,
+  filename: string,
+  project = false
+): Story {
   const fixture = scenario(header)
   return {
+    args: { project },
     beforeEach: fixture.beforeEach,
     parameters: fixture.parameters,
     play: async ({ canvasElement }) => {
       const canvas = within(canvasElement)
       await userEvent.click(
-        canvas.getByRole("button", { name: "Download file" })
+        await canvas.findByRole("button", {
+          name: project
+            ? "Download Cached project attachment"
+            : "Download file",
+        })
       )
       await waitFor(() => expect(fixture.downloads).toHaveLength(1))
       await expect(fixture.downloads[0]).toEqual({
@@ -129,6 +173,12 @@ export const Utf8FilenameOverridesOrdinaryParameter = downloadStory(
   "attachment; filename=report.bin; filename*=UTF-8''%E6%8A%A5%E5%91%8A.bin",
   "报告.bin"
 )
+export const ProjectRichTextAttachmentUsesAuthorizedAsciiFilename =
+  downloadStory(
+    "attachment; filename=project-attachment.bin",
+    "project-attachment.bin",
+    true
+  )
 
 const missing = scenario("attachment")
 export const MissingAuthorizedFilenameDoesNotUsePageName: Story = {
