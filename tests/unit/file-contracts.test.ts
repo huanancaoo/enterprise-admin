@@ -59,6 +59,8 @@ describe("Files HTTP contracts", () => {
       operationId,
       parentId: entryId,
       name: "a".repeat(255),
+      contentSha256:
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       declaredBytes: "0",
     }
     expect(UploadFileFieldsSchema.parse(input).declaredBytes).toBe(0)
@@ -215,6 +217,7 @@ describe("Files HTTP contracts", () => {
     expect(schema?.properties).toHaveProperty("declaredBytes")
     expect(schema?.required).toContain("operationId")
     expect(schema?.required).toContain("parentId")
+    expect(schema?.required).toContain("contentSha256")
     expect(schema?.properties).not.toHaveProperty("bucket")
     expect(schema?.additionalProperties).toBe(false)
   })

@@ -192,6 +192,7 @@ export const UploadFileFieldsSchema = z
     operationId: FileOperationIdSchema,
     parentId: FileEntryIdSchema,
     name: FileNameSchema,
+    contentSha256: z.string().regex(/^[a-f0-9]{64}$/),
     declaredBytes: z.coerce
       .number()
       .int()
@@ -204,6 +205,7 @@ export const OverwriteFileFieldsSchema = z
   .strictObject({
     operationId: FileOperationIdSchema,
     expectedRevision: z.coerce.number().int().min(1),
+    contentSha256: z.string().regex(/^[a-f0-9]{64}$/),
     declaredBytes: z.coerce
       .number()
       .int()
@@ -212,6 +214,18 @@ export const OverwriteFileFieldsSchema = z
   })
   .meta({ id: "OverwriteFileFields" })
 export type OverwriteFileFields = z.infer<typeof OverwriteFileFieldsSchema>
+
+export const UploadFileBodySchema = UploadFileFieldsSchema.extend({
+  file: z.file().max(maxOrganizationUploadBytes).meta({ format: "binary" }),
+}).meta({ id: "UploadFileBody" })
+export const OverwriteFileBodySchema = OverwriteFileFieldsSchema.extend({
+  file: z.file().max(maxOrganizationUploadBytes).meta({ format: "binary" }),
+}).meta({ id: "OverwriteFileBody" })
+
+export const FileEntryImpactQuerySchema = z.strictObject({
+  action: z.enum(["trash", "purge"]),
+})
+export type FileEntryImpactQuery = z.infer<typeof FileEntryImpactQuerySchema>
 
 const operationFields = {
   operationId: FileOperationIdSchema,

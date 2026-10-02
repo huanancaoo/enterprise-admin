@@ -43,6 +43,8 @@ function publicDetails(facts: Record<string, unknown> | undefined) {
 
 export function rethrowFileError(error: unknown): never {
   if (error instanceof FileRepositoryError) {
+    if (error.code === 'VALIDATION_ERROR')
+      throw new ApiException(400, 'VALIDATION_ERROR');
     if (error.code === 'UNAUTHENTICATED')
       throw new ApiException(401, 'UNAUTHENTICATED');
     if (error.code === 'FORBIDDEN') throw new ApiException(403, 'FORBIDDEN');
