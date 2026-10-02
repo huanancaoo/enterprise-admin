@@ -11,6 +11,7 @@ import { EmailRuntime } from './email/email-runtime';
 import { configureApp } from './http/configure-app';
 import { AuthRuntime } from './identity/auth-runtime';
 import { setupSwagger } from './openapi/setup-swagger';
+import { createFilesRuntime, FilesRuntime } from './files/files-runtime';
 
 export async function createApplication(
   config: ApplicationConfig,
@@ -18,13 +19,15 @@ export async function createApplication(
 ): Promise<NestExpressApplication> {
   let email: EmailRuntime | undefined;
   let runtime: AuthRuntime | undefined;
+  let files: FilesRuntime | undefined;
   try {
     runtime = new AuthRuntime(config, (pool) => {
       email = new EmailRuntime(pool, config);
       return email.hooks;
     });
+    files = await createFilesRuntime(config.files);
     const app = await NestFactory.create<NestExpressApplication>(
-      AppModule.forRoot(runtime, email!, readDeploymentSummary(config)),
+      AppModule.forRoot(runtime, email!, readDeploymentSummary(config), files),
       { ...options, bodyParser: false, abortOnError: false },
     );
     configureApp(app, () => readPlatformDefaultLocale(runtime!.pool));
@@ -48,6 +51,7 @@ export async function createApplication(
     return app;
   } catch (error) {
     email?.onModuleDestroy();
+    await files?.onApplicationShutdown();
     await runtime?.onApplicationShutdown();
     throw error;
   }

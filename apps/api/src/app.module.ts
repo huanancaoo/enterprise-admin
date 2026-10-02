@@ -10,6 +10,8 @@ import { PlatformModule } from './platform/platform.module';
 import { ProjectsModule } from './projects/projects.module';
 import { TenancyModule } from './tenancy/tenancy.module';
 import { type DeploymentSummary } from './config/deployment-summary';
+import { FilesModule } from './files/files.module';
+import { FilesRuntime } from './files/files-runtime';
 
 @Module({})
 export class AppModule {
@@ -17,6 +19,7 @@ export class AppModule {
     runtime: AuthRuntime,
     email: EmailRuntime,
     deployment: DeploymentSummary,
+    files: FilesRuntime,
   ): DynamicModule {
     return {
       module: AppModule,
@@ -28,6 +31,7 @@ export class AppModule {
         TenancyModule,
         OrganizationsModule,
         ProjectsModule,
+        FilesModule.forRoot(files),
         PlatformModule.forRoot(deployment),
       ],
     };

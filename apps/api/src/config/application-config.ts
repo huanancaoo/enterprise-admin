@@ -1,9 +1,12 @@
 import type { EmailConfig } from '../email/email-config';
 import { parseEmailEncryptionKey } from '../email/email-crypto';
 import { readAuthConfig, type AuthConfig } from '../identity/auth-runtime';
+import { readFilesConfig } from '../files/files-config';
+import type { StorageConfig } from '../files/storage/storage';
 
 export interface ApplicationConfig extends AuthConfig {
   email: EmailConfig;
+  files?: StorageConfig;
 }
 
 export function readApplicationConfig(
@@ -34,6 +37,7 @@ export function readApplicationConfig(
   }
   return {
     ...readAuthConfig(env),
+    files: readFilesConfig(env),
     email: {
       smtp: {
         host: required('SMTP_HOST'),
