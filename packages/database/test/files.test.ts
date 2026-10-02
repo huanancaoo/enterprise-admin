@@ -3853,3 +3853,57 @@ test("个人发布已成功但响应未知或头像CAS失败均不移交删除�
   assert.equal(operation.phase, "completed")
   assert.notEqual(operation.committed_at, null)
 })
+
+test("平台策略读取等待后复核 Session，不能返回已失效身份的摘要", async () => {
+  const a = await workspace(),
+    actor = await platformActor("platform_auditor")
+  const blocker = await owner.connect(),
+    reader = await runtime.connect()
+  const applicationName = `storage-read-${randomUUID()}`
+  try {
+    await blocker.query("BEGIN")
+    await blocker.query(
+      "UPDATE file_storage_usage SET used_bytes=used_bytes WHERE organization_id=$1",
+      [a.context.organizationId]
+    )
+    await reader.query("SELECT set_config('application_name',$1,false)", [
+      applicationName,
+    ])
+    const pending = reader.query(
+      "SELECT public.get_platform_storage_policy($1,$2,$3,$4)",
+      [actor.actorId, actor.sessionId, a.context.organizationId, randomUUID()]
+    )
+    const rejection = assert.rejects(pending, databaseMessage("FORBIDDEN"))
+    let waiting = false
+    for (let i = 0; i < 200; i++) {
+      waiting = (
+        await owner.query(
+          "SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE application_name=$1 AND wait_event_type='Lock') AS waiting",
+          [applicationName]
+        )
+      ).rows[0]!.waiting
+      if (waiting) break
+      await new Promise((resolve) => setTimeout(resolve, 10))
+    }
+    assert.equal(waiting, true)
+    await owner.query(
+      "UPDATE public.session SET expires_at=now()-interval '1 minute' WHERE id=$1",
+      [actor.sessionId]
+    )
+    await blocker.query("COMMIT")
+    await rejection
+    assert.equal(
+      (
+        await owner.query(
+          "SELECT count(*)::integer AS total FROM audit_events WHERE organization_id=$1 AND event_code='platform.storage_policy_viewed'",
+          [a.context.organizationId]
+        )
+      ).rows[0]!.total,
+      0
+    )
+  } finally {
+    await blocker.query("ROLLBACK")
+    blocker.release()
+    reader.release()
+  }
+})
