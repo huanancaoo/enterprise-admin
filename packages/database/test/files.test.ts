@@ -36,6 +36,8 @@ const tables = [
   "file_references",
   "file_storage_usage",
   "file_operations",
+  "file_operation_batches",
+  "file_operation_batch_items",
   "file_operation_objects",
   "file_namespace_reservations",
   "project_file_contents",
@@ -278,7 +280,7 @@ async function pathOperation(
 }
 
 // 这里验证正式 TenantTx 数据边界；物理写入/删除仍由 API + Local/RustFS 矩阵验证。
-test("8张组织表启用并强制RLS，runtime不是owner且无旁路权限", async () => {
+test("10张组织表启用并强制RLS，runtime不是owner且无旁路权限", async () => {
   const role = await runtime.query(
     "SELECT current_user,rolsuper,rolbypassrls FROM pg_roles WHERE rolname=current_user"
   )
@@ -291,7 +293,7 @@ test("8张组织表启用并强制RLS，runtime不是owner且无旁路权限", a
     "SELECT relname,relrowsecurity,relforcerowsecurity,pg_get_userbyid(relowner) AS owner FROM pg_class WHERE relname=ANY($1)",
     [tables]
   )
-  assert.equal(rows.rowCount, 8)
+  assert.equal(rows.rowCount, 10)
   for (const row of rows.rows)
     assert.deepEqual(
       {
@@ -4597,4 +4599,309 @@ test("fixed维护投影删除意图且拒绝提前移除备份，未知确认恢
   assert.equal(operation.committedAt, null)
   assert.equal((await run(a.context, fileRepository.usage))!.transientBytes, 0)
   assert.equal((await run(a.context, fileRepository.usage))!.usedBytes, 3)
+})
+
+const beginBatch = (
+  tx: TenantTx,
+  request: {
+    id: string
+    action: "move" | "trash" | "restore" | "purge"
+    parentId?: string
+    items: { entryId: string; expectedRevision: number; operationId: string }[]
+  }
+) =>
+  fileRepository.beginBatch(tx, {
+    ...request,
+    requestHash: sha(
+      JSON.stringify({
+        action: request.action,
+        parentId: request.parentId ?? null,
+        items: request.items.map((item) => ({
+          entryId: item.entryId,
+          expectedRevision: item.expectedRevision,
+          operationId: item.operationId,
+        })),
+      })
+    ),
+  })
+const batchItems = (...entries: FileEntry[]) =>
+  entries.map((entry) => ({
+    entryId: entry.id,
+    expectedRevision: entry.revision,
+    operationId: randomUUID(),
+  }))
+
+test("批次固定有序选择与祖先覆盖，tree变化后重放仍返回首次计划", async () => {
+  const a = await workspace(),
+    parent = await folder(a.context, a.root.id, "batch-parent"),
+    child = await folder(a.context, parent.id, "batch-child"),
+    destination = await folder(a.context, a.root.id, "batch-target")
+  const request = {
+    id: randomUUID(),
+    action: "move" as const,
+    parentId: destination.id,
+    items: batchItems(child, parent),
+  }
+  const first = await run(a.context, (tx) => beginBatch(tx, request))
+  assert.deepEqual(
+    first.items.map((item) => [item.index, item.rootIndex]),
+    [
+      [0, 1],
+      [1, 1],
+    ]
+  )
+  await pathOperation(a.context, child, "move", { parentId: destination.id })
+  const repeated = await run(a.context, (tx) => beginBatch(tx, request))
+  assert.deepEqual(repeated, first)
+  const foreign = await workspace()
+  assert.equal(
+    await run(foreign.context, (tx) =>
+      fileRepository.findBatch(tx, request.id)
+    ),
+    undefined
+  )
+  await assert.rejects(
+    run({ ...a.context, userId: randomUUID() }, (tx) =>
+      beginBatch(tx, request)
+    ),
+    errorCode("IDEMPOTENCY_KEY_REUSED")
+  )
+  await assert.rejects(
+    run(a.context, (tx) =>
+      beginBatch(tx, {
+        ...request,
+        items: request.items.map((item) => ({
+          ...item,
+          expectedRevision: item.expectedRevision + 1,
+        })),
+      })
+    ),
+    errorCode("IDEMPOTENCY_KEY_REUSED")
+  )
+})
+
+test("批次DTO领域边界拒绝重复条目/operation身份和超过100项，无效选择不写事实", async () => {
+  const a = await workspace(),
+    file = await upload(a.context, a.root.id, "selected")
+  const selected = batchItems(file)[0]!
+  for (const items of [
+    [selected, selected],
+    [selected, { ...selected, entryId: randomUUID() }],
+    [],
+    Array.from({ length: 101 }, () => ({
+      entryId: randomUUID(),
+      operationId: randomUUID(),
+      expectedRevision: 1,
+    })),
+  ])
+    await assert.rejects(
+      run(a.context, (tx) =>
+        beginBatch(tx, {
+          id: randomUUID(),
+          action: "trash",
+          items,
+        })
+      ),
+      errorCode("VALIDATION_ERROR")
+    )
+  assert.equal(
+    (
+      await owner.query(
+        "SELECT count(*)::integer AS total FROM file_operation_batches WHERE organization_id=$1",
+        [a.context.organizationId]
+      )
+    ).rows[0]!.total,
+    0
+  )
+})
+
+test("批次不可变表与native唯一/有界/root约束拒绝身份歧义，无scope不可写", async () => {
+  const a = await workspace(),
+    parent = await folder(a.context, a.root.id, "batch"),
+    child = await folder(a.context, parent.id, "child")
+  const request = {
+    id: randomUUID(),
+    action: "trash" as const,
+    items: batchItems(child, parent),
+  }
+  await run(a.context, (tx) => beginBatch(tx, request))
+  const insert = (
+    index: number,
+    id: string = randomUUID(),
+    op: string = randomUUID(),
+    rootIndex = index
+  ) =>
+    run(a.context, (tx) =>
+      tx.execute(
+        sql`INSERT INTO file_operation_batch_items(organization_id,batch_id,index,entry_id,expected_revision,operation_id,root_index,entry_kind) VALUES(${a.context.organizationId}::uuid,${request.id}::uuid,${index},${id}::uuid,1,${op}::uuid,${rootIndex},'folder')`
+      )
+    )
+  await assert.rejects(
+    insert(2, randomUUID(), request.items[1]!.operationId),
+    sqlCode("23505")
+  )
+  await assert.rejects(insert(2, parent.id), sqlCode("23505"))
+  await assert.rejects(insert(100), sqlCode("23514"))
+  await assert.rejects(
+    insert(2, randomUUID(), randomUUID(), 0),
+    sqlCode("23514")
+  )
+  await assert.rejects(
+    run(a.context, (tx) =>
+      tx.execute(
+        sql`UPDATE file_operation_batch_items SET root_index=0 WHERE organization_id=${a.context.organizationId}::uuid`
+      )
+    ),
+    sqlCode("42501")
+  )
+  await assert.rejects(
+    run(a.context, (tx) =>
+      tx.execute(
+        sql`DELETE FROM file_operation_batches WHERE organization_id=${a.context.organizationId}::uuid`
+      )
+    ),
+    sqlCode("42501")
+  )
+  await assert.rejects(
+    runtime.query(
+      "INSERT INTO file_operation_batches(id,organization_id,actor_id,action,request_hash) VALUES($1,$2,$3,'trash',$4)",
+      [
+        randomUUID(),
+        a.context.organizationId,
+        a.context.userId,
+        sha("missing scope"),
+      ]
+    ),
+    sqlCode("42501")
+  )
+  await assert.rejects(
+    run(a.context, (tx) =>
+      tx.execute(
+        sql`INSERT INTO file_operation_batches(id,organization_id,actor_id,action,request_hash) VALUES(${randomUUID()}::uuid,${a.context.organizationId}::uuid,${a.context.userId}::uuid,'trash',${sha("empty")})`
+      )
+    ),
+    sqlCode("23514")
+  )
+})
+
+test("批次covered在根受理时仍检查原选择归属，已移出的子项使该根VERSION_CONFLICT", async () => {
+  const a = await workspace(),
+    parent = await folder(a.context, a.root.id, "old-parent"),
+    child = await folder(a.context, parent.id, "child"),
+    target = await folder(a.context, a.root.id, "outside")
+  const request = {
+    id: randomUUID(),
+    action: "trash" as const,
+    items: batchItems(parent, child),
+  }
+  const { items } = await run(a.context, (tx) => beginBatch(tx, request))
+  await pathOperation(a.context, child, "move", { parentId: target.id })
+  await assert.rejects(
+    run(a.context, async (tx) => {
+      const operation = await begin(tx, "trash")
+      await fileRepository.preparePathOperation(tx, operation.id, {
+        entryId: parent.id,
+        expectedRevision: parent.revision,
+        selected: items.map((item) => ({
+          entryId: item.entryId,
+          expectedRevision: item.expectedRevision,
+        })),
+        now: new Date(),
+      })
+    }),
+    errorCode("VERSION_CONFLICT")
+  )
+  assert.equal(
+    (await run(a.context, (tx) => fileRepository.findEntry(tx, parent.id)))!
+      .busyOperationId,
+    null
+  )
+  assert.deepEqual(
+    (await run(a.context, (tx) =>
+      fileRepository.findBatch(tx, request.id)
+    ))!.items.map((item) => item.rootIndex),
+    [0, 0]
+  )
+})
+
+test("批次covered修订冲突不能被祖先revision覆盖", async () => {
+  const a = await workspace(),
+    parent = await folder(a.context, a.root.id, "parent"),
+    child = await upload(a.context, parent.id, "child")
+  const request = {
+    id: randomUUID(),
+    action: "trash" as const,
+    items: batchItems(parent, { ...child, revision: child.revision + 1 }),
+  }
+  const plan = await run(a.context, (tx) => beginBatch(tx, request))
+  await assert.rejects(
+    run(a.context, async (tx) => {
+      const operation = await begin(tx, "trash")
+      await fileRepository.preparePathOperation(tx, operation.id, {
+        entryId: parent.id,
+        expectedRevision: parent.revision,
+        selected: plan.items.map((item) => ({
+          entryId: item.entryId,
+          expectedRevision: item.expectedRevision,
+        })),
+        now: new Date(),
+      })
+    }),
+    errorCode("VERSION_CONFLICT")
+  )
+})
+
+test("同批并发规划只创建一份immutable选择，最高100项可以完整持久化", async () => {
+  const a = await workspace(),
+    request = {
+      id: randomUUID(),
+      action: "trash" as const,
+      items: Array.from({ length: 100 }, () => ({
+        entryId: randomUUID(),
+        expectedRevision: 1,
+        operationId: randomUUID(),
+      })),
+    }
+  const plans = await Promise.all(
+    Array.from({ length: 6 }, () =>
+      run(a.context, (tx) => beginBatch(tx, request))
+    )
+  )
+  assert(plans.every((plan) => plan.items.length === 100))
+  assert(
+    plans.every(
+      (plan) =>
+        plan.batch.createdAt.getTime() === plans[0]!.batch.createdAt.getTime()
+    )
+  )
+  assert.equal(
+    (
+      await owner.query(
+        "SELECT count(*)::integer AS total FROM file_operation_batch_items WHERE organization_id=$1",
+        [a.context.organizationId]
+      )
+    ).rows[0]!.total,
+    100
+  )
+})
+
+test("批次还原与purge覆盖映射不吞并独立回收批次", async () => {
+  const a = await workspace(),
+    parent = await folder(a.context, a.root.id, "parent"),
+    child = await folder(a.context, parent.id, "child")
+  const deletedChild = await pathOperation(a.context, child, "trash"),
+    deletedParent = await pathOperation(a.context, parent, "trash")
+  for (const action of ["restore", "purge"] as const) {
+    const plan = await run(a.context, (tx) =>
+      beginBatch(tx, {
+        id: randomUUID(),
+        action,
+        items: batchItems(deletedChild, deletedParent),
+      })
+    )
+    assert.deepEqual(
+      plan.items.map((item) => item.rootIndex),
+      [0, 1]
+    )
+  }
 })

@@ -1,4 +1,8 @@
 import {
+  fileOperationBatches,
+  fileOperationBatchItems,
+} from "../schema/file-batches.ts"
+import {
   and,
   asc,
   count,
@@ -23,6 +27,25 @@ import {
 import { auditEvents } from "../schema/audit.ts"
 import { projects } from "../schema/projects.ts"
 import type { TenantTx } from "../tenant.ts"
+
+export type FileBatch = typeof fileOperationBatches.$inferSelect
+export type FileBatchItem = typeof fileOperationBatchItems.$inferSelect
+export type FileBatchRequest = {
+  id: string
+  action: FileBatch["action"]
+  parentId?: string
+  requestHash: string
+  items: { entryId: string; expectedRevision: number; operationId: string }[]
+}
+export function fileBatchRootRequest(batch: FileBatch, item: FileBatchItem) {
+  return {
+    entryId: item.entryId,
+    expectedRevision: item.expectedRevision,
+    ...(batch.parentId ? { parentId: batch.parentId } : {}),
+    batchId: batch.id,
+    batchRequestHash: batch.requestHash,
+  }
+}
 
 export type FileEntry = typeof fileEntries.$inferSelect
 export type FileVersion = typeof fileVersions.$inferSelect
@@ -349,6 +372,121 @@ async function recordAudit(
 }
 
 export const fileRepository = {
+  async findBatch(tx: TenantTx, id: string) {
+    const [batch] = await tx
+      .select()
+      .from(fileOperationBatches)
+      .where(
+        and(
+          eq(fileOperationBatches.organizationId, tx.context.organizationId),
+          eq(fileOperationBatches.id, id)
+        )
+      )
+    if (!batch) return undefined
+    const items = await tx
+      .select()
+      .from(fileOperationBatchItems)
+      .where(
+        and(
+          eq(fileOperationBatchItems.organizationId, tx.context.organizationId),
+          eq(fileOperationBatchItems.batchId, id)
+        )
+      )
+      .orderBy(asc(fileOperationBatchItems.index))
+    return { batch, items }
+  },
+
+  async beginBatch(tx: TenantTx, request: FileBatchRequest) {
+    await lockOrganization(tx)
+    if (
+      request.items.length < 1 ||
+      request.items.length > 100 ||
+      new Set(request.items.map((item) => item.entryId)).size !==
+        request.items.length ||
+      new Set(request.items.map((item) => item.operationId)).size !==
+        request.items.length
+    )
+      fail("VALIDATION_ERROR")
+    const requestHash = request.requestHash
+    const existing = await this.findBatch(tx, request.id)
+    if (existing) {
+      if (
+        existing.batch.actorId !== tx.context.userId ||
+        existing.batch.action !== request.action ||
+        existing.batch.requestHash !== requestHash
+      )
+        fail("IDEMPOTENCY_KEY_REUSED")
+      return existing
+    }
+    const entries = await tx
+      .select()
+      .from(fileEntries)
+      .where(
+        and(
+          eq(fileEntries.organizationId, tx.context.organizationId),
+          inArray(
+            fileEntries.id,
+            request.items.map((item) => item.entryId)
+          )
+        )
+      )
+    const cache = new Map<string, FileEntry | undefined>(
+      entries.map((entry) => [entry.id, entry])
+    )
+    const selected = new Map(
+      request.items.map((item, index) => [item.entryId, index])
+    )
+    const state =
+      request.action === "restore" || request.action === "purge"
+        ? "trashed"
+        : "active"
+    const items: FileBatchItem[] = []
+    for (const [index, item] of request.items.entries()) {
+      const entry = cache.get(item.entryId)
+      let rootIndex = index,
+        cursor = entry
+      // 只合并同一个可操作子树；独立回收批次的子项仍是独立根，不能被祖先吞并。
+      while (entry?.state === state && cursor?.parentId) {
+        if (!cache.has(cursor.parentId))
+          cache.set(cursor.parentId, await findEntry(tx, cursor.parentId))
+        const parent = cache.get(cursor.parentId)
+        if (
+          !parent ||
+          parent.kind !== "folder" ||
+          parent.state !== entry.state ||
+          (state === "trashed" && parent.trashRootId !== entry.trashRootId)
+        )
+          break
+        const ancestor = selected.get(parent.id)
+        if (ancestor !== undefined) rootIndex = ancestor
+        cursor = parent
+      }
+      items.push({
+        organizationId: tx.context.organizationId,
+        batchId: request.id,
+        index,
+        entryId: item.entryId,
+        expectedRevision: item.expectedRevision,
+        operationId: item.operationId,
+        rootIndex,
+        entryKind: entry?.kind ?? null,
+      })
+    }
+    const [batch] = await tx
+      .insert(fileOperationBatches)
+      .values({
+        id: request.id,
+        organizationId: tx.context.organizationId,
+        actorId: tx.context.userId,
+        action: request.action,
+        requestHash,
+        parentId: request.parentId ?? null,
+      })
+      .returning()
+    await tx.insert(fileOperationBatchItems).values(items)
+    return { batch: batch!, items }
+  },
+
   lockOrganization,
   requireCurrentActor,
   findEntry,
@@ -1045,6 +1183,7 @@ export const fileRepository = {
     input: {
       entryId: string
       expectedRevision: number
+      selected?: { entryId: string; expectedRevision: number }[]
       parentId?: string
       name?: string
       now: Date
@@ -1085,6 +1224,12 @@ export const fileRepository = {
     )
       fail("VALIDATION_ERROR")
     const affected = root.kind === "folder" ? await subtree(tx, root) : [root]
+    // 已被祖先覆盖的显式选择仍受原 revision 约束；重试不能把移出的子项重新解释为另一个根。
+    for (const selected of input.selected ?? []) {
+      const entry = affected.find((entry) => entry.id === selected.entryId)
+      if (!entry) fail("VERSION_CONFLICT")
+      assertRevision(entry, selected.expectedRevision)
+    }
     const busy = affected.find(
       (entry) => entry.busyOperationId && entry.busyOperationId !== operationId
     )

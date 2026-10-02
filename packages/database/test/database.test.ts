@@ -275,6 +275,8 @@ describe(suiteName, { concurrent: false }, () => {
         "file_namespace_reservations",
         "file_operation_objects",
         "file_operations",
+        "file_operation_batches",
+        "file_operation_batch_items",
         "file_references",
         "file_storage_usage",
         "file_versions",
