@@ -37,7 +37,7 @@ type PathInput =
   | RestoreFileEntry
   | PurgeFileEntry;
 
-function permissions(
+export function filePathPermissions(
   kind: FileEntry['kind'],
   action: PathAction,
 ): PermissionRequest {
@@ -94,7 +94,7 @@ export class FilePathWrites {
           client,
           headers,
           context.organizationId,
-          permissions(entry.kind, action),
+          filePathPermissions(entry.kind, action),
         );
         await fileRepository.requireCurrentActor(tx, actor.sessionId);
         return FileEntryImpactSchema.parse(
@@ -114,10 +114,21 @@ export class FilePathWrites {
     entryId: string,
     action: PathAction,
     input: PathInput,
+    batch?: {
+      id: string;
+      requestHash: string;
+      selected: { entryId: string; expectedRevision: number }[];
+    },
   ): Promise<FileOperationResponse> {
     const entry = await this.entry(context, entryId);
     const { operationId, ...fields } = input;
-    const request = { entryId, ...fields };
+    const request = {
+      entryId,
+      ...fields,
+      ...(batch
+        ? { batchId: batch.id, batchRequestHash: batch.requestHash }
+        : {}),
+    };
     return this.executor.execute(
       context,
       headers,
@@ -125,14 +136,19 @@ export class FilePathWrites {
         id: operationId,
         action,
         request,
-        input: { ...request, entryKind: entry.kind },
-        permissions: permissions(entry.kind, action),
+        input: {
+          ...request,
+          entryKind: entry.kind,
+          ...(batch ? { selected: batch.selected } : {}),
+        },
+        permissions: filePathPermissions(entry.kind, action),
       },
       async (scope) => {
         const { objects } = await scope.write((tx, now) =>
           fileRepository.preparePathOperation(tx, operationId, {
             entryId,
             expectedRevision: input.expectedRevision,
+            selected: batch?.selected,
             parentId: 'parentId' in input ? input.parentId : undefined,
             name: 'name' in input ? input.name : undefined,
             now,

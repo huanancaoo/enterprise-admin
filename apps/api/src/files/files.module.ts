@@ -10,6 +10,8 @@ import { FileMaintenance } from './file-maintenance';
 import { FileWrites } from './file-writes';
 import { FilePathWrites } from './file-path-writes';
 import { FilePathsController } from './file-paths.controller';
+import { FileBatches } from './file-batches';
+import { FileBatchesController } from './file-batches.controller';
 import { FileWriteExecutor } from './file-write-executor';
 import { FileUploads } from './file-uploads';
 import { FileUploadsController } from './file-uploads.controller';
@@ -26,6 +28,7 @@ export class FilesModule {
         FileContentController,
         FileUploadsController,
         FilePathsController,
+        FileBatchesController,
       ],
       providers: [
         { provide: FilesRuntime, useValue: runtime },
@@ -34,6 +37,7 @@ export class FilesModule {
         FileMaintenance,
         FileWrites,
         FilePathWrites,
+        FileBatches,
         FileWriteExecutor,
         FileUploads,
         FileOverwrites,

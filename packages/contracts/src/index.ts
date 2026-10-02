@@ -2,6 +2,7 @@ import { z } from "zod"
 import { FileErrorDetailsSchema, fileErrorCodes } from "./files.js"
 
 export * from "./files.js"
+export * from "./file-batches.js"
 export { maxFolderNameBytes } from "./file-path.js"
 export * from "./platform-storage.js"
 export * from "./personal-media.js"
