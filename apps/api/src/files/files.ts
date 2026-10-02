@@ -155,14 +155,19 @@ export class Files {
       headers,
       async (tx) => {
         const entry = await fileRepository.findEntry(tx, id, 'share');
-        if (!entry || entry.state !== 'active') throw new NotFoundException();
+        if (!entry || entry.state === 'purged') throw new NotFoundException();
         const versions =
           entry.kind === 'file' ? await fileRepository.versions(tx, id) : [];
         return { entry, versions };
       },
-      ({ entry }) => [
-        entry.kind === 'file' ? { file: ['read'] } : { folder: ['read'] },
-      ],
+      ({ entry }) =>
+        // 回收站元数据用于刷新恢复/清除的 CAS 事实，普通读权不能据此查看回收站。
+        entry.state === 'trashed'
+          ? [
+              { file: ['read', 'restore'], folder: ['read'] },
+              { file: ['read', 'purge'], folder: ['read'] },
+            ]
+          : [entry.kind === 'file' ? { file: ['read'] } : { folder: ['read'] }],
     );
     return fileEntryResponse(
       resource.entry,

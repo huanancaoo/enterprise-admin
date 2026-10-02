@@ -129,6 +129,67 @@ for (const kind of ["Local", "RustFS"])
       })
       return { ...fixture, root, context }
     }
+    test("回收站元数据仅向恢复或清除权限开放，正文仍不可读且清除后身份不可读取", async () => {
+      const f = await workspace(),
+        source = await folder(f, "回收目录"),
+        child = await upload(f, "原内容.txt", source),
+        reader = await signUpVerified(
+          environment.baseURL,
+          origin,
+          environment.migrator
+        )
+      await environment.runtime.auth.api.addMember({
+        headers: f.actor.headers,
+        body: {
+          organizationId: f.organization.id,
+          userId: reader.user.id,
+          role: "member",
+        },
+      })
+      expect(
+        (await request(f, `/entries/${child.id}`, {}, reader)).status
+      ).toBe(200)
+      const trashed = await success(f, source, "trash")
+      const rootMetadata = await request(f, `/entries/${source.id}`)
+      expect(rootMetadata.status).toBe(200)
+      const current = await rootMetadata.json()
+      expect(current).toMatchObject({
+        id: source.id,
+        state: "trashed",
+        revision: trashed.entry.revision,
+      })
+      const fileMetadata = await request(f, `/entries/${child.id}`)
+      expect(fileMetadata.status).toBe(200)
+      expect(await fileMetadata.json()).toMatchObject({
+        id: child.id,
+        state: "trashed",
+        currentVersion: { id: child.currentVersionId },
+      })
+      expect(
+        (await request(f, `/entries/${child.id}`, {}, reader)).status
+      ).toBe(403)
+      expect(
+        (await request(f, `/entries/${source.id}`, {}, reader)).status
+      ).toBe(403)
+      expect(
+        (
+          await request(
+            f,
+            `/entries/${child.id}/versions/${child.currentVersionId}/content`
+          )
+        ).status
+      ).toBe(404)
+      const restored = await success(f, current, "restore")
+      expect(restored.entry.state).toBe("active")
+      expect(
+        (await request(f, `/entries/${child.id}`, {}, reader)).status
+      ).toBe(200)
+      const again = await success(f, restored.entry, "trash")
+      await success(f, again.entry, "purge")
+      expect((await request(f, `/entries/${source.id}`)).status).toBe(404)
+      expect((await request(f, `/entries/${child.id}`)).status).toBe(404)
+    })
+
     async function folder(fixture, name, parent = fixture.root) {
       const response = await request(fixture, "/folders", {
         method: "POST",
