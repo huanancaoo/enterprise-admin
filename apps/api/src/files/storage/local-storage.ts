@@ -1,13 +1,6 @@
 import { constants } from 'node:fs';
-import {
-  lstat,
-  mkdir,
-  open,
-  rm,
-  rmdir,
-  unlink,
-  copyFile,
-} from 'node:fs/promises';
+import { lstat, mkdir, open, rm, rmdir, unlink } from 'node:fs/promises';
+import { Readable, addAbortSignal } from 'node:stream';
 import { dirname, isAbsolute, join, parse, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import {
@@ -117,34 +110,49 @@ export class LocalFileStorage implements FileStorage {
     return path;
   }
 
-  async createDirectory(address: StorageAddress): Promise<void> {
+  async createDirectory(
+    address: StorageAddress,
+    signal?: AbortSignal,
+  ): Promise<void> {
     try {
+      signal?.throwIfAborted();
       const path = await this.path(address, true);
+      signal?.throwIfAborted();
       if (address.segments.length === 0)
         await mkdir(dirname(path), { recursive: true, mode: 0o700 });
+      signal?.throwIfAborted();
       await mkdir(path, { mode: 0o700 });
+      signal?.throwIfAborted();
     } catch (error) {
       storageFailure(error);
     }
   }
 
-  async ensureOwner(owner: StorageOwner): Promise<void> {
+  async ensureOwner(owner: StorageOwner, signal?: AbortSignal): Promise<void> {
     try {
       for (const area of ['files', 'history', 'trash', 'staging'] as const) {
+        signal?.throwIfAborted();
         const path = await this.path({ owner, area, segments: [] }, true);
+        signal?.throwIfAborted();
         await mkdir(path, { recursive: true, mode: 0o700 });
         const info = await lstat(path);
         if (!info.isDirectory() || (info.mode & 0o077) !== 0)
           throw new StorageError('STORAGE_UNSAFE_PATH');
+        signal?.throwIfAborted();
       }
     } catch (error) {
       storageFailure(error);
     }
   }
 
-  async directoryExists(address: StorageAddress): Promise<boolean> {
+  async directoryExists(
+    address: StorageAddress,
+    signal?: AbortSignal,
+  ): Promise<boolean> {
     try {
+      signal?.throwIfAborted();
       const info = await lstat(await this.path(address, true));
+      signal?.throwIfAborted();
       if (!info.isDirectory() || (info.mode & 0o077) !== 0)
         throw new StorageError('STORAGE_UNSAFE_PATH');
       return true;
@@ -158,10 +166,13 @@ export class LocalFileStorage implements FileStorage {
     address: StorageAddress,
     source: AsyncIterable<Uint8Array>,
     declaredBytes: number,
+    signal?: AbortSignal,
   ): Promise<ContentFacts> {
     try {
+      signal?.throwIfAborted();
       const path = await this.path(address);
-      const measured = measuredContent(source, declaredBytes);
+      signal?.throwIfAborted();
+      const measured = measuredContent(source, declaredBytes, signal);
       const file = await open(
         path,
         constants.O_WRONLY |
@@ -170,14 +181,20 @@ export class LocalFileStorage implements FileStorage {
           constants.O_NOFOLLOW,
         0o600,
       );
+      const body = Readable.from(measured.stream, { objectMode: false });
+      if (signal) addAbortSignal(signal, body);
       try {
-        await file.writeFile(measured.stream);
+        await file.writeFile(body, { signal });
+        signal?.throwIfAborted();
         await file.sync();
+        signal?.throwIfAborted();
         return measured.facts();
       } catch (error) {
-        await unlink(path);
+        // 失去物理锁或租约后的残留由持久化计划清理，不能再自行开始删除。
+        if (!signal?.aborted) await unlink(path);
         throw error;
       } finally {
+        body.destroy();
         await file.close();
       }
     } catch (error) {
@@ -185,18 +202,25 @@ export class LocalFileStorage implements FileStorage {
     }
   }
 
-  async open(address: StorageAddress, range?: ByteRange): Promise<StoredRead> {
+  async open(
+    address: StorageAddress,
+    range?: ByteRange,
+    signal?: AbortSignal,
+  ): Promise<StoredRead> {
     try {
+      signal?.throwIfAborted();
       const file = await open(
         await this.path(address),
         constants.O_RDONLY | constants.O_NOFOLLOW,
       );
       try {
+        signal?.throwIfAborted();
         const info = await file.stat();
         if (!info.isFile()) throw new StorageError('STORAGE_LOCATION_INVALID');
         const selected = range ? checkedRange(range, info.size) : undefined;
+        signal?.throwIfAborted();
         return {
-          body: file.createReadStream(selected),
+          body: file.createReadStream({ ...selected, signal }),
           bytes: selected ? selected.end - selected.start + 1 : info.size,
           totalBytes: info.size,
           ...(selected ? { range: selected } : {}),
@@ -214,37 +238,57 @@ export class LocalFileStorage implements FileStorage {
     source: StorageAddress,
     target: StorageAddress,
     expected: ContentFacts,
+    signal?: AbortSignal,
   ): Promise<void> {
     assertSameOwner(source, target);
     try {
-      const from = await this.path(source);
-      const to = await this.path(target);
-      await copyFile(from, to, constants.COPYFILE_EXCL);
+      signal?.throwIfAborted();
+      const from = await this.open(source, undefined, signal);
       try {
-        await verifyContent(await this.open(target), expected);
-      } catch (error) {
-        await unlink(to);
-        throw error;
+        await this.write(target, from.body, expected.bytes, signal);
+        try {
+          await verifyContent(
+            await this.open(target, undefined, signal),
+            expected,
+          );
+          signal?.throwIfAborted();
+        } catch (error) {
+          if (!signal?.aborted) await this.remove(target);
+          throw error;
+        }
+      } finally {
+        from.body.destroy();
       }
     } catch (error) {
       storageFailure(error);
     }
   }
 
-  async remove(address: StorageAddress): Promise<void> {
+  async remove(address: StorageAddress, signal?: AbortSignal): Promise<void> {
     try {
-      await unlink(await this.path(address));
+      signal?.throwIfAborted();
+      const path = await this.path(address);
+      signal?.throwIfAborted();
+      await unlink(path);
+      signal?.throwIfAborted();
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT')
         storageFailure(error);
     }
   }
 
-  async removeDirectory(address: StorageAddress): Promise<void> {
+  async removeDirectory(
+    address: StorageAddress,
+    signal?: AbortSignal,
+  ): Promise<void> {
     if (address.segments.length === 0)
       throw new StorageError('STORAGE_ROOT_PROTECTED');
     try {
-      await rmdir(await this.path(address, true));
+      signal?.throwIfAborted();
+      const path = await this.path(address, true);
+      signal?.throwIfAborted();
+      await rmdir(path);
+      signal?.throwIfAborted();
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT')
         storageFailure(error);

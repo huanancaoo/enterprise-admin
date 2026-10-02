@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, describe, expect, test } from "vitest"
 import { createRequire } from "node:module"
 import { randomBytes, randomUUID } from "node:crypto"
+import { createServer, request as httpRequest } from "node:http"
+import { once } from "node:events"
 import { readFile } from "node:fs/promises"
 import { resolve } from "node:path"
 import { GenericContainer, Wait } from "testcontainers"
@@ -172,6 +174,73 @@ describe("S3：生产存储模块连接固定版本真实 RustFS", () => {
 
   // fixture 在 beforeAll 填充，测试回调读取同一个对象中的真实存储资源。
   registerFileStorageMatrix(test, fixture)
+
+  test("真实 RustFS 已落盘但 Put 响应待确认时取消实际 HTTP，不报告成功或自动重写", async () => {
+    const held = Promise.withResolvers()
+    const disconnected = Promise.withResolvers()
+    let holdPut = false
+    const proxy = createServer((incoming, outgoing) => {
+      const upstream = httpRequest(new URL(incoming.url, config.endpoint), {
+        method: incoming.method,
+        headers: incoming.headers,
+      })
+      upstream.on("error", (error) => outgoing.destroy(error))
+      incoming.on("error", (error) => upstream.destroy(error))
+      outgoing.on("close", () => {
+        upstream.destroy()
+        if (holdPut && incoming.method === "PUT") disconnected.resolve()
+      })
+      upstream.on("response", (response) => {
+        if (holdPut && incoming.method === "PUT") {
+          response.on("end", () => held.resolve(response.statusCode))
+          response.resume()
+        } else {
+          outgoing.writeHead(response.statusCode, response.headers)
+          response.pipe(outgoing)
+        }
+      })
+      incoming.pipe(upstream)
+    })
+    proxy.listen(0, "127.0.0.1")
+    await once(proxy, "listening")
+    const storage = await createFileStorage({
+      ...config,
+      endpoint: `http://127.0.0.1:${proxy.address().port}`,
+    })
+    try {
+      const owner = { kind: "personal", id: randomUUID() }
+      await storage.ensureOwner(owner)
+      const target = { owner, area: "files", segments: [randomUUID()] }
+      const content = Buffer.from("已经实际存储但尚未返回确认")
+      const signal = new AbortController()
+      holdPut = true
+      const writing = expect(
+        storage.write(
+          target,
+          (async function* () {
+            yield content
+          })(),
+          content.length,
+          signal.signal
+        )
+      ).rejects.toMatchObject({ code: "STORAGE_UNAVAILABLE" })
+      expect(await held.promise).toBe(200)
+      expect(await fixture.inspectContent(target)).toEqual(content)
+      signal.abort()
+      await writing
+      await disconnected.promise
+      // 未知响应不能触发无租约删除；维护先拿回 owner 锁，再按固定对象计划删除。
+      expect(await fixture.inspectContent(target)).toEqual(content)
+      await fixture.storage.remove(target)
+      expect(await fixture.inspectAbsent(target)).toBe(true)
+    } finally {
+      await storage[Symbol.asyncDispose]()
+      proxy.closeAllConnections()
+      await new Promise((resolve, reject) =>
+        proxy.close((error) => (error ? reject(error) : resolve()))
+      )
+    }
+  })
 
   test("私有 bucket 的匿名读取拒绝", async () => {
     const address = {

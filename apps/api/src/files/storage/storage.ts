@@ -56,22 +56,31 @@ export class StorageError extends Error {
 // 这是物理存储接口。归属、授权、版本及操作收据由 Files 的受控入口确定。
 // copy 只准备并验证目标；源清理须在数据库定位与成功审计提交后执行。
 export interface FileStorage {
-  ensureOwner(owner: StorageOwner): Promise<void>;
-  directoryExists(address: StorageAddress): Promise<boolean>;
-  createDirectory(address: StorageAddress): Promise<void>;
+  ensureOwner(owner: StorageOwner, signal?: AbortSignal): Promise<void>;
+  directoryExists(
+    address: StorageAddress,
+    signal?: AbortSignal,
+  ): Promise<boolean>;
+  createDirectory(address: StorageAddress, signal?: AbortSignal): Promise<void>;
   write(
     address: StorageAddress,
     source: AsyncIterable<Uint8Array>,
     declaredBytes: number,
+    signal?: AbortSignal,
   ): Promise<ContentFacts>;
-  open(address: StorageAddress, range?: ByteRange): Promise<StoredRead>;
+  open(
+    address: StorageAddress,
+    range?: ByteRange,
+    signal?: AbortSignal,
+  ): Promise<StoredRead>;
   copy(
     source: StorageAddress,
     target: StorageAddress,
     expected: ContentFacts,
+    signal?: AbortSignal,
   ): Promise<void>;
-  remove(address: StorageAddress): Promise<void>;
-  removeDirectory(address: StorageAddress): Promise<void>;
+  remove(address: StorageAddress, signal?: AbortSignal): Promise<void>;
+  removeDirectory(address: StorageAddress, signal?: AbortSignal): Promise<void>;
   [Symbol.asyncDispose](): Promise<void>;
 }
 
@@ -125,6 +134,7 @@ export function checkedRange(range: ByteRange, total: number): ByteRange {
 export function measuredContent(
   source: AsyncIterable<Uint8Array>,
   declaredBytes: number,
+  signal?: AbortSignal,
 ) {
   if (!Number.isSafeInteger(declaredBytes) || declaredBytes < 0)
     throw new StorageError('STORAGE_LENGTH_MISMATCH');
@@ -132,16 +142,43 @@ export function measuredContent(
   let bytes = 0;
   let facts: ContentFacts;
   async function* stream() {
-    for await (const chunk of source) {
-      bytes += chunk.byteLength;
-      if (bytes > declaredBytes)
+    signal?.throwIfAborted();
+    const iterator = source[Symbol.asyncIterator]();
+    let cancel!: (reason?: unknown) => void;
+    const cancelled = new Promise<never>((_resolve, reject) => {
+      cancel = reject;
+    });
+    const onAbort = () => cancel(signal!.reason);
+    signal?.addEventListener('abort', onAbort, { once: true });
+    let ended = false;
+    try {
+      for (;;) {
+        const next = await (signal
+          ? Promise.race([iterator.next(), cancelled])
+          : iterator.next());
+        signal?.throwIfAborted();
+        if (next.done) {
+          ended = true;
+          break;
+        }
+        bytes += next.value.byteLength;
+        if (bytes > declaredBytes)
+          throw new StorageError('STORAGE_LENGTH_MISMATCH');
+        hash.update(next.value);
+        yield next.value;
+      }
+      if (bytes !== declaredBytes)
         throw new StorageError('STORAGE_LENGTH_MISMATCH');
-      hash.update(chunk);
-      yield chunk;
+      facts = { bytes, sha256: hash.digest('hex') };
+    } finally {
+      signal?.removeEventListener('abort', onAbort);
+      if (!ended && iterator.return) {
+        // 任意输入迭代器可能卡在下一块；取消必须释放 I/O，不能等待其不可取消的 return。
+        const closing = Promise.resolve().then(() => iterator.return!());
+        if (signal?.aborted) void closing.catch(() => {});
+        else await closing;
+      }
     }
-    if (bytes !== declaredBytes)
-      throw new StorageError('STORAGE_LENGTH_MISMATCH');
-    facts = { bytes, sha256: hash.digest('hex') };
   }
   return { stream: stream(), facts: () => facts };
 }

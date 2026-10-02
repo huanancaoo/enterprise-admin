@@ -12,7 +12,7 @@ import {
   maxFolderNameBytes,
   normalizeFileName,
 } from '@workspace/contracts/file-path';
-import { Readable } from 'node:stream';
+import { Readable, addAbortSignal } from 'node:stream';
 import { finished } from 'node:stream/promises';
 import {
   assertSameOwner,
@@ -90,7 +90,11 @@ export class S3FileStorage implements FileStorage {
     return this.config.prefix ? `${this.config.prefix}/${key}` : key;
   }
 
-  private async requireParent(address: StorageAddress): Promise<void> {
+  private async requireParent(
+    address: StorageAddress,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    signal?.throwIfAborted();
     await this.client.send(
       new HeadObjectCommand({
         Bucket: this.config.bucket,
@@ -99,13 +103,16 @@ export class S3FileStorage implements FileStorage {
           true,
         ),
       }),
+      { abortSignal: signal },
     );
   }
 
   private async requireAbsent(
     address: StorageAddress,
     directory: boolean,
+    signal?: AbortSignal,
   ): Promise<void> {
+    signal?.throwIfAborted();
     // 超出目录名称预算的合法文件名不可能与目录同名；不请求非法目录标记。
     if (
       directory &&
@@ -119,6 +126,7 @@ export class S3FileStorage implements FileStorage {
           Bucket: this.config.bucket,
           Key: this.key(address, directory),
         }),
+        { abortSignal: signal },
       );
     } catch (error) {
       if (
@@ -131,12 +139,16 @@ export class S3FileStorage implements FileStorage {
     throw new StorageError('STORAGE_CONFLICT');
   }
 
-  async createDirectory(address: StorageAddress): Promise<void> {
+  async createDirectory(
+    address: StorageAddress,
+    signal?: AbortSignal,
+  ): Promise<void> {
     try {
+      signal?.throwIfAborted();
       const key = this.key(address, true);
       if (address.segments.length > 0) {
-        await this.requireParent(address);
-        await this.requireAbsent(address, false);
+        await this.requireParent(address, signal);
+        await this.requireAbsent(address, false, signal);
       }
       await this.client.send(
         new PutObjectCommand({
@@ -146,29 +158,37 @@ export class S3FileStorage implements FileStorage {
           ContentLength: 0,
           IfNoneMatch: '*',
         }),
+        { abortSignal: signal },
       );
+      signal?.throwIfAborted();
     } catch (error) {
       storageFailure(error);
     }
   }
 
-  async ensureOwner(owner: StorageOwner): Promise<void> {
+  async ensureOwner(owner: StorageOwner, signal?: AbortSignal): Promise<void> {
     for (const area of ['files', 'history', 'trash', 'staging'] as const) {
       const address: StorageAddress = { owner, area, segments: [] };
       // 调用方持有归属物理锁；重启后验证确切根标记，不覆盖已有业务名称。
-      if (!(await this.directoryExists(address)))
-        await this.createDirectory(address);
+      if (!(await this.directoryExists(address, signal)))
+        await this.createDirectory(address, signal);
     }
   }
 
-  async directoryExists(address: StorageAddress): Promise<boolean> {
+  async directoryExists(
+    address: StorageAddress,
+    signal?: AbortSignal,
+  ): Promise<boolean> {
     try {
+      signal?.throwIfAborted();
       const response = await this.client.send(
         new HeadObjectCommand({
           Bucket: this.config.bucket,
           Key: this.key(address, true),
         }),
+        { abortSignal: signal },
       );
+      signal?.throwIfAborted();
       if (response.ContentLength !== 0)
         throw new StorageError('STORAGE_RESPONSE_INVALID');
       return true;
@@ -186,16 +206,22 @@ export class S3FileStorage implements FileStorage {
     address: StorageAddress,
     source: AsyncIterable<Uint8Array>,
     declaredBytes: number,
+    signal?: AbortSignal,
   ): Promise<ContentFacts> {
     try {
+      signal?.throwIfAborted();
       const key = this.key(address);
-      const measured = measuredContent(source, declaredBytes);
-      await this.requireParent(address);
-      // 文件与目录共享同级名称；并发命名预留由 Files 的数据库事务协调。
-      await this.requireAbsent(address, true);
-      const body = Readable.from(measured.stream, { objectMode: false });
       const request = new AbortController();
+      const transferSignal = signal
+        ? AbortSignal.any([signal, request.signal])
+        : request.signal;
+      const measured = measuredContent(source, declaredBytes, transferSignal);
+      await this.requireParent(address, signal);
+      // 文件与目录共享同级名称；并发命名预留由 Files 的数据库事务协调。
+      await this.requireAbsent(address, true, signal);
+      const body = Readable.from(measured.stream, { objectMode: false });
       const transmitted = finished(body, { cleanup: true });
+      addAbortSignal(transferSignal, body);
       const stored = this.client.send(
         new PutObjectCommand({
           Bucket: this.config.bucket,
@@ -204,11 +230,12 @@ export class S3FileStorage implements FileStorage {
           ContentLength: declaredBytes,
           IfNoneMatch: '*',
         }),
-        { abortSignal: request.signal },
+        { abortSignal: transferSignal },
       );
       try {
         // HTTP 成功和输入流完整结束缺一不可，声明长度不是实际接收事实。
         await Promise.all([stored, transmitted]);
+        transferSignal.throwIfAborted();
         return measured.facts();
       } catch (error) {
         // 输入失败必须同时取消 HTTP 请求，否则声明长度不足会留下等待响应的请求。
@@ -228,8 +255,13 @@ export class S3FileStorage implements FileStorage {
     }
   }
 
-  async open(address: StorageAddress, range?: ByteRange): Promise<StoredRead> {
+  async open(
+    address: StorageAddress,
+    range?: ByteRange,
+    signal?: AbortSignal,
+  ): Promise<StoredRead> {
     try {
+      signal?.throwIfAborted();
       if (range) checkedRange(range, Number.MAX_SAFE_INTEGER);
       const response = await this.client.send(
         new GetObjectCommand({
@@ -237,10 +269,13 @@ export class S3FileStorage implements FileStorage {
           Key: this.key(address),
           ...(range ? { Range: `bytes=${range.start}-${range.end}` } : {}),
         }),
+        { abortSignal: signal },
       );
       if (!(response.Body instanceof Readable))
         throw new StorageError('STORAGE_RESPONSE_INVALID');
       try {
+        if (signal) addAbortSignal(signal, response.Body);
+        signal?.throwIfAborted();
         const bytes = response.ContentLength;
         if (bytes === undefined || !Number.isSafeInteger(bytes) || bytes < 0)
           throw new StorageError('STORAGE_RESPONSE_INVALID');
@@ -273,15 +308,18 @@ export class S3FileStorage implements FileStorage {
     source: StorageAddress,
     target: StorageAddress,
     expected: ContentFacts,
+    signal?: AbortSignal,
   ): Promise<void> {
     assertSameOwner(source, target);
     try {
+      signal?.throwIfAborted();
       const from = this.key(source);
       const to = this.key(target);
-      await this.requireParent(target);
-      await this.requireAbsent(target, true);
+      await this.requireParent(target, signal);
+      await this.requireAbsent(target, true, signal);
       const info = await this.client.send(
         new HeadObjectCommand({ Bucket: this.config.bucket, Key: from }),
+        { abortSignal: signal },
       );
       if (!info.ETag) throw new StorageError('STORAGE_RESPONSE_INVALID');
       await this.client.send(
@@ -294,11 +332,17 @@ export class S3FileStorage implements FileStorage {
           CopySourceIfMatch: info.ETag,
           IfNoneMatch: '*',
         }),
+        { abortSignal: signal },
       );
       try {
-        await verifyContent(await this.open(target), expected);
+        await verifyContent(
+          await this.open(target, undefined, signal),
+          expected,
+        );
+        signal?.throwIfAborted();
       } catch (error) {
-        await this.remove(target);
+        // 取消后的远端结果可能已落盘；只能交由持有新租约的确切计划清理。
+        if (!signal?.aborted) await this.remove(target, signal);
         throw error;
       }
     } catch (error) {
@@ -306,23 +350,30 @@ export class S3FileStorage implements FileStorage {
     }
   }
 
-  async remove(address: StorageAddress): Promise<void> {
+  async remove(address: StorageAddress, signal?: AbortSignal): Promise<void> {
     try {
+      signal?.throwIfAborted();
       await this.client.send(
         new DeleteObjectCommand({
           Bucket: this.config.bucket,
           Key: this.key(address),
         }),
+        { abortSignal: signal },
       );
+      signal?.throwIfAborted();
     } catch (error) {
       storageFailure(error);
     }
   }
 
-  async removeDirectory(address: StorageAddress): Promise<void> {
+  async removeDirectory(
+    address: StorageAddress,
+    signal?: AbortSignal,
+  ): Promise<void> {
     if (address.segments.length === 0)
       throw new StorageError('STORAGE_ROOT_PROTECTED');
     try {
+      signal?.throwIfAborted();
       const key = this.key(address, true);
       const result = await this.client.send(
         new ListObjectsV2Command({
@@ -330,6 +381,7 @@ export class S3FileStorage implements FileStorage {
           Prefix: key,
           MaxKeys: 2,
         }),
+        { abortSignal: signal },
       );
       if (
         result.IsTruncated ||
@@ -338,7 +390,9 @@ export class S3FileStorage implements FileStorage {
         throw new StorageError('STORAGE_DIRECTORY_NOT_EMPTY');
       await this.client.send(
         new DeleteObjectCommand({ Bucket: this.config.bucket, Key: key }),
+        { abortSignal: signal },
       );
+      signal?.throwIfAborted();
     } catch (error) {
       storageFailure(error);
     }

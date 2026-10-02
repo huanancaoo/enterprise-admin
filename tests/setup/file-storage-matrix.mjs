@@ -69,6 +69,103 @@ export function registerFileStorageMatrix(test, fixture) {
   )
 
   scenario(
+    "已取消的租约不开始任何物理读写，既有名称及内容保留",
+    async ({
+      storage,
+      at,
+      owner,
+      inspectAbsent,
+      inspectDirectory,
+      inspectContent,
+    }) => {
+      await storage.write(at("source"), chunks(payload), payload.length)
+      await storage.createDirectory(at("keep"))
+      const controller = new AbortController()
+      controller.abort()
+      const signal = controller.signal
+      for (const operation of [
+        () => storage.ensureOwner({ ...owner, id: randomUUID() }, signal),
+        () => storage.directoryExists(at("keep"), signal),
+        () => storage.createDirectory(at("new"), signal),
+        () =>
+          storage.write(
+            at("new-file"),
+            chunks(payload),
+            payload.length,
+            signal
+          ),
+        () => storage.open(at("source"), undefined, signal),
+        () => storage.copy(at("source"), at("target"), facts(payload), signal),
+        () => storage.remove(at("source"), signal),
+        () => storage.removeDirectory(at("keep"), signal),
+      ])
+        await rejects(operation, "STORAGE_UNAVAILABLE")
+      assert.equal(await inspectDirectory(at("new")), false)
+      assert.equal(await inspectAbsent(at("new-file")), true)
+      assert.equal(await inspectAbsent(at("target")), true)
+      assert.equal(await inspectDirectory(at("keep")), true)
+      assert.deepEqual(await inspectContent(at("source")), payload)
+    }
+  )
+
+  scenario(
+    "传输等待下一块输入时取消会结束写请求，确切残留可清理",
+    async ({ storage, at, inspectAbsent }) => {
+      const controller = new AbortController()
+      const requested = Promise.withResolvers()
+      const release = Promise.withResolvers()
+      const source = (async function* () {
+        yield payload.subarray(0, 4)
+        requested.resolve()
+        await release.promise
+        yield payload.subarray(4)
+      })()
+      const result = rejects(
+        () =>
+          storage.write(
+            at("cancelled"),
+            source,
+            payload.length,
+            controller.signal
+          ),
+        "STORAGE_UNAVAILABLE"
+      )
+      try {
+        await requested.promise
+        controller.abort()
+        await result
+      } finally {
+        release.resolve()
+      }
+      await storage.remove(at("cancelled"))
+      assert.equal(await inspectAbsent(at("cancelled")), true)
+    }
+  )
+
+  scenario(
+    "已经打开的内容流在租约取消后结束，原文件仍可重新读取",
+    async ({ storage, at, inspectContent }) => {
+      await storage.write(at("source"), chunks(payload), payload.length)
+      const controller = new AbortController()
+      const read = await storage.open(
+        at("source"),
+        undefined,
+        controller.signal
+      )
+      const result = assert.rejects(
+        async () => {
+          for await (const chunk of read.body) void chunk
+        },
+        { name: "AbortError" }
+      )
+      controller.abort()
+      await result
+      assert.equal(read.body.destroyed, true)
+      assert.deepEqual(await inspectContent(at("source")), payload)
+    }
+  )
+
+  scenario(
     "空目录和多级目录对应真实物理路径，重复创建不覆盖",
     async ({ storage, at, inspectDirectory }) => {
       await storage.createDirectory(at("合同"))
