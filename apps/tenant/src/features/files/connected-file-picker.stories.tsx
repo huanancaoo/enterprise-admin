@@ -18,16 +18,19 @@ import { fileKeys } from "./file-queries"
 function PickerFixture({
   mode = "file",
   pendingPick = false,
+  folderUpload = false,
   deny,
 }: {
   mode?: "file" | "folder"
   pendingPick?: boolean
+  folderUpload?: boolean
   deny?: () => void
 }) {
   const [open, setOpen] = useState(false)
   const [version, setVersion] = useState(1)
   const [picked, setPicked] = useState("")
   const [aborted, setAborted] = useState(false)
+  const [uploadTarget, setUploadTarget] = useState("")
   const client = useQueryClient()
   const context = {
     organizationId: filePickerRoot.organizationId,
@@ -44,6 +47,7 @@ function PickerFixture({
       <Button onClick={() => setOpen(true)}>Open picker</Button>
       <output aria-label="Picked reference">{picked}</output>
       <output aria-label="Aborted request">{String(aborted)}</output>
+      <output aria-label="Upload target">{uploadTarget}</output>
       {mode === "folder" ? (
         <ConnectedFolderPickerDialog
           {...context}
@@ -55,23 +59,31 @@ function PickerFixture({
           {...context}
           allowedContentTypes={["image/png"]}
           uploadControl={
-            <div className="flex gap-2">
-              <Button onClick={() => setVersion((current) => current + 1)}>
-                Change authorization
-              </Button>
-              {deny && (
-                <Button
-                  onClick={() => {
-                    deny()
-                    void client.invalidateQueries({
-                      queryKey: fileKeys.scope(filePickerRoot.organizationId),
-                    })
-                  }}
-                >
-                  Revoke reads
+            folderUpload ? (
+              (folder) => (
+                <Button onClick={() => setUploadTarget(folder.id)}>
+                  Upload into current folder
                 </Button>
-              )}
-            </div>
+              )
+            ) : (
+              <div className="flex gap-2">
+                <Button onClick={() => setVersion((current) => current + 1)}>
+                  Change authorization
+                </Button>
+                {deny && (
+                  <Button
+                    onClick={() => {
+                      deny()
+                      void client.invalidateQueries({
+                        queryKey: fileKeys.scope(filePickerRoot.organizationId),
+                      })
+                    }}
+                  >
+                    Revoke reads
+                  </Button>
+                )}
+              </div>
+            )
           }
           onPick={async (reference, signal) => {
             if (pendingPick) {
@@ -205,8 +217,64 @@ export const DirectoryTargetsOnly: Story = {
     ).toHaveTextContent(filePickerFolder.id)
   },
 }
+export const UploadUsesBrowsedFolder: Story = {
+  args: { folderUpload: true },
+  play: async ({ canvasElement }) => {
+    const dialog = await open(canvasElement)
+    await userEvent.click(
+      await dialog.findByRole("button", {
+        name: "Upload into current folder",
+      })
+    )
+    await expect(
+      within(canvasElement).getByLabelText("Upload target")
+    ).toHaveTextContent(filePickerRoot.id)
+    await userEvent.click(
+      await dialog.findByRole("button", { name: "Manuals" })
+    )
+    await dialog.findByRole("button", { name: "portrait.png" })
+    await userEvent.click(
+      await dialog.findByRole("button", {
+        name: "Upload into current folder",
+      })
+    )
+    await expect(
+      within(canvasElement).getByLabelText("Upload target")
+    ).toHaveTextContent(filePickerFolder.id)
+  },
+}
 const forbidden = scenario("forbidden")
+const slow = scenario("slow")
+export const LoadingFolderCannotUpload: Story = {
+  args: { folderUpload: true },
+  beforeEach: slow.beforeEach,
+  parameters: slow.parameters,
+  play: async ({ canvasElement }) => {
+    const dialog = await open(canvasElement)
+    await expect(
+      dialog.queryByRole("button", {
+        name: "Upload into current folder",
+      })
+    ).toBeNull()
+    await dialog.findByRole("button", { name: "Upload into current folder" })
+    await userEvent.click(dialog.getByRole("button", { name: "Manuals" }))
+    await expect(
+      dialog.queryByRole("button", {
+        name: "Upload into current folder",
+      })
+    ).toBeNull()
+    await userEvent.click(
+      await dialog.findByRole("button", {
+        name: "Upload into current folder",
+      })
+    )
+    await expect(
+      within(canvasElement).getByLabelText("Upload target")
+    ).toHaveTextContent(filePickerFolder.id)
+  },
+}
 export const DeniedQueriesCannotConfirm: Story = {
+  args: { folderUpload: true },
   beforeEach: forbidden.beforeEach,
   parameters: forbidden.parameters,
   play: async ({ canvasElement }) => {
@@ -216,6 +284,11 @@ export const DeniedQueriesCannotConfirm: Story = {
     )
     await waitFor(() => expect(dialog.getByText(/permission/i)).toBeVisible())
     await expect(dialog.queryByRole("button", { name: "Manuals" })).toBeNull()
+    await expect(
+      dialog.queryByRole("button", {
+        name: "Upload into current folder",
+      })
+    ).toBeNull()
   },
 }
 const revoked = scenario()

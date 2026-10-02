@@ -28,7 +28,7 @@ type PickerContext = {
 
 type FilePickerProps = PickerContext & {
   allowedContentTypes?: readonly string[]
-  uploadControl?: ReactNode
+  uploadControl?: ReactNode | ((currentFolder: FolderResponse) => ReactNode)
   onPick: (
     reference: FileVersionReference,
     signal: AbortSignal
@@ -128,7 +128,14 @@ function ConnectedFilePicker(props: FilePickerProps) {
       browser={browser}
       onOpenChange={props.onOpenChange}
       allowedContentTypes={props.allowedContentTypes}
-      uploadControl={props.uploadControl}
+      // 上传必须使用已读回的当前文件夹，查询期间的根目录外壳不能成为上传目标。
+      uploadControl={
+        browser.status === "ready"
+          ? typeof props.uploadControl === "function"
+            ? props.uploadControl(browser.currentFolder)
+            : props.uploadControl
+          : undefined
+      }
       onPick={props.onPick}
       getErrorMessage={(error) =>
         fileRequestErrorMessage(error, t("operationFailed"))
