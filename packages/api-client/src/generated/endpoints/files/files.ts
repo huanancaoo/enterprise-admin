@@ -4,21 +4,25 @@
  * Enterprise Foundation API
  * OpenAPI spec version: 0.1.0
  */
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery } from "@tanstack/react-query"
 import type {
   DataTag,
   DefinedInitialDataOptions,
   DefinedUseQueryResult,
+  MutationFunction,
   QueryClient,
   QueryFunction,
   QueryKey,
   UndefinedInitialDataOptions,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from "@tanstack/react-query"
 
 import type {
   ApiError,
+  CreateFolder,
   FileBreadcrumbs,
   FileEntryResponse,
   FileOperationResponse,
@@ -54,6 +58,172 @@ const withQueryKey = <T extends object, K>(
   return result
 }
 
+export type createFileFolderResponse200 = {
+  data: FileOperationResponse
+  status: 200
+}
+
+export type createFileFolderResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type createFileFolderResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type createFileFolderResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type createFileFolderResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type createFileFolderResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type createFileFolderResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type createFileFolderResponseSuccess = createFileFolderResponse200 & {
+  headers: Headers
+}
+export type createFileFolderResponseError = (
+  | createFileFolderResponse400
+  | createFileFolderResponse401
+  | createFileFolderResponse403
+  | createFileFolderResponse404
+  | createFileFolderResponse409
+  | createFileFolderResponse503
+) & {
+  headers: Headers
+}
+
+export const getCreateFileFolderUrl = (organizationId: string) => {
+  return `/api/v1/organizations/${organizationId}/files/folders`
+}
+
+export const createFileFolder = async (
+  organizationId: string,
+  createFolder: CreateFolder,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<createFileFolderResponseSuccess> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {}
+    if (h instanceof Headers) return Object.fromEntries(h.entries())
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string]
+        )
+      )
+    }
+    const headers: Record<string, string | readonly string[]> = {}
+    for (const [name, value] of Object.entries<
+      string | readonly string[] | undefined
+    >(h)) {
+      if (value !== undefined) headers[name] = value
+    }
+    return headers
+  }
+  return apiClient<createFileFolderResponseSuccess>(
+    getCreateFileFolderUrl(organizationId),
+    {
+      ...options,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...getHeaders(options?.headers),
+      },
+      body: JSON.stringify(createFolder),
+    }
+  )
+}
+
+export const getCreateFileFolderMutationKey = () =>
+  ["createFileFolder"] as const
+
+export const getCreateFileFolderMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createFileFolder>>,
+    TError,
+    CreateFileFolderMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createFileFolder>>,
+  TError,
+  CreateFileFolderMutationVariables,
+  TContext
+> => {
+  const mutationKey = getCreateFileFolderMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createFileFolder>>,
+    CreateFileFolderMutationVariables
+  > = (props) => {
+    const { organizationId, data } = props ?? {}
+
+    return createFileFolder(organizationId, data, requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type CreateFileFolderMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createFileFolder>>
+>
+export type CreateFileFolderMutationBody = CreateFolder
+export type CreateFileFolderMutationError = ErrorType<ApiError>
+export type CreateFileFolderMutationVariables = {
+  organizationId: string
+  data: CreateFolder
+}
+
+export const useCreateFileFolder = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createFileFolder>>,
+      TError,
+      CreateFileFolderMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof createFileFolder>>,
+  TError,
+  CreateFileFolderMutationVariables,
+  TContext
+> => {
+  return useMutation(getCreateFileFolderMutationOptions(options), queryClient)
+}
 export type getFileWorkspaceResponse200 = {
   data: FileWorkspace
   status: 200

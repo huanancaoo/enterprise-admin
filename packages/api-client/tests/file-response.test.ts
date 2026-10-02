@@ -6,6 +6,8 @@ import {
   apiClient,
   configureApiClient,
   getFileVersionContent,
+  getPersonalMediaContent,
+  uploadPersonalMedia,
 } from "../src/index"
 
 type FileResponse = { data: Blob; status: number; headers: Headers }
@@ -53,6 +55,51 @@ afterEach(async () => {
 })
 
 describe("受保护文件响应", () => {
+  it("正式个人媒体内容操作按 Blob 读取并传递明确的组织范围", async () => {
+    const source = Uint8Array.from([0x00, 0xff, 0x80, 0x0a])
+    let requestedUrl: string | undefined
+    await setup((request, response) => {
+      requestedUrl = request.url
+      response.writeHead(200, { "Content-Type": "image/png" })
+      response.end(source)
+    })
+    const result = await getPersonalMediaContent(
+      "a5e6d781-c0c6-4516-9823-3d9dbf6a0202",
+      { organizationId: "de07383d-3c46-4a6c-9f3e-fd9c9191bc61" }
+    )
+    expect(result.data).toBeInstanceOf(Blob)
+    expect(new Uint8Array(await result.data.arrayBuffer())).toEqual(source)
+    expect(requestedUrl).toBe(
+      "/api/v1/personal-media/a5e6d781-c0c6-4516-9823-3d9dbf6a0202/content?organizationId=de07383d-3c46-4a6c-9f3e-fd9c9191bc61"
+    )
+  })
+
+  it("正式个人媒体上传保留原始 Blob、实际 MIME 和幂等身份", async () => {
+    const source = Uint8Array.from([0x00, 0xff, 0x80, 0x0a])
+    let receivedBody: Buffer | undefined
+    let receivedType: string | undefined
+    let receivedKey: string | string[] | undefined
+    const id = "a5e6d781-c0c6-4516-9823-3d9dbf6a0202"
+    await setup(async (request, response) => {
+      receivedType = request.headers["content-type"]
+      receivedKey = request.headers["idempotency-key"]
+      const chunks: Buffer[] = []
+      for await (const chunk of request) chunks.push(chunk)
+      receivedBody = Buffer.concat(chunks)
+      response.writeHead(201, { "Content-Type": "application/json" })
+      response.end(JSON.stringify({ result: "accepted" }))
+    })
+    const result = await uploadPersonalMedia(
+      new Blob([source], { type: "image/png" }),
+      { "Idempotency-Key": id },
+      { headers: { "Content-Type": "image/png" } }
+    )
+    expect(result.status).toBe(201)
+    expect(receivedType).toBe("image/png")
+    expect(receivedKey).toBe(id)
+    expect(receivedBody).toEqual(Buffer.from(source))
+  })
+
   it.each(["application/json", "text/plain"])(
     "正式生成内容操作默认按Blob读取%s并传递Range和预览参数",
     async (contentType) => {

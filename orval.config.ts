@@ -24,6 +24,12 @@ export default defineConfig({
               name: "binaryApiClient",
             },
           },
+          getPersonalMediaContent: {
+            mutator: {
+              path: "./packages/api-client/src/http/client.ts",
+              name: "binaryApiClient",
+            },
+          },
           getOrganizationAccess: {
             query: {
               queryKey: {

@@ -24,7 +24,18 @@ export {
   getFileOperation,
   getFileVersionContent,
   getGetFileVersionContentUrl,
+  createFileFolder,
 } from "./generated/endpoints/files/files"
+export {
+  uploadPersonalMedia,
+  setPersonalAvatar,
+  getPersonalMediaContent,
+  getGetPersonalMediaContentUrl,
+} from "./generated/endpoints/personal-media/personal-media"
+export {
+  getPlatformStoragePolicy,
+  updatePlatformStoragePolicy,
+} from "./generated/endpoints/platform-storage/platform-storage"
 export {
   listProjects,
   createProject,
