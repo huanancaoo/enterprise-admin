@@ -1,3 +1,4 @@
+import { useRef, useState } from "react"
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
@@ -13,6 +14,9 @@ import {
   type FileVersionResponse,
   type FolderResponse,
 } from "@workspace/contracts"
+import { useAuthenticatedSession } from "@workspace/admin/auth"
+import { FileDownloadButton } from "./file-content"
+import { FilePreviewSheet } from "./file-preview-sheet"
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
 import { Badge } from "@workspace/ui/components/badge"
@@ -148,6 +152,14 @@ function FileVersionDetails({
 }) {
   const { t } = useTranslation(["files", "common"])
   const locale = useUiLocale()
+  const session = useAuthenticatedSession()!
+  const [preview, setPreview] = useState(false)
+  const previewTrigger = useRef<HTMLElement | null>(null)
+  const contentScopeKey = JSON.stringify([
+    session.user.id,
+    file.organizationId,
+    authorizationVersion,
+  ])
   const { versionId } = useSearch({ from: detailPath })
   const navigate = useNavigate({ from: detailPath })
   const versions = useQuery(
@@ -182,7 +194,33 @@ function FileVersionDetails({
       >
         <h2 className="font-semibold">{t("files:content")}</h2>
         {selected ? (
-          <VersionSummary version={selected} />
+          <>
+            <VersionSummary version={selected} />
+            <div className="flex flex-wrap items-start gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  previewTrigger.current =
+                    document.activeElement instanceof HTMLElement
+                      ? document.activeElement
+                      : null
+                  setPreview(true)
+                }}
+              >
+                {t("files:preview")}
+              </Button>
+              <FileDownloadButton
+                key={selected.id}
+                target={{ file, version: selected }}
+              />
+            </div>
+            <FilePreviewSheet
+              target={preview ? { file, version: selected } : null}
+              contentScopeKey={contentScopeKey}
+              returnFocus={() => previewTrigger.current}
+              onClose={() => setPreview(false)}
+            />
+          </>
         ) : (
           <p role="alert">{t("files:versionUnavailable")}</p>
         )}

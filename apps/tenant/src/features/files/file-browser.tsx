@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from "react"
+import { useId, useMemo, type ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 import type {
   FileBreadcrumbs,
@@ -63,6 +63,7 @@ export function FileBrowser({
 }: FileBrowserProps) {
   const { t } = useTranslation(["files", "common"])
   const locale = useUiLocale()
+  const buttonId = useId()
   const busy = status !== "ready" || isActionPending
   const columns = useMemo(
     () =>
@@ -80,6 +81,7 @@ export function FileBrowser({
             const entry = row.original
             return (
               <Button
+                id={`${buttonId}-${entry.id}`}
                 variant="link"
                 className="h-auto max-w-full min-w-0 justify-start p-0 text-start [overflow-wrap:anywhere] whitespace-normal"
                 title={entry.name}
@@ -168,6 +170,7 @@ export function FileBrowser({
         }),
       ]),
     [
+      buttonId,
       busy,
       canOpenFile,
       locale,

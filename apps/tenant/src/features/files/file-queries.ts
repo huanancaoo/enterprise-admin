@@ -185,6 +185,7 @@ export function getFileOperationOptions(
         )
       ).data,
     refetchInterval: (query) => {
+      if (query.state.error) return false
       const phase = query.state.data?.phase
       return phase && phase !== "completed" && phase !== "failed" ? 1500 : false
     },

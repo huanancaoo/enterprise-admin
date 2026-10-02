@@ -1,3 +1,4 @@
+import { useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import {
@@ -18,6 +19,7 @@ import type {
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
 import { Button } from "@workspace/ui/components/button"
+import { FilePreviewSheet } from "./file-preview-sheet"
 import { FileBrowser } from "./file-browser"
 import {
   fileRequestErrorMessage,
@@ -138,6 +140,8 @@ function FileWorkspaceBrowser({
 }) {
   const { t } = useTranslation(["files", "common"])
   const locale = useUiLocale()
+  const [preview, setPreview] = useState<FileResponse | null>(null)
+  const previewTrigger = useRef<string>("")
   const parentId = search.parentId ?? workspace.root.id
   const breadcrumbs = useQuery(
     getFileBreadcrumbsOptions(
@@ -195,38 +199,59 @@ function FileWorkspaceBrowser({
         ? "refreshing"
         : "ready"
   return (
-    <FileBrowser
-      contentScopeKey={contentScopeKey}
-      currentFolder={currentFolder}
-      breadcrumbs={breadcrumbs.data}
-      page={entries.data}
-      search={search}
-      status={status}
-      error={
-        entries.isError
-          ? fileRequestErrorMessage(entries.error, t("common:operationFailed"))
-          : undefined
-      }
-      onRetry={() => void entries.refetch()}
-      onSearchChange={onSearchChange}
-      onOpenFolder={(folder) =>
-        onSearchChange((current) => ({
-          ...current,
-          parentId: folder.id,
-          name: undefined,
-          page: 1,
-        }))
-      }
-      onOpenFile={onOpenFile}
-      onLocate={(entry) =>
-        onSearchChange((current) => ({
-          ...current,
-          parentId: entry.parentId ?? workspace.root.id,
-          name: undefined,
-          page: 1,
-        }))
-      }
-    />
+    <>
+      <FileBrowser
+        contentScopeKey={contentScopeKey}
+        currentFolder={currentFolder}
+        breadcrumbs={breadcrumbs.data}
+        page={entries.data}
+        search={search}
+        status={status}
+        error={
+          entries.isError
+            ? fileRequestErrorMessage(
+                entries.error,
+                t("common:operationFailed")
+              )
+            : undefined
+        }
+        onRetry={() => void entries.refetch()}
+        onSearchChange={onSearchChange}
+        onOpenFolder={(folder) =>
+          onSearchChange((current) => ({
+            ...current,
+            parentId: folder.id,
+            name: undefined,
+            page: 1,
+          }))
+        }
+        onOpenFile={(file) => {
+          // 列表刷新会重建单元格；按稳定入口 ID 返回当前按钮，不能保存已卸载的 DOM。
+          previewTrigger.current =
+            document.activeElement instanceof HTMLElement
+              ? document.activeElement.id
+              : ""
+          setPreview(file)
+        }}
+        onLocate={(entry) =>
+          onSearchChange((current) => ({
+            ...current,
+            parentId: entry.parentId ?? workspace.root.id,
+            name: undefined,
+            page: 1,
+          }))
+        }
+      />
+      <FilePreviewSheet
+        target={
+          preview ? { file: preview, version: preview.currentVersion } : null
+        }
+        contentScopeKey={contentScopeKey}
+        returnFocus={() => document.getElementById(previewTrigger.current)}
+        onClose={() => setPreview(null)}
+        onOpenDetails={preview ? () => onOpenFile(preview) : undefined}
+      />
+    </>
   )
 }
 
