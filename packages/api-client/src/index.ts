@@ -28,6 +28,7 @@ export {
   uploadOrganizationFile,
   overwriteOrganizationFile,
   getFileEntryImpact,
+  getFileReferenceLocations,
   renameFileEntry,
   moveFileEntry,
   trashFileEntry,

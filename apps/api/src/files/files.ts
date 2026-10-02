@@ -1,5 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
 import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import type { PoolClient } from 'pg';
+import {
+  FileReferenceLocationSchema,
   FileUsageResponseSchema,
   maxOrganizationUploadBytes,
   type FileBreadcrumbs,
@@ -9,6 +15,7 @@ import {
   type FilePage,
   type FileVersions,
   type FileWorkspace,
+  type FileReferenceLocations,
 } from '@workspace/contracts';
 import {
   createTenantRunner,
@@ -19,6 +26,7 @@ import {
   fileRepository,
   type FileOperation,
 } from '@workspace/database/repositories/files';
+import { projectRepository } from '@workspace/database/repositories/projects';
 import { AuthRuntime } from '../identity/auth-runtime';
 import { IdentityService } from '../identity/identity.service';
 import { rethrowTenantWriteError } from '../tenancy/tenant-write';
@@ -46,7 +54,7 @@ export class Files {
   private async read<T>(
     context: TenantContext,
     headers: Headers,
-    load: (tx: TenantTx) => Promise<T>,
+    load: (tx: TenantTx, client: PoolClient) => Promise<T>,
     permissions:
       | readonly PermissionRequest[]
       | ((value: T) => readonly PermissionRequest[]),
@@ -61,7 +69,7 @@ export class Files {
           // 读取也会懒初始化 workspace；与路径/上传写统一 usage→Session/status 锁序。
           await fileRepository.lockOrganization(tx);
           await fileRepository.requireCurrentActor(tx, actor.sessionId);
-          const result = await load(tx);
+          const result = await load(tx, client);
           await this.authorization.requireAnyPermissionInTransaction(
             client,
             headers,
@@ -216,6 +224,74 @@ export class Files {
       },
       [{ file: ['read'] }],
     );
+  }
+
+  async references(
+    context: TenantContext,
+    id: string,
+    headers: Headers,
+  ): Promise<FileReferenceLocations> {
+    const result = await this.read(
+      context,
+      headers,
+      async (tx, client) => {
+        const { entry, references } = await fileRepository.entryReferences(
+          tx,
+          id,
+        );
+        let canReadProjects = true;
+        try {
+          await this.authorization.requirePermissionInTransaction(
+            client,
+            headers,
+            context.organizationId,
+            { project: ['read'] },
+          );
+        } catch (error) {
+          if (!(error instanceof ForbiddenException)) throw error;
+          canReadProjects = false;
+        }
+        const items: FileReferenceLocations['items'] = [];
+        if (canReadProjects) {
+          const names = new Map<string, string>();
+          for (const reference of references) {
+            if (!names.has(reference.projectId)) {
+              const project = await projectRepository.findLocalized(
+                tx,
+                reference.projectId,
+              );
+              if (!project) throw new Error('Referenced project is missing');
+              names.set(project.id, project.name);
+            }
+            items.push(
+              FileReferenceLocationSchema.parse({
+                fileId: reference.fileId,
+                versionId: reference.versionId,
+                projectId: reference.projectId,
+                projectName: names.get(reference.projectId)!,
+                kind: reference.kind,
+                locale: reference.locale,
+              }),
+            );
+          }
+        }
+        return {
+          entry,
+          canReadProjects,
+          response: { total: references.length, items },
+        };
+      },
+      ({ entry, canReadProjects }) => [
+        {
+          ...(entry.kind === 'file'
+            ? { file: ['read'] as const }
+            : { folder: ['read'] as const }),
+          // 数量是删除阻塞事实；业务位置仅在最终事务授权仍可读项目时公开。
+          ...(canReadProjects ? { project: ['read'] as const } : {}),
+        },
+      ],
+    );
+    return result.response;
   }
 
   async operation(

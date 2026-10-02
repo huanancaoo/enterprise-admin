@@ -36,6 +36,36 @@ export const FileEntryIdSchema = z.uuid()
 export const FileVersionIdSchema = z.uuid()
 export const FileOperationIdSchema = z.uuid()
 
+const fileReferenceLocationFields = {
+  fileId: FileEntryIdSchema,
+  versionId: FileVersionIdSchema,
+  projectId: z.uuid(),
+  projectName: z.string().min(1),
+}
+export const FileReferenceLocationSchema = z
+  .discriminatedUnion("kind", [
+    z.strictObject({
+      ...fileReferenceLocationFields,
+      kind: z.literal("project_attachment"),
+      locale: z.null(),
+    }),
+    z.strictObject({
+      ...fileReferenceLocationFields,
+      kind: z.literal("project_rich_text"),
+      locale: z.enum(["zh-CN", "en-US", "ar"]),
+    }),
+  ])
+  .meta({ id: "FileReferenceLocation" })
+export const FileReferenceLocationsSchema = z
+  .strictObject({
+    total: z.number().int().min(0),
+    items: z.array(FileReferenceLocationSchema),
+  })
+  .meta({ id: "FileReferenceLocations" })
+export type FileReferenceLocations = z.infer<
+  typeof FileReferenceLocationsSchema
+>
+
 export const fileErrorCodes = [
   "FILE_NAME_CONFLICT",
   "FILE_NAME_INVALID",

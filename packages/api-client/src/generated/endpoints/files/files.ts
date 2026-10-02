@@ -30,6 +30,7 @@ import type {
   FileEntryResponse,
   FileOperationResponse,
   FilePage,
+  FileReferenceLocations,
   FileVersions,
   FileWorkspace,
   GetFileEntryImpactParams,
@@ -1377,6 +1378,249 @@ export function useListFileVersions<
   queryKey: DataTag<QueryKey, TData, TError>
 } {
   const queryOptions = getListFileVersionsQueryOptions(
+    organizationId,
+    entryId,
+    options
+  )
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+
+  return withQueryKey(query, queryOptions.queryKey)
+}
+
+export type getFileReferenceLocationsResponse200 = {
+  data: FileReferenceLocations
+  status: 200
+}
+
+export type getFileReferenceLocationsResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type getFileReferenceLocationsResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type getFileReferenceLocationsResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type getFileReferenceLocationsResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type getFileReferenceLocationsResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type getFileReferenceLocationsResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type getFileReferenceLocationsResponseSuccess =
+  getFileReferenceLocationsResponse200 & {
+    headers: Headers
+  }
+export type getFileReferenceLocationsResponseError = (
+  | getFileReferenceLocationsResponse400
+  | getFileReferenceLocationsResponse401
+  | getFileReferenceLocationsResponse403
+  | getFileReferenceLocationsResponse404
+  | getFileReferenceLocationsResponse409
+  | getFileReferenceLocationsResponse503
+) & {
+  headers: Headers
+}
+
+export const getGetFileReferenceLocationsUrl = (
+  organizationId: string,
+  entryId: string
+) => {
+  return `/api/v1/organizations/${organizationId}/files/entries/${entryId}/references`
+}
+
+export const getFileReferenceLocations = async (
+  organizationId: string,
+  entryId: string,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<getFileReferenceLocationsResponseSuccess> => {
+  return apiClient<getFileReferenceLocationsResponseSuccess>(
+    getGetFileReferenceLocationsUrl(organizationId, entryId),
+    {
+      ...options,
+      method: "GET",
+    }
+  )
+}
+
+export const getGetFileReferenceLocationsQueryKey = (
+  organizationId: string,
+  entryId: string
+) => {
+  return [
+    `/api/v1/organizations/${organizationId}/files/entries/${entryId}/references`,
+  ] as const
+}
+
+export const getGetFileReferenceLocationsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getFileReferenceLocations>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  entryId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFileReferenceLocations>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetFileReferenceLocationsQueryKey(organizationId, entryId)
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getFileReferenceLocations>>
+  > = ({ signal }) =>
+    getFileReferenceLocations(organizationId, entryId, {
+      signal,
+      ...requestOptions,
+    })
+
+  return {
+    queryKey,
+    queryFn,
+    enabled:
+      organizationId !== null &&
+      organizationId !== undefined &&
+      entryId !== null &&
+      entryId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getFileReferenceLocations>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetFileReferenceLocationsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getFileReferenceLocations>>
+>
+export type GetFileReferenceLocationsQueryError = ErrorType<ApiError>
+
+export function useGetFileReferenceLocations<
+  TData = Awaited<ReturnType<typeof getFileReferenceLocations>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  entryId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFileReferenceLocations>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFileReferenceLocations>>,
+          TError,
+          Awaited<ReturnType<typeof getFileReferenceLocations>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetFileReferenceLocations<
+  TData = Awaited<ReturnType<typeof getFileReferenceLocations>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  entryId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFileReferenceLocations>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFileReferenceLocations>>,
+          TError,
+          Awaited<ReturnType<typeof getFileReferenceLocations>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetFileReferenceLocations<
+  TData = Awaited<ReturnType<typeof getFileReferenceLocations>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  entryId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFileReferenceLocations>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+
+export function useGetFileReferenceLocations<
+  TData = Awaited<ReturnType<typeof getFileReferenceLocations>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  entryId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFileReferenceLocations>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+} {
+  const queryOptions = getGetFileReferenceLocationsQueryOptions(
     organizationId,
     entryId,
     options

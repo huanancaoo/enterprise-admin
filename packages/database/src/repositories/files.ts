@@ -1884,6 +1884,31 @@ export const fileRepository = {
       .orderBy(asc(fileReferences.position), asc(fileReferences.id))
   },
 
+  async entryReferences(tx: TenantTx, entryId: string) {
+    const entry = await requireEntry(tx, entryId)
+    if (entry.state !== "active") fail("FILE_NOT_FOUND")
+    const affected =
+      entry.kind === "folder" ? await subtree(tx, entry) : [entry]
+    const ids = affected
+      .filter((item) => item.kind === "file")
+      .map((item) => item.id)
+    const references = await tx
+      .select()
+      .from(fileReferences)
+      .where(
+        and(
+          eq(fileReferences.organizationId, tx.context.organizationId),
+          inArray(fileReferences.fileId, ids)
+        )
+      )
+      .orderBy(
+        asc(fileReferences.projectId),
+        asc(fileReferences.position),
+        asc(fileReferences.id)
+      )
+    return { entry, references }
+  },
+
   async replaceReferences(
     tx: TenantTx,
     business: FileReferenceBusiness,

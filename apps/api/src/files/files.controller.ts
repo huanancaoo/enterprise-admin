@@ -23,6 +23,7 @@ import {
   FilePageSchema,
   FileVersionsSchema,
   FileWorkspaceSchema,
+  FileReferenceLocationsSchema,
   OrganizationIdSchema,
   type FileBreadcrumbs,
   type FileEntryResponse,
@@ -32,6 +33,7 @@ import {
   type FileVersions,
   type FileWorkspace,
   type CreateFolder,
+  type FileReferenceLocations,
 } from '@workspace/contracts';
 import type { TenantContext } from '@workspace/database/tenant';
 import {
@@ -138,6 +140,20 @@ export class FilesController {
     @CurrentTenant() context: TenantContext,
   ): Promise<FileVersions> {
     return this.files.versions(context, id, fromNodeHeaders(headers));
+  }
+
+  @Get('entries/:entryId/references')
+  @RequireTenantAny({ file: ['read'] }, { folder: ['read'] })
+  @ApiOperation({ operationId: 'getFileReferenceLocations' })
+  @ApiResponse({ status: 200, standardSchema: FileReferenceLocationsSchema })
+  references(
+    @Param('organizationId', { schema: OrganizationIdSchema })
+    _organizationId: string,
+    @Param('entryId', { schema: FileEntryIdSchema }) id: string,
+    @Headers() headers: IncomingHttpHeaders,
+    @CurrentTenant() context: TenantContext,
+  ): Promise<FileReferenceLocations> {
+    return this.files.references(context, id, fromNodeHeaders(headers));
   }
 
   @Get('operations/:operationId')

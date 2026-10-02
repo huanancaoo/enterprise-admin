@@ -12,6 +12,7 @@ import {
   ProjectContentResponseSchema,
   ProjectResponseSchema,
   ApiErrorSchema,
+  FileReferenceLocationsSchema,
 } from "../../packages/contracts/src/index.ts"
 import { createTenantRunner } from "../../packages/database/dist/tenant.js"
 import { fileRepository } from "../../packages/database/dist/repositories/files.js"
@@ -23,6 +24,7 @@ import {
   getProjectContent,
   saveProjectContent,
   getFileVersionContent,
+  getFileReferenceLocations,
   ApiClientError,
 } from "../../packages/api-client/src/index.ts"
 
@@ -230,6 +232,158 @@ for (const kind of ["Local", "RustFS"])
       )
       expect(response.status, await response.clone().text()).toBe(200)
     }
+
+    test("文件与子树引用位置固定版本并沿用项目译文，解除绑定后立即更新", async () => {
+      const f = await fixture()
+      const createdFolder = await request(
+        f,
+        "/files/folders",
+        json("POST", {
+          operationId: randomUUID(),
+          parentId: f.root.id,
+          name: "引用目录",
+        })
+      )
+      expect(createdFolder.status).toBe(200)
+      const folderId = (await createdFolder.json()).result.entryId
+      const first = await upload(
+        { ...f, root: { ...f.root, id: folderId } },
+        "引用图.png",
+        png,
+        "image/png"
+      )
+      const reference = ref(first)
+      const p = await project(f, [reference])
+      expect(
+        (await save(f, p.id, "zh-CN", null, fileDoc(reference))).status
+      ).toBe(200)
+      const arabicName = "مشروع الملفات"
+      expect(
+        (
+          await patch(f, p.id, {
+            translation: { locale: "ar", name: arabicName, description: null },
+          })
+        ).status
+      ).toBe(200)
+      const locations = async (entryId) => {
+        const response = await request(
+          f,
+          `/files/entries/${entryId}/references`,
+          { headers: { "Accept-Language": "ar" } }
+        )
+        expect(response.status, await response.clone().text()).toBe(200)
+        return FileReferenceLocationsSchema.parse(await response.json())
+      }
+      const initial = await locations(first.entryId)
+      configureApiClient({
+        baseUrl: environment.filesBaseURL,
+        getHeaders: () => f.actor.headers,
+      })
+      const sdkLocations = await getFileReferenceLocations(
+        f.organization.id,
+        first.entryId,
+        { headers: { "Accept-Language": "ar" } }
+      )
+      expect(FileReferenceLocationsSchema.parse(sdkLocations.data)).toEqual(
+        initial
+      )
+      expect(initial.total).toBe(3)
+      expect(initial.items).toHaveLength(3)
+      expect(
+        initial.items.every(
+          (item) =>
+            item.projectName === arabicName &&
+            item.versionId === first.versionId &&
+            item.fileId === first.entryId &&
+            item.projectId === p.id
+        )
+      ).toBe(true)
+      expect(initial.items.map((item) => item.kind).sort()).toEqual([
+        "project_attachment",
+        "project_rich_text",
+        "project_rich_text",
+      ])
+      expect(await locations(folderId)).toEqual(initial)
+      await upload(f, "覆盖.txt", bytes, "application/octet-stream", {
+        id: first.entryId,
+        revision: 1,
+      })
+      expect(await locations(first.entryId)).toEqual(initial)
+      expect(
+        (
+          await patch(f, p.id, {
+            attachments: { expectedRevision: 1, items: [] },
+          })
+        ).status
+      ).toBe(200)
+      expect((await locations(first.entryId)).total).toBe(2)
+      expect((await save(f, p.id, "zh-CN", 1, emptyDoc)).status).toBe(200)
+      expect(await locations(folderId)).toEqual({ total: 0, items: [] })
+    })
+
+    test("无项目读取权限仅公开阻塞数量，撤权沿用旧会话也不能泄露位置", async () => {
+      const f = await fixture(),
+        first = await upload(f),
+        p = await project(f, [ref(first)])
+      const reader = await role(f, { file: ["read"], project: ["read"] })
+      const readLocations = () =>
+        request(
+          f,
+          `/files/entries/${first.entryId}/references`,
+          {},
+          reader.actor
+        )
+      const initial = FileReferenceLocationsSchema.parse(
+        await (await readLocations()).json()
+      )
+      expect(initial.items[0].projectId).toBe(p.id)
+      await changeRole(f, reader, { file: ["read"] })
+      const hidden = await readLocations()
+      expect(hidden.status).toBe(200)
+      expect(FileReferenceLocationsSchema.parse(await hidden.json())).toEqual({
+        total: 1,
+        items: [],
+      })
+      await changeRole(f, reader, { project: ["read"] })
+      await error(await readLocations(), 403, "FORBIDDEN")
+    })
+
+    test("引用位置拒绝跨组织、已回收条目及仅有文件夹读取权的文件读取", async () => {
+      const f = await fixture(),
+        other = await fixture(),
+        first = await upload(f),
+        foreign = await upload(other)
+      await error(
+        await request(f, `/files/entries/${foreign.entryId}/references`),
+        404,
+        "NOT_FOUND"
+      )
+      const folderReader = await role(f, {
+        folder: ["read"],
+        project: ["read"],
+      })
+      await error(
+        await request(
+          f,
+          `/files/entries/${first.entryId}/references`,
+          {},
+          folderReader.actor
+        ),
+        403,
+        "FORBIDDEN"
+      )
+      const trashed = await request(
+        f,
+        `/files/entries/${first.entryId}/trash`,
+        json("POST", { operationId: randomUUID(), expectedRevision: 1 })
+      )
+      expect(trashed.status).toBe(200)
+      await error(
+        await request(f, `/files/entries/${first.entryId}/references`),
+        404,
+        "NOT_FOUND"
+      )
+    })
     async function usageLock(fixture) {
       const membership = await environment.observer.query(
         "SELECT id FROM member WHERE organization_id=$1 AND user_id=$2",
