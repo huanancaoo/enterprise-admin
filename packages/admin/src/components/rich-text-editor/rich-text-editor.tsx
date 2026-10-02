@@ -6,8 +6,13 @@ import { cn } from "cn"
 
 import { createRichTextExtensions } from "./extensions"
 import { Toolbar } from "./toolbar"
+import { FileContentContext, type FileContentPorts } from "./file-context"
+import { useImageUploads } from "./use-image-uploads"
+import type { UploadImage } from "./insert-image"
+import { Button } from "@workspace/ui/components/button"
+import { useTranslation } from "react-i18next"
 
-type RichTextEditorBaseProps = {
+type RichTextEditorBaseProps = FileContentPorts & {
   variant: "field" | "document"
   value: JSONContent
   className?: string
@@ -18,7 +23,7 @@ export type RichTextEditorProps =
   | (RichTextEditorBaseProps & {
       editable?: true
       onChange: (value: JSONContent) => void
-      onUploadImage: (file: File) => Promise<string>
+      onUploadImage?: UploadImage
     })
   | (RichTextEditorBaseProps & {
       editable: false
@@ -40,11 +45,15 @@ export function RichTextEditor(props: RichTextEditorProps) {
     }
     props.onChange(next)
   })
-  const onUploadImageEvent = React.useEffectEvent((file: File) => {
-    if (props.editable === false) {
-      throw new Error("onUploadImage is not available")
-    }
-    return props.onUploadImage(file)
+  const { t } = useTranslation("common")
+  const enqueueRef = React.useRef<
+    ((files: File[], pos?: number) => void) | null
+  >(null)
+  const canUpload = isEditable && Boolean(props.onUploadImage)
+  const onImages = React.useEffectEvent((files: File[], pos?: number) => {
+    if (!enqueueRef.current)
+      throw new Error("Editor upload handler is not ready")
+    enqueueRef.current(files, pos)
   })
 
   const editor = useEditor(
@@ -52,7 +61,7 @@ export function RichTextEditor(props: RichTextEditorProps) {
       editable: isEditable,
       content: value,
       extensions: createRichTextExtensions({
-        onUploadImage: isEditable ? onUploadImageEvent : undefined,
+        onImages: canUpload ? onImages : undefined,
       }),
       editorProps: {
         attributes: id ? { id } : {},
@@ -61,8 +70,35 @@ export function RichTextEditor(props: RichTextEditorProps) {
         onChangeEvent(current.getJSON())
       },
     },
-    [isEditable]
+    [isEditable, canUpload]
   )
+  const uploads = useImageUploads(editor, {
+    contentScopeKey: props.contentScopeKey,
+    onUploadImage: isEditable ? props.onUploadImage : undefined,
+    getFileErrorMessage: props.getFileErrorMessage,
+  })
+  React.useEffect(() => {
+    enqueueRef.current = uploads.enqueue
+  }, [uploads.enqueue])
+  function uploadLabel(item: (typeof uploads.items)[number]) {
+    const name = item.file.name
+    switch (item.status) {
+      case "queued":
+        return t("imageUploadQueued", { name })
+      case "transmitting":
+        return t("imageUploadTransmitting", { name })
+      case "saving":
+        return t("imageUploadSaving", { name })
+      case "confirming":
+        return t("imageUploadConfirming", { name })
+      case "complete":
+        return t("imageUploadComplete", { name })
+      case "failed":
+        return t("imageUploadFailed", { name, reason: item.error! })
+      case "stopped":
+        return t("imageUploadCancelled", { name })
+    }
+  }
 
   React.useEffect(() => {
     if (JSON.stringify(editor.getJSON()) === JSON.stringify(value)) {
@@ -81,16 +117,60 @@ export function RichTextEditor(props: RichTextEditorProps) {
         className
       )}
     >
-      <Tiptap editor={editor}>
-        {props.editable === false ? null : (
-          <Toolbar density={variant} onUploadImage={props.onUploadImage} />
-        )}
-        <Tiptap.Content
-          className={
-            variant === "field" ? "min-h-16 px-3 py-2" : "min-h-96 px-8 py-6"
-          }
-        />
-      </Tiptap>
+      <FileContentContext value={props}>
+        <Tiptap editor={editor}>
+          {props.editable === false ? null : (
+            <Toolbar
+              density={variant}
+              onImages={canUpload ? uploads.enqueue : undefined}
+            />
+          )}
+          {uploads.items.length > 0 && (
+            <ul
+              className="space-y-2 border-b p-3 text-sm"
+              aria-label={t("imageUploads")}
+            >
+              {uploads.items.map((item) => (
+                <li key={item.id} className="flex flex-wrap items-center gap-2">
+                  <span
+                    className="min-w-0 break-words"
+                    role={item.status === "failed" ? "alert" : "status"}
+                  >
+                    {uploadLabel(item)}
+                  </span>
+                  {item.status === "failed" && canUpload && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => uploads.retry(item.id)}
+                    >
+                      {t("retryUpload")}
+                    </Button>
+                  )}
+                  {["queued", "transmitting", "saving", "confirming"].includes(
+                    item.status
+                  ) && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => uploads.stop(item.id)}
+                    >
+                      {t("cancelUpload")}
+                    </Button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          <Tiptap.Content
+            className={
+              variant === "field" ? "min-h-16 px-3 py-2" : "min-h-96 px-8 py-6"
+            }
+          />
+        </Tiptap>
+      </FileContentContext>
     </div>
   )
 }

@@ -750,6 +750,9 @@ importers:
       '@workspace/api-client':
         specifier: workspace:*
         version: link:../api-client
+      '@workspace/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       '@workspace/permissions':
         specifier: workspace:*
         version: link:../permissions

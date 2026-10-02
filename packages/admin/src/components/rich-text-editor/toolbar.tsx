@@ -48,11 +48,11 @@ import {
   TooltipTrigger,
 } from "@workspace/ui/components/tooltip"
 
-import { IMAGE_ACCEPT, insertUploadedImages } from "./insert-image"
+import { IMAGE_ACCEPT } from "./insert-image"
 
 type ToolbarProps = {
   density: "field" | "document"
-  onUploadImage: (file: File) => Promise<string>
+  onImages?: (files: File[]) => void
 }
 
 type ToolbarState = {
@@ -175,7 +175,7 @@ function ToolbarIconButton({
   )
 }
 
-export function Toolbar({ density, onUploadImage }: ToolbarProps) {
+export function Toolbar({ density, onImages }: ToolbarProps) {
   const { t } = useTranslation("common")
   const { editor } = useTiptap()
   const fileInputRef = React.useRef<HTMLInputElement>(null)
@@ -457,26 +457,30 @@ export function Toolbar({ density, onUploadImage }: ToolbarProps) {
               </div>
             </PopoverContent>
           </Popover>
-          <ToolbarIconButton
-            label={t("image")}
-            size={buttonSize}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <ImageIcon />
-          </ToolbarIconButton>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept={IMAGE_ACCEPT}
-            multiple
-            className="hidden"
-            tabIndex={-1}
-            onChange={(event) => {
-              const files = [...(event.target.files ?? [])]
-              event.target.value = ""
-              void insertUploadedImages(editor, files, onUploadImage)
-            }}
-          />
+          {onImages && (
+            <>
+              <ToolbarIconButton
+                label={t("image")}
+                size={buttonSize}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <ImageIcon />
+              </ToolbarIconButton>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={IMAGE_ACCEPT}
+                multiple
+                className="hidden"
+                tabIndex={-1}
+                onChange={(event) => {
+                  const files = [...(event.target.files ?? [])]
+                  event.target.value = ""
+                  onImages(files)
+                }}
+              />
+            </>
+          )}
         </ToolbarGroup>
         <ToolbarSeparator />
         <ToolbarGroup>

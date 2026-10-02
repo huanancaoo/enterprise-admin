@@ -1,4 +1,8 @@
 import type { Editor } from "@tiptap/react"
+import {
+  FileVersionReferenceSchema,
+  type FileVersionReference,
+} from "@workspace/contracts"
 
 export const IMAGE_MIME_TYPES = [
   "image/jpeg",
@@ -9,49 +13,31 @@ export const IMAGE_MIME_TYPES = [
 
 export const IMAGE_ACCEPT = IMAGE_MIME_TYPES.join(",")
 
-function isAllowedImage(file: File) {
+export type ImageUploadStage = "transmitting" | "saving" | "confirming"
+export type ImageUploadOptions = {
+  signal: AbortSignal
+  onStage: (stage: ImageUploadStage) => void
+}
+export type UploadImage = (
+  file: File,
+  options: ImageUploadOptions
+) => Promise<FileVersionReference>
+
+export function isAllowedImage(file: File) {
   return (IMAGE_MIME_TYPES as readonly string[]).includes(file.type)
 }
 
-export async function insertUploadedImage(
+export function insertFileImage(
   editor: Editor,
-  file: File,
-  onUploadImage: (file: File) => Promise<string>,
+  reference: FileVersionReference,
+  alt: string,
   pos?: number
 ) {
-  if (!isAllowedImage(file)) {
-    return
-  }
-  let src: string
-  try {
-    src = await onUploadImage(file)
-  } catch {
-    return
-  }
+  const attrs = { ...FileVersionReferenceSchema.parse(reference), alt }
+  const content = { type: "fileImage", attrs }
   if (pos === undefined) {
-    editor.chain().focus().setImage({ src }).run()
-    return
-  }
-  // setImage 没有位置参数，拖放必须插在指针处
-  editor
-    .chain()
-    .focus()
-    .insertContentAt(pos, { type: "image", attrs: { src } })
-    .run()
-}
-
-export async function insertUploadedImages(
-  editor: Editor,
-  files: File[],
-  onUploadImage: (file: File) => Promise<string>,
-  pos?: number
-) {
-  let nextPos = pos
-  for (const file of files) {
-    const sizeBefore = editor.state.doc.content.size
-    await insertUploadedImage(editor, file, onUploadImage, nextPos)
-    if (nextPos !== undefined) {
-      nextPos += editor.state.doc.content.size - sizeBefore
-    }
+    editor.chain().focus().insertContent(content).run()
+  } else {
+    editor.chain().focus().insertContentAt(pos, content).run()
   }
 }

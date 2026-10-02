@@ -43,7 +43,8 @@
     "@workspace/api-client": "workspace:*",
     "@workspace/permissions": "workspace:*",
     "@workspace/i18n": "workspace:*",
-    "react-i18next": "17.0.14"
+    "react-i18next": "17.0.14",
+    "@workspace/contracts": "workspace:*"
   },
   "intent": {
     "skills": [
