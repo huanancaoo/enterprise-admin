@@ -161,7 +161,10 @@ export const ConflictRequiresExplicitRevisionRefresh: Story = {
     const screen = within(canvasElement.ownerDocument.body)
     const dialog = within(await screen.findByRole("dialog"))
     await userEvent.type(dialog.getByLabelText("描述"), " draft")
-    await userEvent.click(dialog.getByRole("button", { name: "移除引用" }))
+    // 附件草稿先渲染；变更入口需等待原生 project:update 授权返回。
+    await userEvent.click(
+      await dialog.findByRole("button", { name: "移除引用" })
+    )
     await userEvent.click(dialog.getByRole("button", { name: "保存项目" }))
     await expect(await dialog.findByRole("alert")).toHaveTextContent(
       "附件已被其他人修改"
