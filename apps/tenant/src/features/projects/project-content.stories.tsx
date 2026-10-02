@@ -370,20 +370,18 @@ async function save(element: HTMLElement) {
     within(element).getByRole("button", { name: "Save content" })
   )
 }
-async function clickPickerButton(
-  dialog: ReturnType<typeof within>,
-  name: string
-) {
-  // 可用列表行会早于弹窗的开启动画和焦点交接出现，鼠标操作必须从完成打开的窗口开始。
-  const button: HTMLElement = await dialog.findByRole("button", { name })
-  const popup = button.closest<HTMLElement>("[role=dialog]")!
+async function clickPickerButton(popup: HTMLElement, name: string) {
+  // 查询读回可能替换列表行；开启动画必须从正式弹窗等待，不能由异步取得的旧行反推。
+  await expect(popup).toBeInTheDocument()
   await Promise.all(
     popup.getAnimations().map((animation) => animation.finished)
   )
-  // 列表和路径独立读回；弹窗完成打开之后仍要以当前按钮的真实可用状态为准。
-  await waitFor(() =>
+  const dialog = within(popup)
+  // 列表和路径独立读回；动画结束后重新查询当前可用按钮，不保留此前的列表行节点。
+  await waitFor(() => {
+    expect(popup).toBeInTheDocument()
     expect(dialog.getByRole("button", { name })).toBeEnabled()
-  )
+  })
   await userEvent.click(dialog.getByRole("button", { name }))
 }
 async function chooseUploadFolder(element: HTMLElement) {
@@ -392,8 +390,9 @@ async function chooseUploadFolder(element: HTMLElement) {
   await userEvent.click(
     canvas.getByRole("button", { name: "Image upload folder" })
   )
-  const dialog = within(await within(document.body).findByRole("dialog"))
-  await clickPickerButton(dialog, "Manuals")
+  const popup: HTMLElement = await within(document.body).findByRole("dialog")
+  const dialog = within(popup)
+  await clickPickerButton(popup, "Manuals")
   await dialog.findByRole("button", { name: "portrait.png" })
   await waitFor(() =>
     expect(
@@ -744,10 +743,12 @@ export const ExistingImageAndFileLinkPicker: Story = {
     await canvas.findByRole("button", { name: "Append an existing image" })
     for (const name of ["Append an existing image", "Append a file link"]) {
       await userEvent.click(canvas.getByRole("button", { name }))
-      const dialog = within(await within(document.body).findByRole("dialog"))
-      await clickPickerButton(dialog, "Manuals")
-      await clickPickerButton(dialog, "portrait.png")
-      await clickPickerButton(dialog, "Use file")
+      const popup: HTMLElement = await within(document.body).findByRole(
+        "dialog"
+      )
+      await clickPickerButton(popup, "Manuals")
+      await clickPickerButton(popup, "portrait.png")
+      await clickPickerButton(popup, "Use file")
       await waitFor(() =>
         expect(within(document.body).queryByRole("dialog")).toBeNull()
       )
