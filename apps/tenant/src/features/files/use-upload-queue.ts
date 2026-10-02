@@ -351,6 +351,7 @@ export function useUploadQueue(options: UploadQueueOptions) {
     save(next)
     setRecordError(false)
     replace(next)
+    return added.map((job) => job.id)
   }
   const dismiss = (id: string) => {
     const job = current.current.find((value) => value.id === id)
