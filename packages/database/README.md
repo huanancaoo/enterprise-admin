@@ -84,7 +84,7 @@ env PLATFORM_RUNTIME_PASSWORD='...' PLATFORM_DEPLOYER_PASSWORD='...' \
 MIGRATION_DATABASE_URL='postgresql://app_migrator:...@db/enterprise_admin' pnpm db:migrate
 ```
 
-`PLATFORM_RUNTIME_PASSWORD` 设置 API 使用的独立平台连接密码；`PLATFORM_ASSIGNMENT_DATABASE_URL` 只注入部署授权命令。迁移 0022 保留旧平台任职并记录迁移来源；旧记录未保存原角色、操作者和原因，因此按 `platform_admin` 迁移并明确标记其历史信息缺失。`app_migrator` 不能创建数据库角色；角色升级脚本必须成功后才能运行迁移。
+`PLATFORM_RUNTIME_PASSWORD` 仅供上述 DBA 角色升级脚本配置历史 `platform_runtime` 角色，API 不使用该身份；`PLATFORM_DEPLOYER_PASSWORD` 配置部署 CLI 使用的 `platform_deployer` 角色密码。`PLATFORM_ASSIGNMENT_DATABASE_URL` 只注入部署授权命令，在线 API 使用 `DATABASE_URL`。迁移 0022 保留旧平台任职并记录迁移来源；旧记录未保存原角色、操作者和原因，因此按 `platform_admin` 迁移并明确标记其历史信息缺失。`app_migrator` 不能创建数据库角色；角色升级脚本必须成功后才能运行迁移。
 
 ## 角色和访问范围
 

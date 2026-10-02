@@ -1,6 +1,6 @@
 ---
 title: 0002 Platform assignment
-description: Platform admins come only from the assignment table and are created by CLI.
+description: The deployment CLI grants platform assignments to verified users by exact UUID.
 category: adr
 tags:
   - adr
@@ -18,14 +18,17 @@ The platform console has no registration. A platform admin must be able to log i
 
 ## Decision
 
-Record the fact in a dedicated platform assignment table. The CLI creates a user with email and password and writes the assignment. It does not verify email and does not send mail. The API re-reads the current session and assignment on every request.
+Record the fact in a dedicated platform assignment table. The target user first registers and verifies their email through normal authentication. The deployment CLI accepts an exact user UUID, role, and non-empty reason to grant or revoke an assignment. A grant requires an existing user with a verified email. The CLI does not create accounts, change verification state, or expose HTTP assignment management. Assignment changes and internal audit records commit in one transaction.
+
+The CLI uses the dedicated deployment connection `PLATFORM_ASSIGNMENT_DATABASE_URL`; that credential is not injected into the online API. The API shares `DATABASE_URL` and checks the authoritative session, current assignment, and current-session MFA fact on every platform request. Revocation rejects the old session's next request.
 
 ## Alternatives
 
-- First publicly registered user becomes platform admin: the platform console has no registration. Rejected.
-- CLI only grants users who already exist with a verified email: first boot has nobody who can log in. Rejected.
+- First publicly registered user becomes platform admin: registration and platform assignment are separate facts. Rejected.
+- CLI grants existing users with a verified email: reuse normal authentication and email verification, then select the target by exact UUID. Accepted.
+- CLI creates an account and skips email verification: combines the account lifecycle with assignment authorization and conflicts with the accepted boundary. Rejected.
 - Organization owner automatically becomes platform admin: the two assignments would derive from each other. Rejected.
 
 ## Consequences
 
-Platform identity is independent from organization roles. Bootstrapping production requires the CLI.
+Platform identity is independent from organization roles. Normal registration and email verification precede the first grant; the deployment operator then explicitly grants the assignment through the CLI. Completed [#19](https://github.com/huanancaoo/enterprise-admin/issues/19) and real CLI/platform-access tests support this behavior; they do not establish a production deployment.
