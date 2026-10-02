@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-router"
 import {
   AuditEventsQuerySchema,
+  FileListQuerySchema,
   ProjectListQuerySchema,
 } from "@workspace/contracts"
 import {
@@ -27,6 +28,9 @@ import {
   TenantAuthTitlePage,
 } from "./App"
 import { ProjectsRoute } from "./components/projects-route"
+import { FilesRoute } from "./features/files/files-route"
+import { FileDetailRoute } from "./features/files/file-detail-route"
+import { fileDetailSearchSchema } from "./features/files/file-detail-search"
 import { ProjectDetailRoute } from "./components/project-detail-route"
 import { AdminLayout } from "./components/admin-layout"
 import { MembersRoute } from "./components/members-route"
@@ -163,6 +167,23 @@ const projectDetailRoute = createRoute({
   path: "/$organizationId/$projectId",
   component: ProjectDetailRoute,
 })
+const filesLayoutRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/files",
+  component: AdminLayout,
+})
+const filesRoute = createRoute({
+  getParentRoute: () => filesLayoutRoute,
+  path: "/$organizationId",
+  validateSearch: FileListQuerySchema,
+  component: FilesRoute,
+})
+const fileDetailRoute = createRoute({
+  getParentRoute: () => filesLayoutRoute,
+  path: "/$organizationId/entries/$entryId",
+  validateSearch: fileDetailSearchSchema,
+  component: FileDetailRoute,
+})
 const membersLayoutRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/members",
@@ -224,6 +245,7 @@ export const router = createRouter({
       appIndexRoute,
       organizationRoute,
       projectsLayoutRoute.addChildren([projectsRoute, projectDetailRoute]),
+      filesLayoutRoute.addChildren([filesRoute, fileDetailRoute]),
       membersLayoutRoute.addChildren([membersRoute]),
       organizationSettingsLayoutRoute.addChildren([
         rolesRoute,

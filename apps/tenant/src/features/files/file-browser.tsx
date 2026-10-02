@@ -286,7 +286,7 @@ export function FileBrowser({
         }
         empty={
           <p className="text-sm text-muted-foreground">
-            {t("files:emptyFolder")}
+            {search.name ? t("files:noSearchResults") : t("files:emptyFolder")}
           </p>
         }
       />

@@ -22,6 +22,7 @@ import { useUiLocale } from "@workspace/i18n/react"
 import {
   ClipboardListIcon,
   FolderKanbanIcon,
+  FolderOpenIcon,
   SettingsIcon,
   ShieldCheckIcon,
   UsersIcon,
@@ -55,6 +56,7 @@ export function AdminLayout() {
   const { t, i18n } = useTranslation([
     "organization",
     "projects",
+    "files",
     "settings",
     "common",
     "errors",
@@ -86,6 +88,7 @@ export function AdminLayout() {
     !organizationId && activeOrganization.isPending
   const organizations = workspace.workspace.data ?? []
   const onMembers = pathname.startsWith("/app/members/")
+  const onFiles = pathname.startsWith("/app/files/")
   const onRoles = isOrganizationRolesPath(pathname)
   const onOrganizationSettings =
     pathname.startsWith("/app/organizations/") && pathname.endsWith("/settings")
@@ -169,6 +172,7 @@ export function AdminLayout() {
     queryClient.removeQueries(filters)
   }, [access.error, currentOrganizationId, queryClient])
   const projectListSearch =
+    !onFiles &&
     !onMembers &&
     !onRoles &&
     !onAudit &&
@@ -187,6 +191,12 @@ export function AdminLayout() {
       to="/app/projects/$organizationId"
       params={{ organizationId: currentOrganizationId }}
       search={params.projectId ? {} : projectListSearch}
+    />
+  ) : undefined
+  const filesLink = currentOrganizationId ? (
+    <Link
+      to="/app/files/$organizationId"
+      params={{ organizationId: currentOrganizationId }}
     />
   ) : undefined
   const membersLink = currentOrganizationId ? (
@@ -234,6 +244,14 @@ export function AdminLayout() {
       }
     } else {
       cancelOrganizationSwitchLocale(nextLocaleSnapshot)
+    }
+    if (onFiles) {
+      await navigate({
+        to: "/app/files/$organizationId",
+        params: { organizationId: nextOrganizationId },
+        search: {},
+      })
+      return
     }
     if (onRoles) {
       await navigate({
@@ -300,19 +318,23 @@ export function AdminLayout() {
             )}
             <BreadcrumbItem>
               <BreadcrumbPage>
-                {onAudit
-                  ? t("organization:audit")
-                  : onMembers
-                    ? t("organization:members")
-                    : onRoles
-                      ? t("organization:roles")
-                      : onOrganizationSettings
-                        ? t("settings:organizationSettings")
-                        : onPersonalSettings
-                          ? t("settings:personalSettings")
-                          : params.projectId
-                            ? t("projects:detail")
-                            : t("projects:title")}
+                {onFiles
+                  ? params.entryId
+                    ? t("files:detail")
+                    : t("files:title")
+                  : onAudit
+                    ? t("organization:audit")
+                    : onMembers
+                      ? t("organization:members")
+                      : onRoles
+                        ? t("organization:roles")
+                        : onOrganizationSettings
+                          ? t("settings:organizationSettings")
+                          : onPersonalSettings
+                            ? t("settings:personalSettings")
+                            : params.projectId
+                              ? t("projects:detail")
+                              : t("projects:title")}
               </BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
@@ -340,6 +362,13 @@ export function AdminLayout() {
               isActive: pathname.startsWith("/app/projects/"),
               disabled: !currentOrganizationId || suspended,
               render: projectLink,
+            },
+            {
+              title: t("files:title"),
+              icon: <FolderOpenIcon />,
+              isActive: onFiles,
+              disabled: !currentOrganizationId || suspended,
+              render: filesLink,
             },
             {
               title: t("organization:members"),
@@ -427,15 +456,17 @@ export function AdminLayout() {
         error={workspace.error}
         onCreated={(nextOrganizationId) => {
           void navigate({
-            to: onAudit
-              ? "/app/organizations/$organizationId/audit"
-              : onMembers
-                ? "/app/members/$organizationId"
-                : onRoles
-                  ? "/app/organizations/$organizationId/roles"
-                  : onOrganizationSettings
-                    ? "/app/organizations/$organizationId/settings"
-                    : "/app/projects/$organizationId",
+            to: onFiles
+              ? "/app/files/$organizationId"
+              : onAudit
+                ? "/app/organizations/$organizationId/audit"
+                : onMembers
+                  ? "/app/members/$organizationId"
+                  : onRoles
+                    ? "/app/organizations/$organizationId/roles"
+                    : onOrganizationSettings
+                      ? "/app/organizations/$organizationId/settings"
+                      : "/app/projects/$organizationId",
             params: { organizationId: nextOrganizationId },
           })
         }}
