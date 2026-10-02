@@ -37,6 +37,8 @@
   "ORGANIZATION_NOT_FOUND": "Organization not found",
   "ORGANIZATION_SLUG_ALREADY_TAKEN": "This organization slug is already taken",
   "ORGANIZATION_SUSPENDED": "This organization is suspended",
+  "PERSONAL_MEDIA_CONTENT_MISMATCH": "The image content differs from the earlier upload. Choose the image again and start a new upload.",
+  "PERSONAL_MEDIA_OPERATION_EXPIRED": "This avatar upload has expired. Choose the image again and upload it.",
   "PLATFORM_MFA_REQUIRED": "Verify two-factor authentication for this session to access the platform.",
   "ROLE_IN_USE": "The role is still in use. Remove its references first.",
   "ROLE_NOT_FOUND": "Role not found.",

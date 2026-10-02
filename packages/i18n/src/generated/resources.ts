@@ -213,6 +213,8 @@ export default interface Resources {
     "ORGANIZATION_NOT_FOUND": "组织不存在",
     "ORGANIZATION_SLUG_ALREADY_TAKEN": "该组织标识已被使用",
     "ORGANIZATION_SUSPENDED": "该组织已停用",
+    "PERSONAL_MEDIA_CONTENT_MISMATCH": "此次上传的图片内容与之前不同，请重新选择图片并开始新的上传。",
+    "PERSONAL_MEDIA_OPERATION_EXPIRED": "此次头像上传已过期，请重新选择图片并上传。",
     "PLATFORM_MFA_REQUIRED": "平台访问需要当前会话的双重验证。",
     "ROLE_IN_USE": "角色仍被引用，请先解除引用",
     "ROLE_NOT_FOUND": "角色不存在。",

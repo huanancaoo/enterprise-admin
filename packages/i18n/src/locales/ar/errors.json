@@ -37,6 +37,8 @@
   "ORGANIZATION_NOT_FOUND": "المؤسسة غير موجودة",
   "ORGANIZATION_SLUG_ALREADY_TAKEN": "معرّف المؤسسة مستخدم بالفعل",
   "ORGANIZATION_SUSPENDED": "هذه المؤسسة موقوفة",
+  "PERSONAL_MEDIA_CONTENT_MISMATCH": "يختلف محتوى الصورة عن الرفع السابق. اختر الصورة مجددًا وابدأ عملية رفع جديدة.",
+  "PERSONAL_MEDIA_OPERATION_EXPIRED": "انتهت صلاحية رفع صورة الحساب. اختر الصورة مجددًا وارفعها.",
   "PLATFORM_MFA_REQUIRED": "تحقق من المصادقة الثنائية لهذه الجلسة للوصول إلى المنصة.",
   "ROLE_IN_USE": "الدور ما زال مستخدماً. أزل ارتباطاته أولاً.",
   "ROLE_NOT_FOUND": "الدور غير موجود.",
