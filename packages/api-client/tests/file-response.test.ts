@@ -91,7 +91,7 @@ describe("受保护文件响应", () => {
     })
     const result = await uploadPersonalMedia(
       new Blob([source], { type: "image/png" }),
-      { "Idempotency-Key": id },
+      { "idempotency-key": id },
       { headers: { "Content-Type": "image/png" } }
     )
     expect(result.status).toBe(201)

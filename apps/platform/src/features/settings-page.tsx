@@ -224,7 +224,7 @@ function SettingsForm({
         const result = PlatformSettingsUpdateResultSchema.parse(
           (
             await updatePlatformSettings(data, {
-              "Idempotency-Key": attempt.current.key,
+              "idempotency-key": attempt.current.key,
             })
           ).data
         )

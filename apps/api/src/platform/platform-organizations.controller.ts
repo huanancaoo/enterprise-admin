@@ -87,7 +87,7 @@ export class PlatformOrganizationsController {
   @HttpCode(200)
   @ApiOperation({ operationId: 'suspendPlatformOrganization' })
   @ApiHeader({
-    name: 'Idempotency-Key',
+    name: 'idempotency-key',
     required: true,
     schema: {
       type: 'string',
@@ -129,7 +129,7 @@ export class PlatformOrganizationsController {
   @HttpCode(200)
   @ApiOperation({ operationId: 'resumePlatformOrganization' })
   @ApiHeader({
-    name: 'Idempotency-Key',
+    name: 'idempotency-key',
     required: true,
     schema: {
       type: 'string',

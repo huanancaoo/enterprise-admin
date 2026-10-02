@@ -258,7 +258,7 @@ function StoragePolicyForm({
                 method: "PATCH",
                 headers: {
                   "Content-Type": "application/json",
-                  "Idempotency-Key": attempt.current.key,
+                  "idempotency-key": attempt.current.key,
                 },
                 body,
               }

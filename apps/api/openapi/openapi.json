@@ -3917,14 +3917,6 @@
             "required": true,
             "in": "header",
             "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": true,
-            "schema": {
               "type": "string",
               "format": "uuid"
             }
@@ -4511,14 +4503,6 @@
             "required": true,
             "in": "header",
             "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": true,
-            "schema": {
               "type": "string",
               "minLength": 1,
               "maxLength": 128,
@@ -4632,14 +4616,6 @@
             "name": "idempotency-key",
             "required": true,
             "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": true,
             "schema": {
               "type": "string",
               "minLength": 1,
@@ -5322,14 +5298,6 @@
             "required": true,
             "in": "header",
             "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": true,
-            "schema": {
               "type": "string",
               "maxLength": 128
             }
@@ -5512,14 +5480,6 @@
             "name": "idempotency-key",
             "required": true,
             "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": true,
             "schema": {
               "type": "string",
               "minLength": 1,

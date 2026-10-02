@@ -9,5 +9,5 @@ export type UpdatePlatformSettingsHeaders = {
   /**
    * @maxLength 128
    */
-  "Idempotency-Key": string
+  "idempotency-key": string
 }

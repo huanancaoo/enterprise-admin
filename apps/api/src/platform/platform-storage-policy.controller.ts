@@ -54,7 +54,7 @@ export class PlatformStoragePolicyController {
   @Patch()
   @ApiOperation({ operationId: 'updatePlatformStoragePolicy' })
   @ApiHeader({
-    name: 'Idempotency-Key',
+    name: 'idempotency-key',
     required: true,
     schema: {
       type: 'string',

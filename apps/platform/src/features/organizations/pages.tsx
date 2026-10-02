@@ -478,7 +478,7 @@ function OrganizationAction({
       try {
         const operation = actions[command.action].operation
         const result = await operation(organization.id, command.input, {
-          "Idempotency-Key": command.key,
+          "idempotency-key": command.key,
         })
         setOpen(false)
         setUncertain(false)

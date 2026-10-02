@@ -6,5 +6,5 @@
  */
 
 export type UploadPersonalMediaHeaders = {
-  "Idempotency-Key": string
+  "idempotency-key": string
 }

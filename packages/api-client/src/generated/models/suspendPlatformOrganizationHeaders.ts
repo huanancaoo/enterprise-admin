@@ -11,5 +11,5 @@ export type SuspendPlatformOrganizationHeaders = {
    * @maxLength 128
    * @pattern ^[A-Za-z0-9:_-]+$
    */
-  "Idempotency-Key": string
+  "idempotency-key": string
 }

@@ -51,7 +51,7 @@ export class PersonalMediaController {
   @Post()
   @ApiOperation({ operationId: 'uploadPersonalMedia' })
   @ApiHeader({
-    name: 'Idempotency-Key',
+    name: 'idempotency-key',
     required: true,
     schema: { type: 'string', format: 'uuid' },
   })

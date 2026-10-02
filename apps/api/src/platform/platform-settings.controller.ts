@@ -36,7 +36,7 @@ export class PlatformSettingsController {
   @Patch()
   @ApiOperation({ operationId: 'updatePlatformSettings' })
   @ApiHeader({
-    name: 'Idempotency-Key',
+    name: 'idempotency-key',
     required: true,
     schema: { type: 'string', maxLength: 128 },
   })

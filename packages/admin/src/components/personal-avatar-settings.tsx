@@ -89,7 +89,7 @@ export function PersonalAvatarSettings({
       try {
         const result = await uploadPersonalMedia(
           value.file,
-          { "Idempotency-Key": uploadKey },
+          { "idempotency-key": uploadKey },
           {
             headers: { "Content-Type": value.file.type },
             signal: controller.signal,
