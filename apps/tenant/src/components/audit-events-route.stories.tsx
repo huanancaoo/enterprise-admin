@@ -88,7 +88,12 @@ export const Default: Story = {
     trigger.focus()
     await userEvent.keyboard("{Enter}")
     const screen = within(canvasElement.ownerDocument.body)
-    const dialog = within(await screen.findByRole("dialog"))
+    const popup = await screen.findByRole("dialog")
+    await waitFor(() => expect(popup).toBeVisible())
+    await Promise.all(
+      popup.getAnimations().map((animation) => animation.finished)
+    )
+    const dialog = within(popup)
     await dialog.findByText("changedFields")
     await expect(dialog.getByText('["name"]')).toBeVisible()
     await userEvent.keyboard("{Escape}")

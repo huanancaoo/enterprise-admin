@@ -61,7 +61,15 @@ async function selectRole(
 ) {
   const result = await dialog(canvasElement, "role", target)
   await userEvent.click(result.content.getByRole("combobox", { name: "Role" }))
-  await userEvent.click(await result.screen.findByRole("option", { name }))
+  const option = await result.screen.findByRole("option", { name })
+  const list = result.screen.getByRole("listbox")
+  const popup = option.closest('[data-slot="select-content"]')!
+  await userEvent.click(option)
+  await waitFor(() => expect(popup).toHaveAttribute("data-closed"))
+  await Promise.all(
+    popup.getAnimations().map((animation) => animation.finished)
+  )
+  await waitFor(() => expect(list).not.toBeVisible())
   return result
 }
 async function closed(popup: HTMLElement) {

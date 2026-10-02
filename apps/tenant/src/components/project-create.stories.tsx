@@ -12,12 +12,22 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
+async function openDialog(canvasElement: HTMLElement) {
+  const screen = within(canvasElement.ownerDocument.body)
+  await userEvent.click(within(canvasElement).getByRole("button"))
+  const popup = await screen.findByRole("dialog")
+  // 角色查询只保证已经挂载；入场动画结束后再开始表单操作。
+  await waitFor(() => expect(popup).toBeVisible())
+  await Promise.all(
+    popup.getAnimations().map((animation) => animation.finished)
+  )
+  return { screen, popup, dialog: within(popup) }
+}
+
 export const Success: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    const screen = within(canvasElement.ownerDocument.body)
-    await userEvent.click(canvas.getByRole("button", { name: "创建项目" }))
-    const dialog = within(await screen.findByRole("dialog"))
+    const { screen, dialog } = await openDialog(canvasElement)
     await userEvent.type(dialog.getByLabelText("项目名称"), "   ")
     await userEvent.click(dialog.getByRole("button", { name: "创建项目" }))
     await expect(await dialog.findByText("请输入项目名称。")).toBeVisible()
@@ -37,11 +47,7 @@ export const Success: Story = {
 export const Failure: Story = {
   parameters: { msw: { handlers: [createProjectHandler("error")] } },
   play: async ({ canvasElement }) => {
-    const screen = within(canvasElement.ownerDocument.body)
-    await userEvent.click(
-      within(canvasElement).getByRole("button", { name: "创建项目" })
-    )
-    const dialog = within(await screen.findByRole("dialog"))
+    const { dialog } = await openDialog(canvasElement)
     await userEvent.type(dialog.getByLabelText("项目名称"), "Keep draft")
     await userEvent.click(dialog.getByRole("button", { name: "创建项目" }))
     await expect(await dialog.findByRole("alert")).toHaveTextContent(
@@ -53,11 +59,7 @@ export const Failure: Story = {
 export const Pending: Story = {
   parameters: { msw: { handlers: [createProjectHandler("pending")] } },
   play: async ({ canvasElement }) => {
-    const screen = within(canvasElement.ownerDocument.body)
-    await userEvent.click(
-      within(canvasElement).getByRole("button", { name: "创建项目" })
-    )
-    const dialog = within(await screen.findByRole("dialog"))
+    const { screen, dialog } = await openDialog(canvasElement)
     await userEvent.type(dialog.getByLabelText("项目名称"), "Pending")
     await userEvent.click(dialog.getByRole("button", { name: "创建项目" }))
     await expect(dialog.getByRole("button", { name: "提交中…" })).toBeDisabled()
@@ -69,9 +71,7 @@ export const Pending: Story = {
 export const RTL: Story = {
   globals: { locale: "ar" },
   play: async ({ canvasElement }) => {
-    const screen = within(canvasElement.ownerDocument.body)
-    await userEvent.click(within(canvasElement).getByRole("button"))
-    const dialog = await screen.findByRole("dialog")
+    const { popup: dialog } = await openDialog(canvasElement)
     await expect(getComputedStyle(dialog).direction).toBe("rtl")
     await expect(dialog.getBoundingClientRect().left).toBeGreaterThanOrEqual(0)
     await expect(dialog.getBoundingClientRect().right).toBeLessThanOrEqual(
