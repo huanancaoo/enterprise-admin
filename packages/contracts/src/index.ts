@@ -2,6 +2,7 @@ import { z } from "zod"
 import { FileErrorDetailsSchema, fileErrorCodes } from "./files.js"
 
 export * from "./files.js"
+export * from "./platform-storage.js"
 
 export const SupportedLocaleSchema = z
   .enum(["zh-CN", "en-US", "ar"])
