@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import {
   FilePathError,
   normalizeFileName,
+  normalizeFolderName,
   normalizeFilePath,
 } from "../../packages/contracts/src/file-path"
 
@@ -61,12 +62,27 @@ describe("组织文件与文件夹的名称和相对路径", () => {
     )
   })
 
+  it("文件夹按实际共同预算验证，文件名保留独立的字节上限", () => {
+    expect(normalizeFolderName("合".repeat(82))).toBe("合".repeat(82))
+    expect(normalizeFolderName("a".repeat(246))).toBe("a".repeat(246))
+    expect(normalizeFileName("a".repeat(255))).toBe("a".repeat(255))
+    expect(() => normalizeFolderName("a".repeat(247))).toThrowError(
+      new FilePathError("FOLDER_NAME_TOO_LONG")
+    )
+    expect(() => normalizeFilePath(["a".repeat(247), "b"])).toThrowError(
+      new FilePathError("FOLDER_NAME_TOO_LONG")
+    )
+    expect(() => normalizeFilePath(["a".repeat(247)], "folder")).toThrowError(
+      new FilePathError("FOLDER_NAME_TOO_LONG")
+    )
+  })
+
   it("完整路径包含分隔符，不能只验证各段长度", () => {
     expect(
-      normalizeFilePath(["a".repeat(255), "b".repeat(254), "c"])
+      normalizeFilePath(["a".repeat(246), "b".repeat(9), "c".repeat(255)])
     ).toHaveLength(3)
     expect(() =>
-      normalizeFilePath(["a".repeat(255), "b".repeat(255), "c"])
+      normalizeFilePath(["a".repeat(246), "b".repeat(10), "c".repeat(255)])
     ).toThrowError(new FilePathError("FILE_PATH_TOO_LONG"))
   })
 })
