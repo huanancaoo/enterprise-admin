@@ -1,9 +1,6 @@
 import { z } from "zod"
 
-export {
-  FileVersionReferenceSchema,
-  type FileVersionReference,
-} from "./files.js"
+export * from "./files.js"
 
 export const SupportedLocaleSchema = z
   .enum(["zh-CN", "en-US", "ar"])
