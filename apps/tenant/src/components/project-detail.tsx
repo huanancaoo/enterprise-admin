@@ -15,6 +15,7 @@ import {
 import { Badge } from "@workspace/ui/components/badge"
 import { buttonVariants } from "@workspace/ui/components/button"
 import { Card, CardContent } from "@workspace/ui/components/card"
+import { ProjectContent } from "@/features/projects/project-content"
 import { ProjectAttachmentsSection } from "./project-attachments"
 import { ProjectEdit } from "./project-edit"
 import { ProjectDelete } from "./project-delete"
@@ -143,6 +144,11 @@ export function ProjectDetail({
             key={`${organizationId}:${project.id}`}
             organizationId={organizationId}
             projectId={project.id}
+          />
+          <ProjectContent
+            organizationId={organizationId}
+            projectId={project.id}
+            initialLocale={project.contentLocale}
           />
         </section>
       )}

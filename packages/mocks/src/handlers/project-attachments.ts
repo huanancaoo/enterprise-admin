@@ -7,6 +7,7 @@ import {
   OrganizationAccessSchema,
   ProjectAttachmentSchema,
   ProjectAttachmentsResponseSchema,
+  ProjectContentResponseSchema,
   UpdateProjectSchema,
   type UpdateProject,
   type ProjectAttachment,
@@ -103,6 +104,18 @@ export function createProjectAttachmentsScenario(options?: {
       () =>
         HttpResponse.json(
           ProjectAttachmentsResponseSchema.parse({ revision, items })
+        )
+    ),
+    http.get(
+      "*/api/v1/organizations/:organizationId/projects/:projectId/content/:locale",
+      ({ params }) =>
+        HttpResponse.json(
+          ProjectContentResponseSchema.parse({
+            locale: params.locale,
+            revision: null,
+            document: null,
+            updatedAt: null,
+          })
         )
     ),
     http.get("*/api/v1/organizations/:organizationId/files/workspace", () =>
