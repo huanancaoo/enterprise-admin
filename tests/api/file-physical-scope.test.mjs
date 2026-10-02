@@ -60,6 +60,127 @@ describe("Files physical scope uses real PostgreSQL session ownership", () => {
     expect(await follower).toBe("settled")
   })
 
+  test("shutdown cancels a database lock waiter without entering work or releasing the holder", async () => {
+    const owner = { kind: "organization", id: randomUUID() }
+    const started = Promise.withResolvers()
+    const release = Promise.withResolvers()
+    const shutdown = new AbortController()
+    let entered = false
+    const holder = first.run(owner, async () => {
+      started.resolve()
+      await release.promise
+    })
+    await started.promise
+    const cancelled = expect(
+      second.run(
+        owner,
+        async () => {
+          entered = true
+        },
+        shutdown.signal
+      )
+    ).rejects.toMatchObject({ code: "STORAGE_UNAVAILABLE" })
+    try {
+      await vi.waitFor(async () => {
+        const waiting = await observer.query(
+          "SELECT count(*)::int AS count FROM pg_stat_activity WHERE application_name='enterprise-admin:files-physical-scope' AND wait_event='advisory'"
+        )
+        expect(waiting.rows[0].count).toBe(1)
+      })
+      shutdown.abort()
+      await cancelled
+      expect(entered).toBe(false)
+      await vi.waitFor(async () => {
+        const waiting = await observer.query(
+          "SELECT count(*)::int AS count FROM pg_stat_activity WHERE application_name='enterprise-admin:files-physical-scope' AND wait_event='advisory'"
+        )
+        expect(waiting.rows[0].count).toBe(0)
+      })
+    } finally {
+      release.resolve()
+      await holder
+    }
+    expect(await second.run(owner, async () => "next")).toBe("next")
+  })
+
+  test("active shutdown signals work and keeps its owner lock until I/O finishes", async () => {
+    const owner = { kind: "organization", id: randomUUID() }
+    const started = Promise.withResolvers()
+    const release = Promise.withResolvers()
+    const shutdown = new AbortController()
+    let workSignal
+    const cancelled = expect(
+      first.run(
+        owner,
+        async (signal) => {
+          workSignal = signal
+          started.resolve()
+          await release.promise
+        },
+        shutdown.signal
+      )
+    ).rejects.toMatchObject({ code: "STORAGE_UNAVAILABLE" })
+    await started.promise
+    let entered = false
+    const follower = second.run(owner, async () => {
+      entered = true
+      return "next"
+    })
+    try {
+      shutdown.abort()
+      expect(workSignal.aborted).toBe(true)
+      await vi.waitFor(async () => {
+        const waiting = await observer.query(
+          "SELECT count(*)::int AS count FROM pg_stat_activity WHERE application_name='enterprise-admin:files-physical-scope' AND wait_event='advisory'"
+        )
+        expect(waiting.rows[0].count).toBe(1)
+      })
+      expect(entered).toBe(false)
+    } finally {
+      release.resolve()
+      await cancelled
+    }
+    expect(await follower).toBe("next")
+  })
+
+  test("shutdown cancels a queued pool acquisition and releases its later connection", async () => {
+    const started = Promise.withResolvers()
+    const release = Promise.withResolvers()
+    let count = 0
+    const holders = Array.from({ length: 10 }, () =>
+      first.run({ kind: "organization", id: randomUUID() }, async () => {
+        if (++count === 10) started.resolve()
+        await release.promise
+      })
+    )
+    await started.promise
+    const shutdown = new AbortController()
+    let entered = false
+    const cancelled = expect(
+      first.run(
+        { kind: "organization", id: randomUUID() },
+        async () => {
+          entered = true
+        },
+        shutdown.signal
+      )
+    ).rejects.toMatchObject({ code: "STORAGE_UNAVAILABLE" })
+    try {
+      shutdown.abort()
+      await cancelled
+      expect(entered).toBe(false)
+    } finally {
+      release.resolve()
+      await Promise.all(holders)
+    }
+    expect(
+      await first.run(
+        { kind: "organization", id: randomUUID() },
+        async () => "next"
+      )
+    ).toBe("next")
+  })
+
   test("independent organizations and the same-ID personal owner do not share a lock", async () => {
     const owner = { kind: "organization", id: randomUUID() }
     const started = Promise.withResolvers()
