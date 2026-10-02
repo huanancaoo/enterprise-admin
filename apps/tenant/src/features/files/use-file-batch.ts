@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   ApiClientError,
   executeFileBatch,
@@ -45,18 +45,15 @@ type State = {
   scope: string
   records: FileBatchRecord[]
   record?: FileBatchRecord
-  response?: FileBatchResponse
-  error?: unknown
-  submitting: boolean
   original?: ExecuteFileBatch
   recordError?: unknown
 }
 function load(scope: string, recordScope: string): State {
   try {
     const records = readFileBatchRecords(recordScope)
-    return { scope, records, record: records.at(-1), submitting: false }
+    return { scope, records, record: records.at(-1) }
   } catch (recordError) {
-    return { scope, records: [], recordError, submitting: false }
+    return { scope, records: [], recordError }
   }
 }
 function phase(response: FileBatchResponse): FileBatchRecord["phase"] {
@@ -74,6 +71,34 @@ function phase(response: FileBatchResponse): FileBatchRecord["phase"] {
   return "settled"
 }
 
+function parseReceipt(value: FileBatchResponse, tracked: FileBatchRecord) {
+  const next = FileBatchResponseSchema.parse(value)
+  if (
+    next.batchId !== tracked.batchId ||
+    next.action !== tracked.action ||
+    next.items.length !== tracked.itemOperationIds.length ||
+    next.items.some(
+      (item, index) =>
+        item.requestedOperationId !== tracked.itemOperationIds[index]
+    )
+  )
+    throw new Error("Unexpected batch receipt")
+  return next
+}
+function denied(error: unknown) {
+  return (
+    error instanceof ApiClientError &&
+    (error.status === 401 || error.status === 403)
+  )
+}
+type Submission = {
+  scope: string
+  input: ExecuteFileBatch
+  tracked: FileBatchRecord
+  request: AbortController
+  execute: FileBatchPorts["execute"]
+}
+
 export function useFileBatch({
   contentScopeKey,
   recordScopeKey,
@@ -85,6 +110,7 @@ export function useFileBatch({
   ports: FileBatchPorts
   canRead?: boolean
 }) {
+  const client = useQueryClient()
   const [stored, setStored] = useState(() =>
     load(contentScopeKey, recordScopeKey)
   )
@@ -93,127 +119,223 @@ export function useFileBatch({
     stored.scope === contentScopeKey
       ? stored
       : load(contentScopeKey, recordScopeKey)
-  const { records, record, response, error, submitting } = current
-  const controller = useRef<AbortController | undefined>(undefined)
-  const sending = useRef(false)
-  useEffect(
-    () => () => {
-      controller.current?.abort()
-      setStored((previous) => ({ ...previous, original: undefined }))
-      sending.current = false
-    },
-    [contentScopeKey]
+  const { records, record } = current
+  const hasOriginal = Boolean(
+    current.original && current.original.batchId === record?.batchId
   )
-  const update = (values: Partial<State>) =>
-    setStored((previous) => ({
-      ...(previous.scope === contentScopeKey
-        ? previous
-        : load(contentScopeKey, recordScopeKey)),
-      ...values,
-    }))
-  const remember = (next: FileBatchRecord, beforeSubmission = false) => {
-    try {
-      const nextRecords = saveFileBatchRecord(recordScopeKey, next)
-      update({ records: nextRecords, record: next, recordError: undefined })
-    } catch (recordError) {
-      if (beforeSubmission) {
-        update({ recordError })
-        throw recordError
+  const controller = useRef<AbortController | undefined>(undefined)
+  const update = useCallback(
+    (values: Partial<State> | ((previous: State) => Partial<State>)) =>
+      setStored((previous) => {
+        const scoped =
+          previous.scope === contentScopeKey
+            ? previous
+            : load(contentScopeKey, recordScopeKey)
+        return {
+          ...scoped,
+          ...(typeof values === "function" ? values(scoped) : values),
+        }
+      }),
+    [contentScopeKey, recordScopeKey]
+  )
+  const remember = useCallback(
+    (next: FileBatchRecord, beforeSubmission = false) => {
+      try {
+        const nextRecords = saveFileBatchRecord(recordScopeKey, next)
+        update({ records: nextRecords, record: next, recordError: undefined })
+      } catch (recordError) {
+        if (beforeSubmission) {
+          update({ recordError })
+          throw recordError
+        }
+        // 正式收据仍是事实；只在第一次 POST 前要求身份落盘，不能因后续记录失败误报已提交操作。
+        update((previous) => ({
+          recordError,
+          records: [
+            ...previous.records.filter((item) => item.batchId !== next.batchId),
+            next,
+          ],
+          record: next,
+        }))
       }
-      const records = current.records.filter(
-        (item) => item.batchId !== next.batchId
+    },
+    [recordScopeKey, update]
+  )
+  const queryKey = ["file-batch", contentScopeKey, record?.batchId] as const
+  const keyFor = (submission: Submission) =>
+    ["file-batch", submission.scope, submission.tracked.batchId] as const
+  const mutation = useMutation({
+    retry: false,
+    // 不把离线命令留待联网执行；作用域释放后也不缓存含原始正文的 Mutation。
+    networkMode: "always",
+    gcTime: 0,
+    mutationFn: async (submission: Submission) => {
+      submission.request.signal.throwIfAborted()
+      const value = await submission.execute(
+        submission.input,
+        submission.request.signal
       )
-      // 正式收据仍是事实；只在第一次 POST 前要求身份落盘，不能因后续记录失败误报已提交操作。
-      update({ recordError, records: [...records, next], record: next })
-    }
-  }
-  const accept = (value: FileBatchResponse, tracked: FileBatchRecord) => {
-    const next = FileBatchResponseSchema.parse(value)
-    if (
-      next.batchId !== tracked.batchId ||
-      next.action !== tracked.action ||
-      next.items.length !== tracked.itemOperationIds.length ||
-      next.items.some(
-        (item, index) =>
-          item.requestedOperationId !== tracked.itemOperationIds[index]
-      )
-    )
-      throw new Error("Unexpected batch receipt")
-    update({ response: next, error: undefined })
-    remember({
-      ...tracked,
-      phase: phase(next),
-      updatedAt: new Date().toISOString(),
-    })
-    return next
-  }
-  const status = useQuery({
-    queryKey: ["file-batch", contentScopeKey, record?.batchId],
-    enabled:
+      submission.request.signal.throwIfAborted()
+      return parseReceipt(value, submission.tracked)
+    },
+    onMutate: async (submission) => {
+      const key = keyFor(submission)
+      await client.cancelQueries({ queryKey: key, exact: true })
+      // 只记录 Query 的确认次数；后续成功 GET 才取代这次 POST 错误，不能复制一份收据状态。
+      return { confirmed: client.getQueryState(key)?.dataUpdateCount ?? 0 }
+    },
+    onSuccess: (value, submission) => {
+      if (submission.request.signal.aborted) return
+      const key = keyFor(submission)
+      // POST 收据取代此前 GET。取消会回滚旧读取，迟到响应不能覆盖较新的提交事实。
+      void client.cancelQueries({ queryKey: key, exact: true })
+      client.setQueryData(key, value)
+      if (phase(value) === "processing")
+        void client.invalidateQueries({
+          queryKey: key,
+          exact: true,
+          refetchType: "none",
+        })
+    },
+    onError: (cause, submission) => {
+      if (submission.request.signal.aborted) return
+      remember({
+        ...submission.tracked,
+        phase: denied(cause) ? "unavailable" : "unconfirmed",
+        updatedAt: new Date().toISOString(),
+      })
+      if (!denied(cause))
+        void client.invalidateQueries({
+          queryKey: keyFor(submission),
+          exact: true,
+          refetchType: "none",
+        })
+    },
+  })
+  const ownSubmission =
+    mutation.variables?.scope === contentScopeKey &&
+    mutation.variables.tracked.batchId === record?.batchId
+  const submitting = ownSubmission && mutation.isPending
+  const status = useQuery<FileBatchResponse>({
+    queryKey,
+    enabled: (query) =>
       canRead &&
       Boolean(record?.submitted) &&
       !submitting &&
-      // unavailable 是旧响应事实；可信 canRead 下的新挂载先 GET 安全身份一次，本次403才停止自动查询。
-      (record?.phase !== "unavailable" || (!response && !error)) &&
-      (!response ||
-        (record?.phase !== "settled" && record?.phase !== "pending")),
+      !(
+        ownSubmission &&
+        mutation.isError &&
+        denied(mutation.error) &&
+        query.state.dataUpdateCount <= (mutation.context?.confirmed ?? 0)
+      ),
     retry: false,
+    staleTime: Infinity,
+    // 重新挂载只有安全身份，必须重新读取；不能拿先前授权下缓存的终态当本次确认。
+    refetchOnMount: "always",
     refetchOnWindowFocus: false,
-    queryFn: async ({ signal }) => {
-      const tracked = record!
-      try {
-        const value = await ports.read(tracked.batchId, signal)
-        if (signal.aborted) return value
-        return accept(value, tracked)
-      } catch (cause) {
-        if (!signal.aborted) {
-          update({ error: cause, response: undefined })
-          if (
-            cause instanceof ApiClientError &&
-            (cause.status === 401 || cause.status === 403)
-          )
-            remember({
-              ...tracked,
-              phase: "unavailable",
-              updatedAt: new Date().toISOString(),
-            })
-        }
-        throw cause
-      }
-    },
+    refetchOnReconnect: (query) =>
+      record?.phase !== "unavailable" &&
+      !denied(query.state.error) &&
+      (query.state.error ||
+        !query.state.data ||
+        record?.phase === "unconfirmed" ||
+        phase(query.state.data) === "processing")
+        ? "always"
+        : false,
+    queryFn: async ({ signal }) =>
+      parseReceipt(await ports.read(record!.batchId, signal), record!),
     refetchInterval: (query) =>
-      !query.state.error && record?.phase === "processing" ? 1500 : false,
+      !query.state.error &&
+      query.state.data &&
+      phase(query.state.data) === "processing"
+        ? 1500
+        : false,
   })
+  const confirmations = client.getQueryState(queryKey)?.dataUpdateCount ?? 0
+  const postError =
+    ownSubmission &&
+    mutation.isError &&
+    confirmations <= (mutation.context?.confirmed ?? 0)
+      ? mutation.error
+      : undefined
+  // 本次命令的收据可以先于 Query 挂载到达；重挂载只有安全 UUID，必须等待新 GET 确认。
+  const receipt =
+    status.isError || !(status.isFetchedAfterMount || hasOriginal)
+      ? undefined
+      : status.data
+  const response = canRead ? receipt : undefined
+  const syncRecord = useEffectEvent(() => {
+    if (!record || submitting) return
+    if (denied(status.error))
+      remember({
+        ...record,
+        phase: "unavailable",
+        updatedAt: new Date().toISOString(),
+      })
+    else if (receipt && !postError)
+      remember({
+        ...record,
+        phase: phase(receipt),
+        updatedAt: new Date().toISOString(),
+      })
+  })
+  useEffect(() => {
+    syncRecord()
+  }, [
+    status.dataUpdatedAt,
+    status.errorUpdatedAt,
+    mutation.status,
+    contentScopeKey,
+    record?.batchId,
+  ])
+  const resetMutation = mutation.reset
+  useEffect(
+    () => () => {
+      controller.current?.abort()
+      controller.current = undefined
+      void client.cancelQueries({ queryKey: ["file-batch", contentScopeKey] })
+      setStored((previous) => ({ ...previous, original: undefined }))
+      resetMutation()
+    },
+    [client, contentScopeKey, resetMutation]
+  )
+  useEffect(() => {
+    if (!canRead) {
+      if (mutation.isError) resetMutation()
+      const key = ["file-batch", contentScopeKey, record?.batchId]
+      void client.cancelQueries({ queryKey: key, exact: true })
+      // 同一挂载撤销读取资格时清掉收据；资格恢复后只用安全 UUID 再次 GET。
+      void client.resetQueries({ queryKey: key, exact: true })
+    }
+  }, [
+    canRead,
+    client,
+    contentScopeKey,
+    record?.batchId,
+    status.dataUpdatedAt,
+    status.errorUpdatedAt,
+    mutation.isError,
+    resetMutation,
+  ])
   const send = async (input: ExecuteFileBatch, tracked: FileBatchRecord) => {
-    sending.current = true
-    update({ submitting: true, error: undefined })
     const request = new AbortController()
     controller.current = request
     try {
-      const result = await ports.execute(input, request.signal)
-      if (!request.signal.aborted) accept(result, tracked)
-    } catch (cause) {
-      if (!request.signal.aborted) {
-        update({ error: cause })
-        remember({
-          ...tracked,
-          phase:
-            cause instanceof ApiClientError &&
-            (cause.status === 401 || cause.status === 403)
-              ? "unavailable"
-              : "unconfirmed",
-          updatedAt: new Date().toISOString(),
-        })
-      }
+      await mutation.mutateAsync({
+        scope: contentScopeKey,
+        input,
+        tracked,
+        request,
+        execute: ports.execute,
+      })
+    } catch {
+      // Mutation 保存请求错误；未知结果只触发原身份 GET，绝不重放原始命令。
     } finally {
-      if (!request.signal.aborted) {
-        sending.current = false
-        update({ submitting: false })
-      }
+      if (controller.current === request) controller.current = undefined
     }
   }
   const start = async (input: ExecuteFileBatch) => {
-    if (sending.current) return
+    if (controller.current) return
     if (current.recordError) throw current.recordError
     const value = ExecuteFileBatchSchema.parse(input)
     const now = new Date().toISOString()
@@ -227,12 +349,12 @@ export function useFileBatch({
       updatedAt: now,
     }
     remember(tracked, true)
-    update({ response: undefined, original: value })
+    update({ original: value })
     await send(value, tracked)
   }
   const continueOriginal = async () => {
     if (
-      sending.current ||
+      controller.current ||
       !record ||
       current.original?.batchId !== record.batchId
     )
@@ -240,9 +362,14 @@ export function useFileBatch({
     await send(current.original!, record)
   }
   const selectRecord = (value: FileBatchRecord) => {
-    if (sending.current) return
-    update({ record: value, response: undefined, error: undefined })
-    update({ original: undefined })
+    if (controller.current) return
+    void client.invalidateQueries({
+      queryKey: ["file-batch", contentScopeKey, value.batchId],
+      exact: true,
+      refetchType: "none",
+    })
+    mutation.reset()
+    update({ record: value, original: undefined })
   }
   const retryRecords = () => {
     try {
@@ -260,18 +387,16 @@ export function useFileBatch({
     recordError: current.recordError,
     available: !current.recordError,
     record,
-    response: canRead ? response : undefined,
-    error: error ?? status.error,
+    response,
+    error: status.error ?? postError,
     submitting,
     querying: status.isFetching,
-    hasOriginal: Boolean(
-      current.original && current.original.batchId === record?.batchId
-    ),
+    hasOriginal,
     start,
     continueOriginal,
     selectRecord,
     retryRecords,
-    check: () => status.refetch(),
+    check: () => (canRead ? status.refetch() : undefined),
   }
 }
 export type FileBatchState = ReturnType<typeof useFileBatch>

@@ -1,6 +1,7 @@
 import { useRef, useState } from "react"
 import type { Meta, StoryObj } from "@storybook/react-vite"
 import { expect, userEvent, waitFor, within } from "storybook/test"
+import { onlineManager } from "@tanstack/react-query"
 import { ApiClientError } from "@workspace/api-client"
 import {
   ExecuteFileBatchSchema,
@@ -85,6 +86,15 @@ type Mode =
   | "blocked"
   | "submitting"
   | "recordsUnreadable"
+  | "readRevoked"
+  | "readFailure"
+  | "postRevoked"
+  | "deniedContinuation"
+  | "readAccess"
+  | "latePost"
+  | "lateRead"
+  | "readDelayed"
+  | "selection"
 function result(
   input: ExecuteFileBatch,
   mode: Mode,
@@ -156,6 +166,10 @@ function Content({
   mode,
   action,
   ports,
+  canRead,
+  onReadAccessChange,
+  onReleaseRead,
+  onReleasePost,
   onRefresh,
   onScopeChange,
   onAuthorizationChange,
@@ -167,6 +181,10 @@ function Content({
   mode: Mode
   action: "move" | "trash" | "restore" | "purge"
   ports: FileBatchPorts
+  canRead: boolean
+  onReadAccessChange: () => void
+  onReleaseRead: () => void
+  onReleasePost: () => void
   onRefresh: () => void
   onScopeChange: () => void
   onAuthorizationChange: () => void
@@ -192,6 +210,7 @@ function Content({
     contentScopeKey: scope,
     recordScopeKey: recordScope,
     ports,
+    canRead,
   })
   const canAct = (entry: FileEntryResponse) =>
     mode !== "foldersOnly" || entry.kind === "folder"
@@ -217,6 +236,27 @@ function Content({
       <Button variant="outline" onClick={onAuthorizedRemount}>
         Remount with new authorization
       </Button>
+      {["readAccess", "latePost", "deniedContinuation"].includes(mode) && (
+        <Button onClick={onReadAccessChange}>Toggle read access</Button>
+      )}
+      {mode === "latePost" && (
+        <Button onClick={onReleasePost}>Release held POST</Button>
+      )}
+      {["lateRead", "readDelayed", "selection"].includes(mode) && (
+        <Button onClick={onReleaseRead}>Release held GET</Button>
+      )}
+      {mode === "lateRead" && (
+        <Button onClick={() => void batch.continueOriginal()}>
+          Submit original during held GET
+        </Button>
+      )}
+      {mode === "selection" &&
+        batch.records.map((item) => (
+          <Button key={item.batchId} onClick={() => batch.selectRecord(item)}>
+            Select recorded batch {item.batchId}
+          </Button>
+        ))}
+      <output aria-label="Current batch">{batch.record?.batchId}</output>
       <output aria-label="Safe record">
         {sessionStorage.getItem(fileBatchRecordKey(recordScope))}
       </output>
@@ -278,12 +318,18 @@ function Fixture({
       )
     return value
   })
+  const [canRead, setCanRead] = useState(true)
   const [epoch, setEpoch] = useState(0)
   const [authorizationVersion, setAuthorizationVersion] = useState(1)
   const [calls, setCalls] = useState<ExecuteFileBatch[]>([])
   const [reads, setReads] = useState<string[]>([])
   const [impacts, setImpacts] = useState<string[]>([])
   const [aborted, setAborted] = useState(false)
+  const [abortedReads, setAbortedReads] = useState<string[]>([])
+  const [completedReads, setCompletedReads] = useState<string[]>([])
+  const readCount = useRef(0)
+  const releaseRead = useRef<(() => void) | undefined>(undefined)
+  const releasePost = useRef<(() => void) | undefined>(undefined)
   const inputs = useRef(new Map<string, ExecuteFileBatch>())
   const counts = useRef(new Map<string, number>())
   const ports: FileBatchPorts = {
@@ -293,6 +339,10 @@ function Fixture({
       const count = (counts.current.get(input.batchId) ?? 0) + 1
       counts.current.set(input.batchId, count)
       setCalls((previous) => [...previous, input])
+      if (mode === "latePost")
+        await new Promise<void>((resolve) => {
+          releasePost.current = resolve
+        })
       if (mode === "submitting")
         await new Promise<void>((resolve) =>
           signal.addEventListener(
@@ -304,6 +354,20 @@ function Fixture({
             { once: true }
           )
         )
+      if (mode === "deniedContinuation" && count > 1)
+        throw new ApiClientError(403, {
+          code: "FORBIDDEN",
+          requestId: crypto.randomUUID(),
+          locale: "en-US",
+          message: "Current authorization was revoked.",
+        })
+      if (mode === "postRevoked")
+        throw new ApiClientError(401, {
+          code: "UNAUTHENTICATED",
+          requestId: crypto.randomUUID(),
+          locale: "en-US",
+          message: "Current session was revoked.",
+        })
       if (mode === "network" || mode === "unreadable")
         throw new TypeError("Network response unavailable")
       if (mode === "serverError")
@@ -313,20 +377,54 @@ function Fixture({
           locale: "en-US",
           message: "Status must be checked.",
         })
-      return result(input, mode, count > 1)
+      return result(
+        input,
+        mode === "lateRead" || mode === "deniedContinuation" ? "pending" : mode,
+        count > 1
+      )
     },
-    read: async (batchId) => {
+    read: async (batchId, signal) => {
+      const count = ++readCount.current
       setReads((previous) => [...previous, batchId])
-      if (mode === "unreadable" && authorizationVersion === 1)
+      if (
+        ["lateRead", "readDelayed"].includes(mode) ||
+        (mode === "selection" && count === 1)
+      ) {
+        // 故意让端口在取消后仍返回旧事实，验证 Query 的取消边界，而不是靠端口丢弃结果。
+        signal.addEventListener(
+          "abort",
+          () => {
+            setAbortedReads((previous) => [...previous, batchId])
+          },
+          { once: true }
+        )
+        await new Promise<void>((resolve) => {
+          releaseRead.current = resolve
+        })
+      }
+      if (mode === "readFailure" && (count === 1 || count === 3))
+        throw new ApiClientError(503, {
+          code: "FILE_STORAGE_UNAVAILABLE",
+          requestId: crypto.randomUUID(),
+          locale: "en-US",
+          message: "Status must be checked.",
+        })
+      if (
+        (mode === "unreadable" || mode === "readRevoked") &&
+        authorizationVersion === 1
+      )
         throw new ApiClientError(403, {
           code: "FORBIDDEN",
           requestId: crypto.randomUUID(),
           locale: "en-US",
           message: "Current authorization was revoked.",
         })
+      setCompletedReads((previous) => [...previous, batchId])
       return result(
         inputs.current.get(batchId)!,
-        mode,
+        mode === "lateRead" || (mode === "selection" && count === 1)
+          ? "pending"
+          : mode,
         mode === "network" || mode === "cleaning"
       )
     },
@@ -338,6 +436,12 @@ function Fixture({
       <output aria-label="GET requests">{JSON.stringify(reads)}</output>
       <output aria-label="Impact requests">{JSON.stringify(impacts)}</output>
       <output aria-label="Aborted request">{String(aborted)}</output>
+      <output aria-label="Aborted GET requests">
+        {JSON.stringify(abortedReads)}
+      </output>
+      <output aria-label="Completed GET requests">
+        {JSON.stringify(completedReads)}
+      </output>
       <Content
         key={epoch}
         scope={scope + ":v" + authorizationVersion}
@@ -345,6 +449,10 @@ function Fixture({
         mode={mode}
         action={action}
         ports={ports}
+        canRead={canRead}
+        onReadAccessChange={() => setCanRead((value) => !value)}
+        onReleaseRead={() => releaseRead.current?.()}
+        onReleasePost={() => releasePost.current?.()}
         onRefresh={() => setEpoch((value) => value + 1)}
         onScopeChange={() => setScope("batch-story:" + crypto.randomUUID())}
         onAuthorizationChange={() =>
@@ -900,5 +1008,337 @@ export const ReceiptWriteFailurePreservesCompletedFacts: Story = {
     await expect(
       canvas.queryByRole("button", { name: "Continue original batch" })
     ).toBeNull()
+  },
+}
+
+async function expectCompleted(canvasElement: HTMLElement) {
+  await waitFor(() =>
+    expect(
+      within(canvasElement).getAllByText("Completed", { exact: true })
+    ).toHaveLength(2)
+  )
+}
+const completedReads = (canvas: HTMLElement): string[] =>
+  JSON.parse(
+    within(canvas).getByLabelText("Completed GET requests").textContent!
+  )
+const abortedReads = (canvas: HTMLElement): string[] =>
+  JSON.parse(within(canvas).getByLabelText("Aborted GET requests").textContent!)
+
+export const RefetchRevocationHidesConfirmedReceipt: Story = {
+  args: { mode: "readRevoked" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await move(canvasElement)
+    await expectCompleted(canvasElement)
+    const original = posted(canvasElement)[0]!
+    await userEvent.click(canvas.getByRole("button", { name: "Check status" }))
+    await waitFor(() =>
+      expect(canvas.getByText(/Automatic status checks stopped/)).toBeVisible()
+    )
+    await expect(canvas.queryByRole("table")).not.toBeInTheDocument()
+    await expect(read(canvasElement)).toEqual([original.batchId])
+    await expect(posted(canvasElement)).toEqual([original])
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Change authorization version" })
+    )
+    await expectCompleted(canvasElement)
+    await expect(read(canvasElement)).toEqual([
+      original.batchId,
+      original.batchId,
+    ])
+    await expect(posted(canvasElement)).toEqual([original])
+    await expect(
+      canvas.queryByRole("button", { name: "Continue original batch" })
+    ).not.toBeInTheDocument()
+  },
+}
+
+export const ReadFailureUsesManualCheckAndReconnect: Story = {
+  args: { mode: "readFailure" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await move(canvasElement)
+    await expectCompleted(canvasElement)
+    const original = posted(canvasElement)[0]!
+    await userEvent.click(canvas.getByRole("button", { name: "Check status" }))
+    await waitFor(() => expect(canvas.getByRole("alert")).toBeVisible())
+    await expect(canvas.queryByRole("table")).not.toBeInTheDocument()
+    await expect(read(canvasElement)).toEqual([original.batchId])
+    await userEvent.click(canvas.getByRole("button", { name: "Check status" }))
+    await expectCompleted(canvasElement)
+    await expect(read(canvasElement)).toEqual([
+      original.batchId,
+      original.batchId,
+    ])
+    await expect(posted(canvasElement)).toEqual([original])
+    await expect(canvas.queryByRole("alert")).not.toBeInTheDocument()
+    await userEvent.click(canvas.getByRole("button", { name: "Check status" }))
+    await waitFor(() => expect(canvas.getByRole("alert")).toBeVisible())
+    await expect(canvas.queryByRole("table")).not.toBeInTheDocument()
+    onlineManager.setOnline(false)
+    onlineManager.setOnline(true)
+    await expectCompleted(canvasElement)
+    await expect(read(canvasElement)).toEqual(Array(4).fill(original.batchId))
+    await expect(posted(canvasElement)).toEqual([original])
+    await expect(canvas.queryByRole("alert")).not.toBeInTheDocument()
+  },
+}
+
+export const SameScopeReadAccessMustReconfirm: Story = {
+  args: { mode: "readAccess" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await move(canvasElement)
+    await expectCompleted(canvasElement)
+    const original = posted(canvasElement)[0]!
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Toggle read access" })
+    )
+    await waitFor(() =>
+      expect(canvas.queryByRole("table")).not.toBeInTheDocument()
+    )
+    await userEvent.click(canvas.getByRole("button", { name: "Check status" }))
+    await expect(read(canvasElement)).toEqual([])
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Toggle read access" })
+    )
+    await expectCompleted(canvasElement)
+    await expect(read(canvasElement)).toEqual([original.batchId])
+    await expect(posted(canvasElement)).toEqual([original])
+  },
+}
+
+export const OlderReadCannotReplaceNewPostReceipt: Story = {
+  args: { mode: "lateRead" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await move(canvasElement)
+    const original = posted(canvasElement)[0]!
+    await userEvent.click(canvas.getByRole("button", { name: "Check status" }))
+    await waitFor(() => expect(read(canvasElement)).toEqual([original.batchId]))
+    // 通过公开 hook 命令接口制造交错；正常 Results 在 GET 期间禁用继续按钮。
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Submit original during held GET" })
+    )
+    await expectCompleted(canvasElement)
+    await expect(posted(canvasElement)).toEqual([original, original])
+    await expect(abortedReads(canvasElement)).toEqual([original.batchId])
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Release held GET" })
+    )
+    await waitFor(() =>
+      expect(completedReads(canvasElement)).toEqual([original.batchId])
+    )
+    await expectCompleted(canvasElement)
+    await expect(
+      canvas.queryByText("Not started", { exact: true })
+    ).not.toBeInTheDocument()
+    await expect(
+      JSON.parse(canvas.getByLabelText("Safe record").textContent!)[0].phase
+    ).toBe("settled")
+    await expect(read(canvasElement)).toEqual([original.batchId])
+  },
+}
+
+export const RemountWaitsForNewConfirmation: Story = {
+  args: { mode: "readDelayed" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await move(canvasElement)
+    await expectCompleted(canvasElement)
+    const original = posted(canvasElement)[0]!
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Remount from safe records" })
+    )
+    await waitFor(() => expect(read(canvasElement)).toEqual([original.batchId]))
+    await expect(canvas.queryByRole("table")).not.toBeInTheDocument()
+    await expect(
+      canvas.queryByRole("button", { name: "Continue original batch" })
+    ).not.toBeInTheDocument()
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Release held GET" })
+    )
+    await expectCompleted(canvasElement)
+    await expect(posted(canvasElement)).toEqual([original])
+  },
+}
+
+export const SelectionDiscardsPreviousReadAndOriginalBody: Story = {
+  args: { mode: "selection" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await move(canvasElement)
+    await expectCompleted(canvasElement)
+    const original = posted(canvasElement)[0]!
+    const popup = await open(canvasElement)
+    await userEvent.click(
+      popup.getByRole("button", { name: "Common destination folder" })
+    )
+    await userEvent.click(
+      popup.getByRole("button", { name: "Move selected items" })
+    )
+    await waitFor(() => expect(posted(canvasElement)).toHaveLength(2))
+    await expectCompleted(canvasElement)
+    const next = posted(canvasElement)[1]!
+    await userEvent.click(
+      canvas.getByRole("button", {
+        name: `Select recorded batch ${original.batchId}`,
+      })
+    )
+    await waitFor(() => expect(read(canvasElement)).toEqual([original.batchId]))
+    await userEvent.click(
+      canvas.getByRole("button", {
+        name: `Select recorded batch ${next.batchId}`,
+      })
+    )
+    await waitFor(() =>
+      expect(read(canvasElement)).toEqual([original.batchId, next.batchId])
+    )
+    await expectCompleted(canvasElement)
+    await expect(canvas.getByLabelText("Current batch")).toHaveTextContent(
+      next.batchId
+    )
+    await expect(abortedReads(canvasElement)).toEqual([original.batchId])
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Release held GET" })
+    )
+    await waitFor(() =>
+      expect(completedReads(canvasElement)).toEqual([
+        next.batchId,
+        original.batchId,
+      ])
+    )
+    await expectCompleted(canvasElement)
+    await expect(canvas.getByLabelText("Current batch")).toHaveTextContent(
+      next.batchId
+    )
+    await expect(
+      canvas.getByText(/Only batch identities were saved/)
+    ).toBeVisible()
+    await expect(posted(canvasElement)).toEqual([original, next])
+  },
+}
+
+export const DeniedPostStopsUntilFreshAuthorization: Story = {
+  args: { mode: "postRevoked" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await move(canvasElement)
+    await waitFor(() =>
+      expect(canvas.getByText(/Automatic status checks stopped/)).toBeVisible()
+    )
+    const original = posted(canvasElement)[0]!
+    await expect(read(canvasElement)).toEqual([])
+    await expect(canvas.queryByRole("table")).not.toBeInTheDocument()
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Change authorization version" })
+    )
+    await expectCompleted(canvasElement)
+    await expect(read(canvasElement)).toEqual([original.batchId])
+    await expect(posted(canvasElement)).toEqual([original])
+  },
+}
+
+export const OfflineCommandIsNotQueuedForReplay: Story = {
+  args: { mode: "network" },
+  beforeEach: () => {
+    onlineManager.setOnline(false)
+    return () => onlineManager.setOnline(true)
+  },
+  play: async ({ canvasElement }) => {
+    await move(canvasElement)
+    const original = posted(canvasElement)[0]!
+    await expect(read(canvasElement)).toEqual([])
+    onlineManager.setOnline(true)
+    await expectCompleted(canvasElement)
+    await expect(read(canvasElement)).toEqual([original.batchId])
+    await expect(posted(canvasElement)).toEqual([original])
+  },
+}
+
+export const ReadRevokedDuringPostNeedsFreshConfirmation: Story = {
+  args: { mode: "latePost" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await move(canvasElement)
+    const original = posted(canvasElement)[0]!
+    // 真实授权事件可以发生在提交锁定 Modal 时；这两项控制分别模拟授权变化和服务器响应。
+    canvas.getByText("Toggle read access").click()
+    canvas.getByText("Release held POST").click()
+    await waitFor(() =>
+      expect(
+        within(canvasElement.ownerDocument.body).queryByRole("dialog")
+      ).not.toBeInTheDocument()
+    )
+    await waitFor(() =>
+      expect(
+        JSON.parse(canvas.getByLabelText("Safe record").textContent!)[0].phase
+      ).toBe("settled")
+    )
+    await expect(canvas.queryByRole("table")).not.toBeInTheDocument()
+    await expect(read(canvasElement)).toEqual([])
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Toggle read access" })
+    )
+    await expectCompleted(canvasElement)
+    await expect(read(canvasElement)).toEqual([original.batchId])
+    await expect(posted(canvasElement)).toEqual([original])
+  },
+}
+
+async function denyContinuation(canvasElement: HTMLElement) {
+  const canvas = within(canvasElement)
+  await move(canvasElement)
+  await waitFor(() =>
+    expect(canvas.getAllByText("Not started", { exact: true })).toHaveLength(2)
+  )
+  await userEvent.click(
+    canvas.getByRole("button", { name: "Continue original batch" })
+  )
+  await waitFor(() =>
+    expect(canvas.getByText(/Automatic status checks stopped/)).toBeVisible()
+  )
+  const original = posted(canvasElement)[0]!
+  await expect(posted(canvasElement)).toEqual([original, original])
+  await expect(read(canvasElement)).toEqual([])
+  return original
+}
+
+export const DeniedContinuationKeepsPriorReceiptUntilExplicitRead: Story = {
+  args: { mode: "deniedContinuation" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const original = await denyContinuation(canvasElement)
+    // POST 的拒绝没有否定先前已确认的 pending 收据；GET 拒绝才隐藏读取结果。
+    await expect(
+      canvas.getAllByText("Not started", { exact: true })
+    ).toHaveLength(2)
+    await userEvent.click(canvas.getByRole("button", { name: "Check status" }))
+    await expectCompleted(canvasElement)
+    await expect(canvas.queryByRole("alert")).not.toBeInTheDocument()
+    await expect(read(canvasElement)).toEqual([original.batchId])
+    await expect(posted(canvasElement)).toEqual([original, original])
+  },
+}
+
+export const SameScopeReadRecoveryClearsDeniedPostLifecycle: Story = {
+  args: { mode: "deniedContinuation" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const original = await denyContinuation(canvasElement)
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Toggle read access" })
+    )
+    await waitFor(() =>
+      expect(canvas.queryByRole("table")).not.toBeInTheDocument()
+    )
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Toggle read access" })
+    )
+    await expectCompleted(canvasElement)
+    await expect(canvas.queryByRole("alert")).not.toBeInTheDocument()
+    await expect(read(canvasElement)).toEqual([original.batchId])
+    await expect(posted(canvasElement)).toEqual([original, original])
   },
 }
