@@ -1362,3 +1362,453 @@ test("数据库拒绝另一file的当前版本、folder超限与非当前父目�
     sqlCode("23514")
   )
 })
+
+async function platformActor(
+  role: "platform_admin" | "platform_auditor" = "platform_admin"
+) {
+  const actorId = randomUUID(),
+    sessionId = randomUUID()
+  await owner.query(
+    `INSERT INTO public."user" (id,name,email,email_verified,two_factor_enabled)
+    VALUES ($1,'platform',$2,true,true)`,
+    [actorId, `${actorId}@example.test`]
+  )
+  await owner.query(
+    `INSERT INTO public.session (id,user_id,token,expires_at,updated_at)
+    VALUES ($1,$2,$3,now()+interval '1 hour',now())`,
+    [sessionId, actorId, randomUUID()]
+  )
+  await owner.query(
+    `INSERT INTO public.platform_assignment
+    (user_id,role,status,version,granted_at,granted_by,grant_reason)
+    VALUES ($1,$2,'active',1,now(),'test','storage policy verification')`,
+    [actorId, role]
+  )
+  await owner.query(
+    `INSERT INTO public.platform_session_assurance (session_id,user_id,verified_at,method)
+    VALUES ($1,$2,now(),'totp')`,
+    [sessionId, actorId]
+  )
+  return { actorId, sessionId }
+}
+async function policy(
+  actor: { actorId: string; sessionId: string },
+  organizationId: string
+) {
+  return (
+    await runtime.query(
+      `SELECT public.get_platform_storage_policy($1,$2,$3,$4) AS result`,
+      [actor.actorId, actor.sessionId, organizationId, randomUUID()]
+    )
+  ).rows[0]!.result
+}
+async function changePolicy(
+  actor: { actorId: string; sessionId: string },
+  organizationId: string,
+  options: {
+    quotaBytes?: number
+    trashDays?: number
+    historyDays?: number
+    version?: number
+    key?: string
+    reason?: string
+  } = {}
+) {
+  return (
+    await runtime.query(
+      `SELECT public.update_platform_storage_policy($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) AS result`,
+      [
+        actor.actorId,
+        actor.sessionId,
+        organizationId,
+        options.quotaBytes ?? 10 * 1024 ** 3,
+        options.trashDays ?? 30,
+        options.historyDays ?? 90,
+        options.reason ?? "Approved storage policy change",
+        options.version ?? 1,
+        options.key ?? randomUUID(),
+        randomUUID(),
+      ]
+    )
+  ).rows[0]!.result
+}
+const databaseMessage = (message: string) => (error: unknown) => {
+  const value = error as { code?: string; message?: string }
+  return value.code === "P0001" && value.message === message
+}
+
+test("平台存储策略只返回容量摘要，任职不产生文件表读取或策略直写资格", async () => {
+  const a = await workspace(),
+    actor = await platformActor("platform_auditor")
+  await upload(a.context, a.root.id, "private-name.txt", "private")
+  const result = await policy(actor, a.context.organizationId)
+  assert.deepEqual(
+    Object.keys(result).sort(),
+    [
+      "organizationId",
+      "quotaBytes",
+      "usedBytes",
+      "reservedBytes",
+      "transientBytes",
+      "trashDays",
+      "historyDays",
+      "version",
+      "overQuota",
+    ].sort()
+  )
+  assert.equal(result.usedBytes, 7)
+  assert.equal(result.version, 1)
+  assert.equal(JSON.stringify(result).includes("private-name"), false)
+  assert.equal(
+    (
+      await owner.query(
+        `SELECT has_table_privilege('platform_executor','public.file_entries','SELECT') AS allowed`
+      )
+    ).rows[0]!.allowed,
+    false
+  )
+  assert.equal(
+    (
+      await runtime.query(
+        "SELECT count(*)::integer AS total FROM public.file_storage_usage"
+      )
+    ).rows[0]!.total,
+    0
+  )
+  await assert.rejects(
+    runtime.query("UPDATE public.file_storage_usage SET quota_bytes=1"),
+    sqlCode("42501")
+  )
+  const functions =
+    await owner.query(`SELECT proname, rolname AS owner, prosecdef,
+    has_function_privilege('platform_runtime', p.oid, 'EXECUTE') AS legacy,
+    has_function_privilege('platform_deployer', p.oid, 'EXECUTE') AS deployer
+    FROM pg_proc p JOIN pg_roles r ON r.oid=p.proowner
+    WHERE proname IN ('get_platform_storage_policy','update_platform_storage_policy','record_platform_storage_policy_failure')`)
+  assert.equal(functions.rowCount, 3)
+  for (const fn of functions.rows) {
+    assert.equal(fn.owner, "platform_executor")
+    assert.equal(fn.prosecdef, true)
+    assert.equal(fn.legacy, false)
+    assert.equal(fn.deployer, false)
+  }
+  const audit = (
+    await owner.query(
+      `SELECT tenant_visible,scope,fields FROM audit_events
+    WHERE organization_id=$1 AND event_code='platform.storage_policy_viewed'`,
+      [a.context.organizationId]
+    )
+  ).rows
+  assert.equal(audit.length, 1)
+  assert.equal(audit[0]!.tenant_visible, false)
+  assert.deepEqual(audit[0]!.fields, {})
+})
+
+test("平台策略CAS与幂等收据原子提交，不重复审计，相同输入不增加版本", async () => {
+  const a = await workspace(),
+    actor = await platformActor(),
+    key = randomUUID()
+  const first = await changePolicy(actor, a.context.organizationId, {
+    quotaBytes: 123,
+    trashDays: 7,
+    historyDays: 14,
+    key,
+  })
+  assert.equal(first.version, 2)
+  assert.equal(first.changed, true)
+  assert.deepEqual(
+    await changePolicy(actor, a.context.organizationId, {
+      quotaBytes: 123,
+      trashDays: 7,
+      historyDays: 14,
+      key,
+    }),
+    first
+  )
+  await assert.rejects(
+    changePolicy(actor, a.context.organizationId, { quotaBytes: 124, key }),
+    databaseMessage("IDEMPOTENCY_KEY_REUSED")
+  )
+  await assert.rejects(
+    changePolicy(actor, a.context.organizationId),
+    databaseMessage("VERSION_CONFLICT")
+  )
+  const unchanged = await changePolicy(actor, a.context.organizationId, {
+    quotaBytes: 123,
+    trashDays: 7,
+    historyDays: 14,
+    version: 2,
+  })
+  assert.equal(unchanged.version, 2)
+  assert.equal(unchanged.result, "no_change")
+  const events = (
+    await owner.query(
+      `SELECT fields,result,operation_id FROM audit_events
+    WHERE organization_id=$1 AND event_code='platform.storage_policy_updated' ORDER BY occurred_at,id`,
+      [a.context.organizationId]
+    )
+  ).rows
+  assert.equal(events.length, 2)
+  assert.deepEqual(events[0]!.fields.previous, {
+    quotaBytes: 10 * 1024 ** 3,
+    trashDays: 30,
+    historyDays: 90,
+  })
+  assert.equal(events[0]!.operation_id, first.operationId)
+  assert.equal(
+    (
+      await owner.query(
+        "SELECT count(*)::integer AS total FROM operation_receipts WHERE actor_id=$1",
+        [actor.actorId]
+      )
+    ).rows[0]!.total,
+    2
+  )
+})
+
+test("平台审计员只读，管理员写入需要近期MFA与当前有效Session/任职", async () => {
+  const a = await workspace(),
+    auditor = await platformActor("platform_auditor"),
+    admin = await platformActor()
+  await policy(auditor, a.context.organizationId)
+  await assert.rejects(
+    changePolicy(auditor, a.context.organizationId),
+    databaseMessage("FORBIDDEN")
+  )
+  await owner.query(
+    `UPDATE platform_session_assurance SET verified_at=now()-interval '16 minutes' WHERE session_id=$1`,
+    [admin.sessionId]
+  )
+  await policy(admin, a.context.organizationId)
+  await assert.rejects(
+    changePolicy(admin, a.context.organizationId),
+    databaseMessage("PLATFORM_MFA_REQUIRED")
+  )
+  await owner.query(
+    "DELETE FROM platform_session_assurance WHERE session_id=$1",
+    [admin.sessionId]
+  )
+  await assert.rejects(
+    policy(admin, a.context.organizationId),
+    databaseMessage("PLATFORM_MFA_REQUIRED")
+  )
+  await owner.query(
+    `UPDATE session SET expires_at=now()-interval '1 second' WHERE id=$1`,
+    [auditor.sessionId]
+  )
+  await assert.rejects(
+    policy(auditor, a.context.organizationId),
+    databaseMessage("FORBIDDEN")
+  )
+  await assert.rejects(
+    policy(
+      { actorId: randomUUID(), sessionId: randomUUID() },
+      a.context.organizationId
+    ),
+    databaseMessage("FORBIDDEN")
+  )
+})
+
+test("降低配额保留原对象和已记录期限，新删除才采用新策略", async () => {
+  const a = await workspace(),
+    actor = await platformActor()
+  const file = await upload(a.context, a.root.id, "retained.txt", "abc")
+  const oldTrash = await pathOperation(a.context, file, "trash")
+  const result = await changePolicy(actor, a.context.organizationId, {
+    quotaBytes: 1,
+    trashDays: 1,
+    historyDays: 2,
+  })
+  assert.equal(result.overQuota, true)
+  assert.equal(result.usedBytes, 3)
+  const retained = (await run(a.context, (tx) =>
+    fileRepository.findEntry(tx, file.id)
+  ))!
+  assert.equal(retained.expiresAt!.getTime(), oldTrash.expiresAt!.getTime())
+  assert.equal(
+    (
+      await owner.query(
+        "SELECT count(*)::integer AS total FROM file_versions WHERE organization_id=$1 AND purged_at IS NULL",
+        [a.context.organizationId]
+      )
+    ).rows[0]!.total,
+    1
+  )
+  const restored = await pathOperation(a.context, retained, "restore")
+  await assert.rejects(
+    upload(a.context, a.root.id, "over.txt", "x"),
+    errorCode("FILE_QUOTA_EXCEEDED")
+  )
+  const freshTrash = await pathOperation(a.context, restored, "trash")
+  assert.equal(
+    freshTrash.expiresAt!.getTime() - freshTrash.deletedAt!.getTime(),
+    86_400_000
+  )
+})
+
+test("平台策略并发CAS只有一个成功，另一请求不能覆盖已提交配置", async () => {
+  const a = await workspace(),
+    actor = await platformActor()
+  const results = await Promise.allSettled([
+    changePolicy(actor, a.context.organizationId, { quotaBytes: 10 }),
+    changePolicy(actor, a.context.organizationId, { quotaBytes: 20 }),
+  ])
+  assert.equal(results.filter((x) => x.status === "fulfilled").length, 1)
+  const rejected = results.find(
+    (x) => x.status === "rejected"
+  ) as PromiseRejectedResult
+  assert.equal(databaseMessage("VERSION_CONFLICT")(rejected.reason), true)
+  assert.equal((await policy(actor, a.context.organizationId)).version, 2)
+})
+
+test("等待容量行锁后重新查平台授权，旧收据不能绕过任职撤销", async () => {
+  const a = await workspace(),
+    actor = await platformActor()
+  const key = randomUUID()
+  await changePolicy(actor, a.context.organizationId, { quotaBytes: 10, key })
+  const blocker = await owner.connect(),
+    updater = await runtime.connect()
+  const applicationName = `storage-policy-${randomUUID()}`
+  try {
+    await blocker.query("BEGIN")
+    await blocker.query(
+      "SELECT * FROM file_storage_usage WHERE organization_id=$1 FOR UPDATE",
+      [a.context.organizationId]
+    )
+    await updater.query("SELECT set_config('application_name',$1,false)", [
+      applicationName,
+    ])
+    const pending = updater.query(
+      `SELECT public.update_platform_storage_policy($1,$2,$3,10,30,90,'Approved storage policy change',1,$4,$5)`,
+      [
+        actor.actorId,
+        actor.sessionId,
+        a.context.organizationId,
+        key,
+        randomUUID(),
+      ]
+    )
+    const rejection = assert.rejects(pending, databaseMessage("FORBIDDEN"))
+    let waiting = false
+    for (let i = 0; i < 200; i++) {
+      waiting = (
+        await owner.query(
+          `SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE application_name=$1 AND wait_event_type='Lock') AS waiting`,
+          [applicationName]
+        )
+      ).rows[0]!.waiting
+      if (waiting) break
+      await new Promise((resolve) => setTimeout(resolve, 10))
+    }
+    assert.equal(waiting, true)
+    await owner.query(
+      `UPDATE platform_assignment SET status='revoked',revoked_at=now(),revoked_by='test',revoke_reason='Authorization revoked while waiting' WHERE user_id=$1`,
+      [actor.actorId]
+    )
+    await blocker.query("COMMIT")
+    await rejection
+    assert.equal(
+      (
+        await owner.query(
+          "SELECT quota_bytes FROM file_storage_usage WHERE organization_id=$1",
+          [a.context.organizationId]
+        )
+      ).rows[0]!.quota_bytes,
+      "10"
+    )
+  } finally {
+    await blocker.query("ROLLBACK")
+    blocker.release()
+    updater.release()
+  }
+})
+
+test("平台策略审计故障不返回摘要，不提交配置或幂等收据", async () => {
+  const a = await workspace(),
+    actor = await platformActor(),
+    key = randomUUID()
+  await owner.query(`CREATE FUNCTION public.fail_storage_policy_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+    IF NEW.organization_id='${a.context.organizationId}'::uuid AND NEW.event_code IN ('platform.storage_policy_viewed','platform.storage_policy_updated')
+    THEN RAISE EXCEPTION 'storage audit failure'; END IF; RETURN NEW; END $$;
+    CREATE TRIGGER storage_policy_audit_failure BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION public.fail_storage_policy_audit()`)
+  try {
+    await assert.rejects(
+      policy(actor, a.context.organizationId),
+      databaseMessage("AUDIT_UNAVAILABLE")
+    )
+    await assert.rejects(
+      changePolicy(actor, a.context.organizationId, { quotaBytes: 1, key }),
+      databaseMessage("AUDIT_UNAVAILABLE")
+    )
+    const usage = (
+      await owner.query(
+        "SELECT quota_bytes,policy_revision FROM file_storage_usage WHERE organization_id=$1",
+        [a.context.organizationId]
+      )
+    ).rows[0]!
+    assert.equal(usage.quota_bytes, String(10 * 1024 ** 3))
+    assert.equal(usage.policy_revision, 1)
+    assert.equal(
+      (
+        await owner.query(
+          "SELECT count(*)::integer AS total FROM operation_receipts WHERE actor_id=$1",
+          [actor.actorId]
+        )
+      ).rows[0]!.total,
+      0
+    )
+  } finally {
+    await owner.query(
+      "DROP TRIGGER storage_policy_audit_failure ON audit_events; DROP FUNCTION public.fail_storage_policy_audit()"
+    )
+  }
+})
+
+test("平台失败审计只保存稳定码并独立提交，无上下文和组织停用不开放文件索引", async () => {
+  const a = await workspace(),
+    actor = await platformActor()
+  await owner.query(
+    `UPDATE organization_status SET status='SUSPENDED',status_version=status_version+1 WHERE organization_id=$1`,
+    [a.context.organizationId]
+  )
+  await policy(actor, a.context.organizationId)
+  await runtime.query(
+    `SELECT public.record_platform_storage_policy_failure($1,$2,'update','FORBIDDEN',$3)`,
+    [actor.actorId, a.context.organizationId, randomUUID()]
+  )
+  await assert.rejects(
+    runtime.query(
+      `SELECT public.record_platform_storage_policy_failure($1,$2,'update','raw secret error',$3)`,
+      [actor.actorId, a.context.organizationId, randomUUID()]
+    ),
+    databaseMessage("VALIDATION_ERROR")
+  )
+  const event = (
+    await owner.query(
+      `SELECT result,reason,tenant_visible FROM audit_events WHERE organization_id=$1 AND event_code='platform.storage_policy_updated'`,
+      [a.context.organizationId]
+    )
+  ).rows[0]!
+  assert.deepEqual(event, {
+    result: "denied",
+    reason: "FORBIDDEN",
+    tenant_visible: false,
+  })
+  assert.equal(
+    (await runtime.query("SELECT count(*)::integer AS total FROM file_entries"))
+      .rows[0]!.total,
+    0
+  )
+  await runtime.query(
+    `SELECT set_config('app.platform_storage_organization_id',$1,false)`,
+    [a.context.organizationId]
+  )
+  assert.equal(
+    (
+      await runtime.query(
+        "SELECT count(*)::integer AS total FROM file_storage_usage"
+      )
+    ).rows[0]!.total,
+    0
+  )
+})
