@@ -852,6 +852,24 @@ for (const kind of ["Local", "RustFS"]) {
     })
 
     it.each([
+      ['report "draft".txt', 'attachment; filename="report \\"draft\\".txt"'],
+      [
+        "计划 (v2)'报告.txt",
+        "attachment; filename*=UTF-8''%E8%AE%A1%E5%88%92%20%28v2%29%27%E6%8A%A5%E5%91%8A.txt",
+      ],
+    ])(
+      "preserves the download name %s using standard header encoding",
+      async (name, disposition) => {
+        const body = Buffer.from("original download bytes")
+        const fixture = await publish(name, body)
+        const response = await read(fixture)
+        expect(response.status).toBe(200)
+        expect(response.headers.get("content-disposition")).toBe(disposition)
+        expect(Buffer.from(await response.arrayBuffer())).toEqual(body)
+      }
+    )
+
+    it.each([
       ["json.json", Buffer.from(' { "file": true } \r\n'), "application/json"],
       [
         "text.txt",
@@ -880,6 +898,7 @@ for (const kind of ["Local", "RustFS"]) {
         ["bytes=-2", 6, 7],
         ["bytes=6-99", 6, 7],
         ["bytes=-99", 0, 7],
+        ["BYTES=0001-0003", 1, 3],
       ]) {
         const response = await read(fixture, owner, { range })
         expect(response.status).toBe(206)
@@ -898,9 +917,16 @@ for (const kind of ["Local", "RustFS"]) {
         "bytes=3-1",
         "bytes=-0",
         "bytes=0-1,3-4",
+        "bytes=0-3,2-5",
+        "bytes=0-7,9-10",
+        "bytes=1.5-3",
+        "bytes=1-3tail",
+        "bytes=+1-3",
         "items=0-1",
         "bytes=-",
         "bytes=9007199254740992-",
+        "bytes=0-9007199254740992",
+        "bytes=-9007199254740992",
       ]) {
         const response = await read(fixture, owner, { range })
         expect(response.headers.get("content-range")).toBe("bytes */8")
