@@ -55,20 +55,30 @@ async function upload(canvasElement: HTMLElement) {
   await userEvent.click(canvas.getByRole("button", { name: "Upload draft" }))
   return canvas
 }
+async function clickAvatarButton(
+  canvas: ReturnType<typeof within>,
+  name: string
+) {
+  // 错误提示可能先于会话读回结束出现；下一次明确操作要等按钮恢复可用。
+  await waitFor(() =>
+    expect(canvas.getByRole("button", { name })).toBeEnabled()
+  )
+  await userEvent.click(canvas.getByRole("button", { name }))
+}
 export const SaveAndRemove: Story = {
   play: async ({ canvasElement }) => {
     const canvas = await upload(canvasElement)
     await expect(await canvas.findByRole("status")).toHaveTextContent(
       "Draft uploaded. It is not your avatar yet."
     )
-    await userEvent.click(canvas.getByRole("button", { name: "Save avatar" }))
+    await clickAvatarButton(canvas, "Save avatar")
     await waitFor(() =>
       expect(canvas.getByRole("status")).toHaveTextContent(
         "Avatar settings saved."
       )
     )
     await expect(canvas.queryByAltText("Avatar draft preview")).toBeNull()
-    await userEvent.click(canvas.getByRole("button", { name: "Remove avatar" }))
+    await clickAvatarButton(canvas, "Remove avatar")
     await waitFor(() =>
       expect(
         canvas.getByRole("button", { name: "Remove avatar" })
@@ -95,7 +105,7 @@ export const SaveConflictKeepsCurrentAndDraft: Story = {
     const canvas = await upload(canvasElement)
     await canvas.findByRole("status")
     const current = canvas.getByAltText("Avatar editor").getAttribute("src")
-    await userEvent.click(canvas.getByRole("button", { name: "Save avatar" }))
+    await clickAvatarButton(canvas, "Save avatar")
     await expect(await canvas.findByRole("alert")).toHaveTextContent(
       "Avatar save failed"
     )
@@ -104,7 +114,7 @@ export const SaveConflictKeepsCurrentAndDraft: Story = {
       "src",
       current!
     )
-    await userEvent.click(canvas.getByRole("button", { name: "Save avatar" }))
+    await clickAvatarButton(canvas, "Save avatar")
     await waitFor(() =>
       expect(canvas.getByRole("status")).toHaveTextContent(
         "Avatar settings saved."
@@ -190,13 +200,13 @@ export const UnknownSaveExplicitRetry: Story = {
   play: async ({ canvasElement }) => {
     const canvas = await upload(canvasElement)
     await canvas.findByRole("status")
-    await userEvent.click(canvas.getByRole("button", { name: "Save avatar" }))
+    await clickAvatarButton(canvas, "Save avatar")
     await expect(await canvas.findByRole("alert")).toHaveTextContent(
       "The save result was not received."
     )
     await expect(canvas.getByAltText("Avatar draft preview")).toBeVisible()
     await expect(unknownSave.snapshot().saves).toHaveLength(1)
-    await userEvent.click(canvas.getByRole("button", { name: "Save avatar" }))
+    await clickAvatarButton(canvas, "Save avatar")
     await waitFor(() =>
       expect(canvas.getByRole("status")).toHaveTextContent(
         "Avatar settings saved."
@@ -212,7 +222,7 @@ export const SaveThenChooseAgain: Story = {
   play: async ({ canvasElement }) => {
     const canvas = await upload(canvasElement)
     await canvas.findByRole("status")
-    await userEvent.click(canvas.getByRole("button", { name: "Save avatar" }))
+    await clickAvatarButton(canvas, "Save avatar")
     await waitFor(() =>
       expect(canvas.getByRole("status")).toHaveTextContent(
         "Avatar settings saved."

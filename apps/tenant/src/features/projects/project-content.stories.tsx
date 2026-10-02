@@ -374,8 +374,13 @@ async function clickPickerButton(
   dialog: ReturnType<typeof within>,
   name: string
 ) {
-  // List rows can appear before the separate breadcrumb query settles. Wait for
-  // the real action boundary so userEvent cannot discard a click on a disabled row.
+  // 可用列表行会早于弹窗的开启动画和焦点交接出现，鼠标操作必须从完成打开的窗口开始。
+  const button: HTMLElement = await dialog.findByRole("button", { name })
+  const popup = button.closest<HTMLElement>("[role=dialog]")!
+  await Promise.all(
+    popup.getAnimations().map((animation) => animation.finished)
+  )
+  // 列表和路径独立读回；弹窗完成打开之后仍要以当前按钮的真实可用状态为准。
   await waitFor(() =>
     expect(dialog.getByRole("button", { name })).toBeEnabled()
   )
