@@ -330,6 +330,13 @@
       "when": 1790933393020,
       "tag": "0046_platform-storage-read-authorization",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1790938175562,
+      "tag": "0047_files-source-deletion-intent",
+      "breakpoints": true
     }
   ]
 }

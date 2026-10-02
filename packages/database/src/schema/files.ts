@@ -310,6 +310,9 @@ export const fileOperationObjects = pgTable(
       .notNull()
       .default(0),
     preparedAt: timestamp("prepared_at", { withTimezone: true }),
+    sourceDeletionStartedAt: timestamp("source_deletion_started_at", {
+      withTimezone: true,
+    }),
     sourceDeletedAt: timestamp("source_deleted_at", { withTimezone: true }),
     sourceRestoredAt: timestamp("source_restored_at", { withTimezone: true }),
     targetDeletedAt: timestamp("target_deleted_at", { withTimezone: true }),

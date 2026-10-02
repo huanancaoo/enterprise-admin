@@ -2436,6 +2436,7 @@ type MaintenanceJob = {
     source_path: string[] | null
     target_area: string | null
     target_path: string[] | null
+    source_deletion_started_at: string | null
     source_deleted_at: string | null
     source_restored_at: string | null
     target_deleted_at: string | null
@@ -4196,4 +4197,404 @@ test("成功执行持Session共享锁至提交，撤销按提交后生效", asyn
     client.release()
     revoker.release()
   }
+})
+
+test("空路径变更拒绝且先验证revision，不产生忙状态与名称预留", async () => {
+  const a = await workspace(),
+    tree = await folder(a.context, a.root.id, "unchanged")
+  for (const [action, changes] of [
+    ["rename", { name: tree.name }],
+    ["move", { parentId: tree.parentId! }],
+  ] as const) {
+    await assert.rejects(
+      pathOperation(a.context, tree, action, changes),
+      errorCode("VALIDATION_ERROR")
+    )
+    await assert.rejects(
+      pathOperation(
+        a.context,
+        { ...tree, revision: tree.revision + 1 },
+        action,
+        changes
+      ),
+      errorCode("VERSION_CONFLICT")
+    )
+  }
+  const entry = (await run(a.context, (tx) =>
+    fileRepository.findEntry(tx, tree.id)
+  ))!
+  assert.equal(entry.busyOperationId, null)
+  assert.equal(entry.revision, tree.revision)
+  assert.equal(
+    (
+      await owner.query(
+        "SELECT count(*)::integer AS total FROM file_namespace_reservations WHERE organization_id=$1",
+        [a.context.organizationId]
+      )
+    ).rows[0]!.total,
+    0
+  )
+})
+
+test("影响预检包含空目录、全部保留版本和引用数量，隔离其他组织且不修改事实", async () => {
+  const a = await workspace(),
+    b = await workspace(),
+    tree = await folder(a.context, a.root.id, "impact"),
+    child = await folder(a.context, tree.id, "empty"),
+    file = await upload(a.context, tree.id, "report.txt", "current")
+  const project = await run(a.context, (tx) =>
+    projectRepository.create(tx, {
+      name: "Impact",
+      description: null,
+      contentLocale: "zh-CN",
+    })
+  )
+  await run(a.context, (tx) =>
+    fileRepository.replaceReferences(
+      tx,
+      { projectId: project.id, kind: "project_attachment", locale: null },
+      [
+        {
+          fileId: file.id,
+          versionId: file.currentVersionId!,
+          referenceKey: "attachment",
+          position: 0,
+        },
+      ]
+    )
+  )
+  const historicId = randomUUID()
+  await owner.query(
+    "INSERT INTO file_versions(id,organization_id,file_id,bytes,sha256,content_type,storage_area,storage_path,created_by,retired_at,expires_at) SELECT $1::uuid,organization_id,file_id,5,sha256,content_type,'history',ARRAY[$1::text],created_by,now(),now()+interval '90 days' FROM file_versions WHERE id=$2",
+    [historicId, file.currentVersionId]
+  )
+  const impact = await run(a.context, (tx) =>
+    fileRepository.entryImpact(tx, tree.id, "trash")
+  )
+  assert.deepEqual(impact, {
+    entryId: tree.id,
+    revision: tree.revision,
+    fileCount: 1,
+    folderCount: 2,
+    bytes: 12,
+    referenceCount: 1,
+  })
+  assert.deepEqual(
+    await run(a.context, (tx) =>
+      fileRepository.entryImpact(tx, child.id, "trash")
+    ),
+    {
+      entryId: child.id,
+      revision: child.revision,
+      fileCount: 0,
+      folderCount: 1,
+      bytes: 0,
+      referenceCount: 0,
+    }
+  )
+  await assert.rejects(
+    run(b.context, (tx) => fileRepository.entryImpact(tx, tree.id, "trash")),
+    errorCode("FILE_NOT_FOUND")
+  )
+  await assert.rejects(
+    run(a.context, (tx) => fileRepository.entryImpact(tx, a.root.id, "trash")),
+    errorCode("FILE_ROOT_PROTECTED")
+  )
+  assert.equal(
+    (await run(a.context, (tx) => fileRepository.findEntry(tx, tree.id)))!
+      .busyOperationId,
+    null
+  )
+  assert.equal(
+    (
+      await owner.query(
+        "SELECT count(*)::integer AS total FROM file_operations WHERE organization_id=$1",
+        [a.context.organizationId]
+      )
+    ).rows[0]!.total,
+    3
+  )
+})
+
+test("影响预检按回收批次排除独立子树，忙状态统一返回operation身份", async () => {
+  const a = await workspace(),
+    parent = await folder(a.context, a.root.id, "parent"),
+    child = await folder(a.context, parent.id, "child")
+  const file = await upload(a.context, child.id, "independent.txt", "abc")
+  await pathOperation(a.context, child, "trash")
+  const trashed = await pathOperation(a.context, parent, "trash")
+  assert.deepEqual(
+    await run(a.context, (tx) =>
+      fileRepository.entryImpact(tx, trashed.id, "purge")
+    ),
+    {
+      entryId: parent.id,
+      revision: trashed.revision,
+      fileCount: 0,
+      folderCount: 1,
+      bytes: 0,
+      referenceCount: 0,
+    }
+  )
+  const pending = await run(
+    a.context,
+    async (tx) => {
+      const operation = await begin(tx, "restore", { entryId: parent.id })
+      await fileRepository.preparePathOperation(tx, operation.id, {
+        entryId: parent.id,
+        expectedRevision: trashed.revision,
+        now: new Date(),
+      })
+      return operation
+    },
+    "write"
+  )
+  await assert.rejects(
+    run(a.context, (tx) => fileRepository.entryImpact(tx, parent.id, "purge")),
+    (error) =>
+      error instanceof FileRepositoryError &&
+      error.code === "FILE_OPERATION_IN_PROGRESS" &&
+      error.details?.operationId === pending.id
+  )
+  assert.equal(
+    (await run(a.context, (tx) => fileRepository.findEntry(tx, file.id)))!
+      .state,
+    "trashed"
+  )
+})
+
+async function overwriteDeletionFixture() {
+  const a = await workspace(),
+    file = await upload(a.context, a.root.id, "intent.bin", "old"),
+    leaseId = randomUUID()
+  const prepared = await run(
+    a.context,
+    async (tx) => {
+      const operation = await begin(tx, "overwrite", { fileId: file.id })
+      await fileRepository.claimOperation(tx, operation.id, leaseId, new Date())
+      await fileRepository.reserveUpload(tx, operation.id, {
+        parentId: a.root.id,
+        name: file.name,
+        declaredBytes: 3,
+        overwriteId: file.id,
+        expectedRevision: file.revision,
+      })
+      const [archive] = await fileRepository.addObjects(tx, operation.id, [
+        {
+          entryId: file.id,
+          versionId: file.currentVersionId,
+          directory: false,
+          sourceArea: "files",
+          sourcePath: file.path,
+          targetArea: "history",
+          targetPath: [file.currentVersionId!],
+          expectedBytes: 3,
+          expectedSha256: sha("old"),
+        },
+      ])
+      return { operation, archive: archive! }
+    },
+    "write"
+  )
+  return { ...a, file, leaseId, ...prepared }
+}
+
+test("覆盖删除意图只接受当前token与已验证的当前版本备份，幂等且绝不写删除确认", async () => {
+  const a = await overwriteDeletionFixture()
+  const intent = (lease = a.leaseId) =>
+    run(
+      a.context,
+      (tx) =>
+        fileRepository.recordSourceDeletionIntent(
+          tx,
+          a.operation.id,
+          a.archive.id,
+          lease
+        ),
+      "write"
+    )
+  await assert.rejects(
+    intent(randomUUID()),
+    errorCode("FILE_OPERATION_LEASE_CONFLICT")
+  )
+  await assert.rejects(intent(), errorCode("FILE_OPERATION_NOT_READY"))
+  await run(
+    a.context,
+    (tx) => prepared(tx, a.operation.id, [a.archive]),
+    "write"
+  )
+  await intent()
+  const before = (
+    await owner.query(
+      "SELECT source_deletion_started_at,source_deleted_at FROM file_operation_objects WHERE id=$1",
+      [a.archive.id]
+    )
+  ).rows[0]!
+  assert(before.source_deletion_started_at instanceof Date)
+  assert.equal(before.source_deleted_at, null)
+  await intent()
+  const after = (
+    await owner.query(
+      "SELECT source_deletion_started_at,source_deleted_at FROM file_operation_objects WHERE id=$1",
+      [a.archive.id]
+    )
+  ).rows[0]!
+  assert.deepEqual(after, before)
+  await owner.query(
+    "UPDATE file_operations SET lease_expires_at=clock_timestamp()-interval '1 second' WHERE id=$1",
+    [a.operation.id]
+  )
+  await assert.rejects(intent(), errorCode("FILE_OPERATION_LEASE_CONFLICT"))
+})
+
+test("删除确认未知时，Repo先核实恢复再清理备份，临时容量只按差额释放一次", async () => {
+  const a = await overwriteDeletionFixture()
+  await run(
+    a.context,
+    async (tx) => {
+      await prepared(tx, a.operation.id, [a.archive])
+      await fileRepository.recordSourceDeletionIntent(
+        tx,
+        a.operation.id,
+        a.archive.id,
+        a.leaseId
+      )
+    },
+    "write"
+  )
+  await assert.rejects(
+    run(
+      a.context,
+      (tx) =>
+        fileRepository.recordObjectDeleted(
+          tx,
+          a.operation.id,
+          a.archive.id,
+          "target",
+          new Date()
+        ),
+      "write"
+    ),
+    errorCode("FILE_OPERATION_NOT_READY")
+  )
+  await assert.rejects(
+    run(
+      a.context,
+      (tx) =>
+        fileRepository.failOperation(
+          tx,
+          a.operation.id,
+          "STORAGE_UNAVAILABLE",
+          new Date()
+        ),
+      "write"
+    ),
+    errorCode("FILE_OPERATION_NOT_READY")
+  )
+  await run(
+    a.context,
+    (tx) =>
+      fileRepository.recordSourceRestored(
+        tx,
+        a.operation.id,
+        a.archive.id,
+        { bytes: 3, sha256: sha("old") },
+        new Date()
+      ),
+    "write"
+  )
+  assert.equal((await run(a.context, fileRepository.usage))!.transientBytes, 3)
+  await run(
+    a.context,
+    async (tx) => {
+      await fileRepository.recordObjectDeleted(
+        tx,
+        a.operation.id,
+        a.archive.id,
+        "target",
+        new Date()
+      )
+      await fileRepository.recordObjectDeleted(
+        tx,
+        a.operation.id,
+        a.archive.id,
+        "target",
+        new Date()
+      )
+      await fileRepository.failOperation(
+        tx,
+        a.operation.id,
+        "STORAGE_UNAVAILABLE",
+        new Date()
+      )
+    },
+    "write"
+  )
+  assert.equal((await run(a.context, fileRepository.usage))!.transientBytes, 0)
+  assert.equal((await run(a.context, fileRepository.usage))!.usedBytes, 3)
+  assert.equal(
+    (await run(a.context, (tx) => fileRepository.findEntry(tx, a.file.id)))!
+      .busyOperationId,
+    null
+  )
+})
+
+test("fixed维护投影删除意图且拒绝提前移除备份，未知确认恢复不会双计容量", async () => {
+  const a = await overwriteDeletionFixture()
+  await run(
+    a.context,
+    async (tx) => {
+      await prepared(tx, a.operation.id, [a.archive])
+      await fileRepository.recordSourceDeletionIntent(
+        tx,
+        a.operation.id,
+        a.archive.id,
+        a.leaseId
+      )
+    },
+    "write"
+  )
+  await runtime.query(
+    "SELECT public.handoff_file_operation_failure($1,$2,$3,$4)",
+    [a.context.organizationId, a.operation.id, a.leaseId, "STORAGE_UNAVAILABLE"]
+  )
+  const leaseId = randomUUID(),
+    job = (
+      await maintenanceClaim(
+        a.context.organizationId,
+        "operation",
+        a.operation.id,
+        leaseId
+      )
+    ).job
+  assert(job)
+  const archive = job.objects.find((object) => object.id === a.archive.id)!
+  assert(archive.source_deletion_started_at)
+  assert.equal(archive.source_deleted_at, null)
+  await assert.rejects(
+    maintenanceFact(job, leaseId, archive.id, "target_deleted"),
+    databaseMessage("FILE_OPERATION_NOT_READY")
+  )
+  await assert.rejects(
+    maintenanceFinish(job, leaseId),
+    databaseMessage("FILE_OPERATION_NOT_READY")
+  )
+  await maintenanceFact(
+    job,
+    leaseId,
+    archive.id,
+    "source_restored",
+    3,
+    sha("old")
+  )
+  assert.equal((await run(a.context, fileRepository.usage))!.transientBytes, 3)
+  await maintenanceFact(job, leaseId, archive.id, "target_deleted")
+  await maintenanceFinish(job, leaseId)
+  const operation = (await run(a.context, (tx) =>
+    fileRepository.findOperation(tx, a.operation.id)
+  ))!
+  assert.equal(operation.phase, "failed")
+  assert.equal(operation.committedAt, null)
+  assert.equal((await run(a.context, fileRepository.usage))!.transientBytes, 0)
+  assert.equal((await run(a.context, fileRepository.usage))!.usedBytes, 3)
 })

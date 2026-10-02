@@ -996,6 +996,49 @@ export const fileRepository = {
     return updated!
   },
 
+  async entryImpact(tx: TenantTx, entryId: string, action: "trash" | "purge") {
+    await lockOrganization(tx)
+    const root = await requireEntry(tx, entryId)
+    if (!root.parentId) fail("FILE_ROOT_PROTECTED")
+    if (root.state !== (action === "trash" ? "active" : "trashed"))
+      fail("FILE_NOT_FOUND")
+    const affected = root.kind === "folder" ? await subtree(tx, root) : [root]
+    const busy = affected.find((entry) => entry.busyOperationId)
+    if (busy)
+      fail("FILE_OPERATION_IN_PROGRESS", { operationId: busy.busyOperationId })
+    const files = affected.filter((entry) => entry.kind === "file")
+    const ids = files.map((entry) => entry.id)
+    const [versions] = await tx
+      .select({
+        bytes: sql`coalesce(sum(${fileVersions.bytes}),0)`.mapWith(Number),
+      })
+      .from(fileVersions)
+      .where(
+        and(
+          eq(fileVersions.organizationId, tx.context.organizationId),
+          inArray(fileVersions.fileId, ids),
+          isNull(fileVersions.purgedAt)
+        )
+      )
+    const [references] = await tx
+      .select({ total: count() })
+      .from(fileReferences)
+      .where(
+        and(
+          eq(fileReferences.organizationId, tx.context.organizationId),
+          inArray(fileReferences.fileId, ids)
+        )
+      )
+    return {
+      entryId: root.id,
+      revision: root.revision,
+      fileCount: files.length,
+      folderCount: affected.length - files.length,
+      bytes: versions!.bytes,
+      referenceCount: references!.total,
+    }
+  },
+
   async preparePathOperation(
     tx: TenantTx,
     operationId: string,
@@ -1035,6 +1078,12 @@ export const fileRepository = {
       fail("FILE_NOT_FOUND")
     if (restoring && (!root.expiresAt || root.expiresAt <= input.now))
       fail("FILE_RESTORE_EXPIRED")
+    // 同一源/目标不能进入复制后清理链；revision 和生命周期冲突仍先于空变更。
+    if (
+      (operation.action === "rename" && input.name === root.name) ||
+      (operation.action === "move" && input.parentId === root.parentId)
+    )
+      fail("VALIDATION_ERROR")
     const affected = root.kind === "folder" ? await subtree(tx, root) : [root]
     const busy = affected.find(
       (entry) => entry.busyOperationId && entry.busyOperationId !== operationId
@@ -1335,6 +1384,91 @@ export const fileRepository = {
     return committed!
   },
 
+  async recordSourceDeletionIntent(
+    tx: TenantTx,
+    operationId: string,
+    objectId: string,
+    leaseId: string
+  ) {
+    await lockOrganization(tx)
+    const operation = await requireOperation(tx, operationId)
+    assertNotCommitted(operation)
+    const [{ now }] = (await tx.execute(sql`SELECT clock_timestamp() AS now`))
+      .rows as { now: Date | string }[]
+    if (
+      operation.action !== "overwrite" ||
+      operation.actorType !== "user" ||
+      operation.actorId !== tx.context.userId ||
+      operation.completedAt ||
+      operation.phase === "failed"
+    )
+      fail("FILE_OPERATION_NOT_READY")
+    if (
+      operation.leaseId !== leaseId ||
+      !operation.leaseExpiresAt ||
+      operation.leaseExpiresAt.getTime() <= new Date(now!).getTime()
+    )
+      fail("FILE_OPERATION_LEASE_CONFLICT")
+    const [object] = await tx
+      .select()
+      .from(fileOperationObjects)
+      .where(
+        and(objectScope(tx, operationId), eq(fileOperationObjects.id, objectId))
+      )
+      .for("update")
+    if (
+      !object ||
+      object.directory ||
+      !object.versionId ||
+      object.sourceArea !== "files" ||
+      object.targetArea !== "history" ||
+      !object.preparedAt ||
+      object.sourceDeletedAt ||
+      object.targetDeletedAt ||
+      object.sourceRestoredAt ||
+      object.expectedBytes === null ||
+      object.expectedSha256 === null ||
+      object.actualBytes !== object.expectedBytes ||
+      object.actualSha256 !== object.expectedSha256
+    )
+      fail("FILE_OPERATION_NOT_READY")
+    const file = object.entryId
+      ? await requireEntry(tx, object.entryId)
+      : undefined
+    const [version] = await tx
+      .select()
+      .from(fileVersions)
+      .where(
+        and(
+          eq(fileVersions.organizationId, tx.context.organizationId),
+          eq(fileVersions.id, object.versionId!)
+        )
+      )
+      .for("share")
+    if (
+      !file ||
+      file.kind !== "file" ||
+      file.state !== "active" ||
+      file.busyOperationId !== operationId ||
+      file.currentVersionId !== object.versionId ||
+      !version ||
+      version.storageArea !== object.sourceArea ||
+      JSON.stringify(version.storagePath) !==
+        JSON.stringify(object.sourcePath) ||
+      version.bytes !== object.expectedBytes ||
+      version.sha256 !== object.expectedSha256
+    )
+      fail("FILE_OPERATION_NOT_READY")
+    if (object.sourceDeletionStartedAt) return
+    // 这是旧源删除的授权意图；删除响应未知时，维护必须先核实/恢复旧源再释放已验证备份。
+    await tx
+      .update(fileOperationObjects)
+      .set({ sourceDeletionStartedAt: new Date(now!) })
+      .where(
+        and(objectScope(tx, operationId), eq(fileOperationObjects.id, objectId))
+      )
+  },
+
   async recordObjectDeleted(
     tx: TenantTx,
     operationId: string,
@@ -1354,6 +1488,12 @@ export const fileRepository = {
     if (!object) fail("FILE_OPERATION_NOT_FOUND")
     const previous =
       side === "source" ? object.sourceDeletedAt : object.targetDeletedAt
+    if (
+      side === "target" &&
+      object.sourceDeletionStartedAt &&
+      !object.sourceRestoredAt
+    )
+      fail("FILE_OPERATION_NOT_READY")
     if (previous) return
     await tx
       .update(fileOperationObjects)
@@ -1392,7 +1532,7 @@ export const fileRepository = {
       .for("update")
     if (
       !object ||
-      !object.sourceDeletedAt ||
+      (!object.sourceDeletionStartedAt && !object.sourceDeletedAt) ||
       object.expectedBytes !== facts.bytes ||
       (object.expectedSha256 !== null && object.expectedSha256 !== facts.sha256)
     )
@@ -1407,7 +1547,10 @@ export const fileRepository = {
       )
     await tx
       .update(fileStorageUsage)
-      .set({ transientBytes: usage.transientBytes + transientBytes })
+      .set({
+        transientBytes:
+          usage.transientBytes + transientBytes - object.transientBytes,
+      })
       .where(eq(fileStorageUsage.organizationId, tx.context.organizationId))
   },
 
@@ -1507,7 +1650,8 @@ export const fileRepository = {
       objects.some(
         (object) =>
           (object.targetArea && !object.targetDeletedAt) ||
-          (object.sourceDeletedAt && !object.sourceRestoredAt)
+          ((object.sourceDeletionStartedAt || object.sourceDeletedAt) &&
+            !object.sourceRestoredAt)
       )
     )
       fail("FILE_OPERATION_NOT_READY")
