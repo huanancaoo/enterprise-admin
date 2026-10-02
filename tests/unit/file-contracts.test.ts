@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   CreateFolderSchema,
+  FileContentQuerySchema,
   FileErrorDetailsSchema,
   FileListQuerySchema,
   FileOperationResponseSchema,
@@ -96,6 +97,29 @@ describe("Files HTTP contracts", () => {
       FileListQuerySchema.parse({ state: "trashed", name: " 合同 ", page: "2" })
     ).toMatchObject({ state: "trashed", name: "合同", page: 2 })
     expect(FileListQuerySchema.safeParse({ pageSize: 101 }).success).toBe(false)
+  })
+
+  it("exports query objects inline so Swagger can expand each parameter", () => {
+    // Nest Swagger 只展开内联对象；查询根级 $ref 会悄悄丢失生成客户端的参数。
+    const list = FileListQuerySchema["~standard"].jsonSchema.input({
+      target: "openapi-3.0",
+    })
+    expect(list.type).toBe("object")
+    expect(list).not.toHaveProperty("$ref")
+    expect(Object.keys(list.properties ?? {})).toEqual([
+      "parentId",
+      "state",
+      "name",
+      "page",
+      "pageSize",
+      "sortBy",
+      "sortOrder",
+    ])
+    const content = FileContentQuerySchema["~standard"].jsonSchema.input({
+      target: "openapi-3.0",
+    })
+    expect(content.type).toBe("object")
+    expect(content.properties).toHaveProperty("disposition")
   })
 
   it("does not represent folder markers as downloadable files", () => {

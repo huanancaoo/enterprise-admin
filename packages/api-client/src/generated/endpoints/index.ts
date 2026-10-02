@@ -1,3 +1,4 @@
+export * from "./files/files"
 export * from "./locale-settings/locale-settings"
 export * from "./organizations/organizations"
 export * from "./platform/platform"

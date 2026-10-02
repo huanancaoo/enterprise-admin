@@ -136,17 +136,15 @@ export const FileEntryResponseSchema = z
   .meta({ id: "FileEntryResponse" })
 export type FileEntryResponse = z.infer<typeof FileEntryResponseSchema>
 
-export const FileListQuerySchema = z
-  .strictObject({
-    parentId: FileEntryIdSchema.optional(),
-    state: FileEntryStateSchema.default("active"),
-    name: z.string().trim().optional(),
-    page: z.coerce.number().int().min(1).default(1),
-    pageSize: z.coerce.number().int().min(1).max(100).default(20),
-    sortBy: z.enum(["name", "size", "updatedAt"]).default("name"),
-    sortOrder: z.enum(["asc", "desc"]).default("asc"),
-  })
-  .meta({ id: "FileListQuery" })
+export const FileListQuerySchema = z.strictObject({
+  parentId: FileEntryIdSchema.optional(),
+  state: FileEntryStateSchema.default("active"),
+  name: z.string().trim().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  sortBy: z.enum(["name", "size", "updatedAt"]).default("name"),
+  sortOrder: z.enum(["asc", "desc"]).default("asc"),
+})
 export type FileListQuery = z.infer<typeof FileListQuerySchema>
 export const FilePageSchema = z
   .strictObject({
@@ -337,9 +335,7 @@ export const FileVersionsSchema = z
   .meta({ id: "FileVersions" })
 export type FileVersions = z.infer<typeof FileVersionsSchema>
 
-export const FileContentQuerySchema = z
-  .strictObject({
-    disposition: z.enum(["inline", "attachment"]).default("attachment"),
-  })
-  .meta({ id: "FileContentQuery" })
+export const FileContentQuerySchema = z.strictObject({
+  disposition: z.enum(["inline", "attachment"]).default("attachment"),
+})
 export type FileContentQuery = z.infer<typeof FileContentQuerySchema>

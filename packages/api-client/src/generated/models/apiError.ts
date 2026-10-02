@@ -5,6 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ApiErrorCode } from "./apiErrorCode"
+import type { FileErrorDetails } from "./fileErrorDetails"
 import type { SupportedLocale } from "./supportedLocale"
 
 export interface ApiError {
@@ -13,4 +14,5 @@ export interface ApiError {
   /** @minLength 1 */
   requestId: string
   locale: SupportedLocale
+  details?: FileErrorDetails
 }
