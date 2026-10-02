@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useQueryClient } from "@tanstack/react-query"
+import { useTranslation } from "react-i18next"
 import {
   createMemoryHistory,
   createRouter,
@@ -8,23 +8,22 @@ import {
 import type { Meta, StoryObj } from "@storybook/react-vite"
 import { expect, userEvent, waitFor, within } from "storybook/test"
 import { useUiLocale } from "@workspace/i18n/react"
+import { AuthGate, type WorkspaceRouterContext } from "@workspace/admin/auth"
 import {
   createWorkspaceSessionHandlers,
   createProjectsHandler,
   createProjectDetailHandler,
+  createProjectAttachmentsScenario,
   organizations,
 } from "@workspace/mocks"
 import { router as applicationRouter } from "../router"
+import { authClient } from "../lib/auth-client"
 
-const storyUser = {
-  id: "layout-user",
-  name: "布局测试用户",
-  email: "layout@example.com",
-}
-
-function AdminLayoutStory() {
-  const queryClient = useQueryClient()
-  const locale = useUiLocale()
+function AdminLayoutRouter({
+  user,
+  queryClient,
+  locale,
+}: WorkspaceRouterContext) {
   const [router] = useState(() =>
     createRouter({
       routeTree: applicationRouter.routeTree,
@@ -32,17 +31,31 @@ function AdminLayoutStory() {
         initialEntries: [`/app/projects/${organizations[0].id}`],
       }),
       context: {
-        user: storyUser,
+        user,
         queryClient,
         locale,
       },
     })
   )
   return (
-    <RouterProvider
-      router={router}
-      context={{ user: storyUser, queryClient, locale }}
-    />
+    <RouterProvider router={router} context={{ user, queryClient, locale }} />
+  )
+}
+
+function AdminLayoutStory() {
+  const locale = useUiLocale()
+  const { t } = useTranslation("organization")
+  // 布局依赖原生会话投影；仅注入路由 user 会在会话读回前提前挂载工作台。
+  return (
+    <AuthGate client={authClient} restoreTitle={t("management")}>
+      {({ user, queryClient }) => (
+        <AdminLayoutRouter
+          user={user}
+          queryClient={queryClient}
+          locale={locale}
+        />
+      )}
+    </AuthGate>
   )
 }
 
@@ -56,6 +69,7 @@ const meta = {
         ...createWorkspaceSessionHandlers(),
         createProjectsHandler(),
         createProjectDetailHandler(),
+        ...createProjectAttachmentsScenario().handlers,
       ],
     },
   },
