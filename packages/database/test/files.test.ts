@@ -3715,3 +3715,141 @@ test("系统单file到期 purge 在文件和内部批次目录均删除后才结
     0
   )
 })
+
+test("个人上传 Session撤销后以当前 token 立即移交，过期未接管只移交错误，新 token 接管后旧 token 拒绝", async () => {
+  const actor = await identityActor(),
+    operationId = randomUUID(),
+    leaseId = randomUUID()
+  const begun = (
+    await runtime.query(
+      "SELECT public.begin_personal_media_upload($1,$2,$3,$4,4,$5) AS result",
+      [
+        actor.actorId,
+        actor.sessionId,
+        operationId,
+        sha("handoff"),
+        randomUUID(),
+      ]
+    )
+  ).rows[0]!.result
+  await runtime.query(
+    "SELECT public.claim_personal_media_upload($1,$2,$3,$4)",
+    [actor.actorId, actor.sessionId, operationId, leaseId]
+  )
+  assert.equal(
+    (await personalMaintenanceClaim(actor.actorId, "upload", operationId)).job,
+    null
+  )
+  await assert.rejects(
+    runtime.query(
+      "SELECT public.handoff_personal_media_upload_failure($1,$2,$3,$4)",
+      [actor.actorId, operationId, randomUUID(), "UNAUTHENTICATED"]
+    ),
+    databaseMessage("FILE_OPERATION_LEASE_CONFLICT")
+  )
+  await owner.query("DELETE FROM session WHERE id=$1", [actor.sessionId])
+  await owner.query(
+    "UPDATE personal_media_operations SET lease_expires_at=now()-interval '1 second' WHERE user_id=$1 AND id=$2",
+    [actor.actorId, operationId]
+  )
+  await runtime.query(
+    "SELECT public.handoff_personal_media_upload_failure($1,$2,$3,$4)",
+    [actor.actorId, operationId, leaseId, "UNAUTHENTICATED"]
+  )
+  const before = (
+    await owner.query(
+      "SELECT user_id,media_id,request_hash,phase,committed_at,expires_at,error_code FROM personal_media_operations WHERE user_id=$1 AND id=$2",
+      [actor.actorId, operationId]
+    )
+  ).rows[0]!
+  assert.equal(before.user_id, actor.actorId)
+  assert.equal(before.media_id, begun.operation.media_id)
+  assert.equal(before.request_hash, sha("handoff"))
+  assert.equal(before.phase, "preparing")
+  assert.equal(before.committed_at, null)
+  assert.equal(before.expires_at.getTime() > Date.now(), true)
+  assert.equal(before.error_code, "UNAUTHENTICATED")
+  const candidates = (
+    await runtime.query(
+      "SELECT public.get_personal_media_maintenance_candidates(100) AS result"
+    )
+  ).rows[0]!.result as { id: string; kind: string }[]
+  assert.equal(
+    candidates.some((c) => c.id === operationId && c.kind === "upload"),
+    true
+  )
+  const { job, leaseId: nextLease } = await personalMaintenanceClaim(
+    actor.actorId,
+    "upload",
+    operationId
+  )
+  assert.deepEqual(job.storagePath, [begun.operation.media_id])
+  await assert.rejects(
+    runtime.query(
+      "SELECT public.handoff_personal_media_upload_failure($1,$2,$3,$4)",
+      [actor.actorId, operationId, leaseId, "UNAUTHENTICATED"]
+    ),
+    databaseMessage("FILE_OPERATION_LEASE_CONFLICT")
+  )
+  const finished = await personalMaintenanceFinish(
+    actor.actorId,
+    "upload",
+    operationId,
+    nextLease
+  )
+  assert.equal(finished.phase, "failed")
+  assert.notEqual(finished.cleanedAt, null)
+  assert.equal(finished.errorCode, "UNAUTHENTICATED")
+  assert.equal(
+    (
+      await owner.query(
+        "SELECT count(*)::integer AS total FROM personal_media WHERE user_id=$1",
+        [actor.actorId]
+      )
+    ).rows[0]!.total,
+    0
+  )
+})
+
+test("个人发布已成功但响应未知或头像CAS失败均不移交删除已发布媒体", async () => {
+  const actor = await identityActor(),
+    uploaded = await personalUpload(actor)
+  await assert.rejects(
+    runtime.query(
+      "SELECT public.handoff_personal_media_upload_failure($1,$2,$3,$4)",
+      [actor.actorId, uploaded.operationId, uploaded.leaseId, "UNAUTHENTICATED"]
+    ),
+    databaseMessage("FILE_OPERATION_LEASE_CONFLICT")
+  )
+  assert.equal(
+    (
+      await personalMaintenanceClaim(
+        actor.actorId,
+        "upload",
+        uploaded.operationId
+      )
+    ).job,
+    null
+  )
+  await assert.rejects(
+    avatar(actor, uploaded.media.id, "changed-image"),
+    databaseMessage("VERSION_CONFLICT")
+  )
+  assert.equal(
+    (await personalMaintenanceClaim(actor.actorId, "media", uploaded.media.id))
+      .job,
+    null
+  )
+  assert.equal(
+    (await personalRead(actor, uploaded.media.id)).id,
+    uploaded.media.id
+  )
+  const operation = (
+    await owner.query(
+      "SELECT phase,committed_at FROM personal_media_operations WHERE user_id=$1 AND id=$2",
+      [actor.actorId, uploaded.operationId]
+    )
+  ).rows[0]!
+  assert.equal(operation.phase, "completed")
+  assert.notEqual(operation.committed_at, null)
+})
