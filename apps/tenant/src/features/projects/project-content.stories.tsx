@@ -370,6 +370,17 @@ async function save(element: HTMLElement) {
     within(element).getByRole("button", { name: "Save content" })
   )
 }
+async function clickPickerButton(
+  dialog: ReturnType<typeof within>,
+  name: string
+) {
+  // List rows can appear before the separate breadcrumb query settles. Wait for
+  // the real action boundary so userEvent cannot discard a click on a disabled row.
+  await waitFor(() =>
+    expect(dialog.getByRole("button", { name })).toBeEnabled()
+  )
+  await userEvent.click(dialog.getByRole("button", { name }))
+}
 async function chooseUploadFolder(element: HTMLElement) {
   const canvas = within(element)
   await canvas.findByRole("button", { name: "Image upload folder" })
@@ -377,7 +388,7 @@ async function chooseUploadFolder(element: HTMLElement) {
     canvas.getByRole("button", { name: "Image upload folder" })
   )
   const dialog = within(await within(document.body).findByRole("dialog"))
-  await userEvent.click(await dialog.findByRole("button", { name: "Manuals" }))
+  await clickPickerButton(dialog, "Manuals")
   await dialog.findByRole("button", { name: "portrait.png" })
   await waitFor(() =>
     expect(
@@ -729,13 +740,9 @@ export const ExistingImageAndFileLinkPicker: Story = {
     for (const name of ["Append an existing image", "Append a file link"]) {
       await userEvent.click(canvas.getByRole("button", { name }))
       const dialog = within(await within(document.body).findByRole("dialog"))
-      await userEvent.click(
-        await dialog.findByRole("button", { name: "Manuals" })
-      )
-      await userEvent.click(
-        await dialog.findByRole("button", { name: "portrait.png" })
-      )
-      await userEvent.click(dialog.getByRole("button", { name: "Use file" }))
+      await clickPickerButton(dialog, "Manuals")
+      await clickPickerButton(dialog, "portrait.png")
+      await clickPickerButton(dialog, "Use file")
       await waitFor(() =>
         expect(within(document.body).queryByRole("dialog")).toBeNull()
       )
