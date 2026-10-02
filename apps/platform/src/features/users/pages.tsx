@@ -27,7 +27,7 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
-  NotFoundState,
+  NotFoundContent,
   Pagination,
 } from "@workspace/admin"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
@@ -351,7 +351,7 @@ export function PlatformUserDetailPage() {
   if (query.isError)
     return query.error instanceof ApiClientError &&
       query.error.status === 404 ? (
-      <NotFoundState />
+      <NotFoundContent />
     ) : (
       <ErrorState onRetry={() => void query.refetch()} />
     )
@@ -410,7 +410,8 @@ export function PlatformUserDetailPage() {
         <EmptyState />
       ) : (
         <div className="overflow-x-auto">
-          <Table>
+          {/* 只读表格没有可聚焦操作，键盘通过表格本身滚动长字段。 */}
+          <Table tabIndex={0} aria-label={t("platformUserOrganizations")}>
             <TableHeader>
               <TableRow>
                 <TableHead>{t("platformName")}</TableHead>

@@ -374,7 +374,7 @@ export const ValidationError: Story = {
   args: { detail: true },
   globals: { locale: "en-US" },
   play: async ({ canvasElement }) => {
-    const { screen, dialog, reason, slug, confirm } =
+    const { dialog, reason, slug, confirm } =
       await fillConfirmation(canvasElement)
     await userEvent.clear(reason)
     await userEvent.type(reason, "short")
@@ -387,8 +387,6 @@ export const ValidationError: Story = {
     ).toBeVisible()
     await expect(reason).toHaveValue("short")
     await expect(slug).toHaveValue("wrong-target")
-    await userEvent.click(dialog.getByRole("button", { name: "Cancel" }))
-    await expectClosed(screen)
   },
 }
 export const StaleVersion: Story = {

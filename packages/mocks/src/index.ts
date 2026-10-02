@@ -11,6 +11,17 @@ export {
   platformOrganizationFixture,
 } from "./handlers/platform-organizations"
 export type { PlatformOrganizationsScenario } from "./handlers/platform-organizations"
+export {
+  createPlatformUsersScenario,
+  platformUserFixture,
+  platformUserFullEmail,
+} from "./handlers/platform-users"
+export type { PlatformUsersScenario } from "./handlers/platform-users"
+export {
+  createPlatformAuditScenario,
+  platformAuditFixture,
+} from "./handlers/platform-audit"
+export type { PlatformAuditScenario } from "./handlers/platform-audit"
 export { createProjectHandler } from "./handlers/project-create"
 export {
   createProjectDetailHandler,

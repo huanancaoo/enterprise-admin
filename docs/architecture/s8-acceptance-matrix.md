@@ -54,10 +54,12 @@ T15 另包含空 organizationId/slug 的真实回归：普通原生入口按 tru
 - `tests/e2e/locale-settings.test.mjs`、`platform-settings.test.mjs` 验证继承/显式偏好、三语、RTL、键盘和对应界面的 axe；个人设置另暂缓真实当前组织响应，验证读回不会卸载已打开的语言选项，并实际保存阿语。`tests/api/platform-settings.test.mjs` 通过真实 SMTP 核对个人、组织、平台语言继承。排队邮件不因随后设置变化重写历史内容。
 - 平台 Organizations/Users/Audit/Settings 的浏览器文件覆盖相应列表、详情、确认、错误、撤权及语言/键盘/a11y。后台布局另以 MSW 延迟目录读回，核对实际按钮禁用和菜单关闭后的 axe。
 - `apps/platform/src/features/organizations/pages.stories.tsx` 新增 26 个正式页面场景：列表/详情的默认、加载、错误、无权、长文本和 RTL；列表为空、详情无状态历史、401 跳转、404、慢请求、只读任职；筛选/排序/分页和危险确认的校验、停用/恢复、陈旧版本复核、429 重试、近期 MFA、键盘提交与焦点恢复。每个 Story 重置独立 MSW 状态，成功状态由页面重新读取。身份与平台任职是 UI fixture，不作为真实登录、授权或 MFA 证据；公共、布局及这些 Feature Stories 通过仍不能推导全部 S8 Feature 状态均已覆盖。
+- `apps/platform/src/features/users/pages.stories.tsx` 的 28 个正式页面场景覆盖目录/详情的默认、加载、空状态、错误、401/403、404、长文本、三语/RTL、慢请求、未验证用户、只读任职及筛选/分页。敏感读取实际驱动目的校验、提交期间禁用、503/429 后保留目的并手动重试、键盘提交、关闭后的焦点恢复，以及关闭/重开时移除完整邮箱与清空目的。只读成员表的长文本另由原生浏览器键盘核对水平滚动。
+- `apps/platform/src/features/audit/page.stories.tsx` 的 25 个正式页面场景覆盖未填写读取目的、列表/详情状态、401/403 清除列表与弹层、404、重试、长文本、三语/RTL、慢请求、只读任职、任职事件投影、目的/组织 ID/日期校验及筛选/游标分页。用户敏感目的、审计筛选和组织危险确认的校验场景保留错误表单供 axe 检查；输入值使用正文色，404 内容复用外层主地标。新增 MSW 状态仍只证明页面行为，真实鉴权、脱敏投影与持久化证据不由它们代替。
 
 ## 完整本机检查
 
-最近一次完整 `pnpm verify` 是 SMTP 页面与界面时序修正批次（退出码 0）：155 项 API、75 项浏览器、98 项 Storybook、24 项数据库、2 项性能及 lint、类型、Schema、生产构建、生成物检查均通过。随后平台组织 Stories 批次只修改 Story/MSW 和验收文档；全量 Storybook 14 文件、124 项，单元测试 74 项，lint、类型检查和 Storybook 构建通过。本批未重新执行完整 `pnpm verify`，各批次入口与日志分别记在 [发布验收记录](s8-release-validation.md)。远端 CI 与生产部署分别记账，不由本机结果推导。
+最近一次完整 `pnpm verify` 是平台用户/审计 Stories 与无障碍修正批次（退出码 0）：155 项 API、75 项浏览器、177 项 Storybook、24 项数据库、2 项性能和 74 项单元测试全部通过，peer、lint/工程边界、类型、i18n、38 页文档内容、数据库 Schema、生产构建及 OpenAPI/Orval 可重现检查也通过。执行前后本批 13 个源码文件的 SHA-256 一致；最终文档另做定向格式检查。各历史批次入口与日志分别记在 [发布验收记录](s8-release-validation.md)。远端 CI 与生产部署分别记账，不由本机结果推导。
 
 ## 尚未解除的门禁
 

@@ -48,6 +48,7 @@ export {
   EmptyState,
   ErrorState,
   NotFoundState,
+  NotFoundContent,
   RouterErrorComponent,
   PermissionDeniedState,
 } from "./components/page"

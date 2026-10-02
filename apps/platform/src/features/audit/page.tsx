@@ -20,7 +20,7 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
-  NotFoundState,
+  NotFoundContent,
 } from "@workspace/admin"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import { createFormatter } from "@workspace/i18n"
@@ -318,7 +318,7 @@ function AuditDetail({
         ) : query.isError ? (
           query.error instanceof ApiClientError &&
           query.error.status === 404 ? (
-            <NotFoundState />
+            <NotFoundContent />
           ) : (
             <ErrorState onRetry={() => void query.refetch()} />
           )

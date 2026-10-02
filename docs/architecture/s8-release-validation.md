@@ -118,9 +118,31 @@ T15 还实际复现了空参数绕过：停用组织已经是当前 Session 的 
 
 日志位于 `/private/tmp/enterprise-admin-s8-organizations-stories-regression.log`、`enterprise-admin-s8-organizations-stories-unit.log`、`enterprise-admin-s8-organizations-stories-lint.log`、`enterprise-admin-s8-organizations-stories-typecheck.log` 和 `enterprise-admin-s8-organizations-stories-build.log`。另用已构建的工作台在 1280×1000 视口核对长文本列表、详情与 RTL 确认框：列表/详情的页面 scrollWidth 均为 1280，阿语页面方向为 rtl、slug 输入为 ltr，无浏览器 pageerror；截图为 `/private/tmp/enterprise-admin-s8-organizations-long-text.png`、`enterprise-admin-s8-organizations-detail-long-text.png` 与 `enterprise-admin-s8-organizations-rtl.png`。这些都是 UI fixture，不是新增的真实后台业务验收。
 
+## 平台用户与审计 Feature Stories
+
+新增用户目录/详情 28 个场景和平台审计 25 个场景，通过内存路由运行正式页面。目录、详情、拒绝访问和会话失效均使用各自正式内容，列表查询、表单校验和异常跳转没有替换。MSW fixture 按契约解析查询，筛选/分页确实改变读回结果；用户详情只返回脱敏邮箱，完整邮箱仅在显式敏感读取响应中出现。审计记录使用相对时间进入默认 30 天窗口，详情与列表引用同一事件，每个 Story 重置重试状态。
+
+用户场景覆盖默认、加载、空目录/无成员关系、错误、401/403、404、长文本、三语/RTL、慢请求、未验证用户、只读任职和筛选/分页。敏感读取覆盖目的校验、提交期间字段/按钮禁用、503/429 保留目的并手动重试、键盘提交与焦点恢复；关闭后完整邮箱离开 DOM，重开后目的和邮箱均清空。审计场景覆盖相应列表/详情状态、尚未填写读取目的、重试恢复、任职事件投影、筛选/游标分页以及目的、组织 ID 和日期校验；详情 401/403 后列表和弹层均清除。
+
+这批实际发现三类无障碍缺口：无效 Field 的错误色被输入值继承，在输入背景上对比度为 4.45，未达到 4.5；只读成员表的长文本溢出缺少可聚焦目标；用户详情及审计弹层的 404 内容创建了嵌套主地标。Input/Textarea 明确使用正文色，错误边框和反馈保留；只读表格增加键盘焦点与翻译后的名称；独立 404 页面创建主地标，详情和弹层复用不创建主地标的内容。未改变 API、认证、授权、契约或业务异常规则。
+
+校验场景保持错误表单可见，再执行工作台内置 axe，组织危险确认也保留错误态接受检查。测试准备阶段等待审计弹层实际可见；详情失权场景直接等待拒绝/登录页，避免等待已经卸载的弹层。此前敏感弹层关闭失败没有稳定证明产品缺陷：原生浏览器核对退出动画和 DOM 移除，相关关闭与焦点断言仍保留，没有为此增加产品分支。
+
+聚焦最终检查退出码 0：组织 26、用户 28、审计 25 个场景，共 79 项通过。原生浏览器对长文本成员表核对焦点和 ArrowRight 的默认滚动：scrollLeft 从 0 变为 3，表格 scrollWidth=4851、clientWidth=1104，1280 像素视口的页面 scrollWidth=1280。该键盘证据与 Story 中的焦点和 axe 检查分别记录，不以合成键盘事件推导浏览器默认滚动。
+
+聚焦日志为 `/private/tmp/enterprise-admin-s8-read-pages-and-danger-green.log`；首次失败、最小失败、只读表格焦点失败和错误态对比度失败分别见同目录的 `enterprise-admin-s8-users-audit-stories-first.log`、`enterprise-admin-s8-users-audit-minimal-red.log`、`enterprise-admin-s8-membership-scroll-red.log`、`enterprise-admin-s8-sensitive-error-state-red.log` 与 `enterprise-admin-s8-danger-error-contrast-red.log`。长文本键盘截图为 `/private/tmp/enterprise-admin-s8-users-long-text-keyboard.png`。身份与任职仍为 UI fixture，这些新增场景不证明真实登录、MFA、RLS、邮件或发布。
+
+## 用户与审计批次完整检查
+
+最终源码通过完整 `pnpm verify`，进程退出码为 0：API 155 项（Nest HTTP 15、业务 HTTP 140），浏览器 11 文件/75 项，Storybook 16 文件/177 项，数据库 2 文件/24 项，固定规模性能 1 文件/2 项全部通过。单元测试根目录 43、API 28、文档站 3 项，共 74 项通过；peer、lint/工程边界、typecheck、i18n、38 页文档内容、数据库 Schema、生产构建及 OpenAPI/Orval 可重现检查均通过。独立 Storybook 构建 3 个任务通过。
+
+最终完整日志为 `/private/tmp/enterprise-admin-s8-users-audit-verify-final.log`，Storybook 构建日志为 `enterprise-admin-s8-users-audit-storybook-build.log`。执行前后的本批 13 个源码文件 SHA-256 一致，列表为同目录的 `enterprise-admin-s8-read-pages-source-before.txt` 和 `enterprise-admin-s8-read-pages-source-after.txt`，cmp 退出码 0。较早的 `enterprise-admin-s8-users-audit-verify.log` 只有 174 个 Storybook 场景，且早于错误态增强和 Textarea 修正；本批最终结果以上述 final 日志为准。验证使用自有容器，不表示已向个人开发库应用迁移或完成实际部署。
+
+另核对已构建工作台的用户敏感读取 RTL 弹层、审计 RTL 详情和长文本详情，均为 1280×1000 视口，页面 scrollWidth=clientWidth=1280、无浏览器 pageerror；审计弹层自身 scrollWidth=clientWidth=448，长字段完整换行。实际截图已查看，路径为 `/private/tmp/enterprise-admin-s8-users-rtl.png`、`enterprise-admin-s8-audit-rtl.png` 和 `enterprise-admin-s8-audit-long-text.png`。审计渲染日志为同目录的 `enterprise-admin-s8-audit-render.log`；工作台自动运行详情 Story 的交互后再等待弹层内容和动画结束，避免重复操作隐藏在弹层后的筛选表单。此核对仍限于 UI fixture、当前 Chromium 和上述视口，不增加真实后台或移动端验收结论。
+
 ## 尚未完成的验收
 
-- 平台组织已补足上述 Feature Stories，其他 S8 关键 Feature 状态仍需逐项补足；不能用 API 或公共 Stories 替代。
+- 平台组织、用户目录和审计已补足上述 Feature Stories，其他 S8 关键 Feature 状态仍需逐项补足；不能用 API 或公共 Stories 替代。
 - 安全回退入口和 ADR-0002/当前 CLI 的语义冲突等待用户确认；确认后完成实现、文档与对应发布验收。
 
 本机验证与远端 CI、生产部署分别记账；本记录不声称 GitHub Actions 或生产发布已通过。

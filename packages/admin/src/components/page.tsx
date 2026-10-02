@@ -133,13 +133,22 @@ export function ErrorState({
     </div>
   )
 }
-export function NotFoundState() {
+export function NotFoundContent() {
   const { t } = useTranslation("common")
   useDocumentTitle(t("notFoundTitle"))
   return (
-    <main className="space-y-2 p-8">
+    <section className="space-y-2 p-8">
       <h1 className="text-xl font-semibold">{t("notFoundTitle")}</h1>
       <p>{t("notFoundDescription")}</p>
+    </section>
+  )
+}
+
+// 只有独立 404 页面创建主地标；详情和弹层复用内容，主地标由外层布局负责。
+export function NotFoundState() {
+  return (
+    <main>
+      <NotFoundContent />
     </main>
   )
 }
