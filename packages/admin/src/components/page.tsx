@@ -280,6 +280,8 @@ export function FormDialog({
           id={formId}
           aria-busy={pending}
           onSubmit={(event) => {
+            // Portal 中的独立表单会沿 React 树冒泡；它的提交不能保存外层业务草稿。
+            if (event.target !== event.currentTarget) return
             event.preventDefault()
             onSubmit()
           }}
