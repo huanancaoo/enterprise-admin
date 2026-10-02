@@ -317,12 +317,19 @@ export const CreateReadBackLock: Story = {
     await userEvent.click(submit)
     await waitFor(() => expect(input).toBeDisabled())
     await expect(input).toHaveValue("new-reader")
+    // 此场景写入 300ms、读回 700ms；等待整个提交结束，而非在默认 1s 内抢先寻找新行。
+    await waitFor(
+      () => {
+        expect(input.closest("form")).toHaveAttribute("aria-busy", "false")
+        expect(input).toBeEnabled()
+        expect(input).toHaveValue("")
+        expect(
+          content.getByRole("checkbox", { name: "Projects: view" })
+        ).not.toBeChecked()
+      },
+      { timeout: 2000 }
+    )
     await roleRow(canvasElement, "new-reader")
-    await waitFor(() => expect(input).toBeEnabled())
-    await expect(input).toHaveValue("")
-    await expect(
-      content.getByRole("checkbox", { name: "Projects: view" })
-    ).not.toBeChecked()
   },
 }
 const createRetry: Story["play"] = async ({ canvasElement }) => {
@@ -663,11 +670,14 @@ export const CreateFilePermissionsKeepsDraft: Story = {
     await expect(created.getByText("Permissions: 2")).toBeVisible()
     for (const label of selected)
       await expect(created.getByText(label, { exact: false })).toBeVisible()
-    await expect(input).toHaveValue("")
-    for (const label of selected)
-      await expect(
-        content.getByRole("checkbox", { name: label })
-      ).not.toBeChecked()
+    // 列表可先渲染读回结果，表单随后才重置角色名和权限草稿并解除提交锁。
+    await waitFor(() => {
+      expect(input.closest("form")).toHaveAttribute("aria-busy", "false")
+      expect(input).toBeEnabled()
+      expect(input).toHaveValue("")
+      for (const label of selected)
+        expect(content.getByRole("checkbox", { name: label })).not.toBeChecked()
+    })
   },
 }
 
