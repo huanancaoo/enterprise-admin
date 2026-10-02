@@ -16,6 +16,14 @@ export {
 } from "./generated/endpoints/organizations/organizations"
 export { getOrganizationAccessOptions } from "./query/organization-access"
 export {
+  getFileWorkspace,
+  listFileEntries,
+  getFileEntry,
+  getFileBreadcrumbs,
+  listFileVersions,
+  getFileOperation,
+} from "./generated/endpoints/files/files"
+export {
   listProjects,
   createProject,
   deleteProject,
