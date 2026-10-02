@@ -5,10 +5,16 @@ import {
   longRoleKey,
   type RolesScenario,
 } from "@workspace/mocks"
+import { delegableRolePermissions } from "@workspace/permissions"
 import { RolesStory } from "./roles.story-fixture"
 
 const scenario = (name: RolesScenario = "success") => {
-  const fixture = createRolesScenario(name)
+  const fixture = createRolesScenario(
+    name,
+    Object.entries(delegableRolePermissions).flatMap(([resource, actions]) =>
+      actions.map((action) => ({ resource, action }))
+    )
+  )
   return {
     beforeEach: fixture.reset,
     parameters: { layout: "fullscreen", msw: { handlers: fixture.handlers } },
@@ -103,6 +109,19 @@ export const BuiltInPermissions: Story = {
     await expect(member.getByText(/Projects: view/)).toBeVisible()
     await expect(member.getByText(/Members: view directory/)).toBeVisible()
     await expect(member.queryByText(/Projects: update/)).toBeNull()
+    await expect(member.getByText(/Files: view/)).toBeVisible()
+    await expect(member.getByText(/Folders: view/)).toBeVisible()
+    for (const label of filePermissionLabels.filter(
+      (label) => label !== "Files: view" && label !== "Folders: view"
+    ))
+      await expect(member.queryByText(label, { exact: false })).toBeNull()
+    for (const name of ["Owner", "Admin"]) {
+      const role = within(
+        within(builtIn).getByText(name, { exact: true }).closest("li")!
+      )
+      for (const label of filePermissionLabels)
+        await expect(role.getByText(label, { exact: false })).toBeVisible()
+    }
   },
 }
 export const AccessLoading: Story = {
@@ -593,6 +612,150 @@ export const ReferencedRole: Story = {
     )
     await expect(await content.findByRole("alert")).toHaveTextContent(
       "This role is referenced by 3 members and 2 active invitations. Remove the references first."
+    )
+  },
+}
+
+const filePermissionLabels = [
+  "Files: view",
+  "Files: upload",
+  "Files: update",
+  "Files: move to trash",
+  "Files: restore",
+  "Files: permanently delete",
+  "Folders: view",
+  "Folders: create",
+  "Folders: update",
+  "Folders: move to trash",
+]
+
+export const FilePermissionCatalog: Story = {
+  play: async ({ canvasElement }) => {
+    const content = await creation(canvasElement)
+    for (const label of filePermissionLabels)
+      await expect(content.getByRole("checkbox", { name: label })).toBeVisible()
+    const existing = await roleRow(canvasElement)
+    await expect(existing.getByText("Permissions: 2")).toBeVisible()
+    for (const label of filePermissionLabels)
+      await expect(existing.queryByText(label, { exact: false })).toBeNull()
+  },
+}
+
+export const CreateFilePermissionsKeepsDraft: Story = {
+  ...scenario("createUnavailable"),
+  play: async ({ canvasElement }) => {
+    const content = await creation(canvasElement)
+    const input = content.getByRole("textbox", { name: "Role key" })
+    await userEvent.type(input, "file-editor")
+    const selected = ["Files: upload", "Folders: create"]
+    for (const label of selected)
+      await userEvent.click(content.getByRole("checkbox", { name: label }))
+    const submit = content.getByRole("button", { name: "Create role" })
+    await userEvent.click(submit)
+    await content.findByRole("alert")
+    await expect(input).toHaveValue("file-editor")
+    for (const label of selected)
+      await expect(content.getByRole("checkbox", { name: label })).toBeChecked()
+    await waitFor(() => expect(submit).toBeEnabled())
+    submit.focus()
+    await userEvent.keyboard("{Enter}")
+    const created = await roleRow(canvasElement, "file-editor")
+    await expect(created.getByText("Permissions: 2")).toBeVisible()
+    for (const label of selected)
+      await expect(created.getByText(label, { exact: false })).toBeVisible()
+    await expect(input).toHaveValue("")
+    for (const label of selected)
+      await expect(
+        content.getByRole("checkbox", { name: label })
+      ).not.toBeChecked()
+  },
+}
+
+export const UpdateFilePermissions: Story = {
+  play: async ({ canvasElement }) => {
+    const { content, popup, target, trigger } = await actionDialog(
+      canvasElement,
+      "update"
+    )
+    for (const label of ["Files: upload", "Folders: create"]) {
+      const checkbox = content.getByRole("checkbox", { name: label })
+      await expect(checkbox).not.toBeChecked()
+      checkbox.focus()
+      await userEvent.keyboard(" ")
+    }
+    content.getByRole("button", { name: "Confirm update" }).focus()
+    await userEvent.keyboard("{Enter}")
+    await closed(popup)
+    await expect(target.getByText("Permissions: 4")).toBeVisible()
+    await expect(target.getByText(/Files: upload/)).toBeVisible()
+    await expect(target.getByText(/Folders: create/)).toBeVisible()
+    await expect(trigger).toHaveFocus()
+  },
+}
+
+export const FilePermissionsLimitedDelegation: Story = {
+  ...scenario("limitedDelegation"),
+  play: async ({ canvasElement }) => {
+    const content = await creation(canvasElement)
+    await expect(
+      content.queryByRole("checkbox", { name: "Files: update" })
+    ).toBeNull()
+    await expect(
+      content.queryByRole("checkbox", { name: "Folders: update" })
+    ).toBeNull()
+    await expect(
+      content.getByRole("checkbox", { name: "Files: upload" })
+    ).toBeEnabled()
+    await expect(
+      content.getByRole("checkbox", { name: "Folders: create" })
+    ).toBeEnabled()
+  },
+}
+
+export const ChineseFilePermissions: Story = {
+  globals: { locale: "zh-CN" },
+  play: async ({ canvasElement }) => {
+    const content = within(
+      await within(canvasElement).findByRole("region", { name: "创建角色" })
+    )
+    for (const label of [
+      "文件：查看",
+      "文件：上传",
+      "文件：修改",
+      "文件：移入回收站",
+      "文件：恢复",
+      "文件：永久删除",
+      "文件夹：查看",
+      "文件夹：创建",
+      "文件夹：修改",
+      "文件夹：移入回收站",
+    ])
+      await expect(content.getByRole("checkbox", { name: label })).toBeVisible()
+  },
+}
+
+export const ArabicFilePermissions: Story = {
+  globals: { locale: "ar" },
+  play: async ({ canvasElement }) => {
+    const content = within(
+      await within(canvasElement).findByRole("region", { name: "إنشاء دور" })
+    )
+    for (const label of [
+      "الملفات: عرض",
+      "الملفات: تحميل",
+      "الملفات: تعديل",
+      "الملفات: نقل إلى سلة المحذوفات",
+      "الملفات: استعادة",
+      "الملفات: حذف نهائي",
+      "المجلدات: عرض",
+      "المجلدات: إنشاء",
+      "المجلدات: تعديل",
+      "المجلدات: نقل إلى سلة المحذوفات",
+    ])
+      await expect(content.getByRole("checkbox", { name: label })).toBeVisible()
+    await expect(canvasElement.ownerDocument.documentElement).toHaveAttribute(
+      "dir",
+      "rtl"
     )
   },
 }

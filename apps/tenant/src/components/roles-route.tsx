@@ -36,6 +36,16 @@ const rolesPath = "/app/organizations/$organizationId/roles"
 type RoleTranslation = TFunction<["organization", "common", "auth"]>
 
 const permissionLabelKeys = {
+  "file:read": "rolePermission_file_read",
+  "file:upload": "rolePermission_file_upload",
+  "file:update": "rolePermission_file_update",
+  "file:delete": "rolePermission_file_delete",
+  "file:restore": "rolePermission_file_restore",
+  "file:purge": "rolePermission_file_purge",
+  "folder:read": "rolePermission_folder_read",
+  "folder:create": "rolePermission_folder_create",
+  "folder:update": "rolePermission_folder_update",
+  "folder:delete": "rolePermission_folder_delete",
   "project:read": "rolePermission_project_read",
   "project:create": "rolePermission_project_create",
   "project:update": "rolePermission_project_update",

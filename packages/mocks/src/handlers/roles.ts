@@ -1,4 +1,5 @@
 import { delay, http, HttpResponse } from "msw"
+import type { OrganizationRoleAccess } from "@workspace/contracts"
 import { organizations } from "../fixtures/projects"
 
 export type RolesScenario =
@@ -53,7 +54,10 @@ type Role = {
 }
 export const longRoleKey = "collaboration-" + "a".repeat(34)
 
-export function createRolesScenario(scenario: RolesScenario = "success") {
+export function createRolesScenario(
+  scenario: RolesScenario,
+  permissions: OrganizationRoleAccess["grantablePermissions"]
+) {
   const organizationId = organizations[0].id
   const base: Role[] = [
     {
@@ -87,13 +91,6 @@ export function createRolesScenario(scenario: RolesScenario = "success") {
       { code, message, locale: "en-US", requestId: "roles-story-request" },
       { status }
     )
-  const permissions = [
-    { resource: "project", action: "read" },
-    { resource: "project", action: "update" },
-    { resource: "member", action: "read" },
-    { resource: "invitation", action: "create" },
-    { resource: "audit", action: "read" },
-  ]
   const writeFailure = async (
     kind: "create" | "update" | "delete",
     request: Request
