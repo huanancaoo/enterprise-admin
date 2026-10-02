@@ -431,10 +431,10 @@ for (const backend of ["Local", "RustFS"])
 
     it("已有图片和文件链接持有固定旧版本，库覆盖不改引用；显式历史版本选择和解除引用不删除文件", async () => {
       const f = await fixture()
-      const uploaded = await rawUpload(f, "固定图片.png")
+      const uploaded = await rawUpload(f, "fixed-image.png")
       await signIn(f.owner, f)
-      await chooseExisting("在正文末尾插入已有图片", "固定图片.png")
-      await chooseExisting("在正文末尾插入文件链接", "固定图片.png")
+      await chooseExisting("在正文末尾插入已有图片", "fixed-image.png")
+      await chooseExisting("在正文末尾插入文件链接", "fixed-image.png")
       await save(f)
       const overwrite = new FormData()
       for (const [key, value] of Object.entries({
@@ -466,9 +466,10 @@ for (const backend of ["Local", "RustFS"])
       expect(await contentBytes(f, uploaded)).toEqual(original)
       const download = page.waitForEvent("download")
       await card()
-        .getByRole("button", { name: "下载 固定图片.png", exact: true })
+        .getByRole("button", { name: "下载 fixed-image.png", exact: true })
         .click()
       const downloaded = await download
+      expect(downloaded.suggestedFilename()).toBe("fixed-image.png")
       expect(await readFile(await downloaded.path())).toEqual(original)
       const trash = await request(
         f,
