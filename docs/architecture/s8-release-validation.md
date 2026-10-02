@@ -180,9 +180,31 @@ T15 还实际复现了空参数绕过：停用组织已经是当前 Session 的 
 
 5 张截图已查看，位于 `/private/tmp`：`enterprise-admin-s8-personal-locale-rtl.png`、`enterprise-admin-s8-organization-locale-rtl.png`、`enterprise-admin-s8-personal-locale-long-text.png`、`enterprise-admin-s8-organization-locale-long-text.png`、`enterprise-admin-s8-personal-locale-native-keyboard.png`。渲染与键盘证据限于正式 Feature、UI fixture、当前 Chromium 和上述视口，不代替真实登录、组织切换、隔离或发布证明。
 
+## 成员管理 Feature Stories
+
+新增 37 个正式成员 Feature 场景，聚焦检查 1 文件/37 项全部通过，退出码 0。覆盖目录默认、加载、空、错误、401/403、长文本、三语/RTL、慢请求、筛选/分页、URL 自定义角色及 access 失败；角色修改、成员移除与离开弹层覆盖键盘、焦点恢复、提交禁用、409 草稿复核、429/503 手动重试、401/403 和最后 owner。委派、仅 update、仅 delete、权限查询失败、只读成员与 admin 的身份限制分别核对，角色目录另覆盖加载和错误。日志为 `/private/tmp/enterprise-admin-s8-members-stories-settled-final.log`；租户类型检查和 Storybook 构建均退出 0。
+
+场景发现正式 UI 原先以 owner/admin 身份决定是否显示成员管理动作，遗漏已获 member:update/delete 的自定义角色，且 admin 无法更改普通 member。现在通过原生 hasPermission 分别读取 update/delete，owner/admin 身份保护与禁止移除自己仍保留。member:update 不授予 ac:read；委派角色不请求受限角色目录，当前角色名称来自已授权的成员目录，内置选择保持既有权限边界。角色目录加载和错误明确展示，未创建额外角色读取接口。
+
+真实浏览器回归在旧生产构建稳定失败：委派角色的目标成员更改角色按钮不可见，日志为 `/private/tmp/enterprise-admin-s8-members-delegated-ui-red.log`。修复后 `tests/e2e/custom-roles.test.mjs` 6 项全部通过，退出码 0，日志为 `/private/tmp/enterprise-admin-s8-members-custom-roles-e2e-final.log`。新增流程核对受限目录 GET 403、角色写入 POST 200 与数据库 member 读回、移除 POST 200 与 Membership 删除、全局 User 保留、两项审计事件及搜索焦点恢复；owner/admin 和自身移除入口受限。现有语言子菜单测试改用明确的键盘 Enter 打开，符合 Base UI 子菜单交互，不使用强制点击或重试掩盖失败。
+
+原生构建检查发现共享危险按钮在悬停动画结束后仍不足 4.5:1：第一次浅色调整为 4.34:1，既有深色为 4.4:1。现在共享 destructive 色值分别调整为浅色 `oklch(0.46 0.2 27.325)`、深色 `oklch(0.74 0.17 22.216)`，保持原有按钮结构和动作语义；实际原生 hover 及动画完成后的 axe 检查分别核对，不能以模拟 hover 的 Story 通过推导真实 CSS 对比度。两种主题失败日志为 `/private/tmp/enterprise-admin-s8-members-render-all-red.log`。
+
+最终 Storybook 构建的原生浏览器检查退出码 0，日志为 `/private/tmp/enterprise-admin-s8-members-render-final.log`。5 个场景为成员键盘修改/移除、RTL、长文本、390 像素窄视口长文本和深色；页面及 main 的 scrollWidth 均等于 clientWidth，无 pageerror。浅/深主题真实悬停等待颜色动画结束后 axe 均无违规；深色截图另等待主题过渡完成。原生 Enter 打开角色弹层，End/Enter 选择动态角色，Enter 保存和确认移除后分别恢复动作按钮与搜索焦点。
+
+5 张截图已查看，位于 `/private/tmp`：`enterprise-admin-s8-members-native-keyboard.png`、`enterprise-admin-s8-members-rtl.png`、`enterprise-admin-s8-members-long-text.png`、`enterprise-admin-s8-members-long-text-narrow.png` 和 `enterprise-admin-s8-members-dark.png`。390 像素是实际浏览器视口；深色仅切换该 Feature 产物的主题 class，未证明持久化主题设置。UI fixture、当前 Chromium 和这些视口的渲染证据不替代真实身份、跨组织、RLS 或发布证明。
+
+本批首次完整检查退出 1，Storybook 为 289 通过/3 失败：两张语言表单的陈旧版本再次提交失败，组织语言保存失权场景检查到仍在关闭中的未命名 listbox；成员 37 项通过。日志保留为 `/private/tmp/enterprise-admin-s8-members-verify-first.log`。版本冲突原先异步触发版本读回，却提前结束提交周期；现在等待同一次读回完成再解除提交锁定，保留草稿。MSW 在冲突后加入 700 毫秒读回等待，最小检查稳定复现两张表单保存按钮未禁用，日志为 `/private/tmp/enterprise-admin-s8-locale-refresh-lock-final-red.log`。
+
+语言场景另等待真实关闭属性、动画完成和选项不可见；Base UI 关闭后可能保留隐藏选项，因此不把 DOM 卸载作为业务要求。修复后成员及个人/组织语言 3 文件/81 项全部通过，退出码 0，日志为 `/private/tmp/enterprise-admin-s8-members-locale-focused-final.log`。仅测试辅助函数导入或过严卸载断言造成的中间失败不作为产品回归证据。
+
+## 成员与语言读回批次完整检查
+
+第二次完整 `pnpm verify` 在最终源码上退出 0：API 155 项（Nest 15、真实业务 HTTP 140）、浏览器 11 文件/76 项、Storybook 20 文件/292 项、数据库 2 文件/24 项、性能 2 项及单元 74 项全部通过。peer、lint/工程边界、类型、i18n、38 页文档内容、数据库 Schema、生产构建及 OpenAPI/Orval 可重现检查全部通过。日志为 `/private/tmp/enterprise-admin-s8-members-verify-final.log`。执行前后成员 9 个及语言读回 5 个源码文件的 SHA-256 一致；最终验收文档另执行定向格式和文档内容检查。
+
 ## 尚未完成的验收
 
-- 平台组织、用户目录、审计、设置、租户审计及个人/组织语言设置已补足上述 Feature Stories；Members/Invitations/Roles 仍需逐项补足，不能用 API 或公共 Stories 替代。
+- 平台组织、用户目录、审计、设置、租户审计、个人/组织语言设置及成员管理已补足上述 Feature Stories；Invitations/Roles 仍需逐项补足，不能用 API 或公共 Stories 替代。
 - 安全回退入口和 ADR-0002/当前 CLI 的语义冲突等待用户确认；确认后完成实现、文档与对应发布验收。
 
 本机验证与远端 CI、生产部署分别记账；本记录不声称 GitHub Actions 或生产发布已通过。

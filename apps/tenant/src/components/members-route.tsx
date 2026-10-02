@@ -37,6 +37,7 @@ import * as z from "zod"
 import { authClient } from "@/lib/auth-client"
 import {
   getMemberDirectoryOptions,
+  getMemberActionPermissionsOptions,
   MemberDirectoryError,
   type MemberDirectorySearch,
 } from "@/query/organization-directory"
@@ -68,6 +69,9 @@ export function MembersRoute() {
   const [memberAction, setMemberAction] = useState<MemberAction | null>(null)
   const directorySearchRef = useRef<HTMLInputElement>(null)
   const members = useQuery(getMemberDirectoryOptions(organizationId, search))
+  const memberPermissions = useQuery(
+    getMemberActionPermissionsOptions(organizationId)
+  )
   const directoryForbidden =
     members.error instanceof MemberDirectoryError &&
     members.error.status === 403
@@ -130,6 +134,11 @@ export function MembersRoute() {
           {members.error.message}
         </p>
       )}
+      {memberPermissions.error && (
+        <p role="alert" className="text-sm text-destructive">
+          {memberPermissions.error.message}
+        </p>
+      )}
       {members.data && !directoryForbidden && (
         <>
           <MemberDirectoryControls
@@ -149,15 +158,15 @@ export function MembersRoute() {
             ) : (
               members.data.members.map((member) => {
                 const self = member.userId === session.user.id
-                const canManage =
-                  actorRole === "owner" ||
-                  (actorRole === "admin" &&
-                    member.role !== "owner" &&
-                    member.role !== "admin")
-                const canRemove = canManage && !self
+                // 动作权限可委派；管理 owner/admin 身份仍只属于 owner。
+                const manageable =
+                  Boolean(actorRole) &&
+                  (actorRole === "owner" ||
+                    (member.role !== "owner" && member.role !== "admin"))
+                const canRemove =
+                  manageable && Boolean(memberPermissions.data?.remove) && !self
                 const canChangeRole =
-                  actorRole === "owner" ||
-                  (canManage && member.role !== "member")
+                  manageable && Boolean(memberPermissions.data?.update)
                 return (
                   <li
                     key={member.id}

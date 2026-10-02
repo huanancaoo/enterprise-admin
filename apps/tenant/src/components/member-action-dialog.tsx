@@ -57,7 +57,10 @@ export function MemberActionDialog({
   const [open, setOpen] = useState(true)
   const roles = useQuery({
     ...getOrganizationRolesOptions(organizationId),
-    enabled: action.kind === "role",
+    // member:update 不包含 ac:read，角色目录只由内置管理角色读取。
+    enabled:
+      action.kind === "role" &&
+      (actorRole === "owner" || actorRole === "admin"),
   })
   const mutation = useMutation({
     mutationFn: async (role: Role) => {
@@ -175,6 +178,12 @@ export function MemberActionDialog({
     >
       {action.kind === "role" && (
         <FieldGroup>
+          {roles.isLoading && <p role="status">{t("common:loading")}</p>}
+          {roles.error && (
+            <p role="alert" className="text-sm text-destructive">
+              {roles.error.message}
+            </p>
+          )}
           <form.Field name="role">
             {(field) => {
               const isInvalid =
@@ -187,6 +196,8 @@ export function MemberActionDialog({
                   <Select
                     value={field.state.value}
                     items={{
+                      // 当前角色来自已授权的成员目录，展示原值不依赖动态角色目录权限。
+                      [initialRole]: initialRole,
                       member: t("organization:role_member"),
                       ...(actorRole === "owner"
                         ? {

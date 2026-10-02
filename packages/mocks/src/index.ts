@@ -36,6 +36,8 @@ export type {
   LocaleSettingsScenario,
   LocaleSettingsTarget,
 } from "./handlers/locale-settings"
+export { createMembersScenario, memberDirectoryUser } from "./handlers/members"
+export type { MembersScenario } from "./handlers/members"
 export { createProjectHandler } from "./handlers/project-create"
 export {
   createProjectDetailHandler,

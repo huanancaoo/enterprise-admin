@@ -27,7 +27,10 @@ async function signIn(page, account) {
 
 async function selectLocale(page, userName, locale) {
   await page.getByRole("button", { name: new RegExp(userName) }).click()
-  await page.getByRole("menuitem", { name: "语言", exact: true }).click()
+  // 子菜单的鼠标入口依赖 hover；键盘流程使用明确的打开动作。
+  const language = page.getByRole("menuitem", { name: "语言", exact: true })
+  await language.focus()
+  await language.press("Enter")
   const option = page.getByRole("menuitemradio", { name: locale, exact: true })
   await expectUI(option).toBeVisible()
   await option.focus()
@@ -116,6 +119,156 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
     await expectUI(dialog).toHaveCount(0)
     await expectUI(row).toContainText("project-reader")
     expect(page.url()).toContain("/app/members/")
+  })
+
+  it("委派成员管理动作可修改和移除普通成员，仍不能管理 owner/admin 或读取角色目录", async () => {
+    const owner = await signUpVerified(
+      environment.baseURL,
+      environment.tenantOrigin,
+      environment.migrator,
+      { name: "委派组织所有者" }
+    )
+    const manager = await signUpVerified(
+      environment.baseURL,
+      environment.tenantOrigin,
+      environment.migrator,
+      { name: "委派成员管理者" }
+    )
+    const target = await signUpVerified(
+      environment.baseURL,
+      environment.tenantOrigin,
+      environment.migrator,
+      { name: "委派目标成员" }
+    )
+    const administrator = await signUpVerified(
+      environment.baseURL,
+      environment.tenantOrigin,
+      environment.migrator,
+      { name: "受保护管理员" }
+    )
+    const org = await environment.runtime.auth.api.createOrganization({
+      headers: owner.headers,
+      body: {
+        name: "委派成员管理组织",
+        slug: `delegated-member-${randomBytes(5).toString("hex")}`,
+      },
+    })
+    for (const [role, permission] of [
+      [
+        "team-manager",
+        { project: ["read"], member: ["read", "update", "delete"] },
+      ],
+      ["project-editor", { project: ["read", "update"] }],
+    ])
+      await environment.runtime.auth.api.createOrgRole({
+        headers: owner.headers,
+        body: { organizationId: org.id, role, permission },
+      })
+    let targetMembership
+    for (const [account, role] of [
+      [manager, "team-manager"],
+      [target, "project-editor"],
+      [administrator, "admin"],
+    ]) {
+      const membership = await environment.runtime.auth.api.addMember({
+        headers: owner.headers,
+        body: { organizationId: org.id, userId: account.user.id, role },
+      })
+      if (account === target) targetMembership = membership
+    }
+    await page.goto(environment.tenantOrigin + "/app/")
+    await signIn(page, manager)
+    await page.getByRole("link", { name: "成员", exact: true }).click()
+    const list = page.getByRole("list", { name: "成员", exact: true })
+    const row = (account) =>
+      list.getByRole("listitem").filter({ hasText: account.email })
+    await expectUI(
+      row(target).getByRole("button", { name: "更改角色", exact: true })
+    ).toBeVisible()
+    await expectUI(
+      row(target).getByRole("button", { name: "移除成员", exact: true })
+    ).toBeVisible()
+    for (const account of [owner, administrator])
+      await expectUI(row(account).getByRole("button")).toHaveCount(0)
+    await expectUI(
+      row(manager).getByRole("button", { name: "移除成员", exact: true })
+    ).toHaveCount(0)
+
+    // member:update 不授予 ac:read，界面不能依赖无法读取的动态角色目录。
+    const catalog = await context.request.get(
+      `${environment.tenantOrigin}/api/auth/organization/list-roles?organizationId=${org.id}`
+    )
+    expect(catalog.status()).toBe(403)
+    await row(target)
+      .getByRole("button", { name: "更改角色", exact: true })
+      .click()
+    const dialog = page.getByRole("dialog")
+    await expectUI(dialog.getByLabel("角色", { exact: true })).toContainText(
+      "project-editor"
+    )
+    await dialog.getByLabel("角色", { exact: true }).click()
+    for (const name of ["所有者", "管理员"])
+      await expectUI(
+        page.getByRole("option", { name, exact: true })
+      ).toHaveCount(0)
+    await page.getByRole("option", { name: "成员", exact: true }).click()
+    const updated = page.waitForResponse(
+      (response) =>
+        response.url().endsWith("/organization/update-member-role") &&
+        response.request().method() === "POST"
+    )
+    await dialog.getByRole("button", { name: "保存", exact: true }).click()
+    expect((await updated).status()).toBe(200)
+    await expectUI(dialog).toHaveCount(0)
+    await expectUI(row(target)).toContainText("成员")
+    expect(
+      (
+        await environment.migrator.query(
+          "SELECT role FROM member WHERE id = $1",
+          [targetMembership.id]
+        )
+      ).rows
+    ).toEqual([{ role: "member" }])
+
+    await row(target)
+      .getByRole("button", { name: "移除成员", exact: true })
+      .focus()
+    await page.keyboard.press("Enter")
+    const removed = page.waitForResponse(
+      (response) =>
+        response.url().endsWith("/organization/remove-member") &&
+        response.request().method() === "POST"
+    )
+    await dialog.getByRole("button", { name: "移除成员", exact: true }).focus()
+    await page.keyboard.press("Enter")
+    expect((await removed).status()).toBe(200)
+    await expectUI(dialog).toHaveCount(0)
+    await expectUI(row(target)).toHaveCount(0)
+    await expectUI(page.getByLabel("搜索成员…", { exact: true })).toBeFocused()
+    expect(
+      (
+        await environment.migrator.query(
+          "SELECT id FROM member WHERE id = $1",
+          [targetMembership.id]
+        )
+      ).rows
+    ).toHaveLength(0)
+    expect(
+      (
+        await environment.migrator.query(
+          'SELECT id FROM "user" WHERE id = $1',
+          [target.user.id]
+        )
+      ).rows
+    ).toHaveLength(1)
+    const audit = await environment.migrator.query(
+      "SELECT event_code FROM audit_events WHERE organization_id = $1 AND resource_id = $2 ORDER BY occurred_at",
+      [org.id, targetMembership.id]
+    )
+    expect(audit.rows.map((row) => row.event_code)).toEqual([
+      "member.role_changed",
+      "member.removed",
+    ])
   })
 
   it("显示引用数量，确认收回权限，并在解除成员引用后删除角色", async () => {

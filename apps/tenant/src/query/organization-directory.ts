@@ -101,6 +101,29 @@ export function getMemberDirectoryOptions(
   })
 }
 
+export function getMemberActionPermissionsOptions(organizationId: string) {
+  return queryOptions({
+    queryKey: ["organizations", organizationId, "member-actions"],
+    queryFn: async ({ signal }) => {
+      const check = async (action: "update" | "delete") => {
+        const result = await authClient.organization.hasPermission({
+          organizationId,
+          permissions: { member: [action] },
+          fetchOptions: { signal },
+        })
+        if (result.error) throw new MemberDirectoryError(result.error)
+        return result.data.success
+      }
+      const [update, remove] = await Promise.all([
+        check("update"),
+        check("delete"),
+      ])
+      return { update, remove }
+    },
+    retry: false,
+  })
+}
+
 export function getInvitationDirectoryOptions(organizationId: string) {
   return queryOptions({
     queryKey: invitationDirectoryKey(organizationId),
