@@ -2,6 +2,8 @@ import { DynamicModule, Module } from '@nestjs/common';
 import { AuthorizationModule } from '../authorization/authorization.module';
 import { TenancyModule } from '../tenancy/tenancy.module';
 import { FilesRuntime } from './files-runtime';
+import { FileContent } from './file-content';
+import { FileContentController } from './file-content.controller';
 import { Files } from './files';
 import { FilesController } from './files.controller';
 
@@ -11,8 +13,12 @@ export class FilesModule {
     return {
       module: FilesModule,
       imports: [AuthorizationModule, TenancyModule],
-      controllers: [FilesController],
-      providers: [{ provide: FilesRuntime, useValue: runtime }, Files],
+      controllers: [FilesController, FileContentController],
+      providers: [
+        { provide: FilesRuntime, useValue: runtime },
+        Files,
+        FileContent,
+      ],
     };
   }
 }

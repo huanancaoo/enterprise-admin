@@ -33,6 +33,7 @@ export async function startTestApplication({
   mail = false,
   smtp: smtpOverride,
   invitationLimits,
+  files,
 } = {}) {
   // 每取得一个资源立即登记释放；启动中途失败和正常结束使用同一条逆序清理链。
   const resources = new AsyncDisposableStack()
@@ -86,6 +87,7 @@ export async function startTestApplication({
       trustedOrigins: origins,
       trustedProxies: [],
       ...(invitationLimits ? { invitationLimits } : {}),
+      files,
       github: {
         clientId: "test-github-client-id",
         clientSecret: "test-github-client-secret",
