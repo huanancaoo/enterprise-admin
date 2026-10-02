@@ -25,6 +25,14 @@ export {
   getFileVersionContent,
   getGetFileVersionContentUrl,
   createFileFolder,
+  uploadOrganizationFile,
+  overwriteOrganizationFile,
+  getFileEntryImpact,
+  renameFileEntry,
+  moveFileEntry,
+  trashFileEntry,
+  restoreFileEntry,
+  purgeFileEntry,
 } from "./generated/endpoints/files/files"
 export {
   uploadPersonalMedia,

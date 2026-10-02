@@ -57,6 +57,11 @@ export class FileUploadsController {
     schema: UploadFileBodySchema.toJSONSchema({
       io: 'input',
       target: 'openapi-3.0',
+      override: ({ zodSchema, jsonSchema }) => {
+        // multipart 原始字节由 binary format 表达；3.0 不使用 JSON 内容编码关键字。
+        if (zodSchema._zod.def.type === 'file')
+          delete jsonSchema.contentEncoding;
+      },
     }) as Extract<ApiBodyOptions, { schema: unknown }>['schema'],
   })
   @ApiResponse({ status: 200, standardSchema: FileOperationResponseSchema })
@@ -90,6 +95,10 @@ export class FileUploadsController {
     schema: OverwriteFileBodySchema.toJSONSchema({
       io: 'input',
       target: 'openapi-3.0',
+      override: ({ zodSchema, jsonSchema }) => {
+        if (zodSchema._zod.def.type === 'file')
+          delete jsonSchema.contentEncoding;
+      },
     }) as Extract<ApiBodyOptions, { schema: unknown }>['schema'],
   })
   @ApiResponse({ status: 200, standardSchema: FileOperationResponseSchema })

@@ -217,10 +217,10 @@ export type OverwriteFileFields = z.infer<typeof OverwriteFileFieldsSchema>
 
 export const UploadFileBodySchema = UploadFileFieldsSchema.extend({
   file: z.file().max(maxOrganizationUploadBytes).meta({ format: "binary" }),
-}).meta({ id: "UploadFileBody" })
+})
 export const OverwriteFileBodySchema = OverwriteFileFieldsSchema.extend({
   file: z.file().max(maxOrganizationUploadBytes).meta({ format: "binary" }),
-}).meta({ id: "OverwriteFileBody" })
+})
 
 export const FileEntryImpactQuerySchema = z.strictObject({
   action: z.enum(["trash", "purge"]),

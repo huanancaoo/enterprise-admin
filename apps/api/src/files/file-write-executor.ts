@@ -256,10 +256,10 @@ export class FileWriteExecutor implements OnModuleDestroy {
       try {
         // 存储层可能包装取消异常；保留失权或无效请求的原始业务原因。
         rethrowFileError(
-          operationSignal?.aborted
-            ? operationSignal.reason
-            : signal.aborted
-              ? signal.reason
+          signal.aborted
+            ? signal.reason
+            : operationSignal?.aborted
+              ? operationSignal.reason
               : error,
         );
       } catch (mapped) {

@@ -24,14 +24,23 @@ import type {
   ApiError,
   CreateFolder,
   FileBreadcrumbs,
+  FileEntryImpact,
   FileEntryResponse,
   FileOperationResponse,
   FilePage,
   FileVersions,
   FileWorkspace,
+  GetFileEntryImpactParams,
   GetFileVersionContentHeaders,
   GetFileVersionContentParams,
   ListFileEntriesParams,
+  MoveFileEntry,
+  OverwriteOrganizationFileBody,
+  PurgeFileEntry,
+  RenameFileEntry,
+  RestoreFileEntry,
+  TrashFileEntry,
+  UploadOrganizationFileBody,
 } from "../../models"
 
 import { apiClient } from "../../../http/client"
@@ -1933,4 +1942,1458 @@ export function useGetFileVersionContent<
   > & { queryKey: DataTag<QueryKey, TData, TError> }
 
   return withQueryKey(query, queryOptions.queryKey)
+}
+
+export type uploadOrganizationFileResponse200 = {
+  data: FileOperationResponse
+  status: 200
+}
+
+export type uploadOrganizationFileResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type uploadOrganizationFileResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type uploadOrganizationFileResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type uploadOrganizationFileResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type uploadOrganizationFileResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type uploadOrganizationFileResponse413 = {
+  data: ApiError
+  status: 413
+}
+
+export type uploadOrganizationFileResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type uploadOrganizationFileResponseSuccess =
+  uploadOrganizationFileResponse200 & {
+    headers: Headers
+  }
+export type uploadOrganizationFileResponseError = (
+  | uploadOrganizationFileResponse400
+  | uploadOrganizationFileResponse401
+  | uploadOrganizationFileResponse403
+  | uploadOrganizationFileResponse404
+  | uploadOrganizationFileResponse409
+  | uploadOrganizationFileResponse413
+  | uploadOrganizationFileResponse503
+) & {
+  headers: Headers
+}
+
+export const getUploadOrganizationFileUrl = (organizationId: string) => {
+  return `/api/v1/organizations/${organizationId}/files/uploads`
+}
+
+export const uploadOrganizationFile = async (
+  organizationId: string,
+  uploadOrganizationFileBody: UploadOrganizationFileBody,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<uploadOrganizationFileResponseSuccess> => {
+  const formData = new FormData()
+  formData.append(`operationId`, uploadOrganizationFileBody.operationId)
+  formData.append(`parentId`, uploadOrganizationFileBody.parentId)
+  formData.append(`name`, uploadOrganizationFileBody.name)
+  formData.append(`contentSha256`, uploadOrganizationFileBody.contentSha256)
+  formData.append(
+    `declaredBytes`,
+    uploadOrganizationFileBody.declaredBytes.toString()
+  )
+  formData.append(`file`, uploadOrganizationFileBody.file)
+
+  return apiClient<uploadOrganizationFileResponseSuccess>(
+    getUploadOrganizationFileUrl(organizationId),
+    {
+      ...options,
+      method: "POST",
+      body: formData,
+    }
+  )
+}
+
+export const getUploadOrganizationFileMutationKey = () =>
+  ["uploadOrganizationFile"] as const
+
+export const getUploadOrganizationFileMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof uploadOrganizationFile>>,
+    TError,
+    UploadOrganizationFileMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof uploadOrganizationFile>>,
+  TError,
+  UploadOrganizationFileMutationVariables,
+  TContext
+> => {
+  const mutationKey = getUploadOrganizationFileMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof uploadOrganizationFile>>,
+    UploadOrganizationFileMutationVariables
+  > = (props) => {
+    const { organizationId, data } = props ?? {}
+
+    return uploadOrganizationFile(organizationId, data, requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type UploadOrganizationFileMutationResult = NonNullable<
+  Awaited<ReturnType<typeof uploadOrganizationFile>>
+>
+export type UploadOrganizationFileMutationBody = UploadOrganizationFileBody
+export type UploadOrganizationFileMutationError = ErrorType<ApiError>
+export type UploadOrganizationFileMutationVariables = {
+  organizationId: string
+  data: UploadOrganizationFileBody
+}
+
+export const useUploadOrganizationFile = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof uploadOrganizationFile>>,
+      TError,
+      UploadOrganizationFileMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof uploadOrganizationFile>>,
+  TError,
+  UploadOrganizationFileMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getUploadOrganizationFileMutationOptions(options),
+    queryClient
+  )
+}
+export type overwriteOrganizationFileResponse200 = {
+  data: FileOperationResponse
+  status: 200
+}
+
+export type overwriteOrganizationFileResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type overwriteOrganizationFileResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type overwriteOrganizationFileResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type overwriteOrganizationFileResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type overwriteOrganizationFileResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type overwriteOrganizationFileResponse413 = {
+  data: ApiError
+  status: 413
+}
+
+export type overwriteOrganizationFileResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type overwriteOrganizationFileResponseSuccess =
+  overwriteOrganizationFileResponse200 & {
+    headers: Headers
+  }
+export type overwriteOrganizationFileResponseError = (
+  | overwriteOrganizationFileResponse400
+  | overwriteOrganizationFileResponse401
+  | overwriteOrganizationFileResponse403
+  | overwriteOrganizationFileResponse404
+  | overwriteOrganizationFileResponse409
+  | overwriteOrganizationFileResponse413
+  | overwriteOrganizationFileResponse503
+) & {
+  headers: Headers
+}
+
+export const getOverwriteOrganizationFileUrl = (
+  organizationId: string,
+  entryId: string
+) => {
+  return `/api/v1/organizations/${organizationId}/files/entries/${entryId}/overwrite`
+}
+
+export const overwriteOrganizationFile = async (
+  organizationId: string,
+  entryId: string,
+  overwriteOrganizationFileBody: OverwriteOrganizationFileBody,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<overwriteOrganizationFileResponseSuccess> => {
+  const formData = new FormData()
+  formData.append(`operationId`, overwriteOrganizationFileBody.operationId)
+  formData.append(
+    `expectedRevision`,
+    overwriteOrganizationFileBody.expectedRevision.toString()
+  )
+  formData.append(`contentSha256`, overwriteOrganizationFileBody.contentSha256)
+  formData.append(
+    `declaredBytes`,
+    overwriteOrganizationFileBody.declaredBytes.toString()
+  )
+  formData.append(`file`, overwriteOrganizationFileBody.file)
+
+  return apiClient<overwriteOrganizationFileResponseSuccess>(
+    getOverwriteOrganizationFileUrl(organizationId, entryId),
+    {
+      ...options,
+      method: "POST",
+      body: formData,
+    }
+  )
+}
+
+export const getOverwriteOrganizationFileMutationKey = () =>
+  ["overwriteOrganizationFile"] as const
+
+export const getOverwriteOrganizationFileMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof overwriteOrganizationFile>>,
+    TError,
+    OverwriteOrganizationFileMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof overwriteOrganizationFile>>,
+  TError,
+  OverwriteOrganizationFileMutationVariables,
+  TContext
+> => {
+  const mutationKey = getOverwriteOrganizationFileMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof overwriteOrganizationFile>>,
+    OverwriteOrganizationFileMutationVariables
+  > = (props) => {
+    const { organizationId, entryId, data } = props ?? {}
+
+    return overwriteOrganizationFile(
+      organizationId,
+      entryId,
+      data,
+      requestOptions
+    )
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type OverwriteOrganizationFileMutationResult = NonNullable<
+  Awaited<ReturnType<typeof overwriteOrganizationFile>>
+>
+export type OverwriteOrganizationFileMutationBody =
+  OverwriteOrganizationFileBody
+export type OverwriteOrganizationFileMutationError = ErrorType<ApiError>
+export type OverwriteOrganizationFileMutationVariables = {
+  organizationId: string
+  entryId: string
+  data: OverwriteOrganizationFileBody
+}
+
+export const useOverwriteOrganizationFile = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof overwriteOrganizationFile>>,
+      TError,
+      OverwriteOrganizationFileMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof overwriteOrganizationFile>>,
+  TError,
+  OverwriteOrganizationFileMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getOverwriteOrganizationFileMutationOptions(options),
+    queryClient
+  )
+}
+export type getFileEntryImpactResponse200 = {
+  data: FileEntryImpact
+  status: 200
+}
+
+export type getFileEntryImpactResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type getFileEntryImpactResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type getFileEntryImpactResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type getFileEntryImpactResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type getFileEntryImpactResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type getFileEntryImpactResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type getFileEntryImpactResponseSuccess =
+  getFileEntryImpactResponse200 & {
+    headers: Headers
+  }
+export type getFileEntryImpactResponseError = (
+  | getFileEntryImpactResponse400
+  | getFileEntryImpactResponse401
+  | getFileEntryImpactResponse403
+  | getFileEntryImpactResponse404
+  | getFileEntryImpactResponse409
+  | getFileEntryImpactResponse503
+) & {
+  headers: Headers
+}
+
+export const getGetFileEntryImpactUrl = (
+  organizationId: string,
+  entryId: string,
+  params: GetFileEntryImpactParams
+) => {
+  const normalizedParams = new URLSearchParams()
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value))
+    }
+  })
+
+  const stringifiedParams = normalizedParams.toString()
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/organizations/${organizationId}/files/entries/${entryId}/impact?${stringifiedParams}`
+    : `/api/v1/organizations/${organizationId}/files/entries/${entryId}/impact`
+}
+
+export const getFileEntryImpact = async (
+  organizationId: string,
+  entryId: string,
+  params: GetFileEntryImpactParams,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<getFileEntryImpactResponseSuccess> => {
+  return apiClient<getFileEntryImpactResponseSuccess>(
+    getGetFileEntryImpactUrl(organizationId, entryId, params),
+    {
+      ...options,
+      method: "GET",
+    }
+  )
+}
+
+export const getGetFileEntryImpactQueryKey = (
+  organizationId: string,
+  entryId: string,
+  params?: GetFileEntryImpactParams
+) => {
+  return [
+    `/api/v1/organizations/${organizationId}/files/entries/${entryId}/impact`,
+    ...(params ? [params] : []),
+  ] as const
+}
+
+export const getGetFileEntryImpactQueryOptions = <
+  TData = Awaited<ReturnType<typeof getFileEntryImpact>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  entryId: string,
+  params: GetFileEntryImpactParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFileEntryImpact>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetFileEntryImpactQueryKey(organizationId, entryId, params)
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getFileEntryImpact>>
+  > = ({ signal }) =>
+    getFileEntryImpact(organizationId, entryId, params, {
+      signal,
+      ...requestOptions,
+    })
+
+  return {
+    queryKey,
+    queryFn,
+    enabled:
+      organizationId !== null &&
+      organizationId !== undefined &&
+      entryId !== null &&
+      entryId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getFileEntryImpact>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetFileEntryImpactQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getFileEntryImpact>>
+>
+export type GetFileEntryImpactQueryError = ErrorType<ApiError>
+
+export function useGetFileEntryImpact<
+  TData = Awaited<ReturnType<typeof getFileEntryImpact>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  entryId: string,
+  params: GetFileEntryImpactParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFileEntryImpact>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFileEntryImpact>>,
+          TError,
+          Awaited<ReturnType<typeof getFileEntryImpact>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetFileEntryImpact<
+  TData = Awaited<ReturnType<typeof getFileEntryImpact>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  entryId: string,
+  params: GetFileEntryImpactParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFileEntryImpact>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFileEntryImpact>>,
+          TError,
+          Awaited<ReturnType<typeof getFileEntryImpact>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetFileEntryImpact<
+  TData = Awaited<ReturnType<typeof getFileEntryImpact>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  entryId: string,
+  params: GetFileEntryImpactParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFileEntryImpact>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+
+export function useGetFileEntryImpact<
+  TData = Awaited<ReturnType<typeof getFileEntryImpact>>,
+  TError = ErrorType<ApiError>,
+>(
+  organizationId: string,
+  entryId: string,
+  params: GetFileEntryImpactParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFileEntryImpact>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+} {
+  const queryOptions = getGetFileEntryImpactQueryOptions(
+    organizationId,
+    entryId,
+    params,
+    options
+  )
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+
+  return withQueryKey(query, queryOptions.queryKey)
+}
+
+export type renameFileEntryResponse200 = {
+  data: FileOperationResponse
+  status: 200
+}
+
+export type renameFileEntryResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type renameFileEntryResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type renameFileEntryResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type renameFileEntryResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type renameFileEntryResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type renameFileEntryResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type renameFileEntryResponseSuccess = renameFileEntryResponse200 & {
+  headers: Headers
+}
+export type renameFileEntryResponseError = (
+  | renameFileEntryResponse400
+  | renameFileEntryResponse401
+  | renameFileEntryResponse403
+  | renameFileEntryResponse404
+  | renameFileEntryResponse409
+  | renameFileEntryResponse503
+) & {
+  headers: Headers
+}
+
+export const getRenameFileEntryUrl = (
+  organizationId: string,
+  entryId: string
+) => {
+  return `/api/v1/organizations/${organizationId}/files/entries/${entryId}/rename`
+}
+
+export const renameFileEntry = async (
+  organizationId: string,
+  entryId: string,
+  renameFileEntryBody: RenameFileEntry,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<renameFileEntryResponseSuccess> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {}
+    if (h instanceof Headers) return Object.fromEntries(h.entries())
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string]
+        )
+      )
+    }
+    const headers: Record<string, string | readonly string[]> = {}
+    for (const [name, value] of Object.entries<
+      string | readonly string[] | undefined
+    >(h)) {
+      if (value !== undefined) headers[name] = value
+    }
+    return headers
+  }
+  return apiClient<renameFileEntryResponseSuccess>(
+    getRenameFileEntryUrl(organizationId, entryId),
+    {
+      ...options,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...getHeaders(options?.headers),
+      },
+      body: JSON.stringify(renameFileEntryBody),
+    }
+  )
+}
+
+export const getRenameFileEntryMutationKey = () => ["renameFileEntry"] as const
+
+export const getRenameFileEntryMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof renameFileEntry>>,
+    TError,
+    RenameFileEntryMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof renameFileEntry>>,
+  TError,
+  RenameFileEntryMutationVariables,
+  TContext
+> => {
+  const mutationKey = getRenameFileEntryMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof renameFileEntry>>,
+    RenameFileEntryMutationVariables
+  > = (props) => {
+    const { organizationId, entryId, data } = props ?? {}
+
+    return renameFileEntry(organizationId, entryId, data, requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type RenameFileEntryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof renameFileEntry>>
+>
+export type RenameFileEntryMutationBody = RenameFileEntry
+export type RenameFileEntryMutationError = ErrorType<ApiError>
+export type RenameFileEntryMutationVariables = {
+  organizationId: string
+  entryId: string
+  data: RenameFileEntry
+}
+
+export const useRenameFileEntry = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof renameFileEntry>>,
+      TError,
+      RenameFileEntryMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof renameFileEntry>>,
+  TError,
+  RenameFileEntryMutationVariables,
+  TContext
+> => {
+  return useMutation(getRenameFileEntryMutationOptions(options), queryClient)
+}
+export type moveFileEntryResponse200 = {
+  data: FileOperationResponse
+  status: 200
+}
+
+export type moveFileEntryResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type moveFileEntryResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type moveFileEntryResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type moveFileEntryResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type moveFileEntryResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type moveFileEntryResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type moveFileEntryResponseSuccess = moveFileEntryResponse200 & {
+  headers: Headers
+}
+export type moveFileEntryResponseError = (
+  | moveFileEntryResponse400
+  | moveFileEntryResponse401
+  | moveFileEntryResponse403
+  | moveFileEntryResponse404
+  | moveFileEntryResponse409
+  | moveFileEntryResponse503
+) & {
+  headers: Headers
+}
+
+export const getMoveFileEntryUrl = (
+  organizationId: string,
+  entryId: string
+) => {
+  return `/api/v1/organizations/${organizationId}/files/entries/${entryId}/move`
+}
+
+export const moveFileEntry = async (
+  organizationId: string,
+  entryId: string,
+  moveFileEntryBody: MoveFileEntry,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<moveFileEntryResponseSuccess> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {}
+    if (h instanceof Headers) return Object.fromEntries(h.entries())
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string]
+        )
+      )
+    }
+    const headers: Record<string, string | readonly string[]> = {}
+    for (const [name, value] of Object.entries<
+      string | readonly string[] | undefined
+    >(h)) {
+      if (value !== undefined) headers[name] = value
+    }
+    return headers
+  }
+  return apiClient<moveFileEntryResponseSuccess>(
+    getMoveFileEntryUrl(organizationId, entryId),
+    {
+      ...options,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...getHeaders(options?.headers),
+      },
+      body: JSON.stringify(moveFileEntryBody),
+    }
+  )
+}
+
+export const getMoveFileEntryMutationKey = () => ["moveFileEntry"] as const
+
+export const getMoveFileEntryMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof moveFileEntry>>,
+    TError,
+    MoveFileEntryMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof moveFileEntry>>,
+  TError,
+  MoveFileEntryMutationVariables,
+  TContext
+> => {
+  const mutationKey = getMoveFileEntryMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof moveFileEntry>>,
+    MoveFileEntryMutationVariables
+  > = (props) => {
+    const { organizationId, entryId, data } = props ?? {}
+
+    return moveFileEntry(organizationId, entryId, data, requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type MoveFileEntryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof moveFileEntry>>
+>
+export type MoveFileEntryMutationBody = MoveFileEntry
+export type MoveFileEntryMutationError = ErrorType<ApiError>
+export type MoveFileEntryMutationVariables = {
+  organizationId: string
+  entryId: string
+  data: MoveFileEntry
+}
+
+export const useMoveFileEntry = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof moveFileEntry>>,
+      TError,
+      MoveFileEntryMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof moveFileEntry>>,
+  TError,
+  MoveFileEntryMutationVariables,
+  TContext
+> => {
+  return useMutation(getMoveFileEntryMutationOptions(options), queryClient)
+}
+export type trashFileEntryResponse200 = {
+  data: FileOperationResponse
+  status: 200
+}
+
+export type trashFileEntryResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type trashFileEntryResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type trashFileEntryResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type trashFileEntryResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type trashFileEntryResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type trashFileEntryResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type trashFileEntryResponseSuccess = trashFileEntryResponse200 & {
+  headers: Headers
+}
+export type trashFileEntryResponseError = (
+  | trashFileEntryResponse400
+  | trashFileEntryResponse401
+  | trashFileEntryResponse403
+  | trashFileEntryResponse404
+  | trashFileEntryResponse409
+  | trashFileEntryResponse503
+) & {
+  headers: Headers
+}
+
+export const getTrashFileEntryUrl = (
+  organizationId: string,
+  entryId: string
+) => {
+  return `/api/v1/organizations/${organizationId}/files/entries/${entryId}/trash`
+}
+
+export const trashFileEntry = async (
+  organizationId: string,
+  entryId: string,
+  trashFileEntryBody: TrashFileEntry,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<trashFileEntryResponseSuccess> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {}
+    if (h instanceof Headers) return Object.fromEntries(h.entries())
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string]
+        )
+      )
+    }
+    const headers: Record<string, string | readonly string[]> = {}
+    for (const [name, value] of Object.entries<
+      string | readonly string[] | undefined
+    >(h)) {
+      if (value !== undefined) headers[name] = value
+    }
+    return headers
+  }
+  return apiClient<trashFileEntryResponseSuccess>(
+    getTrashFileEntryUrl(organizationId, entryId),
+    {
+      ...options,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...getHeaders(options?.headers),
+      },
+      body: JSON.stringify(trashFileEntryBody),
+    }
+  )
+}
+
+export const getTrashFileEntryMutationKey = () => ["trashFileEntry"] as const
+
+export const getTrashFileEntryMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof trashFileEntry>>,
+    TError,
+    TrashFileEntryMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof trashFileEntry>>,
+  TError,
+  TrashFileEntryMutationVariables,
+  TContext
+> => {
+  const mutationKey = getTrashFileEntryMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof trashFileEntry>>,
+    TrashFileEntryMutationVariables
+  > = (props) => {
+    const { organizationId, entryId, data } = props ?? {}
+
+    return trashFileEntry(organizationId, entryId, data, requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type TrashFileEntryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof trashFileEntry>>
+>
+export type TrashFileEntryMutationBody = TrashFileEntry
+export type TrashFileEntryMutationError = ErrorType<ApiError>
+export type TrashFileEntryMutationVariables = {
+  organizationId: string
+  entryId: string
+  data: TrashFileEntry
+}
+
+export const useTrashFileEntry = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof trashFileEntry>>,
+      TError,
+      TrashFileEntryMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof trashFileEntry>>,
+  TError,
+  TrashFileEntryMutationVariables,
+  TContext
+> => {
+  return useMutation(getTrashFileEntryMutationOptions(options), queryClient)
+}
+export type restoreFileEntryResponse200 = {
+  data: FileOperationResponse
+  status: 200
+}
+
+export type restoreFileEntryResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type restoreFileEntryResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type restoreFileEntryResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type restoreFileEntryResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type restoreFileEntryResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type restoreFileEntryResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type restoreFileEntryResponseSuccess = restoreFileEntryResponse200 & {
+  headers: Headers
+}
+export type restoreFileEntryResponseError = (
+  | restoreFileEntryResponse400
+  | restoreFileEntryResponse401
+  | restoreFileEntryResponse403
+  | restoreFileEntryResponse404
+  | restoreFileEntryResponse409
+  | restoreFileEntryResponse503
+) & {
+  headers: Headers
+}
+
+export const getRestoreFileEntryUrl = (
+  organizationId: string,
+  entryId: string
+) => {
+  return `/api/v1/organizations/${organizationId}/files/entries/${entryId}/restore`
+}
+
+export const restoreFileEntry = async (
+  organizationId: string,
+  entryId: string,
+  restoreFileEntryBody: RestoreFileEntry,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<restoreFileEntryResponseSuccess> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {}
+    if (h instanceof Headers) return Object.fromEntries(h.entries())
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string]
+        )
+      )
+    }
+    const headers: Record<string, string | readonly string[]> = {}
+    for (const [name, value] of Object.entries<
+      string | readonly string[] | undefined
+    >(h)) {
+      if (value !== undefined) headers[name] = value
+    }
+    return headers
+  }
+  return apiClient<restoreFileEntryResponseSuccess>(
+    getRestoreFileEntryUrl(organizationId, entryId),
+    {
+      ...options,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...getHeaders(options?.headers),
+      },
+      body: JSON.stringify(restoreFileEntryBody),
+    }
+  )
+}
+
+export const getRestoreFileEntryMutationKey = () =>
+  ["restoreFileEntry"] as const
+
+export const getRestoreFileEntryMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof restoreFileEntry>>,
+    TError,
+    RestoreFileEntryMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof restoreFileEntry>>,
+  TError,
+  RestoreFileEntryMutationVariables,
+  TContext
+> => {
+  const mutationKey = getRestoreFileEntryMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof restoreFileEntry>>,
+    RestoreFileEntryMutationVariables
+  > = (props) => {
+    const { organizationId, entryId, data } = props ?? {}
+
+    return restoreFileEntry(organizationId, entryId, data, requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type RestoreFileEntryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof restoreFileEntry>>
+>
+export type RestoreFileEntryMutationBody = RestoreFileEntry
+export type RestoreFileEntryMutationError = ErrorType<ApiError>
+export type RestoreFileEntryMutationVariables = {
+  organizationId: string
+  entryId: string
+  data: RestoreFileEntry
+}
+
+export const useRestoreFileEntry = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof restoreFileEntry>>,
+      TError,
+      RestoreFileEntryMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof restoreFileEntry>>,
+  TError,
+  RestoreFileEntryMutationVariables,
+  TContext
+> => {
+  return useMutation(getRestoreFileEntryMutationOptions(options), queryClient)
+}
+export type purgeFileEntryResponse200 = {
+  data: FileOperationResponse
+  status: 200
+}
+
+export type purgeFileEntryResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type purgeFileEntryResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type purgeFileEntryResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type purgeFileEntryResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type purgeFileEntryResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type purgeFileEntryResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type purgeFileEntryResponseSuccess = purgeFileEntryResponse200 & {
+  headers: Headers
+}
+export type purgeFileEntryResponseError = (
+  | purgeFileEntryResponse400
+  | purgeFileEntryResponse401
+  | purgeFileEntryResponse403
+  | purgeFileEntryResponse404
+  | purgeFileEntryResponse409
+  | purgeFileEntryResponse503
+) & {
+  headers: Headers
+}
+
+export const getPurgeFileEntryUrl = (
+  organizationId: string,
+  entryId: string
+) => {
+  return `/api/v1/organizations/${organizationId}/files/entries/${entryId}/purge`
+}
+
+export const purgeFileEntry = async (
+  organizationId: string,
+  entryId: string,
+  purgeFileEntryBody: PurgeFileEntry,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<purgeFileEntryResponseSuccess> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {}
+    if (h instanceof Headers) return Object.fromEntries(h.entries())
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string]
+        )
+      )
+    }
+    const headers: Record<string, string | readonly string[]> = {}
+    for (const [name, value] of Object.entries<
+      string | readonly string[] | undefined
+    >(h)) {
+      if (value !== undefined) headers[name] = value
+    }
+    return headers
+  }
+  return apiClient<purgeFileEntryResponseSuccess>(
+    getPurgeFileEntryUrl(organizationId, entryId),
+    {
+      ...options,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...getHeaders(options?.headers),
+      },
+      body: JSON.stringify(purgeFileEntryBody),
+    }
+  )
+}
+
+export const getPurgeFileEntryMutationKey = () => ["purgeFileEntry"] as const
+
+export const getPurgeFileEntryMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof purgeFileEntry>>,
+    TError,
+    PurgeFileEntryMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof purgeFileEntry>>,
+  TError,
+  PurgeFileEntryMutationVariables,
+  TContext
+> => {
+  const mutationKey = getPurgeFileEntryMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof purgeFileEntry>>,
+    PurgeFileEntryMutationVariables
+  > = (props) => {
+    const { organizationId, entryId, data } = props ?? {}
+
+    return purgeFileEntry(organizationId, entryId, data, requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type PurgeFileEntryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof purgeFileEntry>>
+>
+export type PurgeFileEntryMutationBody = PurgeFileEntry
+export type PurgeFileEntryMutationError = ErrorType<ApiError>
+export type PurgeFileEntryMutationVariables = {
+  organizationId: string
+  entryId: string
+  data: PurgeFileEntry
+}
+
+export const usePurgeFileEntry = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof purgeFileEntry>>,
+      TError,
+      PurgeFileEntryMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof purgeFileEntry>>,
+  TError,
+  PurgeFileEntryMutationVariables,
+  TContext
+> => {
+  return useMutation(getPurgeFileEntryMutationOptions(options), queryClient)
 }

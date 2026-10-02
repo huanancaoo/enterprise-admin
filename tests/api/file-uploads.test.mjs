@@ -2,6 +2,12 @@ import { afterAll, beforeAll, describe, expect, test } from "vitest"
 import { createHash, randomUUID } from "node:crypto"
 import { signUpVerified } from "../setup/complete-signup.mjs"
 import { startFilesEnvironment } from "../setup/files-environment.mjs"
+import {
+  configureApiClient,
+  uploadOrganizationFile,
+  overwriteOrganizationFile,
+  getFileVersionContent,
+} from "../../packages/api-client/src/index.ts"
 
 const origin = "http://localhost:3200"
 const sha = (body) => createHash("sha256").update(body).digest("hex")
@@ -133,6 +139,65 @@ for (const kind of ["Local", "RustFS"])
       })
     })
 
+    test("正式生成SDK保留原File与MIME，并以合法multipart顺序完成上传和覆盖", async () => {
+      const fixture = await workspace()
+      configureApiClient({
+        baseUrl: environment.filesBaseURL,
+        getHeaders: () => Object.fromEntries(fixture.actor.headers),
+      })
+      const source = new File(
+        [Uint8Array.from([0, 255, 128, 10])],
+        "原样.bin",
+        { type: "application/pdf" }
+      )
+      const input = fields(
+        fixture,
+        "正式SDK.bin",
+        Buffer.from(await source.arrayBuffer())
+      )
+      const first = await uploadOrganizationFile(fixture.organization.id, {
+        ...input,
+        file: source,
+      })
+      expect(first.status).toBe(200)
+      expect(first.data.phase).toBe("completed")
+      const replacement = new File(
+        [Uint8Array.from([255, 0, 10])],
+        "替换.bin",
+        { type: "text/plain" }
+      )
+      const updated = await overwriteOrganizationFile(
+        fixture.organization.id,
+        first.data.result.entryId,
+        {
+          operationId: randomUUID(),
+          expectedRevision: 1,
+          contentSha256: sha(Buffer.from(await replacement.arrayBuffer())),
+          declaredBytes: replacement.size,
+          file: replacement,
+        }
+      )
+      expect(updated.status).toBe(200)
+      expect(updated.data).toMatchObject({
+        phase: "completed",
+        result: { revision: 2 },
+      })
+      for (const [result, body] of [
+        [first.data.result, source],
+        [updated.data.result, replacement],
+      ]) {
+        const actual = await getFileVersionContent(
+          fixture.organization.id,
+          result.entryId,
+          result.versionId
+        )
+        expect(actual.data.type).toBe(body.type)
+        expect(Buffer.from(await actual.data.arrayBuffer())).toEqual(
+          Buffer.from(await body.arrayBuffer())
+        )
+      }
+    })
+
     test("实际255字节文件名可上传，256字节在受理前拒绝", async () => {
       const fixture = await workspace()
       const body = Buffer.from("边界")
@@ -147,6 +212,40 @@ for (const kind of ["Local", "RustFS"])
       expect(
         (await request(fixture, "/operations/" + invalid.operationId)).status
       ).toBe(404)
+    })
+
+    test("实际100MiB流式上传可完成，多一个字节拒绝并释放全部预留", async () => {
+      const fixture = await workspace(),
+        body = Buffer.alloc(100 * 1024 ** 2, 42)
+      const input = fields(fixture, "最大文件.bin", body)
+      const response = await upload(fixture, input, body)
+      expect(response.status).toBe(200)
+      const result = (await response.json()).result
+      const entry = await request(fixture, "/entries/" + result.entryId)
+      expect((await entry.json()).currentVersion).toMatchObject({
+        bytes: body.length,
+        sha256: input.contentSha256,
+      })
+      const ranged = await request(
+        fixture,
+        `/entries/${result.entryId}/versions/${result.versionId}/content`,
+        { headers: { Range: "bytes=-17" } }
+      )
+      expect(ranged.status).toBe(206)
+      expect(Buffer.from(await ranged.arrayBuffer())).toEqual(
+        Buffer.alloc(17, 42)
+      )
+      const oversized = Buffer.alloc(body.length + 1, 42)
+      const invalid = {
+        ...fields(fixture, "超限.bin", oversized),
+        declaredBytes: body.length,
+      }
+      const rejected = await upload(fixture, invalid, oversized)
+      expect(rejected.status).toBe(413)
+      expect((await rejected.json()).code).toBe("FILE_TOO_LARGE")
+      await assertSettledFailure(fixture, invalid, "FILE_TOO_LARGE")
+      const usage = await request(fixture, "/workspace")
+      expect((await usage.json()).usage.usedBytes).toBe(body.length)
     })
 
     test("同一请求重放核对实际文件，摘要声明相同但内容不同不能返回成功", async () => {
