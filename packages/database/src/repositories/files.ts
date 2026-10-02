@@ -1,0 +1,1574 @@
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  inArray,
+  isNull,
+  ne,
+  sql,
+} from "drizzle-orm"
+import {
+  fileEntries,
+  fileNamespaceReservations,
+  fileOperationObjects,
+  fileOperations,
+  fileReferences,
+  fileStorageUsage,
+  fileVersions,
+  projectFileContents,
+  type FileEntryPlan,
+} from "../schema/files.ts"
+import { auditEvents } from "../schema/audit.ts"
+import { projects } from "../schema/projects.ts"
+import type { TenantTx } from "../tenant.ts"
+
+export type FileEntry = typeof fileEntries.$inferSelect
+export type FileVersion = typeof fileVersions.$inferSelect
+export type FileOperation = typeof fileOperations.$inferSelect
+export type FileOperationObject = typeof fileOperationObjects.$inferSelect
+export type FileUsage = typeof fileStorageUsage.$inferSelect
+export type FileOperationInput = Pick<
+  typeof fileOperations.$inferInsert,
+  "id" | "action" | "requestHash" | "input" | "expiresAt"
+>
+export type FileListInput = {
+  parentId?: string
+  state: "active" | "trashed"
+  name?: string
+  page: number
+  pageSize: number
+  sortBy: "name" | "size" | "updatedAt"
+  sortOrder: "asc" | "desc"
+}
+export type FileReferenceInput = {
+  fileId: string
+  versionId: string
+  referenceKey: string
+  position: number
+}
+export type FileReferenceBusiness = {
+  projectId: string
+  kind: "project_attachment" | "project_rich_text"
+  locale: "zh-CN" | "en-US" | "ar" | null
+}
+
+export class FileRepositoryError extends Error {
+  constructor(
+    public readonly code: string,
+    public readonly details?: Record<string, unknown>
+  ) {
+    super(code)
+    this.name = "FileRepositoryError"
+  }
+}
+
+const entryScope = (tx: TenantTx) =>
+  eq(fileEntries.organizationId, tx.context.organizationId)
+const operationScope = (tx: TenantTx, id: string) =>
+  and(
+    eq(fileOperations.organizationId, tx.context.organizationId),
+    eq(fileOperations.id, id)
+  )
+const objectScope = (tx: TenantTx, id: string) =>
+  and(
+    eq(fileOperationObjects.organizationId, tx.context.organizationId),
+    eq(fileOperationObjects.operationId, id)
+  )
+
+function fail(code: string, details?: Record<string, unknown>): never {
+  throw new FileRepositoryError(code, details)
+}
+function assertRevision(entry: FileEntry, expected: number) {
+  if (entry.revision !== expected)
+    fail("VERSION_CONFLICT", { revision: entry.revision })
+}
+function assertPath(path: string[]) {
+  if (Buffer.byteLength(path.join("/"), "utf8") > 512)
+    fail("FILE_PATH_TOO_LONG")
+}
+function assertName(name: string, kind: "file" | "folder") {
+  const limit = kind === "folder" ? 246 : 255
+  if (
+    !name ||
+    name !== name.trim() ||
+    name !== name.normalize("NFC") ||
+    name === "." ||
+    name === ".." ||
+    /[\\/\p{Cc}]/u.test(name) ||
+    /%(?:25)*(?:2f|5c)/iu.test(name)
+  )
+    fail("FILE_NAME_INVALID")
+  if (Buffer.byteLength(name, "utf8") > limit)
+    fail("FILE_NAME_TOO_LONG", { maximumBytes: limit })
+}
+async function lockOrganization(tx: TenantTx): Promise<FileUsage> {
+  await tx.execute(
+    sql`INSERT INTO public.file_storage_usage (organization_id) VALUES (${tx.context.organizationId}::uuid) ON CONFLICT DO NOTHING`
+  )
+  const [usage] = await tx
+    .select()
+    .from(fileStorageUsage)
+    .where(eq(fileStorageUsage.organizationId, tx.context.organizationId))
+    .for("update")
+  if (!usage) throw new Error("File storage usage is missing")
+  return usage
+}
+async function findEntry(tx: TenantTx, id: string, lock?: "update" | "share") {
+  const query = tx
+    .select()
+    .from(fileEntries)
+    .where(and(entryScope(tx), eq(fileEntries.id, id)))
+  const [entry] = await (lock ? query.for(lock) : query)
+  return entry
+}
+async function requireEntry(tx: TenantTx, id: string) {
+  const entry = await findEntry(tx, id, "update")
+  if (!entry || entry.state === "purged") fail("FILE_NOT_FOUND")
+  return entry
+}
+async function requireOperation(tx: TenantTx, id: string) {
+  const [operation] = await tx
+    .select()
+    .from(fileOperations)
+    .where(operationScope(tx, id))
+    .for("update")
+  if (!operation) fail("FILE_OPERATION_NOT_FOUND")
+  return operation
+}
+async function assertAncestorsAvailable(
+  tx: TenantTx,
+  entry: FileEntry,
+  operationId?: string
+) {
+  let cursor: FileEntry | undefined = entry
+  while (cursor) {
+    if (cursor.state !== "active") fail("FILE_FOLDER_NOT_FOUND")
+    if (cursor.busyOperationId && cursor.busyOperationId !== operationId)
+      fail("FILE_OPERATION_IN_PROGRESS", {
+        operationId: cursor.busyOperationId,
+      })
+    cursor = cursor.parentId
+      ? await findEntry(tx, cursor.parentId, "update")
+      : undefined
+  }
+}
+async function requireFolder(tx: TenantTx, id: string, operationId?: string) {
+  const folder = await requireEntry(tx, id)
+  if (folder.kind !== "folder" || folder.state !== "active")
+    fail("FILE_FOLDER_NOT_FOUND")
+  await assertAncestorsAvailable(tx, folder, operationId)
+  return folder
+}
+async function assertAvailable(
+  tx: TenantTx,
+  parentId: string,
+  name: string,
+  operationId?: string,
+  excludeId?: string
+) {
+  const [entry] = await tx
+    .select({ id: fileEntries.id })
+    .from(fileEntries)
+    .where(
+      and(
+        entryScope(tx),
+        eq(fileEntries.parentId, parentId),
+        eq(fileEntries.name, name),
+        eq(fileEntries.state, "active"),
+        excludeId ? ne(fileEntries.id, excludeId) : undefined
+      )
+    )
+  if (entry) fail("FILE_NAME_CONFLICT")
+  const [reservation] = await tx
+    .select()
+    .from(fileNamespaceReservations)
+    .where(
+      and(
+        eq(fileNamespaceReservations.organizationId, tx.context.organizationId),
+        eq(fileNamespaceReservations.parentId, parentId),
+        eq(fileNamespaceReservations.name, name)
+      )
+    )
+  if (reservation && reservation.operationId !== operationId)
+    fail("FILE_OPERATION_IN_PROGRESS", { operationId: reservation.operationId })
+}
+async function reserveNamespace(
+  tx: TenantTx,
+  operationId: string,
+  parentId: string,
+  name: string
+) {
+  const [reservation] = await tx
+    .select()
+    .from(fileNamespaceReservations)
+    .where(
+      and(
+        eq(fileNamespaceReservations.organizationId, tx.context.organizationId),
+        eq(fileNamespaceReservations.parentId, parentId),
+        eq(fileNamespaceReservations.name, name)
+      )
+    )
+  if (reservation) {
+    if (reservation.operationId !== operationId)
+      fail("FILE_OPERATION_IN_PROGRESS", {
+        operationId: reservation.operationId,
+      })
+    return
+  }
+  await tx.insert(fileNamespaceReservations).values({
+    organizationId: tx.context.organizationId,
+    operationId,
+    parentId,
+    name,
+  })
+}
+async function subtree(tx: TenantTx, root: FileEntry): Promise<FileEntry[]> {
+  // 独立回收项保留原parentId；回收批次归属阻止它被后来删除的父目录吞并。
+  const rows = await tx
+    .select()
+    .from(fileEntries)
+    .where(
+      and(
+        entryScope(tx),
+        eq(fileEntries.state, root.state),
+        sql`${fileEntries.id} IN (
+          WITH RECURSIVE descendants AS (
+            SELECT id FROM public.file_entries WHERE organization_id = ${tx.context.organizationId}::uuid AND id = ${root.id}::uuid
+            UNION ALL
+            SELECT child.id FROM public.file_entries child JOIN descendants parent ON child.parent_id = parent.id
+            WHERE child.organization_id = ${tx.context.organizationId}::uuid AND child.state = ${root.state}
+              AND (child.state <> 'trashed' OR child.trash_root_id = ${root.trashRootId}::uuid)
+          ) SELECT id FROM descendants
+        )`
+      )
+    )
+    .orderBy(asc(sql`cardinality(${fileEntries.path})`), asc(fileEntries.id))
+    .for("update")
+  return rows
+}
+async function assertNoReferences(tx: TenantTx, ids: string[]) {
+  if (ids.length === 0) return
+  const [row] = await tx
+    .select({ total: count() })
+    .from(fileReferences)
+    .where(
+      and(
+        eq(fileReferences.organizationId, tx.context.organizationId),
+        inArray(fileReferences.fileId, ids)
+      )
+    )
+  if (row && row.total > 0)
+    fail("FILE_REFERENCED", { referenceCount: row.total })
+}
+async function operationObjects(tx: TenantTx, id: string) {
+  return tx
+    .select()
+    .from(fileOperationObjects)
+    .where(objectScope(tx, id))
+    .orderBy(asc(fileOperationObjects.id))
+}
+function assertNotCommitted(operation: FileOperation) {
+  if (
+    operation.committedAt ||
+    operation.completedAt ||
+    operation.phase === "failed"
+  )
+    fail("FILE_OPERATION_NOT_READY")
+}
+async function assertPrepared(tx: TenantTx, operation: FileOperation) {
+  const objects = await operationObjects(tx, operation.id)
+  if (
+    objects.some(
+      (object) => object.targetArea !== null && object.preparedAt === null
+    )
+  )
+    fail("FILE_OPERATION_NOT_READY")
+  return objects
+}
+async function recordAudit(
+  tx: TenantTx,
+  input: {
+    eventCode: string
+    resourceId: string
+    resourceType: "file" | "folder" | "project"
+    operationId?: string
+    fields?: Record<string, unknown>
+  }
+) {
+  await tx.insert(auditEvents).values({
+    organizationId: tx.context.organizationId,
+    actorId: tx.context.userId,
+    requestId: tx.context.requestId,
+    scope: "tenant",
+    tenantVisible: true,
+    eventCode: input.eventCode,
+    resourceType: input.resourceType,
+    resourceId: input.resourceId,
+    operationId: input.operationId,
+    fields: input.fields ?? {},
+  })
+}
+
+export const fileRepository = {
+  lockOrganization,
+  findEntry,
+  operationObjects,
+  reserveNamespace,
+  assertAvailable,
+  recordAudit,
+
+  async ensureWorkspace(tx: TenantTx) {
+    const usage = await lockOrganization(tx)
+    await tx
+      .insert(fileEntries)
+      .values({
+        organizationId: tx.context.organizationId,
+        kind: "folder",
+        parentId: null,
+        name: "",
+        path: [],
+        createdBy: tx.context.userId,
+      })
+      .onConflictDoNothing()
+    const [root] = await tx
+      .select()
+      .from(fileEntries)
+      .where(and(entryScope(tx), isNull(fileEntries.parentId)))
+    if (!root) throw new Error("File root is missing")
+    return { root, usage }
+  },
+
+  async usage(tx: TenantTx) {
+    const [usage] = await tx
+      .select()
+      .from(fileStorageUsage)
+      .where(eq(fileStorageUsage.organizationId, tx.context.organizationId))
+    return usage
+  },
+
+  async listPage(tx: TenantTx, input: FileListInput) {
+    // 与写入共用组织行锁，让total和当前页来自同一个文件事实边界。
+    await lockOrganization(tx)
+    const filter = and(
+      entryScope(tx),
+      eq(fileEntries.state, input.state),
+      ne(fileEntries.name, ""),
+      input.name
+        ? sql`position(lower(${input.name}) in lower(${fileEntries.name})) > 0`
+        : input.parentId
+          ? eq(fileEntries.parentId, input.parentId)
+          : input.state === "trashed"
+            ? eq(fileEntries.trashRootId, fileEntries.id)
+            : undefined
+    )
+    const size = sql<number | null>`${fileVersions.bytes}`
+    const sort =
+      input.sortBy === "name"
+        ? fileEntries.name
+        : input.sortBy === "size"
+          ? size
+          : fileEntries.updatedAt
+    const [total] = await tx
+      .select({ total: count() })
+      .from(fileEntries)
+      .where(filter)
+    const items = await tx
+      .select({ entry: fileEntries, version: fileVersions })
+      .from(fileEntries)
+      .leftJoin(
+        fileVersions,
+        and(
+          eq(fileVersions.organizationId, tx.context.organizationId),
+          eq(fileVersions.fileId, fileEntries.id),
+          eq(fileVersions.id, fileEntries.currentVersionId)
+        )
+      )
+      .where(filter)
+      .orderBy(
+        input.sortOrder === "asc" ? asc(sort) : desc(sort),
+        asc(fileEntries.id)
+      )
+      .limit(input.pageSize)
+      .offset((input.page - 1) * input.pageSize)
+    return {
+      items,
+      total: total!.total,
+      page: input.page,
+      pageSize: input.pageSize,
+    }
+  },
+
+  async breadcrumbs(tx: TenantTx, id: string) {
+    const entry = await findEntry(tx, id)
+    if (!entry || entry.state !== "active" || entry.kind !== "folder")
+      fail("FILE_FOLDER_NOT_FOUND")
+    const result: FileEntry[] = [entry]
+    let parentId = entry.parentId
+    while (parentId) {
+      const parent = await findEntry(tx, parentId)
+      if (!parent || parent.state !== "active")
+        throw new Error("File parent is missing")
+      result.unshift(parent)
+      parentId = parent.parentId
+    }
+    return result
+  },
+
+  async versions(tx: TenantTx, fileId: string) {
+    return tx
+      .select()
+      .from(fileVersions)
+      .where(
+        and(
+          eq(fileVersions.organizationId, tx.context.organizationId),
+          eq(fileVersions.fileId, fileId),
+          isNull(fileVersions.purgedAt)
+        )
+      )
+      .orderBy(desc(fileVersions.createdAt), asc(fileVersions.id))
+  },
+
+  async findVersion(
+    tx: TenantTx,
+    fileId: string,
+    versionId: string,
+    lock?: "share"
+  ) {
+    const entry = await findEntry(tx, fileId, lock)
+    if (!entry || entry.state !== "active" || entry.kind !== "file")
+      fail("FILE_NOT_FOUND")
+    if (entry.busyOperationId)
+      fail("FILE_OPERATION_IN_PROGRESS", { operationId: entry.busyOperationId })
+    const query = tx
+      .select()
+      .from(fileVersions)
+      .where(
+        and(
+          eq(fileVersions.organizationId, tx.context.organizationId),
+          eq(fileVersions.fileId, fileId),
+          eq(fileVersions.id, versionId),
+          isNull(fileVersions.purgedAt)
+        )
+      )
+    const [version] = await (lock ? query.for(lock) : query)
+    if (!version) fail("FILE_VERSION_NOT_FOUND")
+    return { entry, version }
+  },
+
+  async beginOperation(tx: TenantTx, input: FileOperationInput) {
+    await lockOrganization(tx)
+    const [existing] = await tx
+      .select()
+      .from(fileOperations)
+      .where(operationScope(tx, input.id))
+      .for("update")
+    if (existing) {
+      if (
+        existing.actorId !== tx.context.userId ||
+        existing.action !== input.action ||
+        existing.requestHash !== input.requestHash
+      )
+        fail("IDEMPOTENCY_KEY_REUSED")
+      return { operation: existing, reused: true }
+    }
+    const [operation] = await tx
+      .insert(fileOperations)
+      .values({
+        id: input.id,
+        action: input.action,
+        requestHash: input.requestHash,
+        input: input.input,
+        expiresAt: input.expiresAt,
+        organizationId: tx.context.organizationId,
+        actorId: tx.context.userId,
+        requestId: tx.context.requestId,
+      })
+      .returning()
+    return { operation: operation!, reused: false }
+  },
+
+  async findOperation(tx: TenantTx, id: string) {
+    const [operation] = await tx
+      .select()
+      .from(fileOperations)
+      .where(operationScope(tx, id))
+    return operation
+  },
+
+  async claimOperation(
+    tx: TenantTx,
+    id: string,
+    leaseId: string,
+    now: Date,
+    leaseMilliseconds = 120_000
+  ) {
+    await lockOrganization(tx)
+    const operation = await requireOperation(tx, id)
+    if (operation.completedAt || operation.phase === "failed") return undefined
+    if (
+      operation.leaseId &&
+      operation.leaseId !== leaseId &&
+      operation.leaseExpiresAt &&
+      operation.leaseExpiresAt > now
+    )
+      return undefined
+    const [claimed] = await tx
+      .update(fileOperations)
+      .set({
+        leaseId,
+        leaseExpiresAt: new Date(now.getTime() + leaseMilliseconds),
+        phase: operation.committedAt ? "cleaning" : "preparing",
+        updatedAt: now,
+      })
+      .where(operationScope(tx, id))
+      .returning()
+    return claimed
+  },
+
+  async reserveUpload(
+    tx: TenantTx,
+    operationId: string,
+    input: {
+      parentId: string
+      name: string
+      declaredBytes: number
+      overwriteId?: string
+      expectedRevision?: number
+    }
+  ) {
+    const usage = await lockOrganization(tx)
+    const operation = await requireOperation(tx, operationId)
+    assertNotCommitted(operation)
+    if (operation.action !== (input.overwriteId ? "overwrite" : "upload"))
+      fail("FILE_OPERATION_NOT_READY")
+    if (
+      !Number.isSafeInteger(input.declaredBytes) ||
+      input.declaredBytes < 0 ||
+      input.declaredBytes > 100 * 1024 ** 2
+    )
+      fail("FILE_TOO_LARGE")
+    assertName(input.name, "file")
+    const folder = await requireFolder(tx, input.parentId, operationId)
+    assertPath([...folder.path, input.name])
+    if (input.overwriteId) {
+      const file = await requireEntry(tx, input.overwriteId)
+      if (
+        file.kind !== "file" ||
+        file.state !== "active" ||
+        file.parentId !== input.parentId ||
+        file.name !== input.name
+      )
+        fail("FILE_NOT_FOUND")
+      assertRevision(file, input.expectedRevision!)
+      if (file.busyOperationId && file.busyOperationId !== operationId)
+        fail("FILE_OPERATION_IN_PROGRESS", {
+          operationId: file.busyOperationId,
+        })
+      await tx
+        .update(fileEntries)
+        .set({ busyOperationId: operationId })
+        .where(and(entryScope(tx), eq(fileEntries.id, file.id)))
+    }
+    await assertAvailable(
+      tx,
+      input.parentId,
+      input.name,
+      operationId,
+      input.overwriteId
+    )
+    await reserveNamespace(tx, operationId, input.parentId, input.name)
+    if (operation.reservedBytes > 0) {
+      if (operation.reservedBytes !== input.declaredBytes)
+        fail("IDEMPOTENCY_KEY_REUSED")
+      return
+    }
+    if (
+      usage.usedBytes + usage.reservedBytes + input.declaredBytes >
+      usage.quotaBytes
+    )
+      fail("FILE_QUOTA_EXCEEDED", {
+        quotaBytes: usage.quotaBytes,
+        usedBytes: usage.usedBytes,
+        reservedBytes: usage.reservedBytes,
+      })
+    await tx
+      .update(fileStorageUsage)
+      .set({ reservedBytes: usage.reservedBytes + input.declaredBytes })
+      .where(eq(fileStorageUsage.organizationId, tx.context.organizationId))
+    await tx
+      .update(fileOperations)
+      .set({
+        reservedBytes: input.declaredBytes,
+        phase: "preparing",
+        updatedAt: new Date(),
+      })
+      .where(operationScope(tx, operationId))
+  },
+
+  async addObjects(
+    tx: TenantTx,
+    operationId: string,
+    objects: Omit<
+      typeof fileOperationObjects.$inferInsert,
+      "organizationId" | "operationId"
+    >[]
+  ) {
+    await lockOrganization(tx)
+    const operation = await requireOperation(tx, operationId)
+    assertNotCommitted(operation)
+    if (objects.length === 0) return []
+    return tx
+      .insert(fileOperationObjects)
+      .values(
+        objects.map((object) => ({
+          ...object,
+          organizationId: tx.context.organizationId,
+          operationId,
+        }))
+      )
+      .returning()
+  },
+
+  async recordPreparedObject(
+    tx: TenantTx,
+    operationId: string,
+    objectId: string,
+    facts: { bytes: number; sha256: string | null; transientBytes: number },
+    leaseId?: string
+  ) {
+    const usage = await lockOrganization(tx)
+    const operation = await requireOperation(tx, operationId)
+    assertNotCommitted(operation)
+    if (leaseId && operation.leaseId !== leaseId)
+      fail("FILE_OPERATION_LEASE_CONFLICT")
+    const [object] = await tx
+      .select()
+      .from(fileOperationObjects)
+      .where(
+        and(objectScope(tx, operationId), eq(fileOperationObjects.id, objectId))
+      )
+      .for("update")
+    if (!object || !object.targetArea) fail("FILE_OPERATION_NOT_READY")
+    if (
+      !Number.isSafeInteger(facts.bytes) ||
+      facts.bytes < 0 ||
+      (!object.directory &&
+        (!facts.sha256 || !/^[0-9a-f]{64}$/.test(facts.sha256))) ||
+      facts.transientBytes < 0 ||
+      !Number.isSafeInteger(facts.transientBytes) ||
+      (object.expectedBytes !== null && object.expectedBytes !== facts.bytes) ||
+      (object.expectedSha256 !== null && object.expectedSha256 !== facts.sha256)
+    )
+      fail("FILE_CONTENT_MISMATCH")
+    if (object.preparedAt) {
+      if (
+        object.actualBytes !== facts.bytes ||
+        object.actualSha256 !== facts.sha256
+      )
+        fail("FILE_CONTENT_MISMATCH")
+      return object
+    }
+    const [updated] = await tx
+      .update(fileOperationObjects)
+      .set({
+        preparedAt: new Date(),
+        actualBytes: facts.bytes,
+        actualSha256: facts.sha256,
+        transientBytes: facts.transientBytes,
+      })
+      .where(
+        and(objectScope(tx, operationId), eq(fileOperationObjects.id, objectId))
+      )
+      .returning()
+    await tx
+      .update(fileStorageUsage)
+      .set({ transientBytes: usage.transientBytes + facts.transientBytes })
+      .where(eq(fileStorageUsage.organizationId, tx.context.organizationId))
+    return updated!
+  },
+
+  async prepareFolder(
+    tx: TenantTx,
+    operationId: string,
+    input: { id: string; parentId: string; name: string }
+  ) {
+    await lockOrganization(tx)
+    const operation = await requireOperation(tx, operationId)
+    assertNotCommitted(operation)
+    if (operation.action !== "create-folder") fail("FILE_OPERATION_NOT_READY")
+    assertName(input.name, "folder")
+    const folder = await requireFolder(tx, input.parentId, operationId)
+    const path = [...folder.path, input.name]
+    assertPath(path)
+    const existing = await operationObjects(tx, operationId)
+    if (existing.length) return { path, objects: existing }
+    await assertAvailable(tx, input.parentId, input.name, operationId)
+    await reserveNamespace(tx, operationId, input.parentId, input.name)
+    return {
+      path,
+      objects: await this.addObjects(tx, operationId, [
+        {
+          entryId: input.id,
+          directory: true,
+          targetArea: "files",
+          targetPath: path,
+          expectedBytes: 0,
+        },
+      ]),
+    }
+  },
+
+  async commitFolder(
+    tx: TenantTx,
+    operationId: string,
+    input: { id: string; parentId: string; name: string }
+  ) {
+    await lockOrganization(tx)
+    const operation = await requireOperation(tx, operationId)
+    if (operation.committedAt) return findEntry(tx, input.id)
+    assertNotCommitted(operation)
+    if (operation.action !== "create-folder") fail("FILE_OPERATION_NOT_READY")
+    const parent = await requireFolder(tx, input.parentId, operationId)
+    const path = [...parent.path, input.name]
+    const objects = await assertPrepared(tx, operation)
+    if (
+      !objects.some(
+        (object) =>
+          object.entryId === input.id &&
+          object.directory &&
+          object.targetArea === "files" &&
+          JSON.stringify(object.targetPath) === JSON.stringify(path)
+      )
+    )
+      fail("FILE_OPERATION_NOT_READY")
+    await assertAvailable(tx, input.parentId, input.name, operationId)
+    const [entry] = await tx
+      .insert(fileEntries)
+      .values({
+        ...input,
+        organizationId: tx.context.organizationId,
+        kind: "folder",
+        path,
+        createdBy: tx.context.userId,
+        busyOperationId: operationId,
+      })
+      .returning()
+    const now = new Date()
+    await recordAudit(tx, {
+      eventCode: "folder.created",
+      resourceType: "folder",
+      resourceId: entry!.id,
+      operationId,
+    })
+    await tx
+      .update(fileOperations)
+      .set({
+        phase: "committed",
+        committedAt: now,
+        updatedAt: now,
+        result: { entryId: entry!.id, revision: entry!.revision },
+      })
+      .where(operationScope(tx, operationId))
+    return entry!
+  },
+
+  async commitUpload(
+    tx: TenantTx,
+    operationId: string,
+    input: {
+      fileId: string
+      versionId: string
+      objectId: string
+      parentId: string
+      name: string
+      contentType: string
+      expectedRevision?: number
+    }
+  ) {
+    const usage = await lockOrganization(tx)
+    const operation = await requireOperation(tx, operationId)
+    if (operation.committedAt) return findEntry(tx, input.fileId)
+    assertNotCommitted(operation)
+    if (operation.action !== "upload" && operation.action !== "overwrite")
+      fail("FILE_OPERATION_NOT_READY")
+    const folder = await requireFolder(tx, input.parentId, operationId)
+    const path = [...folder.path, input.name]
+    const objects = await assertPrepared(tx, operation)
+    const object = objects.find((candidate) => candidate.id === input.objectId)
+    if (
+      !object ||
+      object.entryId !== input.fileId ||
+      object.versionId !== input.versionId ||
+      object.directory ||
+      object.targetArea !== "files" ||
+      JSON.stringify(object.targetPath) !== JSON.stringify(path) ||
+      object.actualBytes !== operation.reservedBytes ||
+      !object.actualSha256
+    )
+      fail("FILE_OPERATION_NOT_READY")
+    let file: FileEntry
+    const now = new Date()
+    if (operation.action === "overwrite") {
+      file = await requireEntry(tx, input.fileId)
+      assertRevision(file, input.expectedRevision!)
+      if (
+        file.busyOperationId !== operationId ||
+        file.parentId !== input.parentId ||
+        file.name !== input.name ||
+        !file.currentVersionId
+      )
+        fail("FILE_OPERATION_NOT_READY")
+      const [previous] = await tx
+        .select()
+        .from(fileVersions)
+        .where(
+          and(
+            eq(fileVersions.organizationId, tx.context.organizationId),
+            eq(fileVersions.id, file.currentVersionId),
+            eq(fileVersions.fileId, file.id)
+          )
+        )
+        .for("update")
+      const archive = objects.find(
+        (candidate) =>
+          candidate.versionId === previous?.id &&
+          candidate.targetArea === "history" &&
+          candidate.preparedAt
+      )
+      if (
+        !previous ||
+        !archive?.targetPath ||
+        archive.actualSha256 !== previous.sha256 ||
+        archive.actualBytes !== previous.bytes
+      )
+        fail("FILE_OPERATION_NOT_READY")
+      await tx
+        .update(fileVersions)
+        .set({
+          storageArea: "history",
+          storagePath: archive.targetPath,
+          archivedPath: file.path,
+          retiredAt: now,
+          expiresAt: new Date(now.getTime() + usage.historyDays * 86_400_000),
+        })
+        .where(
+          and(
+            eq(fileVersions.organizationId, tx.context.organizationId),
+            eq(fileVersions.id, previous.id)
+          )
+        )
+    } else {
+      await assertAvailable(tx, input.parentId, input.name, operationId)
+      const [created] = await tx
+        .insert(fileEntries)
+        .values({
+          id: input.fileId,
+          organizationId: tx.context.organizationId,
+          parentId: input.parentId,
+          name: input.name,
+          kind: "file",
+          path,
+          createdBy: tx.context.userId,
+          busyOperationId: operationId,
+        })
+        .returning()
+      file = created!
+    }
+    await tx.insert(fileVersions).values({
+      id: input.versionId,
+      organizationId: tx.context.organizationId,
+      fileId: file.id,
+      bytes: object.actualBytes,
+      sha256: object.actualSha256,
+      contentType: input.contentType,
+      storageArea: "files",
+      storagePath: path,
+      createdBy: tx.context.userId,
+    })
+    const [updated] = await tx
+      .update(fileEntries)
+      .set({
+        currentVersionId: input.versionId,
+        revision:
+          operation.action === "overwrite" ? file.revision + 1 : file.revision,
+        updatedAt: now,
+      })
+      .where(and(entryScope(tx), eq(fileEntries.id, file.id)))
+      .returning()
+    await tx
+      .update(fileStorageUsage)
+      .set({
+        usedBytes: usage.usedBytes + object.actualBytes,
+        reservedBytes: usage.reservedBytes - operation.reservedBytes,
+      })
+      .where(eq(fileStorageUsage.organizationId, tx.context.organizationId))
+    await recordAudit(tx, {
+      eventCode:
+        operation.action === "overwrite" ? "file.overwritten" : "file.uploaded",
+      resourceType: "file",
+      resourceId: file.id,
+      operationId,
+      fields: { versionId: input.versionId, bytes: object.actualBytes },
+    })
+    await tx
+      .update(fileOperations)
+      .set({
+        phase: "committed",
+        committedAt: now,
+        updatedAt: now,
+        reservedBytes: 0,
+        result: {
+          entryId: file.id,
+          versionId: input.versionId,
+          revision: updated!.revision,
+        },
+      })
+      .where(operationScope(tx, operationId))
+    return updated!
+  },
+
+  async preparePathOperation(
+    tx: TenantTx,
+    operationId: string,
+    input: {
+      entryId: string
+      expectedRevision: number
+      parentId?: string
+      name?: string
+      now: Date
+    }
+  ) {
+    const usage = await lockOrganization(tx)
+    const operation = await requireOperation(tx, operationId)
+    assertNotCommitted(operation)
+    if (
+      !["rename", "move", "trash", "restore", "purge"].includes(
+        operation.action
+      )
+    )
+      fail("FILE_OPERATION_NOT_READY")
+    if (operation.plans.length)
+      return {
+        plans: operation.plans,
+        objects: await operationObjects(tx, operationId),
+      }
+    const root = await requireEntry(tx, input.entryId)
+    if (!root.parentId) fail("FILE_ROOT_PROTECTED")
+    assertRevision(root, input.expectedRevision)
+    if (root.busyOperationId && root.busyOperationId !== operationId)
+      fail("FILE_OPERATION_IN_PROGRESS", { operationId: root.busyOperationId })
+    const restoring = operation.action === "restore"
+    const purging = operation.action === "purge"
+    const trashing = operation.action === "trash"
+    if (
+      restoring || purging ? root.state !== "trashed" : root.state !== "active"
+    )
+      fail("FILE_NOT_FOUND")
+    if (restoring && (!root.expiresAt || root.expiresAt <= input.now))
+      fail("FILE_RESTORE_EXPIRED")
+    const affected = root.kind === "folder" ? await subtree(tx, root) : [root]
+    const busy = affected.find(
+      (entry) => entry.busyOperationId && entry.busyOperationId !== operationId
+    )
+    if (busy)
+      fail("FILE_OPERATION_IN_PROGRESS", { operationId: busy.busyOperationId })
+    const [childReservation] = await tx
+      .select()
+      .from(fileNamespaceReservations)
+      .where(
+        and(
+          eq(
+            fileNamespaceReservations.organizationId,
+            tx.context.organizationId
+          ),
+          inArray(
+            fileNamespaceReservations.parentId,
+            affected.map((entry) => entry.id)
+          ),
+          ne(fileNamespaceReservations.operationId, operationId)
+        )
+      )
+      .limit(1)
+    if (childReservation)
+      fail("FILE_OPERATION_IN_PROGRESS", {
+        operationId: childReservation.operationId,
+      })
+    if (trashing || purging)
+      await assertNoReferences(
+        tx,
+        affected
+          .filter((entry) => entry.kind === "file")
+          .map((entry) => entry.id)
+      )
+    const parentId = input.parentId ?? root.parentId
+    const name = input.name ?? root.name
+    assertName(name, root.kind)
+    let parent: FileEntry | undefined
+    if (!trashing && !purging) {
+      if (affected.some((entry) => entry.id === parentId))
+        fail("FILE_FOLDER_CYCLE")
+      parent = await requireFolder(tx, parentId, operationId)
+      await assertAvailable(tx, parentId, name, operationId, root.id)
+    }
+    const rootPath = parent ? [...parent.path, name] : root.path
+    const expiresAt = trashing
+      ? new Date(
+          input.now.getTime() + usage.trashDays * 86_400_000
+        ).toISOString()
+      : null
+    const plans: FileEntryPlan[] = affected.map((entry) => {
+      const path = parent
+        ? [...rootPath, ...entry.path.slice(root.path.length)]
+        : entry.path
+      assertPath(path)
+      return {
+        id: entry.id,
+        expectedRevision: entry.revision,
+        previousParentId: entry.parentId,
+        parentId: entry.id === root.id ? parentId : entry.parentId,
+        previousName: entry.name,
+        name: entry.id === root.id ? name : entry.name,
+        previousPath: entry.path,
+        path,
+        previousState: entry.state,
+        state: trashing ? "trashed" : purging ? "purged" : "active",
+        trashRootId: trashing ? root.id : null,
+        deletedAt: trashing ? input.now.toISOString() : null,
+        expiresAt,
+      }
+    })
+    await reserveNamespace(tx, operationId, root.parentId, root.name)
+    if (parent) await reserveNamespace(tx, operationId, parentId, name)
+    await tx
+      .update(fileEntries)
+      .set({ busyOperationId: operationId })
+      .where(
+        and(
+          entryScope(tx),
+          inArray(
+            fileEntries.id,
+            affected.map((entry) => entry.id)
+          )
+        )
+      )
+    await tx
+      .update(fileOperations)
+      .set({ plans, phase: "preparing", updatedAt: input.now })
+      .where(operationScope(tx, operationId))
+    const objects: Omit<
+      typeof fileOperationObjects.$inferInsert,
+      "organizationId" | "operationId"
+    >[] = []
+    for (const entry of affected) {
+      const plan = plans.find((candidate) => candidate.id === entry.id)!
+      if (entry.kind === "folder") {
+        const sourceArea = entry.state === "active" ? "files" : "trash"
+        const sourcePath =
+          entry.state === "active"
+            ? entry.path
+            : entry.id === entry.trashRootId
+              ? [entry.id]
+              : [entry.trashRootId!, entry.id]
+        objects.push({
+          entryId: entry.id,
+          directory: true,
+          sourceArea,
+          sourcePath,
+          targetArea: purging ? null : trashing ? "trash" : "files",
+          targetPath: purging
+            ? null
+            : trashing
+              ? entry.id === root.id
+                ? [root.id]
+                : [root.id, entry.id]
+              : plan.path,
+          expectedBytes: 0,
+        })
+      } else {
+        const versions = await tx
+          .select()
+          .from(fileVersions)
+          .where(
+            and(
+              eq(fileVersions.organizationId, tx.context.organizationId),
+              eq(fileVersions.fileId, entry.id),
+              isNull(fileVersions.purgedAt),
+              purging ? undefined : eq(fileVersions.id, entry.currentVersionId!)
+            )
+          )
+          .for("update")
+        for (const version of versions)
+          objects.push({
+            entryId: entry.id,
+            versionId: version.id,
+            directory: false,
+            sourceArea: version.storageArea,
+            sourcePath: version.storagePath,
+            targetArea: purging ? null : trashing ? "trash" : "files",
+            targetPath: purging
+              ? null
+              : trashing
+                ? [root.id, version.id]
+                : plan.path,
+            expectedBytes: version.bytes,
+            expectedSha256: version.sha256,
+          })
+      }
+    }
+    return { plans, objects: await this.addObjects(tx, operationId, objects) }
+  },
+
+  async commitPathOperation(tx: TenantTx, operationId: string, now: Date) {
+    const usage = await lockOrganization(tx)
+    const operation = await requireOperation(tx, operationId)
+    if (operation.committedAt) return operation
+    assertNotCommitted(operation)
+    const objects = await assertPrepared(tx, operation)
+    if (operation.plans.length === 0) fail("FILE_OPERATION_NOT_READY")
+    const purging = operation.action === "purge"
+    if (
+      purging &&
+      objects.some((object) => object.sourceArea && !object.sourceDeletedAt)
+    )
+      fail("FILE_OPERATION_NOT_READY")
+    const entries = []
+    for (const plan of operation.plans) {
+      const entry = await requireEntry(tx, plan.id)
+      if (!entry.parentId) fail("FILE_ROOT_PROTECTED")
+      assertRevision(entry, plan.expectedRevision)
+      if (entry.busyOperationId !== operationId)
+        fail("FILE_OPERATION_NOT_READY")
+      entries.push(entry)
+    }
+    if (operation.action === "trash" || purging)
+      await assertNoReferences(
+        tx,
+        entries
+          .filter((entry) => entry.kind === "file")
+          .map((entry) => entry.id)
+      )
+    if (
+      operation.action === "restore" &&
+      entries.some((entry) => !entry.expiresAt || entry.expiresAt <= now)
+    )
+      fail("FILE_RESTORE_EXPIRED")
+    for (const plan of operation.plans)
+      await tx
+        .update(fileEntries)
+        .set({
+          parentId: plan.parentId,
+          name: plan.name,
+          path: plan.path,
+          state: plan.state,
+          revision: plan.expectedRevision + 1,
+          trashRootId: plan.trashRootId,
+          deletedAt: plan.deletedAt ? new Date(plan.deletedAt) : null,
+          expiresAt: plan.expiresAt ? new Date(plan.expiresAt) : null,
+          updatedAt: now,
+        })
+        .where(and(entryScope(tx), eq(fileEntries.id, plan.id)))
+    let purgedBytes = 0
+    for (const object of objects)
+      if (object.versionId) {
+        const [version] = await tx
+          .select()
+          .from(fileVersions)
+          .where(
+            and(
+              eq(fileVersions.organizationId, tx.context.organizationId),
+              eq(fileVersions.id, object.versionId),
+              eq(fileVersions.fileId, object.entryId)
+            )
+          )
+          .for("update")
+        if (!version) throw new Error("Operation version is missing")
+        if (purging) {
+          if (!version.purgedAt) {
+            purgedBytes += version.bytes
+            await tx
+              .update(fileVersions)
+              .set({ purgedAt: now })
+              .where(
+                and(
+                  eq(fileVersions.organizationId, tx.context.organizationId),
+                  eq(fileVersions.id, version.id)
+                )
+              )
+          }
+        } else if (object.targetArea && object.targetPath) {
+          await tx
+            .update(fileVersions)
+            .set({
+              storageArea: object.targetArea,
+              storagePath: object.targetPath,
+              archivedPath:
+                operation.action === "trash"
+                  ? entries.find((entry) => entry.id === object.entryId)!.path
+                  : version.archivedPath,
+            })
+            .where(
+              and(
+                eq(fileVersions.organizationId, tx.context.organizationId),
+                eq(fileVersions.id, version.id)
+              )
+            )
+        }
+      }
+    if (purgedBytes)
+      await tx
+        .update(fileStorageUsage)
+        .set({ usedBytes: usage.usedBytes - purgedBytes })
+        .where(eq(fileStorageUsage.organizationId, tx.context.organizationId))
+    const root = entries[0]!
+    await recordAudit(tx, {
+      eventCode: `${root.kind}.${operation.action === "trash" ? "trashed" : operation.action === "purge" ? "purged" : operation.action === "restore" ? "restored" : operation.action === "rename" ? "renamed" : "moved"}`,
+      resourceType: root.kind,
+      resourceId: root.id,
+      operationId,
+      fields: { affectedEntries: entries.length },
+    })
+    const [committed] = await tx
+      .update(fileOperations)
+      .set({
+        phase: "committed",
+        committedAt: now,
+        updatedAt: now,
+        result: {
+          entryId: root.id,
+          revision: root.revision + 1,
+          affectedEntries: entries.length,
+        },
+      })
+      .where(operationScope(tx, operationId))
+      .returning()
+    return committed!
+  },
+
+  async recordObjectDeleted(
+    tx: TenantTx,
+    operationId: string,
+    objectId: string,
+    side: "source" | "target",
+    now: Date
+  ) {
+    const usage = await lockOrganization(tx)
+    await requireOperation(tx, operationId)
+    const [object] = await tx
+      .select()
+      .from(fileOperationObjects)
+      .where(
+        and(objectScope(tx, operationId), eq(fileOperationObjects.id, objectId))
+      )
+      .for("update")
+    if (!object) fail("FILE_OPERATION_NOT_FOUND")
+    const previous =
+      side === "source" ? object.sourceDeletedAt : object.targetDeletedAt
+    if (previous) return
+    await tx
+      .update(fileOperationObjects)
+      .set(
+        side === "source"
+          ? { sourceDeletedAt: now, transientBytes: 0 }
+          : { targetDeletedAt: now, transientBytes: 0 }
+      )
+      .where(
+        and(objectScope(tx, operationId), eq(fileOperationObjects.id, objectId))
+      )
+    // 临时占用只在该精确副本的删除事实首次落库时释放。
+    await tx
+      .update(fileStorageUsage)
+      .set({ transientBytes: usage.transientBytes - object.transientBytes })
+      .where(eq(fileStorageUsage.organizationId, tx.context.organizationId))
+  },
+
+  async recordSourceRestored(
+    tx: TenantTx,
+    operationId: string,
+    objectId: string,
+    facts: { bytes: number; sha256: string | null },
+    now: Date
+  ) {
+    const usage = await lockOrganization(tx)
+    const operation = await requireOperation(tx, operationId)
+    assertNotCommitted(operation)
+    const [object] = await tx
+      .select()
+      .from(fileOperationObjects)
+      .where(
+        and(objectScope(tx, operationId), eq(fileOperationObjects.id, objectId))
+      )
+      .for("update")
+    if (
+      !object ||
+      !object.sourceDeletedAt ||
+      object.expectedBytes !== facts.bytes ||
+      (object.expectedSha256 !== null && object.expectedSha256 !== facts.sha256)
+    )
+      fail("FILE_CONTENT_MISMATCH")
+    if (object.sourceRestoredAt) return
+    const transientBytes = object.targetDeletedAt ? 0 : facts.bytes
+    await tx
+      .update(fileOperationObjects)
+      .set({ sourceRestoredAt: now, transientBytes })
+      .where(
+        and(objectScope(tx, operationId), eq(fileOperationObjects.id, objectId))
+      )
+    await tx
+      .update(fileStorageUsage)
+      .set({ transientBytes: usage.transientBytes + transientBytes })
+      .where(eq(fileStorageUsage.organizationId, tx.context.organizationId))
+  },
+
+  async finishOperation(tx: TenantTx, operationId: string, now: Date) {
+    await lockOrganization(tx)
+    const operation = await requireOperation(tx, operationId)
+    if (operation.completedAt) return operation
+    if (!operation.committedAt) fail("FILE_OPERATION_NOT_READY")
+    const objects = await operationObjects(tx, operationId)
+    if (
+      objects.some(
+        (object) =>
+          (object.sourceArea && !object.sourceDeletedAt) ||
+          (object.targetArea === "staging" && !object.targetDeletedAt)
+      )
+    )
+      fail("FILE_OPERATION_NOT_READY")
+    await tx
+      .delete(fileNamespaceReservations)
+      .where(
+        and(
+          eq(
+            fileNamespaceReservations.organizationId,
+            tx.context.organizationId
+          ),
+          eq(fileNamespaceReservations.operationId, operationId)
+        )
+      )
+    await tx
+      .update(fileEntries)
+      .set({ busyOperationId: null })
+      .where(and(entryScope(tx), eq(fileEntries.busyOperationId, operationId)))
+    const [completed] = await tx
+      .update(fileOperations)
+      .set({
+        phase: "completed",
+        completedAt: now,
+        updatedAt: now,
+        leaseId: null,
+        leaseExpiresAt: null,
+        errorCode: null,
+      })
+      .where(operationScope(tx, operationId))
+      .returning()
+    return completed!
+  },
+
+  async recordOperationError(
+    tx: TenantTx,
+    operationId: string,
+    errorCode: string,
+    now: Date
+  ) {
+    await lockOrganization(tx)
+    const operation = await requireOperation(tx, operationId)
+    if (operation.completedAt || operation.phase === "failed") return operation
+    const [updated] = await tx
+      .update(fileOperations)
+      .set({
+        phase: operation.committedAt ? "cleaning" : "preparing",
+        errorCode,
+        updatedAt: now,
+      })
+      .where(operationScope(tx, operationId))
+      .returning()
+    return updated!
+  },
+
+  async failOperation(
+    tx: TenantTx,
+    operationId: string,
+    errorCode: string,
+    now: Date
+  ) {
+    const usage = await lockOrganization(tx)
+    const operation = await requireOperation(tx, operationId)
+    if (operation.completedAt) return operation
+    if (operation.committedAt) {
+      const [failed] = await tx
+        .update(fileOperations)
+        .set({
+          phase: "cleaning",
+          errorCode,
+          updatedAt: now,
+          leaseId: null,
+          leaseExpiresAt: null,
+        })
+        .where(operationScope(tx, operationId))
+        .returning()
+      return failed!
+    }
+    const objects = await operationObjects(tx, operationId)
+    if (
+      objects.some(
+        (object) =>
+          (object.targetArea && !object.targetDeletedAt) ||
+          (object.sourceDeletedAt && !object.sourceRestoredAt)
+      )
+    )
+      fail("FILE_OPERATION_NOT_READY")
+    await tx
+      .update(fileStorageUsage)
+      .set({ reservedBytes: usage.reservedBytes - operation.reservedBytes })
+      .where(eq(fileStorageUsage.organizationId, tx.context.organizationId))
+    await tx
+      .delete(fileNamespaceReservations)
+      .where(
+        and(
+          eq(
+            fileNamespaceReservations.organizationId,
+            tx.context.organizationId
+          ),
+          eq(fileNamespaceReservations.operationId, operationId)
+        )
+      )
+    await tx
+      .update(fileEntries)
+      .set({ busyOperationId: null })
+      .where(and(entryScope(tx), eq(fileEntries.busyOperationId, operationId)))
+    const [failed] = await tx
+      .update(fileOperations)
+      .set({
+        phase: "failed",
+        errorCode,
+        reservedBytes: 0,
+        updatedAt: now,
+        leaseId: null,
+        leaseExpiresAt: null,
+      })
+      .where(operationScope(tx, operationId))
+      .returning()
+    return failed!
+  },
+
+  async references(tx: TenantTx, fileId: string) {
+    return tx
+      .select()
+      .from(fileReferences)
+      .where(
+        and(
+          eq(fileReferences.organizationId, tx.context.organizationId),
+          eq(fileReferences.fileId, fileId)
+        )
+      )
+      .orderBy(asc(fileReferences.position), asc(fileReferences.id))
+  },
+
+  async replaceReferences(
+    tx: TenantTx,
+    business: FileReferenceBusiness,
+    input: FileReferenceInput[]
+  ) {
+    await lockOrganization(tx)
+    const [project] = await tx
+      .select({ id: projects.id })
+      .from(projects)
+      .where(
+        and(
+          eq(projects.organizationId, tx.context.organizationId),
+          eq(projects.id, business.projectId)
+        )
+      )
+      .for("update")
+    if (!project) fail("PROJECT_NOT_FOUND")
+    for (const reference of input)
+      await this.findVersion(tx, reference.fileId, reference.versionId, "share")
+    const locale =
+      business.locale === null
+        ? isNull(fileReferences.locale)
+        : eq(fileReferences.locale, business.locale)
+    await tx
+      .delete(fileReferences)
+      .where(
+        and(
+          eq(fileReferences.organizationId, tx.context.organizationId),
+          eq(fileReferences.projectId, business.projectId),
+          eq(fileReferences.kind, business.kind),
+          locale
+        )
+      )
+    if (input.length)
+      await tx.insert(fileReferences).values(
+        input.map((reference) => ({
+          ...reference,
+          ...business,
+          organizationId: tx.context.organizationId,
+        }))
+      )
+  },
+
+  async findProjectContent(
+    tx: TenantTx,
+    projectId: string,
+    locale: "zh-CN" | "en-US" | "ar"
+  ) {
+    const [content] = await tx
+      .select()
+      .from(projectFileContents)
+      .where(
+        and(
+          eq(projectFileContents.organizationId, tx.context.organizationId),
+          eq(projectFileContents.projectId, projectId),
+          eq(projectFileContents.locale, locale)
+        )
+      )
+    return content
+  },
+
+  async saveProjectContent(
+    tx: TenantTx,
+    business: FileReferenceBusiness & {
+      kind: "project_rich_text"
+      locale: "zh-CN" | "en-US" | "ar"
+    },
+    input: {
+      expectedRevision: number | null
+      document: Record<string, unknown>
+      references: FileReferenceInput[]
+    }
+  ) {
+    await lockOrganization(tx)
+    const current = await this.findProjectContent(
+      tx,
+      business.projectId,
+      business.locale
+    )
+    if ((current?.revision ?? null) !== input.expectedRevision)
+      fail("VERSION_CONFLICT", { revision: current?.revision ?? null })
+    await this.replaceReferences(tx, business, input.references)
+    const [content] = await tx
+      .insert(projectFileContents)
+      .values({
+        organizationId: tx.context.organizationId,
+        projectId: business.projectId,
+        locale: business.locale,
+        document: input.document,
+        revision: 1,
+      })
+      .onConflictDoUpdate({
+        target: [
+          projectFileContents.organizationId,
+          projectFileContents.projectId,
+          projectFileContents.locale,
+        ],
+        set: {
+          document: input.document,
+          revision: (current?.revision ?? 0) + 1,
+          updatedAt: new Date(),
+        },
+      })
+      .returning()
+    return content!
+  },
+}

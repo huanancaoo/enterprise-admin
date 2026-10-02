@@ -271,6 +271,13 @@ describe(suiteName, { concurrent: false }, () => {
       [
         ...tables,
         "audit_events",
+        "file_entries",
+        "file_namespace_reservations",
+        "file_operation_objects",
+        "file_operations",
+        "file_references",
+        "file_storage_usage",
+        "file_versions",
         "invitation_delivery_attempts",
         "invitation_send_events",
         "operation_receipts",
@@ -279,6 +286,7 @@ describe(suiteName, { concurrent: false }, () => {
         "platform_assignment_audit",
         "platform_session_assurance",
         "platform_settings",
+        "project_file_contents",
       ].sort()
     )
   })

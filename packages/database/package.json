@@ -31,6 +31,10 @@
     "./repositories/audit": {
       "types": "./dist/repositories/audit.d.ts",
       "default": "./dist/repositories/audit.js"
+    },
+    "./repositories/files": {
+      "types": "./dist/repositories/files.d.ts",
+      "default": "./dist/repositories/files.js"
     }
   },
   "scripts": {
