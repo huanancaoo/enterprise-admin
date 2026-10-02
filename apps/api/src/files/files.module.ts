@@ -8,6 +8,8 @@ import { Files } from './files';
 import { FilesController } from './files.controller';
 import { FileMaintenance } from './file-maintenance';
 import { FileWrites } from './file-writes';
+import { FilePathWrites } from './file-path-writes';
+import { FilePathsController } from './file-paths.controller';
 import { FileWriteExecutor } from './file-write-executor';
 import { FileUploads } from './file-uploads';
 import { FileUploadsController } from './file-uploads.controller';
@@ -23,6 +25,7 @@ export class FilesModule {
         FilesController,
         FileContentController,
         FileUploadsController,
+        FilePathsController,
       ],
       providers: [
         { provide: FilesRuntime, useValue: runtime },
@@ -30,6 +33,7 @@ export class FilesModule {
         FileContent,
         FileMaintenance,
         FileWrites,
+        FilePathWrites,
         FileWriteExecutor,
         FileUploads,
         FileOverwrites,
