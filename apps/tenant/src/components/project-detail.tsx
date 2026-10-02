@@ -15,6 +15,7 @@ import {
 import { Badge } from "@workspace/ui/components/badge"
 import { buttonVariants } from "@workspace/ui/components/button"
 import { Card, CardContent } from "@workspace/ui/components/card"
+import { ProjectAttachmentsSection } from "./project-attachments"
 import { ProjectEdit } from "./project-edit"
 import { ProjectDelete } from "./project-delete"
 
@@ -83,6 +84,7 @@ export function ProjectDetail({
             actions={
               <div className="flex flex-wrap gap-2">
                 <ProjectEdit
+                  key={`${organizationId}:${project.id}`}
                   organizationId={organizationId}
                   project={project}
                 />
@@ -137,6 +139,11 @@ export function ProjectDetail({
               </dl>
             </CardContent>
           </Card>
+          <ProjectAttachmentsSection
+            key={`${organizationId}:${project.id}`}
+            organizationId={organizationId}
+            projectId={project.id}
+          />
         </section>
       )}
     </>

@@ -1,3 +1,7 @@
+import {
+  attachmentReferences,
+  useProjectAttachmentAccess,
+} from "./project-attachment-access"
 import { useId, useState } from "react"
 import { useForm } from "@tanstack/react-form"
 import { useQueryClient } from "@tanstack/react-query"
@@ -5,7 +9,12 @@ import { useTranslation } from "react-i18next"
 import { z } from "zod"
 import { FormDialog } from "@workspace/admin"
 import { createProjectMutations } from "@workspace/api-client"
-import { SupportedLocaleSchema } from "@workspace/contracts"
+import {
+  ProjectAttachmentSchema,
+  SupportedLocaleSchema,
+  type ProjectAttachment,
+} from "@workspace/contracts"
+import { ProjectAttachmentsField } from "./project-attachments"
 import { localeMeta } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
 import { Button } from "@workspace/ui/components/button"
@@ -30,6 +39,7 @@ function createSchema(nameMessage: string) {
     name: z.string().trim().min(1, nameMessage),
     description: z.string(),
     contentLocale: z.union([z.literal("default"), SupportedLocaleSchema]),
+    attachments: z.array(ProjectAttachmentSchema),
   })
 }
 
@@ -39,6 +49,7 @@ export function ProjectCreate({ organizationId }: { organizationId: string }) {
   const queryClient = useQueryClient()
   const mutations = createProjectMutations(queryClient, organizationId, locale)
   const id = useId()
+  const access = useProjectAttachmentAccess(organizationId)
   const [open, setOpen] = useState(false)
   const [failed, setFailed] = useState(false)
   const form = useForm({
@@ -46,6 +57,7 @@ export function ProjectCreate({ organizationId }: { organizationId: string }) {
       name: "",
       description: "",
       contentLocale: "default" as "default" | "zh-CN" | "en-US" | "ar",
+      attachments: [] as ProjectAttachment[],
     },
     validators: { onSubmit: createSchema(t("validation:projectName")) },
     onSubmit: async ({ value, formApi }) => {
@@ -53,6 +65,7 @@ export function ProjectCreate({ organizationId }: { organizationId: string }) {
       try {
         await mutations.create({
           name: value.name.trim(),
+          attachments: attachmentReferences(value.attachments),
           description: value.description === "" ? null : value.description,
           ...(value.contentLocale === "default"
             ? {}
@@ -81,7 +94,7 @@ export function ProjectCreate({ organizationId }: { organizationId: string }) {
             error={failed ? t("common:operationFailed") : undefined}
             submitLabel={t("projects:create")}
           >
-            <FieldGroup>
+            <FieldGroup className="max-h-[60dvh] overflow-y-auto pe-1">
               <form.Field name="name">
                 {(field) => {
                   const invalid =
@@ -182,6 +195,30 @@ export function ProjectCreate({ organizationId }: { organizationId: string }) {
                           </SelectItem>
                         </SelectContent>
                       </Select>
+                      {invalid && (
+                        <FieldError errors={field.state.meta.errors} />
+                      )}
+                    </Field>
+                  )
+                }}
+              </form.Field>
+              <form.Field name="attachments" mode="array">
+                {(field) => {
+                  const invalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid
+                  return (
+                    <Field data-invalid={invalid}>
+                      <FieldLabel>{t("projects:attachments")}</FieldLabel>
+                      <ProjectAttachmentsField
+                        organizationId={organizationId}
+                        value={field.state.value}
+                        access={access}
+                        canChange
+                        onChange={(items) => {
+                          field.handleChange(items)
+                          field.handleBlur()
+                        }}
+                      />
                       {invalid && (
                         <FieldError errors={field.state.meta.errors} />
                       )}

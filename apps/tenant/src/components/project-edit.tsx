@@ -1,3 +1,7 @@
+import {
+  attachmentReferences,
+  useProjectAttachmentAccess,
+} from "./project-attachment-access"
 import { useState } from "react"
 import { useForm } from "@tanstack/react-form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
@@ -6,9 +10,14 @@ import {
   ApiClientError,
   getProjectTranslationOptions,
   createProjectMutations,
+  getProjectAttachmentsOptions,
+  organizationKeys,
 } from "@workspace/api-client"
 import {
   ProjectStatusSchema,
+  ProjectAttachmentSchema,
+  type ProjectAttachment,
+  type ProjectAttachmentsResponse,
   SupportedLocaleSchema,
   type ProjectResponse,
   type SupportedLocale,
@@ -33,17 +42,41 @@ import {
 } from "@workspace/ui/components/select"
 import { Textarea } from "@workspace/ui/components/textarea"
 import { z } from "zod"
+import { ProjectAttachmentsField } from "./project-attachments"
 
 type ProjectEditProps = {
   organizationId: string
   project: ProjectResponse
 }
 
+type AttachmentDraft = {
+  baseline: ProjectAttachmentsResponse
+  items: ProjectAttachment[]
+  expectedRevision: number
+}
 const contentLocales = ["zh-CN", "en-US", "ar"] as const
 
 export function ProjectEdit({ organizationId, project }: ProjectEditProps) {
   const { t } = useTranslation(["projects", "common", "validation"])
   const [open, setOpen] = useState(false)
+  const [openingVersion, setOpeningVersion] = useState(0)
+  const uiLocale = useUiLocale()
+  const access = useProjectAttachmentAccess(organizationId)
+  const [attachmentDraft, setAttachmentDraft] = useState<AttachmentDraft>()
+  const attachments = useQuery({
+    ...getProjectAttachmentsOptions(
+      organizationId,
+      project.id,
+      openingVersion,
+      uiLocale
+    ),
+    // 初始读回是本次编辑的 CAS 基线；后续授权变化不卸载已输入的草稿。
+    enabled: open && access.active,
+  })
+  const close = (nextOpen: boolean) => {
+    setOpen(nextOpen)
+    if (!nextOpen) setAttachmentDraft(undefined)
+  }
   const [targetLocale, setTargetLocale] = useState<SupportedLocale>(
     project.contentLocale
   )
@@ -57,52 +90,79 @@ export function ProjectEdit({ organizationId, project }: ProjectEditProps) {
 
   return (
     <>
-      <Button onClick={() => setOpen(true)}>{t("projects:edit")}</Button>
-      {open && translation.isPending && (
-        <FormDialog
-          open={open}
-          onOpenChange={setOpen}
-          title={t("projects:edit")}
-          description={t("projects:editDescription")}
-          onSubmit={() => undefined}
-          pending
-        >
-          <LoadingState />
-        </FormDialog>
-      )}
-      {open && !translation.isPending && missingTranslation && (
-        <ProjectEditForm
-          key={targetLocale}
-          organizationId={organizationId}
-          project={project}
-          targetLocale={targetLocale}
-          onTargetLocaleChange={setTargetLocale}
-          initial={{ name: "", description: null }}
-          onOpenChange={setOpen}
-        />
-      )}
-      {open && !translation.isPending && translation.data && (
-        <ProjectEditForm
-          key={targetLocale}
-          organizationId={organizationId}
-          project={project}
-          targetLocale={targetLocale}
-          onTargetLocaleChange={setTargetLocale}
-          initial={translation.data.data}
-          onOpenChange={setOpen}
-        />
-      )}
+      <Button
+        disabled={!access.canUpdate && !access.canTranslate}
+        onClick={() => {
+          setOpeningVersion(access.authorizationVersion)
+          setOpen(true)
+        }}
+      >
+        {t("projects:edit")}
+      </Button>
       {open &&
-        !translation.isPending &&
-        !translation.data &&
-        !missingTranslation && (
+        (translation.isPending || attachments.isPending) &&
+        !access.error && (
           <FormDialog
             open={open}
-            onOpenChange={setOpen}
+            onOpenChange={close}
             title={t("projects:edit")}
             description={t("projects:editDescription")}
             onSubmit={() => undefined}
-            error={t("common:operationFailed")}
+            pending
+          >
+            <LoadingState />
+          </FormDialog>
+        )}
+      {open &&
+        !translation.isPending &&
+        attachments.data &&
+        missingTranslation && (
+          <ProjectEditForm
+            key={targetLocale}
+            organizationId={organizationId}
+            project={project}
+            targetLocale={targetLocale}
+            onTargetLocaleChange={setTargetLocale}
+            initial={{ name: "", description: null }}
+            attachments={attachments.data}
+            attachmentDraft={attachmentDraft}
+            onAttachmentDraftChange={setAttachmentDraft}
+            onOpenChange={close}
+          />
+        )}
+      {open &&
+        !translation.isPending &&
+        attachments.data &&
+        translation.data && (
+          <ProjectEditForm
+            key={targetLocale}
+            organizationId={organizationId}
+            project={project}
+            targetLocale={targetLocale}
+            onTargetLocaleChange={setTargetLocale}
+            initial={translation.data.data}
+            attachments={attachments.data}
+            attachmentDraft={attachmentDraft}
+            onAttachmentDraftChange={setAttachmentDraft}
+            onOpenChange={close}
+          />
+        )}
+      {open &&
+        !translation.isPending &&
+        !attachments.isPending &&
+        ((!attachments.data && (attachments.isError || !!access.error)) ||
+          (!translation.data && !missingTranslation)) && (
+          <FormDialog
+            open={open}
+            onOpenChange={close}
+            title={t("projects:edit")}
+            description={t("projects:editDescription")}
+            onSubmit={() => undefined}
+            error={
+              attachments.error instanceof ApiClientError
+                ? attachments.error.body.message
+                : t("common:operationFailed")
+            }
           >
             <p role="status">{t("projects:translationLoadFailed")}</p>
           </FormDialog>
@@ -118,11 +178,17 @@ export function ProjectEditForm({
   onTargetLocaleChange,
   initial,
   onOpenChange,
+  attachments,
+  attachmentDraft,
+  onAttachmentDraftChange,
 }: ProjectEditProps & {
   targetLocale: SupportedLocale
   onTargetLocaleChange: (locale: SupportedLocale) => void
   initial: { name: string; description: string | null }
   onOpenChange: (open: boolean) => void
+  attachments: ProjectAttachmentsResponse
+  attachmentDraft?: AttachmentDraft
+  onAttachmentDraftChange?: (draft: AttachmentDraft) => void
 }) {
   const { t } = useTranslation(["projects", "common", "validation"])
   const uiLocale = useUiLocale()
@@ -132,29 +198,54 @@ export function ProjectEditForm({
     organizationId,
     uiLocale
   )
-  const [failed, setFailed] = useState(false)
-  const schema = editSchema(initial, t("validation:projectName"))
+  const access = useProjectAttachmentAccess(organizationId)
+  // 草稿的比较基线固定于开始编辑；后台读回不会把未修改字段变成覆盖请求。
+  const [translationBaseline] = useState(initial)
+  const [statusBaseline] = useState(project.status)
+  const [attachmentBaseline, setAttachmentBaseline] = useState(
+    attachmentDraft?.baseline ?? attachments
+  )
+  const [failure, setFailure] = useState<string>()
+  const [conflict, setConflict] = useState(false)
+  const [refreshingRevision, setRefreshingRevision] = useState(false)
+  const schema = editSchema(translationBaseline, t("validation:projectName"))
   const form = useForm({
     defaultValues: {
       targetLocale,
-      status: project.status,
-      name: initial.name,
-      description: initial.description ?? "",
+      status: statusBaseline,
+      name: translationBaseline.name,
+      description: translationBaseline.description ?? "",
+      attachments: attachmentDraft?.items ?? attachments.items,
+      expectedRevision:
+        attachmentDraft?.expectedRevision ?? attachments.revision,
     },
     validators: { onSubmit: schema },
     onSubmit: async ({ value }) => {
       const description = value.description === "" ? null : value.description
       const translationChanged =
-        value.name !== initial.name || description !== initial.description
-      const statusChanged = value.status !== project.status
-      if (!translationChanged && !statusChanged) {
+        value.name !== translationBaseline.name ||
+        description !== translationBaseline.description
+      const statusChanged = value.status !== statusBaseline
+      const attachmentsChanged =
+        JSON.stringify(attachmentReferences(value.attachments)) !==
+        JSON.stringify(attachmentReferences(attachmentBaseline.items))
+      if (!translationChanged && !statusChanged && !attachmentsChanged) {
         onOpenChange(false)
         return
       }
-      setFailed(false)
+      setFailure(undefined)
+      setConflict(false)
       let committed: Awaited<ReturnType<typeof mutations.update>>
       try {
         committed = await mutations.update(project.id, {
+          ...(attachmentsChanged
+            ? {
+                attachments: {
+                  expectedRevision: value.expectedRevision,
+                  items: attachmentReferences(value.attachments),
+                },
+              }
+            : {}),
           ...(statusChanged ? { status: value.status } : {}),
           ...(translationChanged
             ? {
@@ -166,8 +257,20 @@ export function ProjectEditForm({
               }
             : {}),
         })
-      } catch {
-        setFailed(true)
+      } catch (error) {
+        const isConflict =
+          error instanceof ApiClientError &&
+          error.body.code === "VERSION_CONFLICT"
+        setConflict(isConflict)
+        setFailure(
+          isConflict
+            ? t("projects:attachmentConflict")
+            : t("common:operationFailed")
+        )
+        if (error instanceof ApiClientError && error.status === 403)
+          void queryClient.invalidateQueries({
+            queryKey: organizationKeys.access(organizationId),
+          })
         return
       }
       await committed.refreshed
@@ -175,6 +278,33 @@ export function ProjectEditForm({
     },
   })
 
+  const refreshRevision = async () => {
+    setRefreshingRevision(true)
+    try {
+      const latest = await queryClient.query({
+        ...getProjectAttachmentsOptions(
+          organizationId,
+          project.id,
+          access.authorizationVersion,
+          uiLocale
+        ),
+        staleTime: 0,
+      })
+      // 只有显式刷新才采用最新修订；文字与附件草稿保留，下一次保存仍需用户提交。
+      setAttachmentBaseline(latest)
+      form.setFieldValue("expectedRevision", latest.revision)
+      setConflict(false)
+      setFailure(undefined)
+    } catch (error) {
+      setFailure(
+        error instanceof ApiClientError
+          ? error.body.message
+          : t("common:operationFailed")
+      )
+    } finally {
+      setRefreshingRevision(false)
+    }
+  }
   return (
     <form.Subscribe selector={(state) => state.isSubmitting}>
       {(pending) => (
@@ -184,11 +314,14 @@ export function ProjectEditForm({
           title={t("projects:edit")}
           description={t("projects:editDescription")}
           onSubmit={() => void form.handleSubmit()}
-          pending={pending}
-          error={failed ? t("common:operationFailed") : undefined}
+          pending={pending || refreshingRevision}
+          error={failure}
+          submitDisabled={
+            conflict || (!access.canUpdate && !access.canTranslate)
+          }
           submitLabel={t("projects:save")}
         >
-          <FieldGroup>
+          <FieldGroup className="max-h-[60dvh] overflow-y-auto pe-1">
             <LocaleSwitcher variant="select" className="w-full" />
             <form.Field name="targetLocale">
               {(field) => {
@@ -210,6 +343,12 @@ export function ProjectEditForm({
                       onValueChange={(value) => {
                         const locale = SupportedLocaleSchema.parse(value)
                         field.handleChange(locale)
+                        onAttachmentDraftChange?.({
+                          baseline: attachmentBaseline,
+                          items: form.getFieldValue("attachments"),
+                          expectedRevision:
+                            form.getFieldValue("expectedRevision"),
+                        })
                         onTargetLocaleChange(locale)
                       }}
                     >
@@ -244,6 +383,7 @@ export function ProjectEditForm({
                     </FieldLabel>
                     <Select
                       value={field.state.value}
+                      disabled={!access.canUpdate}
                       items={{
                         draft: t("projects:draft"),
                         active: t("projects:active"),
@@ -317,6 +457,33 @@ export function ProjectEditForm({
                 </Field>
               )}
             </form.Field>
+            <form.Field name="attachments" mode="array">
+              {(field) => {
+                const invalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid
+                return (
+                  <Field data-invalid={invalid}>
+                    <FieldLabel>{t("projects:attachments")}</FieldLabel>
+                    <ProjectAttachmentsField
+                      organizationId={organizationId}
+                      value={field.state.value}
+                      access={access}
+                      canChange={access.canUpdate}
+                      onChange={(items) => {
+                        field.handleChange(items)
+                        field.handleBlur()
+                      }}
+                    />
+                    {invalid && <FieldError errors={field.state.meta.errors} />}
+                  </Field>
+                )
+              }}
+            </form.Field>
+            {conflict && (
+              <Button variant="outline" onClick={() => void refreshRevision()}>
+                {t("projects:refreshAttachmentRevision")}
+              </Button>
+            )}
           </FieldGroup>
         </FormDialog>
       )}
@@ -334,6 +501,8 @@ function editSchema(
       status: ProjectStatusSchema,
       name: z.string(),
       description: z.string(),
+      attachments: z.array(ProjectAttachmentSchema),
+      expectedRevision: z.number().int().min(1),
     })
     .superRefine((value, context) => {
       const description = value.description === "" ? null : value.description

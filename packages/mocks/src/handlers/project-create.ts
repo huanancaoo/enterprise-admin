@@ -1,13 +1,15 @@
 import { delay, http, HttpResponse } from "msw"
-import { CreateProjectSchema } from "@workspace/contracts"
+import { CreateProjectSchema, type CreateProject } from "@workspace/contracts"
 
 export function createProjectHandler(
-  scenario: "success" | "error" | "pending" = "success"
+  scenario: "success" | "error" | "pending" = "success",
+  onCreate?: (input: CreateProject) => void
 ) {
   return http.post(
     "*/api/v1/organizations/:organizationId/projects",
     async ({ request, params }) => {
       const input = CreateProjectSchema.parse(await request.json())
+      onCreate?.(input)
       await delay(scenario === "pending" ? "infinite" : 250)
       if (scenario === "error")
         return HttpResponse.json(

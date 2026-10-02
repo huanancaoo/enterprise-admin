@@ -68,3 +68,10 @@ export {
   filePickerFolder,
   filePickerImage,
 } from "./handlers/file-picker"
+
+export {
+  createProjectAttachmentsScenario,
+  projectAttachmentItem,
+  projectAttachmentFile,
+  projectAttachmentRoot,
+} from "./handlers/project-attachments"

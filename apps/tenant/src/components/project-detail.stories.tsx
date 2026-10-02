@@ -1,3 +1,5 @@
+import { AuthenticatedSessionProvider } from "@workspace/admin/auth"
+import { authClient } from "@/lib/auth-client"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import {
@@ -16,6 +18,10 @@ import {
   createProjectEditHandlers,
   organizations,
   projectFixtures,
+} from "@workspace/mocks"
+import {
+  createProjectAttachmentsScenario,
+  personalAvatarUser,
 } from "@workspace/mocks"
 import { Button } from "@workspace/ui/components/button"
 import { ProjectDetail } from "./project-detail"
@@ -77,6 +83,7 @@ function ProjectEditStory({ refresh = false }: { refresh?: boolean }) {
         project={project}
         targetLocale={targetLocale}
         onTargetLocaleChange={setTargetLocale}
+        attachments={{ revision: 1, items: [] }}
         initial={initial}
         onOpenChange={() => undefined}
       />
@@ -85,16 +92,29 @@ function ProjectEditStory({ refresh = false }: { refresh?: boolean }) {
 }
 
 const meta = {
+  decorators: [
+    (Story) => (
+      <AuthenticatedSessionProvider
+        client={authClient}
+        user={personalAvatarUser}
+      >
+        <Story />
+      </AuthenticatedSessionProvider>
+    ),
+  ],
   title: "Admin/Project detail",
   component: ProjectDetailStory,
   parameters: {
     layout: "fullscreen",
     msw: {
-      handlers: [
-        ...createProjectEditHandlers(),
-        createProjectDeleteHandler(),
-        createProjectDetailHandler(),
-      ],
+      handlers: {
+        attachments: createProjectAttachmentsScenario().handlers,
+        project: [
+          ...createProjectEditHandlers(),
+          createProjectDeleteHandler(),
+          createProjectDetailHandler(),
+        ],
+      },
     },
   },
 } satisfies Meta<typeof ProjectDetailStory>
@@ -112,30 +132,57 @@ export const Default: Story = {
 }
 
 export const Loading: Story = {
-  parameters: { msw: { handlers: [createProjectDetailHandler("loading")] } },
+  parameters: {
+    msw: {
+      handlers: {
+        attachments: createProjectAttachmentsScenario().handlers,
+        project: [createProjectDetailHandler("loading")],
+      },
+    },
+  },
 }
 
 export const Error: Story = {
   parameters: {
-    msw: { handlers: [createProjectDetailHandler("serverError")] },
+    msw: {
+      handlers: {
+        attachments: createProjectAttachmentsScenario().handlers,
+        project: [createProjectDetailHandler("serverError")],
+      },
+    },
   },
 }
 
 export const PermissionDenied: Story = {
   parameters: {
-    msw: { handlers: [createProjectDetailHandler("forbidden")] },
+    msw: {
+      handlers: {
+        attachments: createProjectAttachmentsScenario().handlers,
+        project: [createProjectDetailHandler("forbidden")],
+      },
+    },
   },
 }
 
 export const NotFound: Story = {
   parameters: {
-    msw: { handlers: [createProjectDetailHandler("notFound")] },
+    msw: {
+      handlers: {
+        attachments: createProjectAttachmentsScenario().handlers,
+        project: [createProjectDetailHandler("notFound")],
+      },
+    },
   },
 }
 
 export const LongText: Story = {
   parameters: {
-    msw: { handlers: [createProjectDetailHandler("longText")] },
+    msw: {
+      handlers: {
+        attachments: createProjectAttachmentsScenario().handlers,
+        project: [createProjectDetailHandler("longText")],
+      },
+    },
   },
 }
 
@@ -171,11 +218,14 @@ export const DeleteCancel: Story = {
 export const DeletePending: Story = {
   parameters: {
     msw: {
-      handlers: [
-        ...createProjectEditHandlers(),
-        createProjectDeleteHandler("loading"),
-        createProjectDetailHandler(),
-      ],
+      handlers: {
+        attachments: createProjectAttachmentsScenario().handlers,
+        project: [
+          ...createProjectEditHandlers(),
+          createProjectDeleteHandler("loading"),
+          createProjectDetailHandler(),
+        ],
+      },
     },
   },
   play: async ({ canvasElement }) => {
@@ -197,11 +247,14 @@ export const DeletePending: Story = {
 export const DeleteFailure: Story = {
   parameters: {
     msw: {
-      handlers: [
-        ...createProjectEditHandlers(),
-        createProjectDeleteHandler("error"),
-        createProjectDetailHandler(),
-      ],
+      handlers: {
+        attachments: createProjectAttachmentsScenario().handlers,
+        project: [
+          ...createProjectEditHandlers(),
+          createProjectDeleteHandler("error"),
+          createProjectDetailHandler(),
+        ],
+      },
     },
   },
   play: async ({ canvasElement }) => {
@@ -246,10 +299,13 @@ export const EditRefreshKeepsDraft: Story = {
   render: () => <ProjectEditStory refresh />,
   parameters: {
     msw: {
-      handlers: [
-        ...createProjectEditHandlers("refreshDraft"),
-        createProjectDetailHandler(),
-      ],
+      handlers: {
+        attachments: createProjectAttachmentsScenario().handlers,
+        project: [
+          ...createProjectEditHandlers("refreshDraft"),
+          createProjectDetailHandler(),
+        ],
+      },
     },
   },
   play: async ({ canvasElement }) => {
@@ -272,10 +328,13 @@ export const EditFailureKeepsDraft: Story = {
   render: () => <ProjectEditStory />,
   parameters: {
     msw: {
-      handlers: [
-        ...createProjectEditHandlers("error"),
-        createProjectDetailHandler(),
-      ],
+      handlers: {
+        attachments: createProjectAttachmentsScenario().handlers,
+        project: [
+          ...createProjectEditHandlers("error"),
+          createProjectDetailHandler(),
+        ],
+      },
     },
   },
   play: async ({ canvasElement }) => {

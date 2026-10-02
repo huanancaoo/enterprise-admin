@@ -1,13 +1,36 @@
+import { AuthenticatedSessionProvider } from "@workspace/admin/auth"
+import { authClient } from "@/lib/auth-client"
 import type { Meta, StoryObj } from "@storybook/react-vite"
 import { expect, userEvent, waitFor, within } from "storybook/test"
 import { createProjectHandler, organizations } from "@workspace/mocks"
+import {
+  createProjectAttachmentsScenario,
+  personalAvatarUser,
+} from "@workspace/mocks"
 import { ProjectCreate } from "./project-create"
 
 const meta = {
+  decorators: [
+    (Story) => (
+      <AuthenticatedSessionProvider
+        client={authClient}
+        user={personalAvatarUser}
+      >
+        <Story />
+      </AuthenticatedSessionProvider>
+    ),
+  ],
   title: "Admin/Project create",
   component: ProjectCreate,
   args: { organizationId: organizations[0].id },
-  parameters: { msw: { handlers: [createProjectHandler()] } },
+  parameters: {
+    msw: {
+      handlers: {
+        attachments: createProjectAttachmentsScenario().handlers,
+        create: [createProjectHandler()],
+      },
+    },
+  },
 } satisfies Meta<typeof ProjectCreate>
 export default meta
 type Story = StoryObj<typeof meta>
@@ -45,7 +68,9 @@ export const Success: Story = {
   },
 }
 export const Failure: Story = {
-  parameters: { msw: { handlers: [createProjectHandler("error")] } },
+  parameters: {
+    msw: { handlers: { create: [createProjectHandler("error")] } },
+  },
   play: async ({ canvasElement }) => {
     const { dialog } = await openDialog(canvasElement)
     await userEvent.type(dialog.getByLabelText("项目名称"), "Keep draft")
@@ -57,7 +82,9 @@ export const Failure: Story = {
   },
 }
 export const Pending: Story = {
-  parameters: { msw: { handlers: [createProjectHandler("pending")] } },
+  parameters: {
+    msw: { handlers: { create: [createProjectHandler("pending")] } },
+  },
   play: async ({ canvasElement }) => {
     const { screen, dialog } = await openDialog(canvasElement)
     await userEvent.type(dialog.getByLabelText("项目名称"), "Pending")
