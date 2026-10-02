@@ -1,7 +1,9 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto"
-import { readFile } from "node:fs/promises"
+import { createReadStream } from "node:fs"
+import { mkdtemp, open, readFile, rm, stat } from "node:fs/promises"
 import { createRequire } from "node:module"
-import { resolve } from "node:path"
+import { join, resolve } from "node:path"
+import { tmpdir } from "node:os"
 import { GenericContainer, Wait } from "testcontainers"
 import { expect as expectUI } from "playwright/test"
 import {
@@ -1302,3 +1304,970 @@ describe("S9 Files：正式租户产品连接 PostgreSQL 与固定 RustFS", () =
     await assertEmptyFolderMarker(f, ["合同 2026", input.name])
   })
 })
+
+async function startUploadBackend(kind, resources) {
+  if (kind === "RustFS") {
+    const accessKeyId = randomBytes(12).toString("hex")
+    const secretAccessKey = randomBytes(32).toString("hex")
+    const container = await new GenericContainer(versions.rustfs.image)
+      .withEnvironment({
+        RUSTFS_ACCESS_KEY: accessKeyId,
+        RUSTFS_SECRET_KEY: secretAccessKey,
+        RUSTFS_ADDRESS: ":9000",
+        RUSTFS_CONSOLE_ENABLE: "false",
+      })
+      .withCommand(["/data"])
+      .withExposedPorts(9000)
+      .withWaitStrategy(Wait.forHttp("/health/ready", 9000).forStatusCode(200))
+      .start()
+    resources.defer(() => container.stop())
+    const config = {
+      kind: "s3",
+      region: "us-east-1",
+      endpoint: `http://${container.getHost()}:${container.getMappedPort(9000)}`,
+      bucket: `upload-product-${randomUUID()}`,
+      prefix: "product-uploads",
+      accessKeyId,
+      secretAccessKey,
+    }
+    const client = new S3Client({
+      endpoint: config.endpoint,
+      region: config.region,
+      forcePathStyle: true,
+      credentials: { accessKeyId, secretAccessKey },
+      maxAttempts: 1,
+    })
+    resources.defer(() => client.destroy())
+    await client.send(new CreateBucketCommand({ Bucket: config.bucket }))
+    const environment = await startBrowserApplication({ files: config })
+    resources.defer(() => environment.close())
+    const storage = environment.app.get(FilesRuntime).requireStorage()
+    return {
+      ...environment,
+      physicalRead: async (address) => {
+        const read = await storage.open(address)
+        const chunks = []
+        for await (const chunk of read.body) chunks.push(chunk)
+        return Buffer.concat(chunks)
+      },
+    }
+  }
+  let container
+  const environment = await startBrowserApplication({
+    startApiServer: async (runtime) => {
+      const remote = (value) => {
+        const url = new URL(value)
+        url.hostname = "host.docker.internal"
+        return url.toString()
+      }
+      const config = {
+        ...runtime.config,
+        databaseURL: remote(runtime.config.databaseURL),
+        redisURL: remote(runtime.config.redisURL),
+        files: { kind: "local", root: "/tmp/product-uploads" },
+      }
+      // 与正式 Local HTTP fixture 相同的生产 createApplication 和 Linux 策略；不定义任何测试业务路由。
+      container = await new GenericContainer(versions.nodeImage)
+        .withBindMounts([{ source: resolve("."), target: "/app", mode: "ro" }])
+        .withWorkingDir("/app")
+        .withEnvironment({ FILES_TEST_CONFIG: JSON.stringify(config) })
+        .withExposedPorts(3000)
+        .withCommand([
+          "node",
+          "-e",
+          `const {mkdir}=require('node:fs/promises');const {createApplication}=require('./apps/api/dist/create-application.js');const config=JSON.parse(process.env.FILES_TEST_CONFIG);let app;(async()=>{await mkdir(config.files.root,{recursive:true,mode:0o700});app=await createApplication(config,{logger:false});await app.listen(3000,'0.0.0.0');console.log('FILES_PRODUCT_LINUX_READY');process.on('SIGTERM',()=>app.close().then(()=>process.exit(0)));})().catch(async error=>{console.error(error.code??error.message);await app?.close();process.exit(1)});`,
+        ])
+        .withWaitStrategy(Wait.forLogMessage("FILES_PRODUCT_LINUX_READY"))
+        .start()
+      return {
+        baseURL: `http://${container.getHost()}:${container.getMappedPort(3000)}`,
+        close: () => container.stop(),
+      }
+    },
+  })
+  resources.defer(() => environment.close())
+  return {
+    ...environment,
+    physicalRead: async (address) => {
+      const response = await container.exec([
+        "node",
+        "-e",
+        `const {createApplication}=require('./apps/api/dist/create-application.js');const {FilesRuntime}=require('./apps/api/dist/files/files-runtime.js');(async()=>{const app=await createApplication(JSON.parse(process.env.FILES_TEST_CONFIG),{logger:false});try{await app.init();const read=await app.get(FilesRuntime).requireStorage().open(JSON.parse(process.argv[1]));const chunks=[];for await(const chunk of read.body)chunks.push(chunk);console.log(Buffer.concat(chunks).toString('base64'));}finally{await app.close()}})().catch(error=>{console.error(error.code??error.message);process.exit(1)});`,
+        JSON.stringify(address),
+      ])
+      if (response.exitCode !== 0)
+        throw new Error("Local physical read failed: " + response.output)
+      return Buffer.from(response.output.trim(), "base64")
+    },
+  }
+}
+
+describe.each(["RustFS", "Local"])(
+  "S9 %s：正式组织上传与覆盖产品链路",
+  (kind) => {
+    const resources = new AsyncDisposableStack()
+    let environment, context, page
+    beforeAll(async () => {
+      try {
+        environment = await startUploadBackend(kind, resources)
+      } catch (error) {
+        await resources.disposeAsync()
+        throw error
+      }
+    })
+    afterAll(() => resources.disposeAsync())
+    beforeEach(async () => {
+      context = await environment.browser.newContext({
+        viewport: { width: 1280, height: 800 },
+        extraHTTPHeaders: {
+          "x-real-ip": `10.${[...randomBytes(3)].join(".")}`,
+        },
+      })
+      page = await context.newPage()
+    })
+    afterEach(() => context.close())
+    async function fixture() {
+      const owner = await signUpVerified(
+        environment.baseURL,
+        environment.tenantOrigin,
+        environment.migrator,
+        { name: "上传验收用户" }
+      )
+      const organization =
+        await environment.runtime.auth.api.createOrganization({
+          headers: owner.headers,
+          body: { name: "上传验收组织", slug: `uploads-${randomUUID()}` },
+        })
+      const tenant = await environment.app
+        .get(TenantContextService)
+        .resolve(
+          owner.headers,
+          organization.id,
+          { file: ["read", "upload", "update"], folder: ["read", "create"] },
+          randomUUID(),
+          new RequestLanguage("zh-CN")
+        )
+      const run = (callback) =>
+        createTenantRunner(environment.runtime.pool)(tenant, callback, "write")
+      const { root } = await run((tx) => fileRepository.ensureWorkspace(tx))
+      await signIn(page, owner, environment.tenantOrigin)
+      await page.getByRole("link", { name: "文件", exact: true }).click()
+      await expectUI(
+        page.getByRole("button", { name: "上传文件", exact: true })
+      ).toBeVisible()
+      return { owner, organization, root, run }
+    }
+    const writes =
+      (organizationId, action = "uploads") =>
+      (response) =>
+        response.request().method() === "POST" &&
+        new URL(response.url()).pathname ===
+          `/api/v1/organizations/${organizationId}/files/${action}`
+    const queue = () =>
+      page.getByRole("region", { name: "上传任务", exact: true })
+    async function selection(
+      payload,
+      { trigger = "上传文件", field = "选择文件", start = "开始上传" } = {}
+    ) {
+      await page.getByRole("button", { name: trigger, exact: true }).click()
+      const dialog = page.getByRole("dialog", { name: trigger, exact: true })
+      const input = dialog.getByLabel(field, { exact: true })
+      await input.focus()
+      await input.setInputFiles(payload)
+      return {
+        dialog,
+        start: () =>
+          dialog.getByRole("button", { name: start, exact: true }).click(),
+      }
+    }
+    async function upload(
+      f,
+      name,
+      buffer = Buffer.from("原始内容 مرحبا"),
+      mimeType = "text/plain"
+    ) {
+      const form = await selection({ name, mimeType, buffer })
+      const submitted = page.waitForResponse(writes(f.organization.id))
+      await form.start()
+      const response = await submitted
+      expect(response.status()).toBe(200)
+      const operation = FileOperationResponseSchema.parse(await response.json())
+      await expectUI(form.dialog).toHaveCount(0)
+      await expectUI(
+        queue().getByRole("listitem", { name, exact: true }).getByRole("status")
+      ).toHaveText("上传完成")
+      return operation
+    }
+    async function createFolder(name) {
+      await page
+        .getByRole("button", { name: "创建文件夹", exact: true })
+        .click()
+      const dialog = page.getByRole("dialog", {
+        name: "创建文件夹",
+        exact: true,
+      })
+      await dialog.getByLabel("文件夹名称", { exact: true }).fill(name)
+      await dialog
+        .getByRole("button", { name: "创建文件夹", exact: true })
+        .click()
+      await expectUI(dialog).toHaveCount(0)
+      await page
+        .locator("tbody")
+        .getByRole("button", { name, exact: true })
+        .click()
+    }
+    async function records(f) {
+      return page.evaluate(
+        (key) => JSON.parse(localStorage.getItem(key)),
+        `enterprise-admin:file-uploads:${JSON.stringify([f.owner.user.id, f.organization.id])}`
+      )
+    }
+    async function journal(f, id) {
+      const result = await environment.observer.query(
+        "SELECT phase, error_code, committed_at, result FROM public.file_operations WHERE organization_id=$1 AND id=$2",
+        [f.organization.id, id]
+      )
+      return result.rows[0]
+    }
+    async function physical(f, name, parents = []) {
+      return environment.physicalRead({
+        owner: { kind: "organization", id: f.organization.id },
+        area: "files",
+        segments: [...parents, name],
+      })
+    }
+
+    it("真实目录中文名称、多文件与0字节上传，正式完成后刷新列表和实际容量", async () => {
+      const f = await fixture()
+      await createFolder("上传目录")
+      const location = page.url()
+      const body = Buffer.from("原始字节 مرحبا\n")
+      const form = await selection([
+        { name: "中文.txt", mimeType: "text/plain", buffer: body },
+        { name: "空文件.txt", mimeType: "text/plain", buffer: Buffer.alloc(0) },
+      ])
+      const responses = []
+      page.on("response", (response) => {
+        if (writes(f.organization.id)(response)) responses.push(response)
+      })
+      await form.start()
+      await expectUI(queue().getByRole("status")).toHaveText([
+        "上传完成",
+        "上传完成",
+      ])
+      expect(responses).toHaveLength(2)
+      const completed = await Promise.all(
+        responses.map((response) => response.json())
+      )
+      expect(
+        completed.every((operation) => operation.phase === "completed")
+      ).toBe(true)
+      await expectUI(
+        page
+          .locator("tbody")
+          .getByRole("button", { name: "中文.txt", exact: true })
+      ).toBeVisible()
+      await expectUI(
+        page
+          .locator("tbody")
+          .getByRole("button", { name: "空文件.txt", exact: true })
+      ).toBeVisible()
+      expect(page.url()).toBe(location)
+      expect(await physical(f, "中文.txt", ["上传目录"])).toEqual(body)
+      expect(await physical(f, "空文件.txt", ["上传目录"])).toEqual(
+        Buffer.alloc(0)
+      )
+      const usage = await environment.observer.query(
+        "SELECT used_bytes, reserved_bytes, transient_bytes FROM public.file_storage_usage WHERE organization_id=$1",
+        [f.organization.id]
+      )
+      expect(Number(usage.rows[0].used_bytes)).toBe(body.length)
+      expect(Number(usage.rows[0].reserved_bytes)).toBe(0)
+      expect(Number(usage.rows[0].transient_bytes)).toBe(0)
+      const saved = await records(f)
+      for (const record of saved)
+        expect(Object.keys(record).sort()).toEqual([
+          "action",
+          "createdAt",
+          "id",
+          "phase",
+          "submitted",
+          "updatedAt",
+        ])
+      await page.reload()
+      await expectUI(
+        page
+          .locator("tbody")
+          .getByRole("button", { name: "中文.txt", exact: true })
+      ).toBeVisible()
+      expect(page.url()).toBe(location)
+    })
+
+    it("同名409不自动覆盖，失败原File保留；明确重新上传与改名产生新UUID", async () => {
+      const f = await fixture()
+      const original = await upload(f, "同名.txt", Buffer.from("first"))
+      const form = await selection({
+        name: "同名.txt",
+        mimeType: "text/plain",
+        buffer: Buffer.from("second"),
+      })
+      const response = page.waitForResponse(writes(f.organization.id))
+      await form.start()
+      expect((await response).status()).toBe(409)
+      const jobs = queue().getByRole("listitem", {
+        name: "同名.txt",
+        exact: true,
+      })
+      const failed = jobs.filter({
+        has: page.getByRole("button", { name: "重新上传", exact: true }),
+      })
+      await expectUI(failed.getByRole("status")).toHaveText("上传未完成")
+      const failedId = (await records(f)).at(-1).id
+      expect(await journal(f, failedId)).toMatchObject({
+        phase: "failed",
+        error_code: "FILE_NAME_CONFLICT",
+        committed_at: null,
+      })
+      expect(await physical(f, "同名.txt")).toEqual(Buffer.from("first"))
+      await failed
+        .getByRole("button", { name: "重新上传", exact: true })
+        .click()
+      const retry = page.getByRole("dialog", { name: "上传文件", exact: true })
+      await expectUI(
+        retry.getByRole("textbox", { name: "上传后的文件名", exact: true })
+      ).toHaveValue("同名.txt")
+      await retry
+        .getByRole("textbox", { name: "上传后的文件名", exact: true })
+        .fill("新名称.txt")
+      const accepted = page.waitForResponse(writes(f.organization.id))
+      await retry.getByRole("button", { name: "开始上传", exact: true }).click()
+      const next = await (await accepted).json()
+      expect(next.id).not.toBe(failedId)
+      await expectUI(
+        queue()
+          .getByRole("listitem", { name: "新名称.txt", exact: true })
+          .getByRole("status")
+      ).toHaveText("上传完成")
+      expect(await physical(f, "新名称.txt")).toEqual(Buffer.from("second"))
+      const current = await f.run((tx) =>
+        fileRepository.findEntry(tx, original.result.entryId)
+      )
+      expect(current.currentVersionId).toBe(original.result.versionId)
+    })
+
+    it("选择文件后明确确认覆盖，新增版本且原固定版本引用保持原字节", async () => {
+      const f = await fixture()
+      const original = await upload(f, "版本.txt", Buffer.from("first version"))
+      await page
+        .locator("tbody tr")
+        .filter({
+          has: page.getByRole("button", { name: "版本.txt", exact: true }),
+        })
+        .getByRole("checkbox")
+        .check()
+      const form = await selection(
+        {
+          name: "replacement.bin",
+          mimeType: "application/octet-stream",
+          buffer: Buffer.from([0, 255, 4, 8]),
+        },
+        { trigger: "覆盖文件", field: "选择文件", start: "确认覆盖" }
+      )
+      await expectUI(
+        form.dialog.getByText(/现有引用仍指向原版本/)
+      ).toBeVisible()
+      expect(await records(f)).toHaveLength(1)
+      const response = page.waitForResponse(
+        writes(
+          f.organization.id,
+          `entries/${original.result.entryId}/overwrite`
+        )
+      )
+      await form.start()
+      const overwritten = FileOperationResponseSchema.parse(
+        await (await response).json()
+      )
+      expect(overwritten.result.entryId).toBe(original.result.entryId)
+      expect(overwritten.result.versionId).not.toBe(original.result.versionId)
+      await expectUI(queue().getByRole("status")).toHaveText([
+        "上传完成",
+        "上传完成",
+      ])
+      expect(await physical(f, "版本.txt")).toEqual(Buffer.from([0, 255, 4, 8]))
+      await queue()
+        .getByRole("listitem", { name: "版本.txt", exact: true })
+        .first()
+        .getByRole("button", { name: "查看所上传版本", exact: true })
+        .click()
+      expect(new URL(page.url()).searchParams.get("versionId")).toBe(
+        original.result.versionId
+      )
+      await page.getByRole("button", { name: "预览", exact: true }).click()
+      await expectUI(
+        page
+          .getByRole("dialog")
+          .getByRole("region", { name: "文本内容", exact: true })
+      ).toHaveText("first version")
+    })
+
+    it("另一会话先覆盖后旧revision被拒绝，原File保留且明确重新确认使用当前revision", async () => {
+      const f = await fixture()
+      const original = await upload(f, "并发版本.txt", Buffer.from("original"))
+      const row = page.locator("tbody tr").filter({
+        has: page.getByRole("button", { name: "并发版本.txt", exact: true }),
+      })
+      await row.getByRole("checkbox").check()
+      const stale = await selection(
+        {
+          name: "mine.bin",
+          mimeType: "application/octet-stream",
+          buffer: Buffer.from("my replacement"),
+        },
+        { trigger: "覆盖文件", start: "确认覆盖" }
+      )
+      const other = await environment.browser.newContext({
+        viewport: { width: 1280, height: 800 },
+        extraHTTPHeaders: {
+          "x-real-ip": `10.${[...randomBytes(3)].join(".")}`,
+        },
+      })
+      try {
+        const otherPage = await other.newPage()
+        await signIn(otherPage, f.owner, environment.tenantOrigin)
+        await otherPage.getByRole("link", { name: "文件", exact: true }).click()
+        await otherPage
+          .locator("tbody tr")
+          .filter({
+            has: otherPage.getByRole("button", {
+              name: "并发版本.txt",
+              exact: true,
+            }),
+          })
+          .getByRole("checkbox")
+          .check()
+        await otherPage
+          .getByRole("button", { name: "覆盖文件", exact: true })
+          .click()
+        const dialog = otherPage.getByRole("dialog", {
+          name: "覆盖文件",
+          exact: true,
+        })
+        const input = dialog.getByLabel("选择文件", { exact: true })
+        await input.focus()
+        await input.setInputFiles({
+          name: "theirs.bin",
+          mimeType: "application/octet-stream",
+          buffer: Buffer.from("their replacement"),
+        })
+        const submitted = otherPage.waitForResponse(
+          writes(
+            f.organization.id,
+            `entries/${original.result.entryId}/overwrite`
+          )
+        )
+        await dialog
+          .getByRole("button", { name: "确认覆盖", exact: true })
+          .click()
+        const response = await submitted
+        expect(response.status()).toBe(200)
+        const theirs = FileOperationResponseSchema.parse(await response.json())
+        expect(theirs.result.revision).toBe(2)
+        await expectUI(dialog).toHaveCount(0)
+        expect(await physical(f, "并发版本.txt")).toEqual(
+          Buffer.from("their replacement")
+        )
+      } finally {
+        await other.close()
+      }
+      const rejected = page.waitForResponse(
+        writes(
+          f.organization.id,
+          `entries/${original.result.entryId}/overwrite`
+        )
+      )
+      await stale.start()
+      const response = await rejected
+      expect(response.status()).toBe(409)
+      expect((await response.json()).code).toBe("VERSION_CONFLICT")
+      const failed = queue()
+        .getByRole("listitem", { name: "并发版本.txt", exact: true })
+        .filter({
+          has: page.getByRole("button", { name: "重新上传", exact: true }),
+        })
+      await expectUI(failed.getByRole("status")).toHaveText("上传未完成")
+      const rejectedId = (await records(f)).at(-1).id
+      expect(await journal(f, rejectedId)).toMatchObject({
+        phase: "failed",
+        error_code: "VERSION_CONFLICT",
+        committed_at: null,
+      })
+      expect(await physical(f, "并发版本.txt")).toEqual(
+        Buffer.from("their replacement")
+      )
+      await failed
+        .getByRole("button", { name: "重新上传", exact: true })
+        .click()
+      const retry = page.getByRole("dialog", { name: "覆盖文件", exact: true })
+      await expectUI(retry.getByText("mine.bin", { exact: true })).toBeVisible()
+      await expectUI(retry.getByText(/现有引用仍指向原版本/)).toBeVisible()
+      const accepted = page.waitForResponse(
+        writes(
+          f.organization.id,
+          `entries/${original.result.entryId}/overwrite`
+        )
+      )
+      await retry.getByRole("button", { name: "确认覆盖", exact: true }).click()
+      const completed = FileOperationResponseSchema.parse(
+        await (await accepted).json()
+      )
+      expect(completed.id).not.toBe(rejectedId)
+      expect(completed.result.revision).toBe(3)
+      await expectUI(queue().getByRole("status")).toHaveText([
+        "上传完成",
+        "上传未完成",
+        "上传完成",
+      ])
+      expect(await physical(f, "并发版本.txt")).toEqual(
+        Buffer.from("my replacement")
+      )
+    })
+
+    it("丢失真实成功响应只GET原UUID，不重复POST或覆盖", async () => {
+      const f = await fixture()
+      let posts = 0,
+        operation
+      const endpoint = `**/api/v1/organizations/${f.organization.id}/files/uploads`
+      await page.route(endpoint, async (route) => {
+        posts++
+        const response = await route.fetch()
+        operation = await response.json()
+        await route.abort("failed")
+      })
+      const form = await selection({
+        name: "待确认.txt",
+        mimeType: "text/plain",
+        buffer: Buffer.from("committed once"),
+      })
+      await form.start()
+      await expectUI(
+        queue()
+          .getByRole("listitem", { name: "待确认.txt", exact: true })
+          .getByRole("status")
+      ).toHaveText("上传完成")
+      expect(posts).toBe(1)
+      expect((await records(f))[0].id).toBe(operation.id)
+      expect(await journal(f, operation.id)).toMatchObject({
+        phase: "completed",
+      })
+      expect(await physical(f, "待确认.txt")).toEqual(
+        Buffer.from("committed once")
+      )
+    })
+
+    it("选择弹层关闭后仍处理，刷新可找回同UUID与已保存文件，期间不重复写", async () => {
+      const f = await fixture()
+      let posts = 0,
+        operation,
+        release
+      const ready = new Promise((resolve) => {
+        release = resolve
+      })
+      await page.route(
+        `**/api/v1/organizations/${f.organization.id}/files/uploads`,
+        async (route) => {
+          posts++
+          const response = await route.fetch()
+          operation = await response.json()
+          await ready
+          try {
+            await route.fulfill({ response })
+          } catch {
+            /* 刷新已取消旧页面的真实响应；服务端操作事实保持不变。 */
+          }
+        }
+      )
+      const form = await selection({
+        name: "刷新恢复.txt",
+        mimeType: "text/plain",
+        buffer: Buffer.from("only once"),
+      })
+      await form.start()
+      await expectUI(form.dialog).toHaveCount(0)
+      await expectUI(queue().getByRole("status")).toHaveText("正在提交/处理")
+      await expect.poll(() => operation?.phase).toBe("completed")
+      const before = await records(f)
+      expect(before[0]).toMatchObject({
+        id: operation.id,
+        phase: "unconfirmed",
+        submitted: true,
+      })
+      await page.reload()
+      release()
+      await expectUI(queue().getByRole("status")).toHaveText("上传完成")
+      expect(posts).toBe(1)
+      expect((await records(f))[0].id).toBe(operation.id)
+      await expectUI(
+        page
+          .locator("tbody")
+          .getByRole("button", { name: "刷新恢复.txt", exact: true })
+      ).toBeVisible()
+    })
+
+    it("UI校验真实超限文件不发写请求并保留选择", async () => {
+      const f = await fixture()
+      let posts = 0
+      page.on("request", (request) => {
+        if (
+          request.method() === "POST" &&
+          request
+            .url()
+            .endsWith(`/organizations/${f.organization.id}/files/uploads`)
+        )
+          posts++
+      })
+      const directory = await mkdtemp(join(tmpdir(), "files-upload-limit-"))
+      resources.defer(() => rm(directory, { recursive: true, force: true }))
+      const payload = join(directory, "large.bin")
+      const selected = await open(payload, "w")
+      await selected.truncate(100 * 1024 ** 2 + 1)
+      await selected.close()
+      const form = await selection(payload)
+      await form.start()
+      await expectUI(
+        form.dialog.getByText("文件超过允许的大小，请选择更小的文件。", {
+          exact: true,
+        })
+      ).toBeVisible()
+      expect(posts).toBe(0)
+      await expectUI(
+        form.dialog.getByText("large.bin", { exact: true })
+      ).toBeVisible()
+    })
+
+    it("真实100MiB原生文件上传与授权下载，原始字节SHA和配额一致", async () => {
+      const f = await fixture()
+      const bytes = 100 * 1024 ** 2
+      const directory = await mkdtemp(join(tmpdir(), "files-upload-maximum-"))
+      resources.defer(() => rm(directory, { recursive: true, force: true }))
+      const payload = join(directory, "maximum.bin")
+      const selected = await open(payload, "w")
+      await selected.truncate(bytes)
+      await selected.close()
+      const digest = async (path) => {
+        const hash = createHash("sha256")
+        for await (const chunk of createReadStream(path)) hash.update(chunk)
+        return hash.digest("hex")
+      }
+      const expected = await digest(payload)
+      const form = await selection(payload)
+      const submitted = page.waitForResponse(writes(f.organization.id))
+      await form.start()
+      const response = await submitted
+      expect(response.status()).toBe(200)
+      const operation = FileOperationResponseSchema.parse(await response.json())
+      expect(operation.phase).toBe("completed")
+      await expectUI(queue().getByRole("status")).toHaveText("上传完成")
+      await queue()
+        .getByRole("button", { name: "查看所上传版本", exact: true })
+        .click()
+      const downloaded = page.waitForEvent("download")
+      await page.getByRole("button", { name: "下载文件", exact: true }).click()
+      const download = await downloaded
+      expect(download.suggestedFilename()).toBe("maximum.bin")
+      expect(await download.failure()).toBeNull()
+      const path = await download.path()
+      expect((await stat(path)).size).toBe(bytes)
+      expect(await digest(path)).toBe(expected)
+      const usage = await environment.observer.query(
+        "SELECT used_bytes, reserved_bytes, transient_bytes FROM public.file_storage_usage WHERE organization_id=$1",
+        [f.organization.id]
+      )
+      expect(Number(usage.rows[0].used_bytes)).toBe(bytes)
+      expect(Number(usage.rows[0].reserved_bytes)).toBe(0)
+      expect(Number(usage.rows[0].transient_bytes)).toBe(0)
+    })
+
+    it("中文文件名255字节成功，超限保留原选择且不提交，NFC名称按统一规则入库", async () => {
+      const f = await fixture()
+      const longest = "界".repeat(85)
+      const body = Buffer.from("filename boundary")
+      await upload(f, longest, body)
+      expect(await physical(f, longest)).toEqual(body)
+      let posts = 0
+      page.on("request", (request) => {
+        if (
+          request.method() === "POST" &&
+          request
+            .url()
+            .endsWith(`/organizations/${f.organization.id}/files/uploads`)
+        )
+          posts++
+      })
+      const form = await selection({
+        name: "original.txt",
+        mimeType: "text/plain",
+        buffer: body,
+      })
+      const name = form.dialog.getByRole("textbox", {
+        name: "上传后的文件名",
+        exact: true,
+      })
+      await name.fill("界".repeat(86))
+      await form.start()
+      await expectUI(
+        form.dialog.getByText("名称过长，请使用更短的名称。", { exact: true })
+      ).toBeVisible()
+      await expectUI(name).toHaveValue("界".repeat(86))
+      await expectUI(
+        form.dialog.getByText("original.txt", { exact: true })
+      ).toBeVisible()
+      expect(posts).toBe(0)
+      await name.fill("Cafe\u0301.txt")
+      const submitted = page.waitForResponse(writes(f.organization.id))
+      await form.start()
+      expect((await submitted).status()).toBe(200)
+      await expectUI(queue().getByRole("status")).toHaveText([
+        "上传完成",
+        "上传完成",
+      ])
+      await expectUI(
+        page
+          .locator("tbody")
+          .getByRole("button", { name: "Café.txt", exact: true })
+      ).toBeVisible()
+      expect(await physical(f, "Café.txt")).toEqual(body)
+    })
+
+    it("真实相对路径512字节可保存，513字节被拒绝且保持当前层级和原File", async () => {
+      const f = await fixture()
+      const parents = ["甲".repeat(82), "乙".repeat(82)]
+      for (const name of parents) await createFolder(name)
+      const location = page.url()
+      const acceptedName = "a".repeat(18)
+      const body = Buffer.from("path boundary")
+      expect(Buffer.byteLength([...parents, acceptedName].join("/"))).toBe(512)
+      await upload(f, acceptedName, body)
+      expect(await physical(f, acceptedName, parents)).toEqual(body)
+      const rejectedName = "b".repeat(19)
+      const form = await selection({
+        name: rejectedName,
+        mimeType: "text/plain",
+        buffer: body,
+      })
+      const submitted = page.waitForResponse(writes(f.organization.id))
+      await form.start()
+      const response = await submitted
+      expect(response.status()).toBeGreaterThanOrEqual(400)
+      expect(response.status()).toBeLessThan(500)
+      expect((await response.json()).code).toBe("FILE_PATH_TOO_LONG")
+      const job = queue().getByRole("listitem", {
+        name: rejectedName,
+        exact: true,
+      })
+      await expectUI(job.getByRole("status")).toHaveText("上传未完成")
+      await expectUI(job.getByRole("alert")).toHaveText(
+        "文件夹层级与名称组合过长，请缩短名称或选择层级更浅的目标。"
+      )
+      expect(page.url()).toBe(location)
+      await job.getByRole("button", { name: "重新上传", exact: true }).click()
+      const retry = page.getByRole("dialog", { name: "上传文件", exact: true })
+      await expectUI(
+        retry.getByRole("textbox", { name: "上传后的文件名", exact: true })
+      ).toHaveValue(rejectedName)
+      await expectUI(
+        retry.getByText(rejectedName, { exact: true })
+      ).toBeVisible()
+      expect(page.url()).toBe(location)
+    })
+
+    it("实际配额不足不发布且释放预留，失败原File可在管理员调额后明确重新上传", async () => {
+      const f = await fixture()
+      await environment.observer.query(
+        "UPDATE public.file_storage_usage SET quota_bytes=1 WHERE organization_id=$1",
+        [f.organization.id]
+      )
+      const body = Buffer.from([4, 8])
+      const form = await selection({
+        name: "容量.bin",
+        mimeType: "application/octet-stream",
+        buffer: body,
+      })
+      const submitted = page.waitForResponse(writes(f.organization.id))
+      await form.start()
+      const response = await submitted
+      expect(response.status()).toBeGreaterThanOrEqual(400)
+      expect(response.status()).toBeLessThan(500)
+      expect((await response.json()).code).toBe("FILE_QUOTA_EXCEEDED")
+      const job = queue().getByRole("listitem", {
+        name: "容量.bin",
+        exact: true,
+      })
+      await expectUI(job.getByRole("status")).toHaveText("上传未完成")
+      await expectUI(job.getByRole("alert")).toHaveText(
+        "组织可用存储空间不足，请联系管理员。"
+      )
+      const rejectedId = (await records(f))[0].id
+      expect(await journal(f, rejectedId)).toMatchObject({
+        phase: "failed",
+        error_code: "FILE_QUOTA_EXCEEDED",
+        committed_at: null,
+      })
+      const usage = await environment.observer.query(
+        "SELECT used_bytes, reserved_bytes, transient_bytes FROM public.file_storage_usage WHERE organization_id=$1",
+        [f.organization.id]
+      )
+      expect(usage.rows[0]).toEqual({
+        used_bytes: "0",
+        reserved_bytes: "0",
+        transient_bytes: "0",
+      })
+      await expectUI(
+        page
+          .locator("tbody")
+          .getByRole("button", { name: "容量.bin", exact: true })
+      ).toHaveCount(0)
+      await environment.observer.query(
+        "UPDATE public.file_storage_usage SET quota_bytes=2, policy_revision=policy_revision+1 WHERE organization_id=$1",
+        [f.organization.id]
+      )
+      await job.getByRole("button", { name: "重新上传", exact: true }).click()
+      const retry = page.getByRole("dialog", { name: "上传文件", exact: true })
+      await expectUI(
+        retry.getByRole("textbox", { name: "上传后的文件名", exact: true })
+      ).toHaveValue("容量.bin")
+      const accepted = page.waitForResponse(writes(f.organization.id))
+      await retry.getByRole("button", { name: "开始上传", exact: true }).click()
+      const completed = FileOperationResponseSchema.parse(
+        await (await accepted).json()
+      )
+      expect(completed.id).not.toBe(rejectedId)
+      expect(completed.phase).toBe("completed")
+      await expectUI(queue().getByRole("status")).toHaveText([
+        "上传未完成",
+        "上传完成",
+      ])
+      expect(await physical(f, "容量.bin")).toEqual(body)
+    })
+
+    it("仅file:upload的自定义角色能上传但不能覆盖，内置member只能读取", async () => {
+      const f = await fixture()
+      await upload(f, "原文件.txt", Buffer.from("original"))
+      const uploader = await signUpVerified(
+        environment.baseURL,
+        environment.tenantOrigin,
+        environment.migrator,
+        { name: "仅上传用户" }
+      )
+      const reader = await signUpVerified(
+        environment.baseURL,
+        environment.tenantOrigin,
+        environment.migrator,
+        { name: "仅查看成员" }
+      )
+      await environment.runtime.auth.api.createOrgRole({
+        headers: f.owner.headers,
+        body: {
+          organizationId: f.organization.id,
+          role: "file-uploader",
+          permission: { file: ["read", "upload"], folder: ["read"] },
+        },
+      })
+      for (const [account, role] of [
+        [uploader, "file-uploader"],
+        [reader, "member"],
+      ])
+        await environment.runtime.auth.api.addMember({
+          headers: f.owner.headers,
+          body: {
+            organizationId: f.organization.id,
+            userId: account.user.id,
+            role,
+          },
+        })
+      await context.clearCookies()
+      await signIn(page, uploader, environment.tenantOrigin)
+      await page.getByRole("link", { name: "文件", exact: true }).click()
+      await expectUI(
+        page.getByRole("button", { name: "上传文件", exact: true })
+      ).toBeVisible()
+      await expectUI(
+        page.getByRole("button", { name: "创建文件夹", exact: true })
+      ).toHaveCount(0)
+      await expectUI(page.locator("tbody").getByRole("checkbox")).toHaveCount(0)
+      await expectUI(
+        page.getByRole("button", { name: "覆盖文件", exact: true })
+      ).toHaveCount(0)
+      await upload(f, "仅上传.txt", Buffer.from("uploader"))
+      expect(await physical(f, "仅上传.txt")).toEqual(Buffer.from("uploader"))
+      const actors = await environment.observer.query(
+        "SELECT actor_id FROM public.file_operations WHERE organization_id=$1 AND action='upload' ORDER BY created_at",
+        [f.organization.id]
+      )
+      expect(actors.rows.map((row) => row.actor_id)).toEqual([
+        f.owner.user.id,
+        uploader.user.id,
+      ])
+      await context.clearCookies()
+      await signIn(page, reader, environment.tenantOrigin)
+      await page.getByRole("link", { name: "文件", exact: true }).click()
+      await expectUI(
+        page
+          .locator("tbody")
+          .getByRole("button", { name: "仅上传.txt", exact: true })
+      ).toBeVisible()
+      await expectUI(
+        page.getByRole("button", { name: "上传文件", exact: true })
+      ).toHaveCount(0)
+      await expectUI(
+        page.getByRole("button", { name: "覆盖文件", exact: true })
+      ).toHaveCount(0)
+      await expectUI(
+        page.getByRole("button", { name: "创建文件夹", exact: true })
+      ).toHaveCount(0)
+      await expectUI(page.locator("tbody").getByRole("checkbox")).toHaveCount(0)
+    })
+
+    it.each([
+      {
+        locale: "English",
+        upload: "Upload files",
+        choose: "Choose files",
+        start: "Start upload",
+        queue: "Upload tasks",
+        done: "Upload completed",
+      },
+      {
+        locale: "العربية",
+        upload: "رفع ملفات",
+        choose: "اختيار ملفات",
+        start: "بدء الرفع",
+        queue: "مهام الرفع",
+        done: "اكتمل الرفع",
+      },
+    ])("$locale 的正式上传使用真实同一层级与RTL", async (labels) => {
+      const f = await fixture()
+      await selectLocale(page, f.owner.user.name, labels.locale)
+      const location = page.url()
+      if (labels.locale === "العربية")
+        await expectUI(page.locator("html")).toHaveAttribute("dir", "rtl")
+      const form = await selection(
+        {
+          name: "Locale.txt",
+          mimeType: "text/plain",
+          buffer: Buffer.from("locale file"),
+        },
+        { trigger: labels.upload, field: labels.choose, start: labels.start }
+      )
+      await form.start()
+      await expectUI(
+        page
+          .getByRole("region", { name: labels.queue, exact: true })
+          .getByRole("status")
+      ).toHaveText(labels.done)
+      expect(page.url()).toBe(location)
+      expect(await physical(f, "Locale.txt")).toEqual(
+        Buffer.from("locale file")
+      )
+    })
+  }
+)

@@ -137,6 +137,7 @@ export async function startBrowserApplication({
   mail = false,
   smtp,
   files,
+  startApiServer,
 } = {}) {
   const resources = new AsyncDisposableStack()
   try {
@@ -151,6 +152,9 @@ export async function startBrowserApplication({
       files,
     })
     resources.defer(() => runtime.close())
+    // Local 产品验收需运行生产 Linux 路径策略；callback 启动完整 API，前端仍使用同一预览代理。
+    const api = startApiServer ? await startApiServer(runtime) : runtime
+    if (startApiServer) resources.defer(() => api.close())
     const { preview } = await import("vite")
     for (const { name, port, prefix } of [
       { name: "tenant", port: tenantPort, prefix: "/api" },
@@ -164,7 +168,7 @@ export async function startBrowserApplication({
           host: "127.0.0.1",
           port,
           strictPort: true,
-          proxy: { [prefix]: runtime.baseURL },
+          proxy: { [prefix]: api.baseURL },
         },
       })
       resources.defer(() => server.close())
@@ -174,6 +178,7 @@ export async function startBrowserApplication({
     resources.defer(() => browser.close())
     return {
       ...runtime,
+      baseURL: api.baseURL,
       browser,
       tenantOrigin,
       platformOrigin,
