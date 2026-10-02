@@ -147,8 +147,12 @@ function CreateFolderForm({
         setError(
           fileRequestErrorMessage(failure, t("files:createResultUnconfirmed"))
         )
-        // 收到正式错误响应可明确开始新创建；网络异常先按同一 UUID 查询，不能重复写。
-        setState(failure instanceof ApiClientError ? "rejected" : "unconfirmed")
+        // 4xx 表示本次创建未提交；5xx 可能发生在提交确认丢失后，只能先查询原 UUID。
+        setState(
+          failure instanceof ApiClientError && failure.status < 500
+            ? "rejected"
+            : "unconfirmed"
+        )
       }
     },
   })

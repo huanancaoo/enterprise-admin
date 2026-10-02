@@ -55,6 +55,7 @@ function CreationFixture({
     | "pending"
     | "failed"
     | "uncertainComplete"
+    | "serverUnknown"
     | "uncertainUnreadable"
     | "committed"
     | "scopeChange"
@@ -93,6 +94,13 @@ function CreationFixture({
       })
     if (mode === "uncertainComplete" || mode === "uncertainUnreadable")
       throw new TypeError("Response unavailable")
+    if (mode === "serverUnknown")
+      throw new ApiClientError(503, {
+        code: "FILE_STORAGE_UNAVAILABLE",
+        requestId: crypto.randomUUID(),
+        locale: "en-US",
+        message: "The result could not be confirmed.",
+      })
     return operation(
       input.operationId,
       mode === "failed" && calls.length === 0
@@ -340,6 +348,10 @@ export const UnreadableStatusKeepsDraftAndStopsWrites: Story = {
 }
 export const CommittedWaitsForCompletion: Story = {
   args: { mode: "committed" },
+  play: UncertainResponseReadsOriginalIdentity.play,
+}
+export const ServerErrorReadsOriginalIdentity: Story = {
+  args: { mode: "serverUnknown" },
   play: UncertainResponseReadsOriginalIdentity.play,
 }
 export const PermissionDenied: Story = {
