@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useForm } from "@tanstack/react-form"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
@@ -48,6 +48,8 @@ export function InvitationDirectory({
   const { t } = useTranslation(["organization", "common", "auth", "validation"])
   const locale = useUiLocale()
   const queryClient = useQueryClient()
+  const directoryTitle = useRef<HTMLHeadingElement>(null)
+  const resendTrigger = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
   const [notice, setNotice] = useState<{
     resend: boolean
@@ -81,11 +83,10 @@ export function InvitationDirectory({
     enabled: canRead,
     retry: false,
   })
+  const canListRoles = actorRole === "owner" || actorRole === "admin"
   const roles = useQuery({
     ...getOrganizationRolesOptions(organizationId),
-    enabled:
-      Boolean(access.data?.create) &&
-      (actorRole === "owner" || actorRole === "admin"),
+    enabled: Boolean(access.data?.create) && canListRoles,
   })
   useEffect(() => {
     if (
@@ -152,6 +153,13 @@ export function InvitationDirectory({
     },
     onSuccess: (id, input) => refresh(id, Boolean(input.resend)),
   })
+  useEffect(() => {
+    if (send.isPending || !resendTrigger.current) return
+    const trigger = resendTrigger.current
+    resendTrigger.current = null
+    // 禁用会使浏览器失去按钮焦点；用户已经转到其他控件时不抢回焦点。
+    if (document.activeElement === document.body) trigger.focus()
+  }, [send.isPending, send.status])
   const cancel = useMutation({
     mutationFn: async (invitationId: string) => {
       const result = await authClient.organization.cancelInvitation({
@@ -164,6 +172,10 @@ export function InvitationDirectory({
     },
     onSuccess: () => refresh(),
   })
+  useEffect(() => {
+    // 成功取消后行内按钮和确认层都会移除，焦点回到仍存在的目录标题。
+    if (cancel.isSuccess) directoryTitle.current?.focus()
+  }, [cancel.isSuccess])
   const form = useForm({
     defaultValues: { email: "", role: "member" },
     validators: {
@@ -173,7 +185,12 @@ export function InvitationDirectory({
       ),
     },
     onSubmit: async ({ value, formApi }) => {
-      await send.mutateAsync({ email: value.email, role: value.role })
+      try {
+        await send.mutateAsync({ email: value.email, role: value.role })
+      } catch {
+        // mutation 保存服务端错误供表单展示；失败提交在此结束，保留原草稿。
+        return
+      }
       formApi.reset()
       setOpen(false)
     },
@@ -195,7 +212,12 @@ export function InvitationDirectory({
   return (
     <section className="space-y-4" aria-labelledby="invitation-directory-title">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="invitation-directory-title" className="text-lg font-semibold">
+        <h2
+          ref={directoryTitle}
+          id="invitation-directory-title"
+          tabIndex={-1}
+          className="text-lg font-semibold"
+        >
           {t("organization:invitations")}
         </h2>
         {access.data?.create && (
@@ -297,13 +319,14 @@ export function InvitationDirectory({
                       <Button
                         variant="outline"
                         disabled={send.isPending}
-                        onClick={() =>
+                        onClick={(event) => {
+                          resendTrigger.current = event.currentTarget
                           send.mutate({
                             email: invitation.email,
                             role: invitation.role,
                             resend: true,
                           })
-                        }
+                        }}
                       >
                         {t("organization:resend")}
                       </Button>
@@ -321,6 +344,9 @@ export function InvitationDirectory({
                         pendingLabel={t("organization:cancelling")}
                         pending={cancel.isPending}
                         error={cancel.error?.message}
+                        onOpenChange={(nextOpen) => {
+                          if (nextOpen) cancel.reset()
+                        }}
                         onConfirm={() => cancel.mutate(invitation.id)}
                       />
                     )}
@@ -382,7 +408,7 @@ export function InvitationDirectory({
                       <FieldLabel htmlFor="invite-role">
                         {t("organization:role")}
                       </FieldLabel>
-                      {actorRole === "owner" || actorRole === "admin" ? (
+                      {canListRoles ? (
                         <Select
                           value={field.state.value}
                           items={Object.fromEntries(
@@ -418,6 +444,12 @@ export function InvitationDirectory({
                           required
                           aria-invalid={invalid}
                         />
+                      )}
+                      {canListRoles && roles.isPending && (
+                        <p role="status">{t("common:loading")}</p>
+                      )}
+                      {canListRoles && roles.error && (
+                        <p role="alert">{roles.error.message}</p>
                       )}
                       {invalid && (
                         <FieldError errors={field.state.meta.errors} />

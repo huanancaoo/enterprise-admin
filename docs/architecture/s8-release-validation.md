@@ -202,9 +202,35 @@ T15 还实际复现了空参数绕过：停用组织已经是当前 Session 的 
 
 第二次完整 `pnpm verify` 在最终源码上退出 0：API 155 项（Nest 15、真实业务 HTTP 140）、浏览器 11 文件/76 项、Storybook 20 文件/292 项、数据库 2 文件/24 项、性能 2 项及单元 74 项全部通过。peer、lint/工程边界、类型、i18n、38 页文档内容、数据库 Schema、生产构建及 OpenAPI/Orval 可重现检查全部通过。日志为 `/private/tmp/enterprise-admin-s8-members-verify-final.log`。执行前后成员 9 个及语言读回 5 个源码文件的 SHA-256 一致；最终验收文档另执行定向格式和文档内容检查。
 
+## 邀请 Feature 状态与真实链路
+
+新增 49 个邀请 Feature 场景，运行正式 `InvitationDirectory`。MSW 分别保存邀请生命周期和投递结果，重发保留邀请 ID、角色、创建与过期时间；每个场景重置目录、失败和投递尝试状态。场景覆盖目录与权限的加载/错误/空态、普通成员无动作、create/cancel 独立委派、owner/admin 限制、角色目录反馈、终态、三语/RTL、长文本、慢请求，以及创建、重发和取消的校验、401/403/409/429/503、提交期间禁用、失败草稿、手动重试与键盘焦点。
+
+首次 45 项检查为 40 通过/5 失败，另有 4 个未处理提交异常。最小检查继续复现角色目录加载和错误无反馈、取消成功后焦点落到 body、前一取消错误出现在另一个目标，以及一次未处理的提交异常。现在表单显示角色查询状态；服务端错误保存在 mutation 后结束失败提交，草稿保持不变；重新打开取消确认时重置错误，成功取消移除行内按钮后聚焦目录标题。日志为 `/private/tmp/enterprise-admin-s8-invitations-stories-first.log` 和 `/private/tmp/enterprise-admin-s8-invitations-minimal-red.log`。
+
+重发最初的投递断言读到原生写成功、投递回读未完成的临时状态，测试改为等待最终结果。随后最小检查核对原按钮仍存在且已启用，焦点却停在 body，日志为 `/private/tmp/enterprise-admin-s8-invitations-resend-focus-red.log`。提交结束时恢复因禁用而丢失的按钮焦点；若用户已经转到其他控件则保持新焦点，新增场景明确验证这一边界。最终全部 49 项通过且没有未处理异常，日志为 `/private/tmp/enterprise-admin-s8-invitations-stories-final.log`。
+
+真实 `tests/e2e/invitations.test.mjs` 5 项通过，退出码 0，日志为 `/private/tmp/enterprise-admin-s8-invitations-e2e-final.log`。新增重复邀请流程观察真实 POST 409、错误和原草稿，手动修改邮箱后 POST 200，数据库仍只有原邀请和新邀请，无 pageerror。委派角色有 invitation:create/cancel 而无 ac:read，角色目录 GET 403；邀请 owner 得到 POST 403，邮箱和角色草稿保持，数据库未产生邀请；改为自定义角色后创建、取消和数据库读回成功，审计按既有契约记录 `member.invited`、`invitation.delivery_failed` 和 `invitation.canceled`。首次新测试把创建事件误写为 `invitation.created`，校正测试契约后通过，未修改生产审计语义。
+
+现有真实 SMTP 失败和 unknown 用例保留；重发真实 429 后恢复原按钮焦点。取消检查先通过真实 HTTP 执行服务端写入，只暂缓原响应，核对页面 `aria-busy`、按钮禁用和 Escape 保持弹层，再释放同一响应，确认取消终态、目录焦点及持久化结果。此处没有用虚构成功响应替换服务端操作。
+
+Storybook 生产构建及原生 Chromium 检查通过，日志为 `/private/tmp/enterprise-admin-s8-invitations-storybook-build.log` 和 `/private/tmp/enterprise-admin-s8-invitations-render-first.log`。键盘创建自定义角色邀请、重发和取消分别核对焦点及重发日期不变；RTL、长文本、390 像素实际窄视口和深色主题无横向溢出及 pageerror。浅/深主题的真实危险按钮悬停与动画完成后 axe 无违规，RTL 和深色取消确认层的 axe 也无违规。5 张截图均已查看，位于 `/private/tmp/enterprise-admin-s8-invitations-{native-keyboard,rtl,long-text,long-text-narrow,dark}.png`。这些是本次 Feature、Chromium 和视口的渲染证据；深色使用主题 class，不证明用户主题偏好的持久化。
+
+## 邀请批次的既有场景时序核对
+
+首次完整检查通过 155 项 API、2 项性能，但 Storybook 为 339 通过/2 失败，两项来自既有项目创建场景的可见性断言；邀请 49 项通过。日志为 `/private/tmp/enterprise-admin-s8-invitations-verify-first.log`。项目创建 4 项单独运行通过；随后批量入口另在租户审计详情的可见性断言失败，日志为 `/private/tmp/enterprise-admin-s8-project-create-animation-probe.log`。
+
+可见性探针确认页面只有一个弹层、`data-open=true`、没有关闭标记，而入场动画仍在运行；两次读取的透明度分别为 0.22/0.98，动画进度为 0.17/0.83。探针增加的透明度断言仅用于识别阶段，不作为产品要求，已全部移除。日志为 `/private/tmp/enterprise-admin-s8-project-create-opacity-probe.log`。项目创建的操作入口和审计详情默认场景现在等待弹层可见及其实际入场动画结束，再执行原有交互；没有修改正式页面或关闭动画。
+
+后续批量检查又在成员角色提交场景捕获仍处于退出阶段的未命名 listbox，随后该文件出现超时，日志为 `/private/tmp/enterprise-admin-s8-invitations-storybook-all-final.log`。成员角色测试的选择 helper 原先选中即返回，现在等待关闭标记、实际退出动画和列表不可见；Base UI 仍可保留隐藏 DOM，不要求卸载选项。原来的提交锁定、错误、键盘和 axe 断言均保留，不关闭无障碍规则。最终 21 文件/341 项 Storybook 全部通过，退出码 0，日志为 `/private/tmp/enterprise-admin-s8-invitations-storybook-all-settled.log`。这三处修改只明确测试交互完成条件，不作为新增业务行为。
+
+## 邀请批次完整检查
+
+最终源码执行 `pnpm verify`，进程退出码 0：API 155 项（Nest HTTP 15、真实业务 HTTP 140）、浏览器 11 文件/78 项、Storybook 21 文件/341 项、数据库 2 文件/24 项、性能 2 项及单元 74 项全部通过。peer、lint/工程边界、类型、i18n、38 页文档内容、数据库 Schema、生产构建及 OpenAPI/Orval 可重现检查全部通过。日志为 `/private/tmp/enterprise-admin-s8-invitations-verify-final.log`。检查前后本批 9 个源码文件的 SHA-256 一致，清单为 `/private/tmp/enterprise-admin-s8-invitations-source.sha256`；最终验收文档另执行定向格式和内容检查。
+
 ## 尚未完成的验收
 
-- 平台组织、用户目录、审计、设置、租户审计、个人/组织语言设置及成员管理已补足上述 Feature Stories；Invitations/Roles 仍需逐项补足，不能用 API 或公共 Stories 替代。
+- 平台组织、用户目录、审计、设置、租户审计、个人/组织语言设置、成员和邀请管理已补足上述 Feature Stories；Roles 仍需逐项补足，不能用 API 或公共 Stories 替代。
 - 安全回退入口和 ADR-0002/当前 CLI 的语义冲突等待用户确认；确认后完成实现、文档与对应发布验收。
 
 本机验证与远端 CI、生产部署分别记账；本记录不声称 GitHub Actions 或生产发布已通过。

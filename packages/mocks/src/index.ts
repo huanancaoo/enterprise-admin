@@ -38,6 +38,11 @@ export type {
 } from "./handlers/locale-settings"
 export { createMembersScenario, memberDirectoryUser } from "./handlers/members"
 export type { MembersScenario } from "./handlers/members"
+export {
+  createInvitationsScenario,
+  longInvitationEmail,
+} from "./handlers/invitations"
+export type { InvitationsScenario } from "./handlers/invitations"
 export { createProjectHandler } from "./handlers/project-create"
 export {
   createProjectDetailHandler,

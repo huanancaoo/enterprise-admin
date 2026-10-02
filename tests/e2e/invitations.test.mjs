@@ -79,7 +79,9 @@ describe("invitation management and recipient browser flows", () => {
         response.url().endsWith("/organization/invite-member") &&
         response.request().method() === "POST"
     )
-    await row.getByRole("button", { name: "再次发送", exact: true }).click()
+    const resend = row.getByRole("button", { name: "再次发送", exact: true })
+    await resend.focus()
+    await page.keyboard.press("Enter")
     const response = await resendResponse
     expect(response.status()).toBe(429)
     expect(await response.json()).toMatchObject({
@@ -88,16 +90,236 @@ describe("invitation management and recipient browser flows", () => {
     await expectUI(
       page.getByRole("alert").filter({ hasText: "60 秒" })
     ).toBeVisible()
+    await expectUI(resend).toBeEnabled()
+    await expectUI(resend).toBeFocused()
     await row.getByRole("button", { name: "取消邀请", exact: true }).focus()
     await page.keyboard.press("Enter")
     const confirm = page.getByRole("alertdialog")
-    await confirm.getByRole("button", { name: "取消邀请", exact: true }).focus()
-    await page.keyboard.press("Enter")
+    const cancelSent = Promise.withResolvers()
+    const releaseCancellation = Promise.withResolvers()
+    await page.route("**/organization/cancel-invitation", async (route) => {
+      // 实际请求先在服务器完成；只暂缓原响应，观察页面的提交锁定与 Escape。
+      const response = await route.fetch()
+      cancelSent.resolve(response.status())
+      await releaseCancellation.promise
+      await route.fulfill({ response })
+    })
+    try {
+      await confirm
+        .getByRole("button", { name: "取消邀请", exact: true })
+        .focus()
+      await page.keyboard.press("Enter")
+      expect(await cancelSent.promise).toBe(200)
+      await expectUI(confirm).toHaveAttribute("aria-busy", "true")
+      await expectUI(
+        confirm.getByRole("button", { name: "正在取消…", exact: true })
+      ).toBeDisabled()
+      await expectUI(
+        confirm.getByRole("button", { name: "取消", exact: true })
+      ).toBeDisabled()
+      await page.keyboard.press("Escape")
+      await expectUI(confirm).toBeVisible()
+    } finally {
+      releaseCancellation.resolve()
+    }
     await expectUI(confirm).toHaveCount(0)
     await expectUI(row).toContainText("已取消")
     await expectUI(
       row.getByRole("button", { name: "再次发送", exact: true })
     ).toHaveCount(0)
+    await expectUI(
+      page.getByRole("heading", { name: "邀请", exact: true })
+    ).toBeFocused()
+    expect(
+      (
+        await environment.migrator.query(
+          "SELECT status FROM invitation WHERE organization_id = $1 AND email = $2",
+          [org.id, recipient.email]
+        )
+      ).rows
+    ).toEqual([{ status: "canceled" }])
+  })
+
+  it("保留真实重复邀请冲突的草稿，手动修正后创建，且无未处理页面异常", async () => {
+    const { owner, recipient, org } = await fixture()
+    const existing = await environment.runtime.auth.api.createInvitation({
+      headers: owner.headers,
+      body: { organizationId: org.id, email: recipient.email, role: "member" },
+    })
+    const pageErrors = []
+    page.on("pageerror", (error) => pageErrors.push(error.message))
+    await signIn(page, environment.tenantOrigin, owner)
+    await page.goto(`${environment.tenantOrigin}/app/members/${org.id}`)
+    await page.getByRole("button", { name: "邀请成员", exact: true }).click()
+    const dialog = page.getByRole("dialog")
+    const email = dialog.getByLabel("邮箱", { exact: true })
+    await email.fill(recipient.email)
+    const rejected = page.waitForResponse(
+      (response) =>
+        response.url().endsWith("/organization/invite-member") &&
+        response.request().method() === "POST"
+    )
+    const submit = dialog.getByRole("button", { name: "发送邀请", exact: true })
+    await submit.focus()
+    await page.keyboard.press("Enter")
+    const conflict = await rejected
+    expect(conflict.status()).toBe(409)
+    const problem = await conflict.json()
+    expect(problem.code).toBe("INVITATION_ALREADY_PENDING")
+    await expectUI(dialog.getByRole("alert")).toContainText(problem.message)
+    await expectUI(email).toHaveValue(recipient.email)
+    await expectUI(submit).toBeEnabled()
+    const replacement = `corrected.${randomUUID()}@example.test`
+    await email.fill(replacement)
+    const submitted = page.waitForResponse(
+      (response) =>
+        response.url().endsWith("/organization/invite-member") &&
+        response.request().method() === "POST"
+    )
+    await submit.focus()
+    await page.keyboard.press("Enter")
+    const response = await submitted
+    expect(response.status()).toBe(200)
+    const created = await response.json()
+    await expectUI(dialog).toHaveCount(0)
+    await expectUI(
+      page.getByRole("listitem").filter({ hasText: replacement })
+    ).toContainText("待处理")
+    const persisted = await environment.migrator.query(
+      "SELECT id, email, status FROM invitation WHERE organization_id = $1",
+      [org.id]
+    )
+    expect(persisted.rows).toHaveLength(2)
+    expect(persisted.rows).toEqual(
+      expect.arrayContaining([
+        { id: existing.id, email: recipient.email, status: "pending" },
+        { id: created.id, email: replacement, status: "pending" },
+      ])
+    )
+    expect(pageErrors).toEqual([])
+  })
+
+  it("委派邀请动作可创建与取消自定义角色邀请，不能读取角色目录或邀请 owner", async () => {
+    const { owner, recipient: manager, org } = await fixture()
+    for (const [role, permission] of [
+      [
+        "invitation-manager",
+        {
+          project: ["read"],
+          member: ["read"],
+          invitation: ["create", "cancel"],
+        },
+      ],
+      ["project-editor", { project: ["read", "update"] }],
+    ])
+      await environment.runtime.auth.api.createOrgRole({
+        headers: owner.headers,
+        body: { organizationId: org.id, role, permission },
+      })
+    await environment.runtime.auth.api.addMember({
+      headers: owner.headers,
+      body: {
+        organizationId: org.id,
+        userId: manager.user.id,
+        role: "invitation-manager",
+      },
+    })
+    const protectedEmail = `admin.${randomUUID()}@example.test`
+    await environment.runtime.auth.api.createInvitation({
+      headers: owner.headers,
+      body: { organizationId: org.id, email: protectedEmail, role: "admin" },
+    })
+    const pageErrors = []
+    page.on("pageerror", (error) => pageErrors.push(error.message))
+    await signIn(page, environment.tenantOrigin, manager)
+    await page.goto(`${environment.tenantOrigin}/app/members/${org.id}`)
+    const list = page.getByRole("list", { name: "邀请", exact: true })
+    await expectUI(
+      list
+        .getByRole("listitem")
+        .filter({ hasText: protectedEmail })
+        .getByRole("button")
+    ).toHaveCount(0)
+    const catalog = await context.request.get(
+      `${environment.tenantOrigin}/api/auth/organization/list-roles?organizationId=${org.id}`
+    )
+    expect(catalog.status()).toBe(403)
+    await page.getByRole("button", { name: "邀请成员", exact: true }).click()
+    const dialog = page.getByRole("dialog")
+    const email = `delegated.${randomUUID()}@example.test`
+    await dialog.getByLabel("邮箱", { exact: true }).fill(email)
+    const role = dialog.getByRole("textbox", { name: "角色", exact: true })
+    await role.fill("owner")
+    const denied = page.waitForResponse(
+      (response) =>
+        response.url().endsWith("/organization/invite-member") &&
+        response.request().method() === "POST"
+    )
+    const submit = dialog.getByRole("button", { name: "发送邀请", exact: true })
+    await submit.focus()
+    await page.keyboard.press("Enter")
+    const deniedResponse = await denied
+    expect(deniedResponse.status()).toBe(403)
+    expect((await deniedResponse.json()).code).toBe("INVITATION_ROLE_FORBIDDEN")
+    await expectUI(dialog.getByRole("alert")).toContainText(
+      "你不能邀请该角色。"
+    )
+    await expectUI(dialog.getByLabel("邮箱", { exact: true })).toHaveValue(
+      email
+    )
+    await expectUI(role).toHaveValue("owner")
+    await expectUI(submit).toBeEnabled()
+    expect(
+      (
+        await environment.migrator.query(
+          "SELECT id FROM invitation WHERE organization_id = $1 AND email = $2",
+          [org.id, email]
+        )
+      ).rows
+    ).toHaveLength(0)
+    await role.fill("project-editor")
+    const invited = page.waitForResponse(
+      (response) =>
+        response.url().endsWith("/organization/invite-member") &&
+        response.request().method() === "POST"
+    )
+    await submit.focus()
+    await page.keyboard.press("Enter")
+    const invitedResponse = await invited
+    expect(invitedResponse.status()).toBe(200)
+    const created = await invitedResponse.json()
+    await expectUI(dialog).toHaveCount(0)
+    const target = list.getByRole("listitem").filter({ hasText: email })
+    await expectUI(target).toContainText("project-editor")
+    await target.getByRole("button", { name: "取消邀请", exact: true }).focus()
+    await page.keyboard.press("Enter")
+    await page
+      .getByRole("alertdialog")
+      .getByRole("button", { name: "取消邀请", exact: true })
+      .press("Enter")
+    await expectUI(page.getByRole("alertdialog")).toHaveCount(0)
+    await expectUI(target).toContainText("已取消")
+    expect(
+      (
+        await environment.migrator.query(
+          "SELECT role, status FROM invitation WHERE id = $1",
+          [created.id]
+        )
+      ).rows
+    ).toEqual([{ role: "project-editor", status: "canceled" }])
+    expect(
+      (
+        await environment.migrator.query(
+          "SELECT event_code FROM audit_events WHERE organization_id = $1 AND resource_id = $2 ORDER BY occurred_at",
+          [org.id, created.id]
+        )
+      ).rows.map((row) => row.event_code)
+    ).toEqual([
+      "member.invited",
+      "invitation.delivery_failed",
+      "invitation.canceled",
+    ])
+    expect(pageErrors).toEqual([])
   })
 
   it("rejects only after a recipient action and supports Arabic RTL in a suspended organization", async () => {
