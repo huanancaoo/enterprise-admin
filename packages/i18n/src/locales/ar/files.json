@@ -1,0 +1,23 @@
+{
+  "byteCount": "{{bytes}} بايت",
+  "emptyFolder": "لا توجد ملفات أو مجلدات فرعية في هذا المجلد.",
+  "folder": "مجلد",
+  "folderNavigation": "التنقل بين المجلدات",
+  "folderSize": "—",
+  "location": "المجلد",
+  "name": "الاسم",
+  "noFileSelected": "اختر ملفاً متاحاً.",
+  "organizationSearch": "البحث في هذه المؤسسة عن «{{name}}»",
+  "pickFile": "اختيار ملف",
+  "pickFileDescription": "تصفح مجلدات هذه المؤسسة واختر ملفاً. يبقى المرجع مرتبطاً بالإصدار المحدد.",
+  "pickFolder": "اختيار المجلد الهدف",
+  "pickFolderDescription": "افتح المجلد الهدف ثم أكد الاختيار. لا يمكن استخدام الملفات كمجلدات هدف.",
+  "root": "المجلد الجذر",
+  "searchPlaceholder": "البحث في ملفات ومجلدات هذه المؤسسة",
+  "selectedFile": "تم اختيار: {{name}}",
+  "size": "الحجم",
+  "type": "النوع",
+  "updatedAt": "آخر تحديث",
+  "useFile": "استخدام الملف",
+  "useFolder": "استخدام هذا المجلد"
+}

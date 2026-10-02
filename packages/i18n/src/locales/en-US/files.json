@@ -1,0 +1,23 @@
+{
+  "byteCount": "{{bytes}} bytes",
+  "emptyFolder": "This folder has no files or subfolders.",
+  "folder": "Folder",
+  "folderNavigation": "Folder navigation",
+  "folderSize": "—",
+  "location": "Folder",
+  "name": "Name",
+  "noFileSelected": "Choose an available file.",
+  "organizationSearch": "Searching this organization for “{{name}}”",
+  "pickFile": "Choose a file",
+  "pickFileDescription": "Browse this organization’s folders and choose a file. The reference keeps the selected version.",
+  "pickFolder": "Choose destination folder",
+  "pickFolderDescription": "Open the destination folder and confirm. Files cannot be destination folders.",
+  "root": "Root folder",
+  "searchPlaceholder": "Search files and folders in this organization",
+  "selectedFile": "Selected: {{name}}",
+  "size": "Size",
+  "type": "Type",
+  "updatedAt": "Updated at",
+  "useFile": "Use file",
+  "useFolder": "Use this folder"
+}

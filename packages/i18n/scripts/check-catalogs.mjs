@@ -6,6 +6,7 @@ const root = new URL("../src/locales/", import.meta.url)
 const locales = ["zh-CN", "en-US", "ar"]
 const namespaces = [
   "common",
+  "files",
   "auth",
   "organization",
   "projects",

@@ -1,0 +1,23 @@
+{
+  "byteCount": "{{bytes}} 字节",
+  "emptyFolder": "此文件夹暂无文件或子文件夹。",
+  "folder": "文件夹",
+  "folderNavigation": "文件夹导航",
+  "folderSize": "—",
+  "location": "所在文件夹",
+  "name": "名称",
+  "noFileSelected": "请选择一个可用文件。",
+  "organizationSearch": "在本组织中搜索“{{name}}”",
+  "pickFile": "选择文件",
+  "pickFileDescription": "浏览当前组织的文件夹并选择文件。引用固定所选版本。",
+  "pickFolder": "选择目标文件夹",
+  "pickFolderDescription": "进入目标文件夹后确认；文件不能作为目标目录。",
+  "root": "根目录",
+  "searchPlaceholder": "搜索本组织的文件和文件夹",
+  "selectedFile": "已选择：{{name}}",
+  "size": "大小",
+  "type": "类型",
+  "updatedAt": "更新时间",
+  "useFile": "使用文件",
+  "useFolder": "使用此文件夹"
+}
