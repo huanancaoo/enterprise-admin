@@ -247,6 +247,8 @@ export function FormDialog({
   submitDisabled = false,
   finalFocus,
   onOpenChangeComplete,
+  contentClassName,
+  contentTabIndex,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -260,6 +262,8 @@ export function FormDialog({
   submitDisabled?: boolean
   finalFocus?: ComponentProps<typeof DialogContent>["finalFocus"]
   onOpenChangeComplete?: (open: boolean) => void
+  contentClassName?: ComponentProps<typeof DialogContent>["className"]
+  contentTabIndex?: ComponentProps<typeof DialogContent>["tabIndex"]
 }) {
   const { t } = useTranslation("common")
   const formId = useId()
@@ -271,7 +275,12 @@ export function FormDialog({
         if (!pending) onOpenChange(value)
       }}
     >
-      <DialogContent showCloseButton={false} finalFocus={finalFocus}>
+      <DialogContent
+        showCloseButton={false}
+        finalFocus={finalFocus}
+        className={contentClassName}
+        tabIndex={contentTabIndex}
+      >
         <DialogHeader>
           <DialogTitle className="wrap-anywhere">{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>

@@ -136,6 +136,10 @@ export function RoleActionDialog({
   }
   return (
     <FormDialog
+      // 权限目录随已注册资源增长；窗口自身滚动才能让全部权限和确认操作保持可访问。
+      contentClassName="max-h-[calc(100dvh-2rem)] overflow-y-auto"
+      // 提交期间全部控件禁用，窗口本身仍须可聚焦，才能用键盘查看完整权限目录。
+      contentTabIndex={0}
       open={open}
       onOpenChange={setOpen}
       onOpenChangeComplete={(value) => {

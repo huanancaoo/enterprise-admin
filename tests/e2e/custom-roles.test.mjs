@@ -37,6 +37,23 @@ async function selectLocale(page, userName, locale) {
   await page.keyboard.press("Enter")
 }
 
+async function scrollDialogWithKey(page, dialog, key) {
+  // 平滑滚动首次抵达目标位置时仍可能在执行；下一个方向键必须等待原生 scrollend。
+  const completion = await dialog.evaluateHandle((node) => ({
+    finished: new Promise((resolve) => {
+      node.addEventListener("scrollend", () => resolve(node.scrollTop), {
+        once: true,
+      })
+    }),
+  }))
+  try {
+    await page.keyboard.press(key)
+    return await completion.evaluate(({ finished }) => finished)
+  } finally {
+    await completion.dispose()
+  }
+}
+
 describe("S8-05：组织自定义角色浏览器流程", () => {
   let environment
   let context
@@ -326,6 +343,7 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
     await row.getByRole("button", { name: "修改权限", exact: true }).click()
     const dialog = page.getByRole("dialog")
     await expectUI(dialog).toContainText("成员：1；有效邀请：0")
+    await expectUI(dialog).toBeInViewport({ ratio: 1 })
     await dialog
       .getByRole("checkbox", { name: "项目：编辑", exact: true })
       .uncheck()
@@ -351,6 +369,13 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
         "aria-busy",
         "true"
       )
+      // 所有权限控件禁用时，窗口仍是浏览完整权限目录的键盘入口。
+      await dialog.focus()
+      await expectUI(dialog).toBeFocused()
+      expect(await scrollDialogWithKey(page, dialog, "Home")).toBe(0)
+      expect(
+        await scrollDialogWithKey(page, dialog, "PageDown")
+      ).toBeGreaterThan(0)
       const view = dialog.getByRole("checkbox", {
         name: "项目：查看",
         exact: true,
@@ -392,7 +417,7 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
     await expectUI(row).toHaveCount(0)
   })
 
-  it.each([
+  const roleDialogLocales = [
     {
       locale: "English",
       lang: "en-US",
@@ -420,7 +445,14 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
       counts: "الأعضاء: 0؛ الدعوات السارية: 0",
       stale: "تغير الدور أو ارتباطاته. أغلق النافذة وأكد من جديد.",
     },
-  ])("$lang 的更新删除支持键盘、无障碍与陈旧版本草稿保留", async (labels) => {
+  ]
+  const roleDialogScenarios = roleDialogLocales.flatMap((labels) => [
+    { ...labels, viewport: { width: 1280, height: 800 } },
+    { ...labels, viewport: { width: 390, height: 640 } },
+  ])
+  const roleDialogTitle =
+    "$lang $viewport.width×$viewport.height 的更新删除支持键盘、无障碍与陈旧版本草稿保留"
+  it.each(roleDialogScenarios)(roleDialogTitle, async (labels) => {
     const owner = await signUpVerified(
       environment.baseURL,
       environment.tenantOrigin,
@@ -448,6 +480,7 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
     await selectLocale(page, "键盘角色所有者", labels.locale)
     await expectUI(page.locator("html")).toHaveAttribute("lang", labels.lang)
     await expectUI(page.locator("html")).toHaveAttribute("dir", labels.dir)
+    await page.setViewportSize(labels.viewport)
     const row = page
       .getByRole("listitem")
       .filter({ hasText: "keyboard-editor" })
@@ -456,6 +489,9 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
     await page.keyboard.press("Enter")
     const dialog = page.getByRole("dialog")
     await expectUI(dialog).toContainText(labels.counts)
+    await expectUI(dialog).toBeInViewport({ ratio: 1 })
+    // 对比度验收针对完成淡入后的界面，不能采样过渡中的半透明背景。
+    await expectUI(dialog).toHaveCSS("opacity", "1")
     await page.addScriptTag({
       path: a11yRequire.resolve("axe-core/axe.min.js"),
     })
@@ -471,11 +507,15 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
         ).violations
     )
     expect(violations).toEqual([])
+    const lastPermission = dialog.getByRole("checkbox").last()
+    await lastPermission.focus()
+    await expectUI(lastPermission).toBeInViewport()
     const checkbox = dialog.getByRole("checkbox", {
       name: labels.permission,
       exact: true,
     })
     await checkbox.focus()
+    await expectUI(checkbox).toBeInViewport()
     await page.keyboard.press("Space")
     await expectUI(checkbox).not.toBeChecked()
     await environment.runtime.auth.api.createOrgRole({
@@ -493,6 +533,7 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
     await submit.focus()
     await page.keyboard.press("Enter")
     await expectUI(dialog.getByRole("alert")).toHaveText(labels.stale)
+    await expectUI(dialog).toBeInViewport({ ratio: 1 })
     await expectUI(checkbox).not.toBeChecked()
     await expectUI(submit).toBeDisabled()
     await dialog
