@@ -48,7 +48,7 @@ describe("S8-09：浏览器中的个人与组织语言设置", () => {
     await environment?.close()
   })
 
-  it("无组织时刷新恢复已保存的个人语言偏好", async () => {
+  it("无组织时刷新恢复个人偏好，清空后采用真实平台默认语言", async () => {
     const account = await signUpVerified(
       environment.baseURL,
       tenantOrigin,
@@ -91,6 +91,51 @@ describe("S8-09：浏览器中的个人与组织语言设置", () => {
     await expectUI(
       page.getByRole("combobox", { name: "اللغة", exact: true })
     ).toBeVisible()
+
+    const previous = await environment.migrator.query(
+      "SELECT default_locale FROM platform_settings WHERE singleton = true"
+    )
+    try {
+      // 平台默认值来自真实数据库；同次 PATCH 响应和保存后的页面必须一致。
+      await environment.migrator.query(
+        "UPDATE platform_settings SET default_locale = 'en-US' WHERE singleton = true"
+      )
+      await page.getByRole("combobox", { name: "اللغة", exact: true }).click()
+      await page
+        .getByRole("option", {
+          name: "اتباع الإعدادات الافتراضية للمؤسسة أو المنصة",
+          exact: true,
+        })
+        .click()
+      const updated = page.waitForResponse(
+        (response) =>
+          response.request().method() === "PATCH" &&
+          response.url().endsWith("/api/v1/me/preferences")
+      )
+      await page.getByRole("button", { name: "حفظ", exact: true }).click()
+      const response = await updated
+      expect(response.status()).toBe(200)
+      expect(await response.json()).toMatchObject({
+        preferredLocale: null,
+        effectiveLocale: "en-US",
+        effectiveLocaleSource: "platform",
+      })
+      await expectUI(page.locator("html")).toHaveAttribute("lang", "en-US")
+      await expectUI(page.locator("html")).toHaveAttribute("dir", "ltr")
+      await expectUI(page.getByRole("status")).toHaveText(
+        "Language settings saved."
+      )
+      await page.reload()
+      await expectUI(page.locator("html")).toHaveAttribute("lang", "en-US")
+      await expectUI(
+        page.getByRole("combobox", { name: "Language", exact: true })
+      ).toContainText("Follow organization or platform defaults")
+    } finally {
+      await environment.migrator.query(
+        "UPDATE platform_settings SET default_locale = $1 WHERE singleton = true",
+        [previous.rows[0].default_locale]
+      )
+    }
   })
 
   it("切换到无偏好的无组织账号时按继承语言复位，响应语言仍跟随请求头", async () => {

@@ -118,15 +118,20 @@ export function PersonalLocaleSettingsRoute() {
   const [submitError, setSubmitError] = useState<string>()
   const [saved, setSaved] = useState(false)
   const form = useForm({
-    defaultValues: { preferredLocale: null as "zh-CN" | "en-US" | "ar" | null },
+    defaultValues: {
+      preferredLocale: preferences.data?.data.preferredLocale ?? null,
+    },
     validators: { onSubmit: personalLocaleSchema },
     onSubmit: async ({ value, formApi }) => {
       if (!preferences.data) return
       setSubmitError(undefined)
       setSaved(false)
-      if (activeOrganization.isPending) return
-      if (value.preferredLocale === null && activeOrganization.isError) {
-        setSubmitError(t("localeRefreshError"))
+      if (
+        value.preferredLocale === null &&
+        (activeOrganization.isPending || activeOrganization.isError)
+      ) {
+        // 固定个人偏好不依赖组织目录；继承选择须先确认组织，失败时尚未保存。
+        setSubmitError(t("saveError"))
         return
       }
       let result
@@ -151,8 +156,9 @@ export function PersonalLocaleSettingsRoute() {
       }
 
       const organizationId = activeOrganization.data
-      let nextLocale = value.preferredLocale ?? "zh-CN"
-      let nextSource = value.preferredLocale ? "user" : "platform"
+      // 无组织时的继承来自服务端平台设置，不能固化为某一种默认语言。
+      let nextLocale = result.data.effectiveLocale
+      let nextSource = result.data.effectiveLocaleSource
       if (organizationId && value.preferredLocale === null) {
         try {
           await queryClient.invalidateQueries({
@@ -245,63 +251,71 @@ export function PersonalLocaleSettingsRoute() {
           </div>
         </dl>
       </div>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault()
-          void form.handleSubmit()
-        }}
-        className="space-y-6"
-        aria-busy={form.state.isSubmitting}
-      >
-        <fieldset disabled={form.state.isSubmitting} className="contents">
-          <FieldGroup>
-            <form.Field name="preferredLocale">
-              {(field) => {
-                const invalid =
-                  field.state.meta.isTouched && !field.state.meta.isValid
-                return (
-                  <Field data-invalid={invalid}>
-                    <FieldLabel htmlFor={`${id}-locale`}>
-                      {t("language")}
-                    </FieldLabel>
-                    <FieldDescription>
-                      {t("followOrganization")}
-                    </FieldDescription>
-                    <LocaleSelect
-                      id={`${id}-locale`}
-                      value={field.state.value ?? "__inherit__"}
-                      inheritLabel={t("followOrganization")}
-                      invalid={invalid}
-                      onBlur={field.handleBlur}
-                      onChange={(value) =>
-                        field.handleChange(
-                          value === null || value === "__inherit__"
-                            ? null
-                            : SupportedLocaleSchema.parse(value)
-                        )
-                      }
-                    />
-                    {invalid && <FieldError errors={field.state.meta.errors} />}
-                  </Field>
-                )
-              }}
-            </form.Field>
-          </FieldGroup>
-          {submitError && (
-            <p role="alert" className="text-sm text-destructive">
-              {submitError}
-            </p>
-          )}
-          {saved && (
-            <p role="status" className="text-sm text-muted-foreground">
-              {t("saved")}
-            </p>
-          )}
-          <Button type="submit" disabled={form.state.isSubmitting}>
-            {form.state.isSubmitting ? t("saving") : t("save")}
-          </Button>
-        </fieldset>
-      </form>
+      {/* 提交锁定须订阅表单状态，字段的局部更新不会重绘整张表单。 */}
+      <form.Subscribe selector={(state) => state.isSubmitting}>
+        {(isSubmitting) => (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault()
+              void form.handleSubmit()
+            }}
+            className="space-y-6"
+            aria-busy={isSubmitting}
+          >
+            <fieldset disabled={isSubmitting} className="contents">
+              <FieldGroup>
+                <form.Field name="preferredLocale">
+                  {(field) => {
+                    const invalid =
+                      field.state.meta.isTouched && !field.state.meta.isValid
+                    return (
+                      <Field data-invalid={invalid}>
+                        <FieldLabel htmlFor={`${id}-locale`}>
+                          {t("language")}
+                        </FieldLabel>
+                        <FieldDescription>
+                          {t("followOrganization")}
+                        </FieldDescription>
+                        <LocaleSelect
+                          id={`${id}-locale`}
+                          value={field.state.value ?? "__inherit__"}
+                          inheritLabel={t("followOrganization")}
+                          invalid={invalid}
+                          disabled={isSubmitting}
+                          onBlur={field.handleBlur}
+                          onChange={(value) =>
+                            field.handleChange(
+                              value === null || value === "__inherit__"
+                                ? null
+                                : SupportedLocaleSchema.parse(value)
+                            )
+                          }
+                        />
+                        {invalid && (
+                          <FieldError errors={field.state.meta.errors} />
+                        )}
+                      </Field>
+                    )
+                  }}
+                </form.Field>
+              </FieldGroup>
+              {submitError && (
+                <p role="alert" className="text-sm text-destructive">
+                  {submitError}
+                </p>
+              )}
+              {saved && (
+                <p role="status" className="text-sm text-muted-foreground">
+                  {t("saved")}
+                </p>
+              )}
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? t("saving") : t("save")}
+              </Button>
+            </fieldset>
+          </form>
+        )}
+      </form.Subscribe>
     </section>
   )
 }
@@ -321,7 +335,8 @@ export function OrganizationLocaleSettingsRoute({
   const [submitError, setSubmitError] = useState<string>()
   const [saved, setSaved] = useState(false)
   const form = useForm({
-    defaultValues: { defaultLocale: null as "zh-CN" | "en-US" | "ar" | null },
+    // 权限查询完成后的重绘不能把已加载值清空，默认值须与服务端快照一致。
+    defaultValues: { defaultLocale: settings.data?.data.defaultLocale ?? null },
     validators: { onSubmit: organizationLocaleSchema },
     onSubmit: async ({ value, formApi }) => {
       if (!settings.data) return
@@ -387,67 +402,75 @@ export function OrganizationLocaleSettingsRoute({
           <p className="text-sm text-muted-foreground">{t("readOnly")}</p>
         )}
       </header>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault()
-          void form.handleSubmit()
-        }}
-        className="space-y-6"
-        aria-busy={form.state.isSubmitting}
-      >
-        <fieldset
-          disabled={form.state.isSubmitting || !canUpdate}
-          className="contents"
-        >
-          <FieldGroup>
-            <form.Field name="defaultLocale">
-              {(field) => {
-                const invalid =
-                  field.state.meta.isTouched && !field.state.meta.isValid
-                return (
-                  <Field data-invalid={invalid}>
-                    <FieldLabel htmlFor={`${id}-locale`}>
-                      {t("language")}
-                    </FieldLabel>
-                    <FieldDescription>{t("followPlatform")}</FieldDescription>
-                    <LocaleSelect
-                      id={`${id}-locale`}
-                      value={field.state.value ?? "__inherit__"}
-                      inheritLabel={t("followPlatform")}
-                      invalid={invalid}
-                      disabled={!canUpdate}
-                      onBlur={field.handleBlur}
-                      onChange={(value) =>
-                        field.handleChange(
-                          value === null || value === "__inherit__"
-                            ? null
-                            : SupportedLocaleSchema.parse(value)
-                        )
-                      }
-                    />
-                    {invalid && <FieldError errors={field.state.meta.errors} />}
-                  </Field>
-                )
-              }}
-            </form.Field>
-          </FieldGroup>
-          {submitError && (
-            <p role="alert" className="text-sm text-destructive">
-              {submitError}
-            </p>
-          )}
-          {saved && (
-            <p role="status" className="text-sm text-muted-foreground">
-              {t("saved")}
-            </p>
-          )}
-          {canUpdate && (
-            <Button type="submit" disabled={form.state.isSubmitting}>
-              {form.state.isSubmitting ? t("saving") : t("save")}
-            </Button>
-          )}
-        </fieldset>
-      </form>
+      <form.Subscribe selector={(state) => state.isSubmitting}>
+        {(isSubmitting) => (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault()
+              void form.handleSubmit()
+            }}
+            className="space-y-6"
+            aria-busy={isSubmitting}
+          >
+            <fieldset
+              disabled={isSubmitting || !canUpdate}
+              className="contents"
+            >
+              <FieldGroup>
+                <form.Field name="defaultLocale">
+                  {(field) => {
+                    const invalid =
+                      field.state.meta.isTouched && !field.state.meta.isValid
+                    return (
+                      <Field data-invalid={invalid}>
+                        <FieldLabel htmlFor={`${id}-locale`}>
+                          {t("language")}
+                        </FieldLabel>
+                        <FieldDescription>
+                          {t("followPlatform")}
+                        </FieldDescription>
+                        <LocaleSelect
+                          id={`${id}-locale`}
+                          value={field.state.value ?? "__inherit__"}
+                          inheritLabel={t("followPlatform")}
+                          invalid={invalid}
+                          disabled={isSubmitting || !canUpdate}
+                          onBlur={field.handleBlur}
+                          onChange={(value) =>
+                            field.handleChange(
+                              value === null || value === "__inherit__"
+                                ? null
+                                : SupportedLocaleSchema.parse(value)
+                            )
+                          }
+                        />
+                        {invalid && (
+                          <FieldError errors={field.state.meta.errors} />
+                        )}
+                      </Field>
+                    )
+                  }}
+                </form.Field>
+              </FieldGroup>
+              {submitError && (
+                <p role="alert" className="text-sm text-destructive">
+                  {submitError}
+                </p>
+              )}
+              {saved && (
+                <p role="status" className="text-sm text-muted-foreground">
+                  {t("saved")}
+                </p>
+              )}
+              {canUpdate && (
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? t("saving") : t("save")}
+                </Button>
+              )}
+            </fieldset>
+          </form>
+        )}
+      </form.Subscribe>
     </section>
   )
 }

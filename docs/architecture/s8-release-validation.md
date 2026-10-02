@@ -160,9 +160,29 @@ T15 还实际复现了空参数绕过：停用组织已经是当前 Session 的 
 
 核对完整检查生成的工作台产物：平台设置长部署摘要、平台设置 RTL、租户审计 RTL 详情及长详情在 1280×720 视口的页面 scrollWidth=clientWidth=1280，无浏览器 pageerror。长详情 top=16、bottom=704，clientHeight=688、scrollHeight=1284，弹层宽度及 scrollWidth 均为 448；原生 End 键使 scrollTop 从 0 到 595，Escape 后事件按钮恢复焦点。原生浏览器检查退出码 0，日志为 `/private/tmp/enterprise-admin-s8-settings-audit-render.log`。截图已查看，路径为同目录的 `enterprise-admin-s8-platform-settings-long-text.png`、`enterprise-admin-s8-platform-settings-rtl.png`、`enterprise-admin-s8-tenant-audit-rtl.png`、`enterprise-admin-s8-tenant-audit-long-text.png` 和 `enterprise-admin-s8-tenant-audit-long-text-keyboard.png`。这些证据限于 UI fixture、当前 Chromium 和上述视口，真实授权、隔离、邮件及发布仍按各自链路验收。
 
+## 个人与组织语言 Feature Stories
+
+新增个人 24、组织 20 个正式 Feature 场景，聚焦检查 2 文件/44 项通过，退出码 0；租户应用与 mocks 的 lint/typecheck 均通过。覆盖默认、加载、null 继承空态、错误、401/403、只读、权限查询失败、三语/RTL、慢请求、提交锁定、409 保留草稿后使用最新版本重试、429/503 手动重试、保存失权，以及清空组织默认值。语言选项只有三个受支持 locale 和 null；长文本采用实际继承文案，在 320 像素区域断言无水平溢出，不构造非法语言值。
+
+个人设置还覆盖固定选择、组织继承、组织无默认值时的平台继承、无组织的平台继承，已保存但 access 刷新失败，以及组织目录错误和持续加载。正式组件读取 `form.state` 未形成提交状态订阅，保存期间按钮和 Select 没有按要求锁定；两个表单改用 `form.Subscribe`，保持字段和按钮同一提交状态。初始化默认值与服务端快照一致，权限查询完成后的重绘不再把已加载组织语言清为空值；原未保存草稿同步约束保留。
+
+无组织时清空个人偏好原先固定使用 zh-CN；现在采用同次 PATCH 返回的继承语言及来源，存在组织的继承仍读取正式 access。固定个人偏好保存独立于组织目录查询；继承选择在目录未确定或失败时保留草稿并显示保存失败。原错误文案把尚未发送的写请求称为“设置已保存”，现在只在写入成功、随后刷新失败时使用该提示。
+
+首次 42 个场景为 36 通过/6 失败；等待提交状态后的最小检查仍 6 项失败。无组织继承和尚未保存提示修复后，持续加载检查再稳定复现固定选择被静默忽略、继承提交无提示的 2 项失败；默认值最小检查为 1 失败/1 通过/18 跳过。最终 44 个场景全部通过。日志为 `/private/tmp/enterprise-admin-s8-locale-stories-first.log`、`enterprise-admin-s8-locale-minimal-red.log`、`enterprise-admin-s8-locale-pending-red.log`、`enterprise-admin-s8-locale-initialization-red.log` 和 `enterprise-admin-s8-locale-stories-final.log`。这些 UI fixture 只证明 Feature 行为，身份、全应用导航及隔离继续使用真实链路验收。
+
+真实浏览器回归使用现有 `tests/e2e/locale-settings.test.mjs` 的数据库/API/SPA 入口：无组织用户先保存阿语并刷新，再将自有测试环境的平台默认值设为英语，清空个人偏好，核对 PATCH 200 的 null 偏好及英语继承、即时 UI、方向和再次刷新。测试结束恢复原平台默认值。修改前 HTTP 返回 en-US 而页面仍为 zh-CN，真实回归失败；首次修复后的 4 项语言浏览器回归全部通过，退出码 0，覆盖原组织切换、个人/组织设置、草稿及失权流程。对应日志为 `/private/tmp/enterprise-admin-s8-locale-no-org-red.log` 和 `enterprise-admin-s8-locale-e2e-green.log`；该 4 项结果早于后续默认值与目录持续加载修正，最终源码的完整结果另行记录。
+
+## 语言设置批次完整检查
+
+最终源码执行 `pnpm verify`，进程退出码 0：API 155 项（Nest 15、真实业务 HTTP 140）、浏览器 11 文件/75 项、Storybook 19 文件/255 项、数据库 2 文件/24 项、性能 2 项及单元 74 项全部通过。peer、lint/工程边界、16 个包的类型、i18n、38 页文档内容、数据库 Schema、生产构建和 OpenAPI/Orval 可重现检查全部通过。日志为 `/private/tmp/enterprise-admin-s8-locale-verify-final.log`。验证前后本批 8 个源码文件的 SHA-256 一致；最终文档与本批源码另外执行定向格式及文档内容检查。
+
+使用完整检查生成的 Storybook 产物核对 5 个场景：个人/组织语言 RTL、个人/组织继承长文案、个人设置原生键盘保存。1280×720 视口中页面 scrollWidth=clientWidth=1280，无浏览器 pageerror；两个长文案场景的 mainWidth=mainScrollWidth=320。这是窄内容区域检查，不是 320 像素移动视口验收。原生 Enter 打开选项，End 和 Enter 选择阿语，Enter 提交后确认阿语保存状态与 RTL。浏览器进程退出码 0，日志为 `/private/tmp/enterprise-admin-s8-locale-render.log`。
+
+5 张截图已查看，位于 `/private/tmp`：`enterprise-admin-s8-personal-locale-rtl.png`、`enterprise-admin-s8-organization-locale-rtl.png`、`enterprise-admin-s8-personal-locale-long-text.png`、`enterprise-admin-s8-organization-locale-long-text.png`、`enterprise-admin-s8-personal-locale-native-keyboard.png`。渲染与键盘证据限于正式 Feature、UI fixture、当前 Chromium 和上述视口，不代替真实登录、组织切换、隔离或发布证明。
+
 ## 尚未完成的验收
 
-- 平台组织、用户目录、审计、设置及租户审计已补足上述 Feature Stories；Members/Invitations/Roles 和个人/组织语言设置仍需逐项补足，不能用 API 或公共 Stories 替代。
+- 平台组织、用户目录、审计、设置、租户审计及个人/组织语言设置已补足上述 Feature Stories；Members/Invitations/Roles 仍需逐项补足，不能用 API 或公共 Stories 替代。
 - 安全回退入口和 ADR-0002/当前 CLI 的语义冲突等待用户确认；确认后完成实现、文档与对应发布验收。
 
 本机验证与远端 CI、生产部署分别记账；本记录不声称 GitHub Actions 或生产发布已通过。
