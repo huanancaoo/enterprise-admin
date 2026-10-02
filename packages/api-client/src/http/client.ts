@@ -14,6 +14,7 @@ export function configureApiClient(config: ApiClientConfig): void {
 
 export type ApiClientRequestOptions = RequestInit & {
   params?: Record<string, unknown>
+  responseType?: "blob"
 }
 
 export class ApiClientError extends Error {
@@ -40,7 +41,12 @@ export async function apiClient<T>(
     )
   }
 
-  const { params, headers: requestHeaders, ...requestInit } = options
+  const {
+    params,
+    responseType,
+    headers: requestHeaders,
+    ...requestInit
+  } = options
 
   // OpenAPI paths already include /api/v1, so baseUrl is origin only.
   const url = new URL(requestPath, apiClientConfig.baseUrl)
@@ -77,15 +83,23 @@ export async function apiClient<T>(
 
   // Orval fetch 默认 T = { data, status, headers }，不能只返回解析后的 body。
   return {
-    data: await readResponseData(response),
+    data: await readResponseData(response, responseType),
     status: response.status,
     headers: response.headers,
   } as T
 }
 
-async function readResponseData(response: Response): Promise<unknown> {
+async function readResponseData(
+  response: Response,
+  responseType: ApiClientRequestOptions["responseType"]
+): Promise<unknown> {
   if (response.status === 204) {
     return undefined
+  }
+
+  // 文件内容可能也是 JSON 或纯文本；明确读取原始字节时不能按 MIME 解码。
+  if (responseType === "blob") {
+    return response.blob()
   }
 
   const contentType = response.headers.get("content-type")

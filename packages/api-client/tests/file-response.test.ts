@@ -1,0 +1,260 @@
+import { createServer, type RequestListener, type Server } from "node:http"
+import type { AddressInfo } from "node:net"
+import { afterEach, describe, expect, it } from "vitest"
+import { ApiClientError, apiClient, configureApiClient } from "../src/index"
+
+type FileResponse = { data: Blob; status: number; headers: Headers }
+
+const servers: Server[] = []
+
+const forbidden = {
+  code: "FORBIDDEN",
+  message: "文件访问被拒绝",
+  requestId: "sdk-file-request",
+  locale: "zh-CN",
+}
+
+async function setup(handler: RequestListener) {
+  const server = createServer((request, response) => {
+    if (request.headers.cookie !== "session=sdk-file-test") {
+      response.writeHead(403, { "Content-Type": "application/json" })
+      response.end(JSON.stringify(forbidden))
+      return
+    }
+    handler(request, response)
+  })
+  servers.push(server)
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject)
+    server.listen(0, "127.0.0.1", () => {
+      server.off("error", reject)
+      resolve()
+    })
+  })
+  const address = server.address() as AddressInfo
+  configureApiClient({
+    baseUrl: `http://127.0.0.1:${address.port}`,
+    getHeaders: () => ({ Cookie: "session=sdk-file-test" }),
+  })
+}
+
+afterEach(async () => {
+  for (const server of servers.splice(0)) {
+    server.closeAllConnections()
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve()))
+    )
+  }
+})
+
+describe("受保护文件响应", () => {
+  it("显式 Blob 读取保留原始二进制字节、状态与下载头", async () => {
+    await setup((_request, response) => {
+      response.writeHead(200, {
+        "Content-Type": "application/octet-stream",
+        "Content-Disposition": 'attachment; filename="data.bin"',
+      })
+      response.end(Uint8Array.from([0x00, 0x41, 0xff, 0x80, 0x0a]))
+    })
+
+    const result = await apiClient<FileResponse>(
+      "/api/v1/files/version/content",
+      {
+        responseType: "blob",
+      }
+    )
+
+    expect(result.data).toBeInstanceOf(Blob)
+    expect(new Uint8Array(await result.data.arrayBuffer())).toEqual(
+      Uint8Array.from([0x00, 0x41, 0xff, 0x80, 0x0a])
+    )
+    expect(result.status).toBe(200)
+    expect(result.headers.get("content-disposition")).toBe(
+      'attachment; filename="data.bin"'
+    )
+  })
+  it.each(["application/json; charset=utf-8", "text/plain; charset=utf-8"])(
+    "Blob 读取 %s 文件时保留格式和原始字节",
+    async (contentType) => {
+      await setup((_request, response) => {
+        response.writeHead(200, { "Content-Type": contentType })
+        response.end(
+          Uint8Array.from([
+            0x20, 0x7b, 0x22, 0x78, 0x22, 0x3a, 0x31, 0x7d, 0x0a,
+          ])
+        )
+      })
+
+      const result = await apiClient<FileResponse>(
+        "/api/v1/files/version/content",
+        {
+          responseType: "blob",
+        }
+      )
+
+      expect(result.data).toBeInstanceOf(Blob)
+      expect(new Uint8Array(await result.data.arrayBuffer())).toEqual(
+        Uint8Array.from([0x20, 0x7b, 0x22, 0x78, 0x22, 0x3a, 0x31, 0x7d, 0x0a])
+      )
+    }
+  )
+
+  it("真实 206 分段响应保留所选字节与 Range、Disposition 头", async () => {
+    let receivedRange: string | undefined
+    await setup((request, response) => {
+      receivedRange = request.headers.range
+      response.writeHead(206, {
+        "Content-Type": "application/octet-stream",
+        "Content-Length": "3",
+        "Content-Range": "bytes 2-4/6",
+        "Accept-Ranges": "bytes",
+        "Content-Disposition": 'inline; filename="partial.bin"',
+      })
+      response.end(Uint8Array.from([0xff, 0x80, 0x41]))
+    })
+
+    const result = await apiClient<FileResponse>(
+      "/api/v1/files/version/content",
+      {
+        responseType: "blob",
+        headers: { Range: "bytes=2-4" },
+      }
+    )
+
+    expect(receivedRange).toBe("bytes=2-4")
+    expect(result.status).toBe(206)
+    expect(new Uint8Array(await result.data.arrayBuffer())).toEqual(
+      Uint8Array.from([0xff, 0x80, 0x41])
+    )
+    expect(result.headers.get("content-range")).toBe("bytes 2-4/6")
+    expect(result.headers.get("accept-ranges")).toBe("bytes")
+    expect(result.headers.get("content-disposition")).toBe(
+      'inline; filename="partial.bin"'
+    )
+  })
+
+  it("零字节文件仍返回成功的空 Blob", async () => {
+    await setup((_request, response) => {
+      response.writeHead(200, {
+        "Content-Type": "application/json",
+        "Content-Length": "0",
+      })
+      response.end()
+    })
+
+    const result = await apiClient<FileResponse>(
+      "/api/v1/files/version/content",
+      {
+        responseType: "blob",
+      }
+    )
+
+    expect(result.status).toBe(200)
+    expect(result.data).toBeInstanceOf(Blob)
+    expect(result.data.size).toBe(0)
+  })
+
+  it.each([undefined, "blob"] as const)(
+    "204 在 responseType=%s 时仍保留无内容语义",
+    async (responseType) => {
+      await setup((_request, response) => {
+        response.writeHead(204)
+        response.end()
+      })
+
+      const result = await apiClient<{
+        data: undefined
+        status: number
+        headers: Headers
+      }>("/api/v1/files/version/content", { responseType })
+
+      expect(result.status).toBe(204)
+      expect(result.data).toBeUndefined()
+      expect(result.headers).toBeInstanceOf(Headers)
+    }
+  )
+
+  it.each([
+    ["application/json", '{"id":"accepted"}', { id: "accepted" }],
+    ["text/plain", "accepted", "accepted"],
+  ] as const)(
+    "普通 %s 请求保留现有解码行为",
+    async (contentType, body, expected) => {
+      await setup((_request, response) => {
+        response.writeHead(200, { "Content-Type": contentType })
+        response.end(body)
+      })
+
+      const result = await apiClient<{
+        data: unknown
+        status: number
+        headers: Headers
+      }>("/api/v1/projects")
+
+      expect(result.status).toBe(200)
+      expect(result.data).toEqual(expected)
+    }
+  )
+
+  it("文件读取被拒绝时仍以正式 ApiError 抛出", async () => {
+    await setup((_request, response) => {
+      response.writeHead(200, { "Content-Type": "application/octet-stream" })
+      response.end("allowed")
+    })
+
+    const rejected = apiClient<FileResponse>("/api/v1/files/version/content", {
+      responseType: "blob",
+      headers: { Cookie: "session=denied" },
+    })
+
+    await expect(rejected).rejects.toBeInstanceOf(ApiClientError)
+    await expect(rejected).rejects.toMatchObject({
+      status: 403,
+      body: forbidden,
+    })
+  })
+
+  it("响应正文在网络传输中截断时拒绝，不能返回部分文件为成功", async () => {
+    await setup((_request, response) => {
+      response.writeHead(200, {
+        "Content-Type": "application/octet-stream",
+        "Content-Length": "6",
+        Connection: "close",
+      })
+      response.end(Uint8Array.from([0x00, 0x41, 0xff]))
+    })
+
+    await expect(
+      apiClient<FileResponse>("/api/v1/files/version/content", {
+        responseType: "blob",
+      })
+    ).rejects.toBeInstanceOf(TypeError)
+  })
+
+  it("正文未传输完成时 Abort 会拒绝请求", async () => {
+    let signalBodySent!: () => void
+    const bodySent = new Promise<void>((resolve) => {
+      signalBodySent = resolve
+    })
+    await setup((_request, response) => {
+      response.writeHead(200, {
+        "Content-Type": "application/octet-stream",
+        "Content-Length": "1024",
+      })
+      response.write(Uint8Array.from([0x00, 0xff]), signalBodySent)
+    })
+    const controller = new AbortController()
+
+    const pending = apiClient<FileResponse>("/api/v1/files/version/content", {
+      responseType: "blob",
+      signal: controller.signal,
+    })
+    const rejected = expect(pending).rejects.toMatchObject({
+      name: "AbortError",
+    })
+    await bodySent
+    controller.abort()
+
+    await rejected
+  })
+})

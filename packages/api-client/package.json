@@ -17,6 +17,7 @@
   },
   "devDependencies": {
     "@tanstack/react-query": "5.102.8",
+    "@types/node": "26.5.1",
     "@types/react": "19.3.0",
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
