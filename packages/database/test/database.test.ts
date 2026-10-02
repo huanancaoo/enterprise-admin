@@ -282,6 +282,8 @@ describe(suiteName, { concurrent: false }, () => {
         "invitation_send_events",
         "operation_receipts",
         "organization_status",
+        "personal_media",
+        "personal_media_operations",
         "platform_assignment",
         "platform_assignment_audit",
         "platform_session_assurance",

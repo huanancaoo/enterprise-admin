@@ -288,6 +288,20 @@
       "when": 1790928705026,
       "tag": "0040_platform-storage-policy",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1790929710051,
+      "tag": "0041_personal-media",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1790929710695,
+      "tag": "0042_personal-media-access",
+      "breakpoints": true
     }
   ]
 }

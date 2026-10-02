@@ -1812,3 +1812,604 @@ test("平台失败审计只保存稳定码并独立提交，无上下文和组�
     0
   )
 })
+
+async function identityActor() {
+  const actorId = randomUUID(),
+    sessionId = randomUUID()
+  await owner.query(
+    `INSERT INTO public."user" (id,name,email,email_verified) VALUES ($1,'media',$2,true)`,
+    [actorId, `${actorId}@example.test`]
+  )
+  await owner.query(
+    `INSERT INTO public.session (id,user_id,token,expires_at,updated_at)
+    VALUES ($1,$2,$3,now()+interval '1 hour',now())`,
+    [sessionId, actorId, randomUUID()]
+  )
+  return { actorId, sessionId }
+}
+async function personalUpload(
+  actor: { actorId: string; sessionId: string },
+  body = "decoded image bytes"
+) {
+  const operationId = randomUUID(),
+    leaseId = randomUUID()
+  const begun = (
+    await runtime.query(
+      "SELECT public.begin_personal_media_upload($1,$2,$3,$4,$5,$6) AS result",
+      [
+        actor.actorId,
+        actor.sessionId,
+        operationId,
+        sha(JSON.stringify({ bytes: Buffer.byteLength(body) })),
+        Buffer.byteLength(body),
+        randomUUID(),
+      ]
+    )
+  ).rows[0]!.result
+  await runtime.query(
+    "SELECT public.claim_personal_media_upload($1,$2,$3,$4)",
+    [actor.actorId, actor.sessionId, operationId, leaseId]
+  )
+  const media = (
+    await runtime.query(
+      "SELECT public.publish_personal_media_upload($1,$2,$3,$4,$5,$6,$7,$8) AS result",
+      [
+        actor.actorId,
+        actor.sessionId,
+        operationId,
+        leaseId,
+        Buffer.byteLength(body),
+        sha(body),
+        "image/png",
+        randomUUID(),
+      ]
+    )
+  ).rows[0]!.result
+  return { media, operationId, leaseId, begun, body }
+}
+async function avatar(
+  actor: { actorId: string; sessionId: string },
+  mediaId: string | null,
+  expectedImage: string | null,
+  key = randomUUID()
+) {
+  return (
+    await runtime.query(
+      "SELECT public.set_personal_avatar($1,$2,$3,$4,$5,$6) AS result",
+      [
+        actor.actorId,
+        actor.sessionId,
+        mediaId,
+        expectedImage,
+        key,
+        randomUUID(),
+      ]
+    )
+  ).rows[0]!.result
+}
+async function personalRead(
+  actor: { actorId: string; sessionId: string },
+  mediaId: string,
+  organizationId: string | null = null
+) {
+  return (
+    await runtime.query(
+      "SELECT public.get_personal_media_content($1,$2,$3,$4) AS result",
+      [actor.actorId, actor.sessionId, mediaId, organizationId]
+    )
+  ).rows[0]!.result
+}
+
+test("个人媒体与组织隔离，runtime无表直读写，上传完成不改变User.image", async () => {
+  const actor = await identityActor(),
+    b = await identityActor(),
+    a = await workspace()
+  const uploaded = await personalUpload(actor)
+  assert.equal(
+    (
+      await owner.query('SELECT image FROM public."user" WHERE id=$1', [
+        actor.actorId,
+      ])
+    ).rows[0]!.image,
+    null
+  )
+  assert.equal(uploaded.media.user_id, actor.actorId)
+  assert.deepEqual(uploaded.media.storage_path, [uploaded.media.id])
+  assert.equal(uploaded.media.bytes, Buffer.byteLength(uploaded.body))
+  assert.equal(Object.hasOwn(uploaded.media, "organization_id"), false)
+  assert.equal(
+    (await personalRead(actor, uploaded.media.id)).sha256,
+    sha(uploaded.body)
+  )
+  await assert.rejects(
+    personalRead(b, uploaded.media.id),
+    databaseMessage("PERSONAL_MEDIA_NOT_FOUND")
+  )
+  await assert.rejects(
+    avatar(b, uploaded.media.id, null),
+    databaseMessage("PERSONAL_MEDIA_NOT_FOUND")
+  )
+  const organizationFile = await upload(a.context, a.root.id, "private.png")
+  await assert.rejects(
+    avatar(actor, organizationFile.id, null),
+    databaseMessage("PERSONAL_MEDIA_NOT_FOUND")
+  )
+  for (const table of ["personal_media", "personal_media_operations"]) {
+    await assert.rejects(
+      runtime.query(`SELECT * FROM ${table}`),
+      sqlCode("42501")
+    )
+    const flags = (
+      await owner.query(
+        "SELECT relrowsecurity,relforcerowsecurity FROM pg_class WHERE relname=$1",
+        [table]
+      )
+    ).rows[0]!
+    assert.equal(flags.relrowsecurity, true)
+    assert.equal(flags.relforcerowsecurity, true)
+  }
+  assert.equal(
+    (await run(a.context, (tx) => fileRepository.usage(tx)))!.usedBytes,
+    3
+  )
+})
+
+test("头像CAS保存、更换与移除只修改User.image，旧个人媒体记录24h期限", async () => {
+  const actor = await identityActor(),
+    first = await personalUpload(actor, "first"),
+    second = await personalUpload(actor, "second")
+  const key = randomUUID()
+  const saved = await avatar(actor, first.media.id, null, key)
+  assert.equal(saved.image, `/api/v1/personal-media/${first.media.id}/content`)
+  assert.deepEqual(await avatar(actor, first.media.id, null, key), saved)
+  await assert.rejects(
+    avatar(actor, second.media.id, null),
+    databaseMessage("VERSION_CONFLICT")
+  )
+  assert.equal((await personalRead(actor, first.media.id)).expires_at, null)
+  const replaced = await avatar(actor, second.media.id, saved.image)
+  const old = await personalRead(actor, first.media.id)
+  assert.equal(Date.parse(old.expires_at) > Date.now() + 23 * 3600_000, true)
+  assert.equal((await personalRead(actor, second.media.id)).expires_at, null)
+  assert.deepEqual(await avatar(actor, first.media.id, null, key), saved)
+  assert.equal(
+    (
+      await owner.query('SELECT image FROM public."user" WHERE id=$1', [
+        actor.actorId,
+      ])
+    ).rows[0]!.image,
+    replaced.image
+  )
+  await assert.rejects(
+    avatar(actor, second.media.id, null, key),
+    databaseMessage("IDEMPOTENCY_KEY_REUSED")
+  )
+  const removed = await avatar(actor, null, replaced.image)
+  assert.equal(removed.image, null)
+  assert.equal(
+    (
+      await owner.query('SELECT image FROM public."user" WHERE id=$1', [
+        actor.actorId,
+      ])
+    ).rows[0]!.image,
+    null
+  )
+  assert.equal(
+    Date.parse((await personalRead(actor, second.media.id)).expires_at) >
+      Date.now() + 23 * 3600_000,
+    true
+  )
+  assert.equal(
+    (
+      await owner.query(
+        `SELECT count(*)::integer AS total FROM audit_events WHERE actor_id=$1 AND event_code='user.avatar_updated'`,
+        [actor.actorId]
+      )
+    ).rows[0]!.total,
+    3
+  )
+})
+
+test("并发头像保存同一旧引用只有一个成功，不产生两个当前头像事实", async () => {
+  const actor = await identityActor(),
+    first = await personalUpload(actor, "first"),
+    second = await personalUpload(actor, "second")
+  const results = await Promise.allSettled([
+    avatar(actor, first.media.id, null),
+    avatar(actor, second.media.id, null),
+  ])
+  assert.equal(results.filter((r) => r.status === "fulfilled").length, 1)
+  assert.equal(
+    databaseMessage("VERSION_CONFLICT")(
+      (results.find((r) => r.status === "rejected") as PromiseRejectedResult)
+        .reason
+    ),
+    true
+  )
+  const current = (
+    await owner.query('SELECT image FROM public."user" WHERE id=$1', [
+      actor.actorId,
+    ])
+  ).rows[0]!.image
+  assert.equal(
+    [first.media.id, second.media.id].some(
+      (id) => current === `/api/v1/personal-media/${id}/content`
+    ),
+    true
+  )
+  assert.equal(
+    (
+      await owner.query(
+        "SELECT count(*)::integer AS total FROM personal_media WHERE user_id=$1 AND expires_at IS NULL",
+        [actor.actorId]
+      )
+    ).rows[0]!.total,
+    1
+  )
+})
+
+test("他人只在共享ACTIVE组织及member:read下读取当前头像，平台任职不产生资格", async () => {
+  const subject = await identityActor(),
+    viewer = await identityActor(),
+    outsider = await platformActor(),
+    a = await workspace()
+  const uploaded = await personalUpload(subject)
+  await owner.query(
+    `INSERT INTO member(id,organization_id,user_id,role,created_at) VALUES ($1,$2,$3,'owner',now()),($4,$2,$5,'member',now())`,
+    [
+      randomUUID(),
+      a.context.organizationId,
+      subject.actorId,
+      randomUUID(),
+      viewer.actorId,
+    ]
+  )
+  await assert.rejects(
+    personalRead(viewer, uploaded.media.id, a.context.organizationId),
+    databaseMessage("PERSONAL_MEDIA_NOT_FOUND")
+  )
+  await avatar(subject, uploaded.media.id, null)
+  assert.equal(
+    (await personalRead(viewer, uploaded.media.id, a.context.organizationId))
+      .id,
+    uploaded.media.id
+  )
+  await assert.rejects(
+    personalRead(outsider, uploaded.media.id, a.context.organizationId),
+    databaseMessage("PERSONAL_MEDIA_NOT_FOUND")
+  )
+  await owner.query(
+    `UPDATE organization_status SET status='SUSPENDED' WHERE organization_id=$1`,
+    [a.context.organizationId]
+  )
+  await assert.rejects(
+    personalRead(viewer, uploaded.media.id, a.context.organizationId),
+    databaseMessage("PERSONAL_MEDIA_NOT_FOUND")
+  )
+  assert.equal(
+    (await personalRead(subject, uploaded.media.id)).id,
+    uploaded.media.id
+  )
+  await owner.query(
+    `UPDATE organization_status SET status='ACTIVE' WHERE organization_id=$1`,
+    [a.context.organizationId]
+  )
+  await owner.query(
+    `INSERT INTO organization_role(id,organization_id,role,permission,created_at,updated_at) VALUES($1,$2,'limited',$3,now(),now())`,
+    [
+      randomUUID(),
+      a.context.organizationId,
+      JSON.stringify({ project: ["read"] }),
+    ]
+  )
+  await owner.query(
+    `UPDATE member SET role='limited' WHERE organization_id=$1 AND user_id=$2`,
+    [a.context.organizationId, viewer.actorId]
+  )
+  await assert.rejects(
+    personalRead(viewer, uploaded.media.id, a.context.organizationId),
+    databaseMessage("PERSONAL_MEDIA_NOT_FOUND")
+  )
+  await owner.query(
+    `UPDATE organization_role SET permission=$1 WHERE organization_id=$2 AND role='limited'`,
+    [JSON.stringify({ member: ["read"] }), a.context.organizationId]
+  )
+  assert.equal(
+    (await personalRead(viewer, uploaded.media.id, a.context.organizationId))
+      .id,
+    uploaded.media.id
+  )
+  await owner.query(
+    "DELETE FROM member WHERE organization_id=$1 AND user_id=$2",
+    [a.context.organizationId, viewer.actorId]
+  )
+  await assert.rejects(
+    personalRead(viewer, uploaded.media.id, a.context.organizationId),
+    databaseMessage("PERSONAL_MEDIA_NOT_FOUND")
+  )
+})
+
+test("任意image URL更新被数据库拒绝，昵称/语言更新不误伤已有受控头像", async () => {
+  const actor = await identityActor(),
+    uploaded = await personalUpload(actor)
+  const saved = await avatar(actor, uploaded.media.id, null)
+  await assert.rejects(
+    runtime.query('UPDATE public."user" SET image=$1 WHERE id=$2', [
+      "https://example.test/unverified.png",
+      actor.actorId,
+    ]),
+    sqlCode("42501")
+  )
+  await assert.rejects(
+    runtime.query('UPDATE public."user" SET image=NULL WHERE id=$1', [
+      actor.actorId,
+    ]),
+    sqlCode("42501")
+  )
+  await runtime.query(
+    `UPDATE public."user" SET name='renamed',preferred_locale='ar',image=image WHERE id=$1`,
+    [actor.actorId]
+  )
+  assert.equal(
+    (
+      await owner.query(
+        'SELECT image,name,preferred_locale FROM public."user" WHERE id=$1',
+        [actor.actorId]
+      )
+    ).rows[0]!.image,
+    saved.image
+  )
+  await assert.rejects(
+    owner.query("UPDATE personal_media SET bytes=999 WHERE id=$1", [
+      uploaded.media.id,
+    ]),
+    sqlCode("23514")
+  )
+})
+
+test("个人上传身份/内容/5MiB边界和lease一致，重复完成不产生第二对象", async () => {
+  const actor = await identityActor(),
+    uploaded = await personalUpload(actor, "same")
+  await assert.rejects(
+    runtime.query(
+      "SELECT public.begin_personal_media_upload($1,$2,$3,$4,$5,$6)",
+      [
+        actor.actorId,
+        actor.sessionId,
+        randomUUID(),
+        sha("oversized"),
+        5 * 1024 ** 2 + 1,
+        randomUUID(),
+      ]
+    ),
+    databaseMessage("VALIDATION_ERROR")
+  )
+  const same = (
+    await runtime.query(
+      "SELECT public.publish_personal_media_upload($1,$2,$3,$4,4,$5,$6,$7) AS result",
+      [
+        actor.actorId,
+        actor.sessionId,
+        uploaded.operationId,
+        uploaded.leaseId,
+        sha("same"),
+        "image/png",
+        randomUUID(),
+      ]
+    )
+  ).rows[0]!.result
+  assert.equal(same.id, uploaded.media.id)
+  await assert.rejects(
+    runtime.query(
+      "SELECT public.publish_personal_media_upload($1,$2,$3,$4,4,$5,$6,$7)",
+      [
+        actor.actorId,
+        actor.sessionId,
+        uploaded.operationId,
+        uploaded.leaseId,
+        sha("diff"),
+        "image/png",
+        randomUUID(),
+      ]
+    ),
+    databaseMessage("PERSONAL_MEDIA_CONTENT_MISMATCH")
+  )
+  assert.equal(
+    (
+      await owner.query(
+        "SELECT count(*)::integer AS total FROM personal_media WHERE user_id=$1",
+        [actor.actorId]
+      )
+    ).rows[0]!.total,
+    1
+  )
+  const operationId = randomUUID(),
+    leaseId = randomUUID()
+  await runtime.query(
+    "SELECT public.begin_personal_media_upload($1,$2,$3,$4,4,$5)",
+    [actor.actorId, actor.sessionId, operationId, sha("request"), randomUUID()]
+  )
+  const claims = await Promise.all([
+    runtime.query(
+      "SELECT public.claim_personal_media_upload($1,$2,$3,$4) AS result",
+      [actor.actorId, actor.sessionId, operationId, leaseId]
+    ),
+    runtime.query(
+      "SELECT public.claim_personal_media_upload($1,$2,$3,$4) AS result",
+      [actor.actorId, actor.sessionId, operationId, randomUUID()]
+    ),
+  ])
+  assert.equal(claims.filter((c) => c.rows[0]!.result !== null).length, 1)
+  const chosen = claims.find((c) => c.rows[0]!.result !== null)!.rows[0]!.result
+    .lease_id
+  await assert.rejects(
+    runtime.query(
+      "SELECT public.publish_personal_media_upload($1,$2,$3,$4,4,$5,$6,$7)",
+      [
+        actor.actorId,
+        actor.sessionId,
+        operationId,
+        randomUUID(),
+        sha("same"),
+        "image/png",
+        randomUUID(),
+      ]
+    ),
+    databaseMessage("FILE_OPERATION_LEASE_CONFLICT")
+  )
+  await runtime.query(
+    "SELECT public.fail_personal_media_upload($1,$2,$3,$4,$5)",
+    [actor.actorId, actor.sessionId, operationId, chosen, "STORAGE_UNAVAILABLE"]
+  )
+  const failed = (
+    await runtime.query(
+      "SELECT public.get_personal_media_operation($1,$2,$3) AS result",
+      [actor.actorId, actor.sessionId, operationId]
+    )
+  ).rows[0]!.result
+  assert.equal(failed.phase, "failed")
+  assert.equal(failed.committed_at, null)
+  assert.equal(typeof failed.cleaned_at, "string")
+})
+
+test("个人发布最终Session失效时不创建媒体或修改头像，保留待清理操作事实", async () => {
+  const actor = await identityActor(),
+    operationId = randomUUID(),
+    leaseId = randomUUID()
+  await runtime.query(
+    "SELECT public.begin_personal_media_upload($1,$2,$3,$4,4,$5)",
+    [actor.actorId, actor.sessionId, operationId, sha("request"), randomUUID()]
+  )
+  await runtime.query(
+    "SELECT public.claim_personal_media_upload($1,$2,$3,$4)",
+    [actor.actorId, actor.sessionId, operationId, leaseId]
+  )
+  await owner.query("DELETE FROM session WHERE id=$1", [actor.sessionId])
+  await assert.rejects(
+    runtime.query(
+      "SELECT public.publish_personal_media_upload($1,$2,$3,$4,4,$5,$6,$7)",
+      [
+        actor.actorId,
+        actor.sessionId,
+        operationId,
+        leaseId,
+        sha("same"),
+        "image/png",
+        randomUUID(),
+      ]
+    ),
+    databaseMessage("UNAUTHENTICATED")
+  )
+  assert.equal(
+    (
+      await owner.query(
+        "SELECT count(*)::integer AS total FROM personal_media WHERE user_id=$1",
+        [actor.actorId]
+      )
+    ).rows[0]!.total,
+    0
+  )
+  const operation = (
+    await owner.query(
+      "SELECT phase,committed_at FROM personal_media_operations WHERE user_id=$1 AND id=$2",
+      [actor.actorId, operationId]
+    )
+  ).rows[0]!
+  assert.deepEqual(operation, { phase: "preparing", committed_at: null })
+})
+
+test("个人媒体和头像成功审计故障回滚发布/引用/24h期限及收据", async () => {
+  const actor = await identityActor(),
+    uploaded = await personalUpload(actor)
+  await owner.query(`CREATE FUNCTION public.fail_personal_media_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+    IF NEW.actor_id='${actor.actorId}'::uuid AND NEW.event_code IN ('personal_media.uploaded','user.avatar_updated')
+    THEN RAISE EXCEPTION 'personal media audit failure'; END IF; RETURN NEW; END $$;
+    CREATE TRIGGER personal_media_audit_failure BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION public.fail_personal_media_audit()`)
+  const operationId = randomUUID(),
+    leaseId = randomUUID()
+  await runtime.query(
+    "SELECT public.begin_personal_media_upload($1,$2,$3,$4,4,$5)",
+    [actor.actorId, actor.sessionId, operationId, sha("request"), randomUUID()]
+  )
+  await runtime.query(
+    "SELECT public.claim_personal_media_upload($1,$2,$3,$4)",
+    [actor.actorId, actor.sessionId, operationId, leaseId]
+  )
+  try {
+    await assert.rejects(
+      avatar(actor, uploaded.media.id, null),
+      databaseMessage("AUDIT_UNAVAILABLE")
+    )
+    assert.equal(
+      (
+        await owner.query('SELECT image FROM public."user" WHERE id=$1', [
+          actor.actorId,
+        ])
+      ).rows[0]!.image,
+      null
+    )
+    assert.equal(
+      (await personalRead(actor, uploaded.media.id)).expires_at,
+      uploaded.media.expires_at
+    )
+    await assert.rejects(
+      runtime.query(
+        "SELECT public.publish_personal_media_upload($1,$2,$3,$4,4,$5,$6,$7)",
+        [
+          actor.actorId,
+          actor.sessionId,
+          operationId,
+          leaseId,
+          sha("same"),
+          "image/png",
+          randomUUID(),
+        ]
+      ),
+      databaseMessage("AUDIT_UNAVAILABLE")
+    )
+    assert.equal(
+      (
+        await owner.query(
+          "SELECT count(*)::integer AS total FROM personal_media WHERE user_id=$1",
+          [actor.actorId]
+        )
+      ).rows[0]!.total,
+      1
+    )
+    assert.equal(
+      (
+        await owner.query(
+          "SELECT committed_at FROM personal_media_operations WHERE user_id=$1 AND id=$2",
+          [actor.actorId, operationId]
+        )
+      ).rows[0]!.committed_at,
+      null
+    )
+    assert.equal(
+      (
+        await owner.query(
+          "SELECT count(*)::integer AS total FROM operation_receipts WHERE actor_id=$1",
+          [actor.actorId]
+        )
+      ).rows[0]!.total,
+      0
+    )
+  } finally {
+    await owner.query(
+      "DROP TRIGGER personal_media_audit_failure ON audit_events; DROP FUNCTION public.fail_personal_media_audit()"
+    )
+  }
+  await runtime.query(
+    "SELECT public.publish_personal_media_upload($1,$2,$3,$4,4,$5,$6,$7)",
+    [
+      actor.actorId,
+      actor.sessionId,
+      operationId,
+      leaseId,
+      sha("same"),
+      "image/png",
+      randomUUID(),
+    ]
+  )
+  await avatar(actor, uploaded.media.id, null)
+})
