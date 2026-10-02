@@ -62,3 +62,9 @@ export {
   personalAvatarImage,
 } from "./handlers/personal-media"
 export type { PersonalAvatarScenario } from "./handlers/personal-media"
+export {
+  createFilePickerScenario,
+  filePickerRoot,
+  filePickerFolder,
+  filePickerImage,
+} from "./handlers/file-picker"
