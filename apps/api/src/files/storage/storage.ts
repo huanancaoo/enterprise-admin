@@ -56,6 +56,8 @@ export class StorageError extends Error {
 // 这是物理存储接口。归属、授权、版本及操作收据由 Files 的受控入口确定。
 // copy 只准备并验证目标；源清理须在数据库定位与成功审计提交后执行。
 export interface FileStorage {
+  ensureOwner(owner: StorageOwner): Promise<void>;
+  directoryExists(address: StorageAddress): Promise<boolean>;
   createDirectory(address: StorageAddress): Promise<void>;
   write(
     address: StorageAddress,

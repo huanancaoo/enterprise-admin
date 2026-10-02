@@ -28,6 +28,7 @@ import {
   type FileStorage,
   type StorageAddress,
   type StorageConfig,
+  type StorageOwner,
   type StoredRead,
 } from './storage';
 
@@ -147,6 +148,36 @@ export class S3FileStorage implements FileStorage {
         }),
       );
     } catch (error) {
+      storageFailure(error);
+    }
+  }
+
+  async ensureOwner(owner: StorageOwner): Promise<void> {
+    for (const area of ['files', 'history', 'trash', 'staging'] as const) {
+      const address: StorageAddress = { owner, area, segments: [] };
+      // 调用方持有归属物理锁；重启后验证确切根标记，不覆盖已有业务名称。
+      if (!(await this.directoryExists(address)))
+        await this.createDirectory(address);
+    }
+  }
+
+  async directoryExists(address: StorageAddress): Promise<boolean> {
+    try {
+      const response = await this.client.send(
+        new HeadObjectCommand({
+          Bucket: this.config.bucket,
+          Key: this.key(address, true),
+        }),
+      );
+      if (response.ContentLength !== 0)
+        throw new StorageError('STORAGE_RESPONSE_INVALID');
+      return true;
+    } catch (error) {
+      if (
+        (error as { $metadata?: { httpStatusCode?: number } }).$metadata
+          ?.httpStatusCode === 404
+      )
+        return false;
       storageFailure(error);
     }
   }

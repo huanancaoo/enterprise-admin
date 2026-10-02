@@ -30,6 +30,45 @@ export function registerFileStorageMatrix(test, fixture) {
   }
 
   scenario(
+    "归属根区可重复初始化并保留既有文件，确切目录查询不创建缺失路径",
+    async ({ storage, at, owner, inspectContent, inspectDirectory }) => {
+      await storage.write(at("保留.bin"), chunks(payload), payload.length)
+      await storage.ensureOwner(owner)
+      await storage.ensureOwner(owner)
+      for (const area of ["files", "history", "trash", "staging"]) {
+        const root = { owner, area, segments: [] }
+        assert.equal(await storage.directoryExists(root), true)
+        assert.equal(await inspectDirectory(root), true)
+      }
+      assert.deepEqual(await inspectContent(at("保留.bin")), payload)
+      assert.equal(await storage.directoryExists(at("缺失")), false)
+      assert.equal(await inspectDirectory(at("缺失")), false)
+      await storage.createDirectory(at("重启恢复"))
+      assert.equal(await storage.directoryExists(at("重启恢复")), true)
+      await rejects(
+        () => storage.createDirectory(at("重启恢复")),
+        "STORAGE_CONFLICT"
+      )
+    }
+  )
+
+  scenario(
+    "个人根区与组织根区独立初始化且不复用同名归属",
+    async ({ storage, owner, at, inspectContent }) => {
+      const personal = { kind: "personal", id: owner.id }
+      await storage.ensureOwner(personal)
+      const target = { owner: personal, area: "files", segments: ["same"] }
+      await storage.write(target, chunks(payload), payload.length)
+      const other = Buffer.from("组织内容")
+      await storage.write(at("same"), chunks(other), other.length)
+      await storage.ensureOwner(personal)
+      await storage.ensureOwner(owner)
+      assert.deepEqual(await inspectContent(target), payload)
+      assert.deepEqual(await inspectContent(at("same")), other)
+    }
+  )
+
+  scenario(
     "空目录和多级目录对应真实物理路径，重复创建不覆盖",
     async ({ storage, at, inspectDirectory }) => {
       await storage.createDirectory(at("合同"))

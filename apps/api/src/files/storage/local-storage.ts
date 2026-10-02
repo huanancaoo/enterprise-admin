@@ -23,6 +23,7 @@ import {
   type ContentFacts,
   type FileStorage,
   type StorageAddress,
+  type StorageOwner,
   type StoredRead,
 } from './storage';
 
@@ -123,6 +124,32 @@ export class LocalFileStorage implements FileStorage {
         await mkdir(dirname(path), { recursive: true, mode: 0o700 });
       await mkdir(path, { mode: 0o700 });
     } catch (error) {
+      storageFailure(error);
+    }
+  }
+
+  async ensureOwner(owner: StorageOwner): Promise<void> {
+    try {
+      for (const area of ['files', 'history', 'trash', 'staging'] as const) {
+        const path = await this.path({ owner, area, segments: [] }, true);
+        await mkdir(path, { recursive: true, mode: 0o700 });
+        const info = await lstat(path);
+        if (!info.isDirectory() || (info.mode & 0o077) !== 0)
+          throw new StorageError('STORAGE_UNSAFE_PATH');
+      }
+    } catch (error) {
+      storageFailure(error);
+    }
+  }
+
+  async directoryExists(address: StorageAddress): Promise<boolean> {
+    try {
+      const info = await lstat(await this.path(address, true));
+      if (!info.isDirectory() || (info.mode & 0o077) !== 0)
+        throw new StorageError('STORAGE_UNSAFE_PATH');
+      return true;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
       storageFailure(error);
     }
   }
