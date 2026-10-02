@@ -1,4 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { create as createContentDisposition } from 'content-disposition';
+import rangeParser from 'range-parser';
 import {
   createTenantRunner,
   type TenantContext,
@@ -21,8 +23,12 @@ export class FileRangeError extends ApiException {
   }
 }
 
-function requestedRange(header: string | undefined, total: number) {
+function requestedRange(
+  header: string | undefined,
+  total: number,
+): ByteRange | undefined {
   if (header === undefined) return undefined;
+  // 单范围及安全整数是此下载接口的策略，不能让库合并或忽略额外范围。
   const match = /^bytes=(\d*)-(\d*)$/iu.exec(header.trim());
   if (!match || (!match[1] && !match[2]) || total === 0)
     throw new FileRangeError(total);
@@ -33,12 +39,15 @@ function requestedRange(header: string | undefined, total: number) {
     (last !== undefined && !Number.isSafeInteger(last))
   )
     throw new FileRangeError(total);
-  const start = first ?? Math.max(0, total - last!);
-  const end =
-    first === undefined ? total - 1 : Math.min(last ?? total - 1, total - 1);
-  if (start >= total || end < start || (first === undefined && last === 0))
+  // 超过对象长度的 suffix 仍表示整个对象；range-parser 会拒绝负起点，先限制 suffix。
+  const value =
+    first === undefined
+      ? `bytes=-${Math.min(last!, total)}`
+      : `bytes=${first}-${last ?? ''}`;
+  const ranges = rangeParser(total, value, { combine: false });
+  if (typeof ranges === 'number' || ranges.length !== 1)
     throw new FileRangeError(total);
-  return { start, end } satisfies ByteRange;
+  return ranges[0];
 }
 
 export function contentDisposition(
@@ -50,11 +59,10 @@ export function contentDisposition(
   // 只有明确支持的被动媒体可预览；HTML、SVG 和 Office 的显式 inline 请求必须拒绝。
   if (requested === 'inline' && filePreviewKind(mime) === 'none')
     throw new BadRequestException();
-  const encoded = encodeURIComponent(name).replace(
-    /[!'()*]/gu,
-    (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
-  );
-  return `${requested}; filename*=UTF-8''${encoded}`;
+  return createContentDisposition(name, {
+    type: requested,
+    fallback: false,
+  });
 }
 
 @Injectable()

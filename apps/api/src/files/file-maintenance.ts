@@ -1,4 +1,6 @@
 import { Injectable, Logger, type OnModuleDestroy } from '@nestjs/common';
+import { SchedulerRegistry } from '@nestjs/schedule';
+import { CronJob, CronTime } from 'cron';
 import { randomUUID } from 'node:crypto';
 import { ApiErrorCodeSchema } from '@workspace/contracts';
 import { AuthRuntime } from '../identity/auth-runtime';
@@ -47,42 +49,53 @@ function failureCode(error: unknown): string {
 export class FileMaintenance implements OnModuleDestroy {
   private readonly logger = new Logger(FileMaintenance.name);
   private stopSignal = new AbortController();
-  private active = false;
-  private timer?: NodeJS.Timeout;
-  private running?: Promise<void>;
+  private readonly taskName = 'files-maintenance';
 
   constructor(
     private readonly identity: AuthRuntime,
     private readonly runtime: FilesRuntime,
+    private readonly scheduler: SchedulerRegistry,
   ) {}
 
   start(): void {
-    if (this.active || !this.runtime.enabled) return;
-    this.active = true;
+    if (
+      !this.runtime.enabled ||
+      this.scheduler.doesExist('cron', this.taskName)
+    )
+      return;
     this.stopSignal = new AbortController();
-    this.tick();
-  }
-
-  async onModuleDestroy(): Promise<void> {
-    this.active = false;
-    if (this.timer) clearTimeout(this.timer);
-    this.stopSignal.abort(new StorageError('STORAGE_UNAVAILABLE'));
-    await this.running;
-  }
-
-  private tick(): void {
-    if (!this.active) return;
-    this.running = this.runOnce()
-      .then(() => {})
-      .catch((error: unknown) => {
+    const job = CronJob.from({
+      name: this.taskName,
+      cronTime: new Date(Date.now() + 30_000),
+      waitForCompletion: true,
+      onTick: async () => {
+        try {
+          await this.runOnce();
+        } finally {
+          // 间隔从本轮结束计时；固定 Cron 表达式会缩短长任务后的等待时间。
+          if (!this.stopSignal.signal.aborted) {
+            job.setTime(new CronTime(new Date(Date.now() + 30_000)));
+            job.start();
+          }
+        }
+      },
+      errorHandler: (error: unknown) => {
         this.logger.error({
           event: 'files.maintenance.scan_failed',
           errorCode: failureCode(error),
         });
-      })
-      .finally(() => {
-        if (this.active) this.timer = setTimeout(() => this.tick(), 30_000);
-      });
+      },
+    });
+    this.scheduler.addCronJob(this.taskName, job);
+    void job.fireOnTick();
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    this.stopSignal.abort(new StorageError('STORAGE_UNAVAILABLE'));
+    // Registry 在后续 shutdown 阶段释放任务；这里先等待被中止的 I/O 退出，
+    // 避免 FilesRuntime 随后关闭物理锁连接时本轮还在写持久化事实。
+    if (this.scheduler.doesExist('cron', this.taskName))
+      await this.scheduler.getCronJob(this.taskName).stop();
   }
 
   async runOnce(limit = 100): Promise<number> {

@@ -1,4 +1,5 @@
 import { DynamicModule, Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AuthorizationModule } from './authorization/authorization.module';
 import { EmailModule } from './email/email.module';
 import { EmailRuntime } from './email/email-runtime';
@@ -25,6 +26,7 @@ export class AppModule {
     return {
       module: AppModule,
       imports: [
+        ScheduleModule.forRoot(),
         IdentityModule.forRoot(runtime),
         LocaleSettingsModule,
         EmailModule.forRoot(email),
