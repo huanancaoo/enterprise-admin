@@ -10,6 +10,7 @@ import {
   UpdateProjectSchema,
   ProjectRichTextDocumentSchema,
   SaveProjectContentSchema,
+  ProjectAttachmentSchema,
 } from "../../packages/contracts/src/index.js"
 
 const fileId = "8a5a8b2b-0668-4f2a-baa3-e6f793de4f32"
@@ -47,6 +48,31 @@ describe("Projects attachments and editor document contracts", () => {
         name: "项目",
         description: null,
         attachments: [{ fileId, versionId, url: "blob:temporary" }],
+      }).success
+    ).toBe(false)
+  })
+  it("requires bound version metadata in reads while writes stay UUID references", () => {
+    const item = {
+      fileId,
+      versionId,
+      name: "合同.pdf",
+      bytes: 0,
+      contentType: "application/pdf",
+      versionCreatedAt: "2026-10-02T00:00:00.000Z",
+    }
+    expect(ProjectAttachmentSchema.parse(item)).toEqual(item)
+    expect(
+      ProjectAttachmentSchema.safeParse({ fileId, versionId }).success
+    ).toBe(false)
+    expect(
+      ProjectAttachmentSchema.safeParse({ ...item, storagePath: ["private"] })
+        .success
+    ).toBe(false)
+    expect(
+      CreateProjectSchema.safeParse({
+        name: "项目",
+        description: null,
+        attachments: [item],
       }).success
     ).toBe(false)
   })

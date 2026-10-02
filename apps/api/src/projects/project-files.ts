@@ -127,9 +127,13 @@ export class ProjectFiles {
         );
         return {
           revision: project.attachmentsRevision,
-          items: references.map(({ fileId, versionId }) => ({
-            fileId,
-            versionId,
+          items: references.map((reference) => ({
+            fileId: reference.fileId,
+            versionId: reference.versionId,
+            name: reference.name,
+            bytes: reference.bytes,
+            contentType: reference.contentType,
+            versionCreatedAt: reference.versionCreatedAt.toISOString(),
           })),
         };
       },

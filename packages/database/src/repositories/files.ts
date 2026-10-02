@@ -1839,8 +1839,27 @@ export const fileRepository = {
       .select({
         fileId: fileReferences.fileId,
         versionId: fileReferences.versionId,
+        name: fileEntries.name,
+        bytes: fileVersions.bytes,
+        contentType: fileVersions.contentType,
+        versionCreatedAt: fileVersions.createdAt,
       })
       .from(fileReferences)
+      .innerJoin(
+        fileEntries,
+        and(
+          eq(fileEntries.organizationId, fileReferences.organizationId),
+          eq(fileEntries.id, fileReferences.fileId)
+        )
+      )
+      .innerJoin(
+        fileVersions,
+        and(
+          eq(fileVersions.organizationId, fileReferences.organizationId),
+          eq(fileVersions.fileId, fileReferences.fileId),
+          eq(fileVersions.id, fileReferences.versionId)
+        )
+      )
       .where(
         and(
           eq(fileReferences.organizationId, tx.context.organizationId),

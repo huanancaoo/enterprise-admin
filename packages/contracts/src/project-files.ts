@@ -1,5 +1,8 @@
 import { z } from "zod"
-import { FileVersionReferenceSchema } from "./files.js"
+import {
+  FileVersionReferenceSchema,
+  FileVersionResponseSchema,
+} from "./files.js"
 
 const safeLink = z.string().refine((value) => {
   try {
@@ -206,10 +209,18 @@ export const UpdateProjectAttachmentsSchema = z
     items: ProjectAttachmentsSchema,
   })
   .meta({ id: "UpdateProjectAttachments" })
+// 项目读者可以了解绑定；内容读取仍由 Files API 的独立授权决定。
+export const ProjectAttachmentSchema = FileVersionReferenceSchema.extend({
+  name: z.string(),
+  bytes: FileVersionResponseSchema.shape.bytes,
+  contentType: FileVersionResponseSchema.shape.contentType,
+  versionCreatedAt: z.iso.datetime(),
+}).meta({ id: "ProjectAttachment" })
+export type ProjectAttachment = z.infer<typeof ProjectAttachmentSchema>
 export const ProjectAttachmentsResponseSchema = z
   .strictObject({
     revision: z.number().int().min(1),
-    items: ProjectAttachmentsSchema,
+    items: z.array(ProjectAttachmentSchema),
   })
   .meta({ id: "ProjectAttachmentsResponse" })
 export type ProjectAttachmentsResponse = z.infer<

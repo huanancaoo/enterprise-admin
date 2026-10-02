@@ -318,7 +318,7 @@ for (const kind of ["Local", "RustFS"])
         p = await project(f, [reference])
       expect(p.description).toBe("<b>仍然只是纯文本概要</b>")
       const reader = await role(f, { project: ["read"] })
-      expect(await attachments(f, p.id, reader.actor)).toEqual({
+      expect(await attachments(f, p.id, reader.actor)).toMatchObject({
         revision: 1,
         items: [reference],
       })
@@ -339,6 +339,59 @@ for (const kind of ["Local", "RustFS"])
           version_id: reference.versionId,
         },
       ])
+    })
+
+    test("项目读权独立获得绑定元数据：改名投影当前名称，覆盖仍投影原固定版本", async () => {
+      const f = await fixture(),
+        first = await upload(f, "原文件名.bin"),
+        p = await project(f, [ref(first)]),
+        reader = await role(f, { project: ["read"] })
+      const facts = await environment.observer.query(
+        "SELECT created_at FROM file_versions WHERE id=$1",
+        [first.versionId]
+      )
+      const original = {
+        ...ref(first),
+        name: "原文件名.bin",
+        bytes: bytes.length,
+        contentType: "application/octet-stream",
+        versionCreatedAt: facts.rows[0].created_at.toISOString(),
+      }
+      expect(await attachments(f, p.id, reader.actor)).toEqual({
+        revision: 1,
+        items: [original],
+      })
+      await error(
+        await request(f, `/files/entries/${first.entryId}`, {}, reader.actor),
+        403,
+        "FORBIDDEN"
+      )
+      await error(await download(f, ref(first), reader.actor), 403, "FORBIDDEN")
+      await upload(f, "新版本.txt", Buffer.from("不同新版本"), "text/plain", {
+        id: first.entryId,
+        revision: 1,
+      })
+      const renamed = await request(
+        f,
+        `/files/entries/${first.entryId}/rename`,
+        json("POST", {
+          operationId: randomUUID(),
+          expectedRevision: 2,
+          name: "当前条目名.txt",
+        })
+      )
+      expect(renamed.status, await renamed.clone().text()).toBe(200)
+      expect((await renamed.json()).phase).toBe("completed")
+      expect(await attachments(f, p.id, reader.actor)).toEqual({
+        revision: 1,
+        items: [{ ...original, name: "当前条目名.txt" }],
+      })
+      const other = await fixture()
+      await error(
+        await request(other, `/projects/${p.id}/attachments`),
+        404,
+        "NOT_FOUND"
+      )
     })
 
     test("无效或越组织引用阻止项目保存，已上传文件不会被业务失败删除", async () => {
@@ -393,7 +446,7 @@ for (const kind of ["Local", "RustFS"])
         attachments: { expectedRevision: 1, items: [second] },
       })
       expect(updated.status).toBe(200)
-      expect(await attachments(f, p.id)).toEqual({
+      expect(await attachments(f, p.id)).toMatchObject({
         revision: 2,
         items: [second],
       })
@@ -414,7 +467,7 @@ for (const kind of ["Local", "RustFS"])
         }),
       ])
       expect(responses.map((r) => r.status)).toEqual([200, 200])
-      expect(await attachments(f, p.id)).toEqual({
+      expect(await attachments(f, p.id)).toMatchObject({
         revision: 3,
         items: [first],
       })
@@ -534,7 +587,10 @@ for (const kind of ["Local", "RustFS"])
           )
         ).status
       ).toBe(200)
-      expect(await attachments(f, p.id)).toEqual({ revision: 2, items: [] })
+      expect(await attachments(f, p.id)).toMatchObject({
+        revision: 2,
+        items: [],
+      })
       expect((await download(f, reference)).status).toBe(200)
     })
 
@@ -547,7 +603,7 @@ for (const kind of ["Local", "RustFS"])
         id: first.entryId,
         revision: 1,
       })
-      expect((await attachments(f, p.id)).items).toEqual([ref(first)])
+      expect((await attachments(f, p.id)).items).toMatchObject([ref(first)])
       const old = await download(f, ref(first))
       expect(Buffer.from(await old.arrayBuffer())).toEqual(bytes)
       const newer = await download(f, ref(second))
@@ -568,7 +624,7 @@ for (const kind of ["Local", "RustFS"])
           })
         ).status
       ).toBe(200)
-      expect((await attachments(f, p.id)).items).toEqual([ref(second)])
+      expect((await attachments(f, p.id)).items).toMatchObject([ref(second)])
       expect(
         (
           await patch(f, p.id, {
@@ -602,7 +658,7 @@ for (const kind of ["Local", "RustFS"])
       const [bound, trashed] = await Promise.all([binding, trashing])
       if (bound.status === 200) {
         await error(trashed, 409, "FILE_REFERENCED")
-        expect(await attachments(f, p.id)).toEqual({
+        expect(await attachments(f, p.id)).toMatchObject({
           revision: 2,
           items: [reference],
         })
@@ -613,7 +669,10 @@ for (const kind of ["Local", "RustFS"])
         expect([404, 409]).toContain(bound.status)
         expect(trashed.status, await trashed.clone().text()).toBe(200)
         expect((await trashed.json()).phase).toBe("completed")
-        expect(await attachments(f, p.id)).toEqual({ revision: 1, items: [] })
+        expect(await attachments(f, p.id)).toMatchObject({
+          revision: 1,
+          items: [],
+        })
         await error(await download(f, reference), 404, "NOT_FOUND")
       }
       const indexed = await environment.observer.query(
