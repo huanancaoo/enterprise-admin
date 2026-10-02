@@ -349,7 +349,9 @@ export const UiLanguageKeepsEditSessionAndConflict: Story = {
       "Original zh-CN content"
     )
     await expect(field("project-edit-status")).toHaveTextContent("草稿")
-    await expect(dialog().getByText("Attachment.txt")).toBeVisible()
+    await waitFor(() =>
+      expect(dialog().getByText("Attachment.txt")).toBeVisible()
+    )
     await chooseContentLocale("English")
     const name = await screen.findByLabelText("项目名称")
     await waitFor(() => expect(name).toHaveValue("Original en-US content"))
