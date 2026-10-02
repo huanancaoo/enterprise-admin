@@ -49,10 +49,15 @@ type State = {
   error?: unknown
   submitting: boolean
   original?: ExecuteFileBatch
+  recordError?: unknown
 }
 function load(scope: string, recordScope: string): State {
-  const records = readFileBatchRecords(recordScope)
-  return { scope, records, record: records.at(-1), submitting: false }
+  try {
+    const records = readFileBatchRecords(recordScope)
+    return { scope, records, record: records.at(-1), submitting: false }
+  } catch (recordError) {
+    return { scope, records: [], recordError, submitting: false }
+  }
 }
 function phase(response: FileBatchResponse): FileBatchRecord["phase"] {
   const roots = response.items.filter((item) => item.index === item.rootIndex)
@@ -106,9 +111,21 @@ export function useFileBatch({
         : load(contentScopeKey, recordScopeKey)),
       ...values,
     }))
-  const remember = (next: FileBatchRecord) => {
-    const nextRecords = saveFileBatchRecord(recordScopeKey, next)
-    update({ records: nextRecords, record: next })
+  const remember = (next: FileBatchRecord, beforeSubmission = false) => {
+    try {
+      const nextRecords = saveFileBatchRecord(recordScopeKey, next)
+      update({ records: nextRecords, record: next, recordError: undefined })
+    } catch (recordError) {
+      if (beforeSubmission) {
+        update({ recordError })
+        throw recordError
+      }
+      const records = current.records.filter(
+        (item) => item.batchId !== next.batchId
+      )
+      // 正式收据仍是事实；只在第一次 POST 前要求身份落盘，不能因后续记录失败误报已提交操作。
+      update({ recordError, records: [...records, next], record: next })
+    }
   }
   const accept = (value: FileBatchResponse, tracked: FileBatchRecord) => {
     const next = FileBatchResponseSchema.parse(value)
@@ -197,6 +214,7 @@ export function useFileBatch({
   }
   const start = async (input: ExecuteFileBatch) => {
     if (sending.current) return
+    if (current.recordError) throw current.recordError
     const value = ExecuteFileBatchSchema.parse(input)
     const now = new Date().toISOString()
     const tracked: FileBatchRecord = {
@@ -208,8 +226,8 @@ export function useFileBatch({
       createdAt: now,
       updatedAt: now,
     }
+    remember(tracked, true)
     update({ response: undefined, original: value })
-    remember(tracked)
     await send(value, tracked)
   }
   const continueOriginal = async () => {
@@ -226,8 +244,21 @@ export function useFileBatch({
     update({ record: value, response: undefined, error: undefined })
     update({ original: undefined })
   }
+  const retryRecords = () => {
+    try {
+      const records = record
+        ? saveFileBatchRecord(recordScopeKey, record)
+        : readFileBatchRecords(recordScopeKey)
+      // 修复安全记录不应抹掉本次挂载仍持有的原始正文或正式收据。
+      update({ records, recordError: undefined })
+    } catch (recordError) {
+      update({ recordError })
+    }
+  }
   return {
     records,
+    recordError: current.recordError,
+    available: !current.recordError,
     record,
     response: canRead ? response : undefined,
     error: error ?? status.error,
@@ -239,6 +270,7 @@ export function useFileBatch({
     start,
     continueOriginal,
     selectRecord,
+    retryRecords,
     check: () => status.refetch(),
   }
 }

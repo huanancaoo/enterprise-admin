@@ -25,7 +25,7 @@ import { FileEntryDialog } from "./file-entry-dialog"
 import { FileDeleteDialog } from "./file-delete-dialog"
 import { FilePathQueue } from "./file-path-queue"
 import { fileKeys } from "./file-queries"
-import type { FilePermissions } from "./file-permissions"
+import { canPerformFileAction, type FilePermissions } from "./file-permissions"
 import { PathActionsContext } from "./path-context"
 import {
   useFilePathOperations,
@@ -66,29 +66,8 @@ export function FilePathOperations({
   const invalidate = () => {
     void client.invalidateQueries({ queryKey: fileKeys.scope(organizationId) })
   }
-  const allowed = (entry: FileEntryResponse, action: FilePathAction) => {
-    if (
-      !permissions?.canReadFiles ||
-      !permissions.canReadFolders ||
-      entry.organizationId !== organizationId ||
-      entry.parentId === null ||
-      entry.operationId !== null
-    )
-      return false
-    if (action === "restore" || action === "purge")
-      return (
-        entry.state === "trashed" &&
-        (action === "restore" ? permissions.canRestore : permissions.canPurge)
-      )
-    if (entry.state !== "active") return false
-    return action === "trash"
-      ? entry.kind === "folder"
-        ? permissions.canDeleteFolders
-        : permissions.canDeleteFiles
-      : entry.kind === "folder"
-        ? permissions.canUpdateFolders
-        : permissions.canUpdateFiles
-  }
+  const allowed = (entry: FileEntryResponse, action: FilePathAction) =>
+    canPerformFileAction(entry, action, organizationId, permissions)
   const queue = useFilePathOperations({
     userId,
     organizationId,

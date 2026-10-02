@@ -84,6 +84,7 @@ type Mode =
   | "foldersOnly"
   | "blocked"
   | "submitting"
+  | "recordsUnreadable"
 function result(
   input: ExecuteFileBatch,
   mode: Mode,
@@ -197,7 +198,11 @@ function Content({
   // i18next-instrument-ignore
   return (
     <div className="space-y-5 p-6">
-      <Button ref={trigger} onClick={() => setOpen(true)}>
+      <Button
+        ref={trigger}
+        disabled={!batch.available}
+        onClick={() => setOpen(true)}
+      >
         Open batch
       </Button>
       <Button variant="outline" onClick={onRefresh}>
@@ -215,6 +220,9 @@ function Content({
       <output aria-label="Safe record">
         {sessionStorage.getItem(fileBatchRecordKey(recordScope))}
       </output>
+      {Boolean(batch.recordError) && (
+        <p role="alert">Safe records unavailable</p>
+      )}
       <FileBatchDialog
         open={open}
         contentScopeKey={scope}
@@ -241,6 +249,7 @@ function Content({
         batch={batch}
         names={new Map(selection.map((entry) => [entry.id, entry.name]))}
         canContinue
+        canRetryFailed={batch.available}
         onRetryFailed={(entryIds) => {
           setSelection(
             [child, folder, solo]
@@ -260,7 +269,15 @@ function Fixture({
   mode?: Mode
   action?: "move" | "trash" | "restore" | "purge"
 }) {
-  const [scope, setScope] = useState(() => "batch-story:" + crypto.randomUUID())
+  const [scope, setScope] = useState(() => {
+    const value = "batch-story:" + crypto.randomUUID()
+    if (mode === "recordsUnreadable")
+      sessionStorage.setItem(
+        fileBatchRecordKey(value),
+        "invalid existing record"
+      )
+    return value
+  })
   const [epoch, setEpoch] = useState(0)
   const [authorizationVersion, setAuthorizationVersion] = useState(1)
   const [calls, setCalls] = useState<ExecuteFileBatch[]>([])
@@ -781,5 +798,107 @@ export const AuthorizedRemountQueriesPreviousUnavailableBatch: Story = {
       "submitted",
       "updatedAt",
     ])
+  },
+}
+
+function failBatchRecordWrites(afterWrites: number) {
+  const original = Storage.prototype.setItem
+  let writes = 0
+  Storage.prototype.setItem = function (key, value) {
+    if (key.startsWith("files:batch:") && ++writes > afterWrites)
+      throw new DOMException("Batch storage is full", "QuotaExceededError")
+    return original.call(this, key, value)
+  }
+  return () => {
+    Storage.prototype.setItem = original
+  }
+}
+
+export const UnreadableRecordKeepsWorkspaceAvailable: Story = {
+  args: { mode: "recordsUnreadable" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(canvas.getByText("Safe records unavailable")).toBeVisible()
+    await expect(
+      canvas.getByRole("button", { name: "Open batch" })
+    ).toBeDisabled()
+    await expect(canvas.getByLabelText("Safe record")).toHaveTextContent(
+      "invalid existing record"
+    )
+    await expect(posted(canvasElement)).toEqual([])
+    await expect(read(canvasElement)).toEqual([])
+  },
+}
+
+export const IdentityWriteFailurePreventsSubmission: Story = {
+  beforeEach: () => failBatchRecordWrites(0),
+  play: async ({ canvasElement }) => {
+    const popup = await open(canvasElement)
+    await userEvent.click(
+      popup.getByRole("button", { name: "Common destination folder" })
+    )
+    await userEvent.click(
+      popup.getByRole("button", { name: "Move selected items" })
+    )
+    await waitFor(() =>
+      expect(
+        within(canvasElement).getByText("Safe records unavailable")
+      ).toBeVisible()
+    )
+    await expect(popup.getByRole("alert")).toBeVisible()
+    await expect(posted(canvasElement)).toEqual([])
+    await expect(read(canvasElement)).toEqual([])
+    await expect(
+      within(canvasElement).getByLabelText("Safe record")
+    ).toBeEmptyDOMElement()
+    await expect(
+      within(canvasElement).queryByRole("button", {
+        name: "Continue original batch",
+      })
+    ).toBeNull()
+    await userEvent.click(popup.getByRole("button", { name: "Cancel" }))
+    await expect(
+      within(canvasElement).getByRole("button", { name: "Open batch" })
+    ).toBeDisabled()
+  },
+}
+
+export const ReceiptWriteFailurePreservesCompletedFacts: Story = {
+  beforeEach: () => failBatchRecordWrites(1),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await move(canvasElement)
+    await waitFor(() =>
+      expect(canvas.getAllByText("Completed", { exact: true })).toHaveLength(2)
+    )
+    await expect(canvas.getByText("Safe records unavailable")).toBeVisible()
+    const original = posted(canvasElement)[0]!
+    const safe = JSON.parse(canvas.getByLabelText("Safe record").textContent!)
+    await expect(safe[0].batchId).toBe(original.batchId)
+    await expect(safe[0].phase).toBe("submitting")
+    await expect(Object.keys(safe[0]).sort()).toEqual([
+      "action",
+      "batchId",
+      "createdAt",
+      "itemOperationIds",
+      "phase",
+      "submitted",
+      "updatedAt",
+    ])
+    await expect(
+      canvas.queryByRole("button", { name: "Continue original batch" })
+    ).toBeNull()
+    await expect(read(canvasElement)).toEqual([])
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Remount from safe records" })
+    )
+    await waitFor(() => expect(read(canvasElement)).toEqual([original.batchId]))
+    await waitFor(() =>
+      expect(canvas.getAllByText("Completed", { exact: true })).toHaveLength(2)
+    )
+    await expect(posted(canvasElement)).toHaveLength(1)
+    await expect(
+      canvas.queryByRole("button", { name: "Continue original batch" })
+    ).toBeNull()
   },
 }

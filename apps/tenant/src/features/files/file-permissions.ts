@@ -1,6 +1,8 @@
 import { queryOptions } from "@tanstack/react-query"
 import { organizationKeys } from "@workspace/api-client"
+import type { FileEntryResponse } from "@workspace/contracts"
 import { authClient } from "@/lib/auth-client"
+import type { FilePathAction } from "./use-file-path-operations"
 
 export type FilePermissions = {
   canReadFiles: boolean
@@ -13,6 +15,35 @@ export type FilePermissions = {
   canCreateFolder: boolean
   canUpdateFolders: boolean
   canDeleteFolders: boolean
+}
+
+export function canPerformFileAction(
+  entry: FileEntryResponse,
+  action: FilePathAction,
+  organizationId: string,
+  permissions?: FilePermissions
+) {
+  if (
+    !permissions?.canReadFiles ||
+    !permissions.canReadFolders ||
+    entry.organizationId !== organizationId ||
+    entry.parentId === null ||
+    entry.operationId !== null
+  )
+    return false
+  if (action === "restore" || action === "purge")
+    return (
+      entry.state === "trashed" &&
+      (action === "restore" ? permissions.canRestore : permissions.canPurge)
+    )
+  if (entry.state !== "active") return false
+  return action === "trash"
+    ? entry.kind === "folder"
+      ? permissions.canDeleteFolders
+      : permissions.canDeleteFiles
+    : entry.kind === "folder"
+      ? permissions.canUpdateFolders
+      : permissions.canUpdateFiles
 }
 
 export function getFilePermissionsOptions(

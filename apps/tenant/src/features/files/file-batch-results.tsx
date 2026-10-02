@@ -16,11 +16,13 @@ export function FileBatchResults({
   batch,
   names,
   canContinue,
+  canRetryFailed,
   onRetryFailed,
 }: {
   batch: FileBatchState
   names?: ReadonlyMap<string, string>
   canContinue: boolean
+  canRetryFailed: boolean
   onRetryFailed: (
     entryIds: string[],
     action: NonNullable<FileBatchState["record"]>["action"]
@@ -130,7 +132,7 @@ export function FileBatchResults({
         {failedIds.length > 0 && (
           <Button
             variant="outline"
-            disabled={batch.submitting || batch.querying}
+            disabled={!canRetryFailed || batch.submitting || batch.querying}
             onClick={() => onRetryFailed(failedIds, record.action)}
           >
             {t("files:batchRetryFailed")}

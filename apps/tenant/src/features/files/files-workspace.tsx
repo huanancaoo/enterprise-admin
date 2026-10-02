@@ -31,6 +31,8 @@ import { FileBrowser } from "./file-browser"
 import { FileUploads } from "./file-uploads"
 import { FilePathOperations } from "./file-path-operations"
 import { FileEntryActions } from "./file-entry-actions"
+import { FileBatches } from "./file-batches"
+import { useFileBatchActions } from "./batch-context"
 import { useFileUploadActions } from "./upload-context"
 import {
   fileRequestErrorMessage,
@@ -151,34 +153,43 @@ function AuthorizedFilesWorkspace({
           root={workspace.data.root}
           permissions={permissions.isSuccess ? permissions.data : undefined}
         >
-          <FileWorkspaceBrowser
-            {...props}
+          <FileBatches
+            userId={session.user.id}
+            organizationId={props.organizationId}
             authorizationVersion={authorizationVersion}
             contentScopeKey={scopeKey}
-            workspace={workspace.data}
-            canUpload={permissions.isSuccess && permissions.data.canUpload}
-            canOverwrite={
-              permissions.isSuccess &&
-              permissions.data.canUpload &&
-              permissions.data.canUpdateFiles
-            }
-            canCreateFolder={
-              permissions.isSuccess && permissions.data.canCreateFolder
-            }
-            canTrash={
-              permissions.isSuccess &&
-              (permissions.data.canRestore || permissions.data.canPurge)
-            }
-            canManage={
-              permissions.isSuccess &&
-              (permissions.data.canUpdateFiles ||
-                permissions.data.canUpdateFolders ||
-                permissions.data.canDeleteFiles ||
-                permissions.data.canDeleteFolders ||
-                permissions.data.canRestore ||
-                permissions.data.canPurge)
-            }
-          />
+            root={workspace.data.root}
+            permissions={permissions.isSuccess ? permissions.data : undefined}
+          >
+            <FileWorkspaceBrowser
+              {...props}
+              authorizationVersion={authorizationVersion}
+              contentScopeKey={scopeKey}
+              workspace={workspace.data}
+              canUpload={permissions.isSuccess && permissions.data.canUpload}
+              canOverwrite={
+                permissions.isSuccess &&
+                permissions.data.canUpload &&
+                permissions.data.canUpdateFiles
+              }
+              canCreateFolder={
+                permissions.isSuccess && permissions.data.canCreateFolder
+              }
+              canTrash={
+                permissions.isSuccess &&
+                (permissions.data.canRestore || permissions.data.canPurge)
+              }
+              canManage={
+                permissions.isSuccess &&
+                (permissions.data.canUpdateFiles ||
+                  permissions.data.canUpdateFolders ||
+                  permissions.data.canDeleteFiles ||
+                  permissions.data.canDeleteFolders ||
+                  permissions.data.canRestore ||
+                  permissions.data.canPurge)
+              }
+            />
+          </FileBatches>
         </FilePathOperations>
       </FileUploads>
     </ResourceList>
@@ -213,6 +224,7 @@ function FileWorkspaceBrowser({
   const queryClient = useQueryClient()
   const [creatingFolder, setCreatingFolder] = useState(false)
   const { uploadTriggerId, onUpload } = useFileUploadActions()
+  const batches = useFileBatchActions()
   const creationTrigger = useRef<HTMLButtonElement | null>(null)
   const [preview, setPreview] = useState<FileResponse | null>(null)
   const previewTrigger = useRef<string>("")
@@ -362,6 +374,48 @@ function FileWorkspaceBrowser({
                 const entry = selected.length === 1 ? selected[0] : undefined
                 return entry ? (
                   <FileEntryActions entry={entry} canOverwrite={canOverwrite} />
+                ) : selected.length > 1 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {trash ? (
+                      <>
+                        <Button
+                          id={`${batches.triggerId}-restore`}
+                          variant="outline"
+                          disabled={!batches.available}
+                          onClick={() => batches.onBatch(selected, "restore")}
+                        >
+                          {t("files:batchRestore")}
+                        </Button>
+                        <Button
+                          id={`${batches.triggerId}-purge`}
+                          variant="outline"
+                          disabled={!batches.available}
+                          onClick={() => batches.onBatch(selected, "purge")}
+                        >
+                          {t("files:batchPurge")}
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          id={`${batches.triggerId}-move`}
+                          variant="outline"
+                          disabled={!batches.available}
+                          onClick={() => batches.onBatch(selected, "move")}
+                        >
+                          {t("files:batchMove")}
+                        </Button>
+                        <Button
+                          id={`${batches.triggerId}-trash`}
+                          variant="outline"
+                          disabled={!batches.available}
+                          onClick={() => batches.onBatch(selected, "trash")}
+                        >
+                          {t("files:batchTrash")}
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 ) : null
               }
             : undefined
