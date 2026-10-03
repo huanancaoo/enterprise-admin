@@ -107,7 +107,7 @@ export function ProjectDetail({
           />
           <Card>
             <CardContent>
-              <dl className="grid min-w-0 gap-6 sm:grid-cols-2">
+              <dl className="grid min-w-0 gap-5 sm:grid-cols-2">
                 <DetailField label={t("projects:status")}>
                   <Badge variant={statusBadgeVariant[project.status]}>
                     {t(`projects:${project.status}`)}

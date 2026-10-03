@@ -119,7 +119,7 @@ function eventLabel(event: AuditEvent, labels: Record<string, string>) {
 
 function EventMetadata({ event }: { event: AuditEvent }) {
   return (
-    <dl className="grid gap-3 sm:grid-cols-2">
+    <dl className="grid gap-4 rounded-lg bg-muted/30 p-4 text-sm sm:grid-cols-2">
       {Object.entries(event.metadata).map(([key, value]) => (
         <div key={key} className="min-w-0">
           <dt className="text-sm text-muted-foreground">{key}</dt>
@@ -254,20 +254,20 @@ export function AuditEventsRoute() {
   }
 
   return (
-    <section className="space-y-6">
+    <section className="min-w-0 space-y-6">
       <PageHeader
         title={t("organization:audit")}
         description={t("organization:auditDescription")}
       />
 
       <form
-        className="rounded-lg border p-4"
+        className="rounded-xl border bg-card p-4 shadow-sm sm:p-5"
         onSubmit={(event) => {
           event.preventDefault()
           void filters.handleSubmit()
         }}
       >
-        <FieldGroup className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <FieldGroup className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <filters.Field name="from">
             {(field) => (
               <Field>
@@ -388,7 +388,7 @@ export function AuditEventsRoute() {
                 </FieldLabel>
                 <select
                   id={field.name}
-                  className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  className="h-9 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm shadow-xs focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                   value={field.state.value}
                   onBlur={field.handleBlur}
                   onChange={(event) => field.handleChange(event.target.value)}
@@ -403,7 +403,7 @@ export function AuditEventsRoute() {
             )}
           </filters.Field>
         </FieldGroup>
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-5 flex flex-wrap gap-2 border-t pt-4">
           <Button type="submit">{t("organization:applyAuditFilters")}</Button>
           <Button
             type="button"
@@ -425,10 +425,16 @@ export function AuditEventsRoute() {
         </div>
       </form>
 
-      {page.isPending && <p role="status">{t("organization:auditLoading")}</p>}
+      {page.isPending && (
+        <p role="status" className="text-sm text-muted-foreground">
+          {t("organization:auditLoading")}
+        </p>
+      )}
       {page.isError && (
-        <div className="space-y-2">
-          <p role="alert">{t("organization:auditError")}</p>
+        <div className="space-y-3 rounded-xl border bg-card p-5 text-sm">
+          <p role="alert" className="text-sm text-destructive">
+            {t("organization:auditError")}
+          </p>
           <Button
             type="button"
             variant="outline"
@@ -441,15 +447,15 @@ export function AuditEventsRoute() {
       {page.isSuccess && page.data.items.length === 0 && (
         <p
           role="status"
-          className="rounded-lg border p-6 text-center text-muted-foreground"
+          className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground"
         >
           {t("organization:auditEmpty")}
         </p>
       )}
       {page.isSuccess && page.data.items.length > 0 && (
-        <div className="overflow-x-auto rounded-lg border">
-          <Table>
-            <TableHeader>
+        <div className="min-w-0 overflow-x-auto rounded-xl border bg-card shadow-sm">
+          <Table className="min-w-[48rem]">
+            <TableHeader className="bg-muted/40">
               <TableRow>
                 <TableHead>{t("organization:auditOccurredAt")}</TableHead>
                 <TableHead>{t("organization:auditEventCode")}</TableHead>
@@ -461,7 +467,7 @@ export function AuditEventsRoute() {
             <TableBody>
               {page.data.items.map((item) => (
                 <TableRow key={item.id}>
-                  <TableCell>
+                  <TableCell className="text-sm whitespace-nowrap text-muted-foreground">
                     {new Intl.DateTimeFormat(locale, {
                       dateStyle: "medium",
                       timeStyle: "short",
@@ -471,7 +477,7 @@ export function AuditEventsRoute() {
                   <TableCell dir="auto">
                     <Button
                       variant="link"
-                      className="h-auto p-0"
+                      className="h-auto max-w-72 justify-start p-0 text-start leading-relaxed wrap-anywhere whitespace-normal"
                       onClick={() => setSelectedEventId(item.id)}
                     >
                       {eventLabel(item, eventLabels)}
@@ -482,7 +488,10 @@ export function AuditEventsRoute() {
                       </span>
                     )}
                   </TableCell>
-                  <TableCell dir="auto">
+                  <TableCell
+                    dir="auto"
+                    className="max-w-56 text-xs wrap-anywhere whitespace-normal text-muted-foreground"
+                  >
                     {item.actorId ?? actorLabels[item.actorType]}
                   </TableCell>
                   <TableCell dir="auto">{item.resourceType ?? "—"}</TableCell>
@@ -515,7 +524,7 @@ export function AuditEventsRoute() {
       >
         {/* 详情没有固定内容长度；在弹层内滚动，避免长事实被视口截断。 */}
         <DialogContent
-          className="max-h-[calc(100dvh-2rem)] overflow-y-auto"
+          className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-xl"
           showCloseButton={false}
         >
           <DialogClose
@@ -541,17 +550,21 @@ export function AuditEventsRoute() {
             </DialogDescription>
           </DialogHeader>
           {details.isPending && (
-            <p role="status">{t("organization:auditLoading")}</p>
+            <p role="status" className="text-sm text-muted-foreground">
+              {t("organization:auditLoading")}
+            </p>
           )}
           {details.isError && (
-            <p role="alert">{t("organization:auditError")}</p>
+            <p role="alert" className="text-sm text-destructive">
+              {t("organization:auditError")}
+            </p>
           )}
           {details.data && (
             <div className="space-y-4">
               {details.data.publicSummary && (
                 <p dir="auto">{details.data.publicSummary}</p>
               )}
-              <dl className="grid gap-3 sm:grid-cols-2">
+              <dl className="grid gap-4 text-sm sm:grid-cols-2">
                 <div>
                   <dt className="text-sm text-muted-foreground">
                     {t("organization:auditOccurredAt")}

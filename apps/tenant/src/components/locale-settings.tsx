@@ -1,4 +1,4 @@
-import { PersonalAvatarSettings } from "@workspace/admin"
+import { PageHeader, PersonalAvatarSettings } from "@workspace/admin"
 import { useEffect, useId, useState } from "react"
 import { useForm } from "@tanstack/react-form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
@@ -77,6 +77,7 @@ function LocaleSelect({
     >
       <SelectTrigger
         id={id}
+        className="w-full sm:max-w-sm"
         onBlur={onBlur}
         aria-invalid={invalid}
         disabled={disabled}
@@ -215,8 +216,18 @@ export function PersonalLocaleSettingsRoute() {
     if (!preferences.data || form.state.isDirty) return
     form.reset({ preferredLocale: preferences.data.data.preferredLocale })
   }, [form, form.state.isDirty, preferences.data])
-  if (preferences.isPending) return <p role="status">{t("common:loading")}</p>
-  if (preferences.error) return <p role="alert">{t("loadError")}</p>
+  if (preferences.isPending)
+    return (
+      <p role="status" className="text-sm text-muted-foreground">
+        {t("common:loading")}
+      </p>
+    )
+  if (preferences.error)
+    return (
+      <p role="alert" className="text-sm text-destructive">
+        {t("loadError")}
+      </p>
+    )
   const source = preferences.data.data.preferredLocale
     ? "user"
     : (activeAccess.data?.data.effectiveLocaleSource ?? "platform")
@@ -228,21 +239,19 @@ export function PersonalLocaleSettingsRoute() {
   } as const
 
   return (
-    <section className="max-w-2xl space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold">{t("personalSettings")}</h1>
-        <p className="text-sm text-muted-foreground">
-          {t("personalDescription")}
-        </p>
-      </header>
+    <section className="max-w-3xl min-w-0 space-y-6">
+      <PageHeader
+        title={t("personalSettings")}
+        description={t("personalDescription")}
+      />
       <PersonalAvatarSettings client={authClient} />
-      <div className="rounded-xl border p-4 text-sm">
-        <dl className="space-y-2">
-          <div className="flex gap-2">
+      <div className="rounded-xl border bg-card p-4 text-sm shadow-sm sm:p-5">
+        <dl className="grid gap-4 sm:grid-cols-2">
+          <div className="min-w-0 space-y-1">
             <dt className="font-medium">{t("effectiveLanguage")}</dt>
             <dd>{localeMeta[locale].label}</dd>
           </div>
-          <div className="flex gap-2">
+          <div className="min-w-0 space-y-1">
             <dt className="font-medium">{t("languageSource")}</dt>
             <dd className="text-muted-foreground">
               {t(
@@ -262,7 +271,7 @@ export function PersonalLocaleSettingsRoute() {
               event.preventDefault()
               void form.handleSubmit()
             }}
-            className="space-y-6"
+            className="space-y-6 rounded-xl border bg-card p-4 shadow-sm sm:p-6"
             aria-busy={isSubmitting}
           >
             <fieldset disabled={isSubmitting} className="contents">
@@ -383,7 +392,11 @@ export function OrganizationLocaleSettingsRoute({
   }, [form, form.state.isDirty, settings.data])
 
   if (settings.isPending || permissions.isPending)
-    return <p role="status">{t("common:loading")}</p>
+    return (
+      <p role="status" className="text-sm text-muted-foreground">
+        {t("common:loading")}
+      </p>
+    )
   if (settings.error || permissions.error) {
     const error = settings.error ?? permissions.error
     return (
@@ -396,16 +409,16 @@ export function OrganizationLocaleSettingsRoute({
   }
   const canUpdate = permissions.data?.canUpdate === true
   return (
-    <section className="max-w-2xl space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold">{t("organizationSettings")}</h1>
-        <p className="text-sm text-muted-foreground">
-          {t("organizationDescription")}
+    <section className="max-w-3xl min-w-0 space-y-6">
+      <PageHeader
+        title={t("organizationSettings")}
+        description={t("organizationDescription")}
+      />
+      {!canUpdate && (
+        <p className="rounded-lg bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
+          {t("readOnly")}
         </p>
-        {!canUpdate && (
-          <p className="text-sm text-muted-foreground">{t("readOnly")}</p>
-        )}
-      </header>
+      )}
       <form.Subscribe selector={(state) => state.isSubmitting}>
         {(isSubmitting) => (
           <form
@@ -413,7 +426,7 @@ export function OrganizationLocaleSettingsRoute({
               event.preventDefault()
               void form.handleSubmit()
             }}
-            className="space-y-6"
+            className="space-y-6 rounded-xl border bg-card p-4 shadow-sm sm:p-6"
             aria-busy={isSubmitting}
           >
             <fieldset

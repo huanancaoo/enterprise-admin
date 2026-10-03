@@ -206,11 +206,24 @@ export function InvitationDirectory({
       : role === "admin"
         ? t("organization:role_admin")
         : role
-  if (access.isPending) return <p role="status">{t("common:loading")}</p>
-  if (access.error) return <p role="alert">{access.error.message}</p>
+  if (access.isPending)
+    return (
+      <p role="status" className="text-sm text-muted-foreground">
+        {t("common:loading")}
+      </p>
+    )
+  if (access.error)
+    return (
+      <p role="alert" className="text-sm text-destructive">
+        {access.error.message}
+      </p>
+    )
   if (!canRead) return null
   return (
-    <section className="space-y-4" aria-labelledby="invitation-directory-title">
+    <section
+      className="min-w-0 space-y-4 border-t pt-6"
+      aria-labelledby="invitation-directory-title"
+    >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2
           ref={directoryTitle}
@@ -251,13 +264,25 @@ export function InvitationDirectory({
       <p className="text-sm text-muted-foreground">
         {t("organization:smtpAcceptanceNotice")}
       </p>
-      {invitations.isPending && <p role="status">{t("common:loading")}</p>}
-      {invitations.error && <p role="alert">{invitations.error.message}</p>}
-      {send.error && !open && <p role="alert">{send.error.message}</p>}
+      {invitations.isPending && (
+        <p role="status" className="text-sm text-muted-foreground">
+          {t("common:loading")}
+        </p>
+      )}
+      {invitations.error && (
+        <p role="alert" className="text-sm text-destructive">
+          {invitations.error.message}
+        </p>
+      )}
+      {send.error && !open && (
+        <p role="alert" className="text-sm text-destructive">
+          {send.error.message}
+        </p>
+      )}
       {invitations.data && !invitations.error && (
         <ul
           aria-label={t("organization:invitations")}
-          className="divide-y rounded-xl border"
+          className="divide-y overflow-hidden rounded-xl border bg-card shadow-sm"
         >
           {invitations.data.length === 0 && (
             <li className="p-4 text-muted-foreground">
@@ -270,10 +295,13 @@ export function InvitationDirectory({
             return (
               <li
                 key={invitation.id}
-                className="flex flex-wrap items-center justify-between gap-4 p-4"
+                className="flex flex-col items-start justify-between gap-4 p-4 sm:flex-row sm:p-5"
               >
-                <div className="min-w-0 space-y-1">
-                  <p dir="ltr" className="font-medium break-all">
+                <div className="min-w-0 flex-1 space-y-1.5 text-sm text-muted-foreground">
+                  <p
+                    dir="ltr"
+                    className="font-medium wrap-anywhere text-foreground"
+                  >
                     {invitation.email}
                   </p>
                   <p>
@@ -314,7 +342,7 @@ export function InvitationDirectory({
                   </p>
                 </div>
                 {invitation.businessStatus === "pending" && manageable && (
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex w-full flex-wrap gap-2 border-t pt-3 sm:w-auto sm:justify-end sm:border-0 sm:pt-0">
                     {access.data?.create && (
                       <Button
                         variant="outline"
@@ -446,10 +474,17 @@ export function InvitationDirectory({
                         />
                       )}
                       {canListRoles && roles.isPending && (
-                        <p role="status">{t("common:loading")}</p>
+                        <p
+                          role="status"
+                          className="text-sm text-muted-foreground"
+                        >
+                          {t("common:loading")}
+                        </p>
                       )}
                       {canListRoles && roles.error && (
-                        <p role="alert">{roles.error.message}</p>
+                        <p role="alert" className="text-sm text-destructive">
+                          {roles.error.message}
+                        </p>
                       )}
                       {invalid && (
                         <FieldError errors={field.state.meta.errors} />

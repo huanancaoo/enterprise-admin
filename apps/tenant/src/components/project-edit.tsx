@@ -373,7 +373,7 @@ export function ProjectEditForm({
           }
           submitLabel={t("projects:save")}
         >
-          <FieldGroup className="max-h-[60dvh] overflow-y-auto pe-1">
+          <FieldGroup>
             <LocaleSwitcher variant="select" className="w-full" />
             <form.Field name="targetLocale">
               {(field) => {

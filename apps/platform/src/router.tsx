@@ -212,6 +212,8 @@ export const router = createRouter({
     locale: "zh-CN",
   },
   defaultPreload: "intent",
+  // 主面板独立滚动后，换页仍须从页面顶部开始。
+  scrollToTopSelectors: ['[data-slot="sidebar-inset"]'],
   defaultNotFoundComponent: NotFoundState,
   defaultErrorComponent: RouterErrorComponent,
   defaultPendingComponent: LoadingState,

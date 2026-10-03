@@ -357,10 +357,9 @@ export const FilterAndPagination: Story = {
     // 上一页缓存行会先出现；筛选要等当前读回结束后才恢复可编辑。
     await waitFor(() => expect(organizationId).toBeEnabled())
     await userEvent.type(organizationId, "c7dd0a27-4f8a-4aef-8d4c-000000000002")
-    await userEvent.selectOptions(
-      canvas.getByRole("combobox", { name: "Result" }),
-      "denied"
-    )
+    await userEvent.click(canvas.getByRole("combobox", { name: "Result" }))
+    const screen = within(canvasElement.ownerDocument.body)
+    await userEvent.click(await screen.findByRole("option", { name: "Denied" }))
     await userEvent.click(canvas.getByRole("button", { name: "Apply filters" }))
     await canvas.findByText("member.role_changed")
     await expect(canvas.getAllByRole("row")).toHaveLength(2)
@@ -368,5 +367,17 @@ export const FilterAndPagination: Story = {
     await expect(
       canvas.getByRole("button", { name: "Previous page" })
     ).toBeDisabled()
+    // URL 筛选条件变化会重建表单，重置时需要取得当前输入框。
+    const resetOrganizationId = canvas.getByRole("textbox", {
+      name: "Organization ID",
+    })
+    await waitFor(() => expect(resetOrganizationId).toBeEnabled())
+    await userEvent.click(canvas.getByRole("combobox", { name: "Result" }))
+    await userEvent.click(
+      await screen.findByRole("option", { name: "Any result" })
+    )
+    await userEvent.clear(resetOrganizationId)
+    await userEvent.click(canvas.getByRole("button", { name: "Apply filters" }))
+    await waitFor(() => expect(canvas.getAllByRole("row")).toHaveLength(21))
   },
 }

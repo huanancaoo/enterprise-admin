@@ -41,11 +41,17 @@ function WorkspaceQueryStatus({
   const { t } = useTranslation(["organization", "common"])
 
   if (workspace.isPending)
-    return <p role="status">{t("organization:loading")}</p>
+    return (
+      <p role="status" className="text-sm text-muted-foreground">
+        {t("organization:loading")}
+      </p>
+    )
   if (workspace.isError) {
     return (
-      <div className="space-y-4">
-        <p role="alert">{workspace.error.message}</p>
+      <div className="space-y-4 rounded-xl border bg-muted/30 p-4 text-sm">
+        <p role="alert" className="text-sm text-destructive">
+          {workspace.error.message}
+        </p>
         <Button
           disabled={workspace.isFetching}
           onClick={() => void workspace.refetch()}
@@ -72,7 +78,9 @@ export function OrganizationUnavailable({
   )
   return (
     <div className="space-y-4">
-      <p role="alert">{t("errors:ORGANIZATION_SUSPENDED")}</p>
+      <p role="alert" className="text-sm text-destructive">
+        {t("errors:ORGANIZATION_SUSPENDED")}
+      </p>
       <p>{t("organization:unavailableHint")}</p>
       {alternatives.length > 0 && (
         <nav aria-labelledby="switch-organization-heading">
@@ -85,7 +93,7 @@ export function OrganizationUnavailable({
                 <Link
                   to="/app/projects/$organizationId"
                   params={{ organizationId: organization.id }}
-                  className="block rounded-xl border px-4 py-3 text-sm font-medium hover:bg-muted/50"
+                  className="block rounded-lg border bg-card px-4 py-3 text-sm font-medium wrap-anywhere transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
                 >
                   {organization.name}
                 </Link>
@@ -235,21 +243,23 @@ function IdentityPage({
   children: ReactNode
 }) {
   return (
-    <main className="flex min-h-svh flex-col">
-      <div className="flex flex-1 flex-col gap-4 p-6 md:p-10">
-        <header className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 font-medium">
-            <div className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
+    <main className="flex min-h-svh flex-col bg-muted/30">
+      <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 p-4 sm:p-6 md:p-10">
+        <header className="flex items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-2 font-medium">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <GalleryVerticalEnd className="size-4" />
             </div>
-            <span className="text-sm font-semibold tracking-tight">
+            <span className="text-sm font-semibold tracking-tight wrap-anywhere">
               {title}
             </span>
           </div>
           {actions}
         </header>
-        <div className="flex flex-1 items-center justify-center">
-          <div className="w-full max-w-xs">{children}</div>
+        <div className="flex flex-1 items-center justify-center py-6">
+          <div className="w-full max-w-sm rounded-xl border bg-card p-5 shadow-sm sm:p-8">
+            {children}
+          </div>
         </div>
       </div>
     </main>
@@ -312,9 +322,9 @@ export function OrganizationGate() {
         : t("organization:select")
   )
   const sessionFooter = (
-    <div className="mt-6 flex flex-col items-center gap-2">
+    <div className="mt-6 flex flex-col items-center gap-2 border-t pt-5">
       {session.user.email && (
-        <p className="w-full truncate text-center text-sm text-muted-foreground">
+        <p className="w-full text-center text-sm wrap-anywhere text-muted-foreground">
           {session.user.email}
         </p>
       )}
@@ -409,7 +419,7 @@ export function OrganizationGate() {
               <div className="flex flex-col items-center gap-1 text-center">
                 <h1
                   id="create-organization-heading"
-                  className="text-2xl font-bold"
+                  className="text-2xl font-semibold tracking-tight"
                 >
                   {t("organization:create")}
                 </h1>
@@ -427,7 +437,10 @@ export function OrganizationGate() {
           aria-labelledby="select-organization-heading"
         >
           <div className="flex flex-col items-center gap-1 text-center">
-            <h1 id="select-organization-heading" className="text-2xl font-bold">
+            <h1
+              id="select-organization-heading"
+              className="text-2xl font-semibold tracking-tight"
+            >
               {t("organization:select")}
             </h1>
           </div>
@@ -437,7 +450,7 @@ export function OrganizationGate() {
                 <Link
                   to="/app/projects/$organizationId"
                   params={{ organizationId: organization.id }}
-                  className="block rounded-xl border px-4 py-3 text-sm font-medium hover:bg-muted/50"
+                  className="block rounded-lg border bg-card px-4 py-3 text-sm font-medium wrap-anywhere transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
                 >
                   {organization.name}
                   {organization.status === "SUSPENDED" ? (

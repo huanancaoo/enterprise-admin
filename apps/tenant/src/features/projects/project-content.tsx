@@ -136,7 +136,7 @@ function AuthorizedProjectContent({
   return (
     <div className="space-y-4">
       {(permission.isError || files.isError || workspace.isError) && (
-        <p role="alert">
+        <p role="alert" className="text-sm text-destructive">
           {fileRequestErrorMessage(
             permission.error ?? files.error ?? workspace.error,
             t("operationFailed")
@@ -283,8 +283,8 @@ function ContentSession(props: PanelProps) {
       <CardHeader>
         <CardTitle>{t("projects:contentTitle")}</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <Field>
+      <CardContent className="min-w-0 space-y-5">
+        <Field className="sm:max-w-sm">
           <FieldLabel htmlFor={id + "-locale"}>
             {t("projects:contentLocale")}
           </FieldLabel>
@@ -306,7 +306,7 @@ function ContentSession(props: PanelProps) {
             }}
             disabled={saving}
           >
-            <SelectTrigger id={id + "-locale"}>
+            <SelectTrigger id={id + "-locale"} className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -333,7 +333,7 @@ function ContentSession(props: PanelProps) {
               </p>
             )}
             {draft?.saved && !draft.dirty && (
-              <p role="status">
+              <p role="status" className="text-sm text-muted-foreground">
                 {t(
                   refreshError[locale]
                     ? "projects:contentSavedRefreshFailed"
@@ -502,7 +502,11 @@ function ProjectContentForm({
           )
         }}
       </form.Field>
-      {uploading && <p role="status">{t("projects:contentUploadsPending")}</p>}
+      {uploading && (
+        <p role="status" className="text-sm text-muted-foreground">
+          {t("projects:contentUploadsPending")}
+        </p>
+      )}
       {error && (
         <p role="alert" className="text-destructive">
           {error}

@@ -296,7 +296,7 @@ function FileTrashDetails({ entry }: { entry: FileEntryResponse }) {
   return (
     <div className="space-y-3">
       <p>{t("trashedContentUnavailable")}</p>
-      <dl className="space-y-3 rounded-lg border p-4 text-sm">
+      <dl className="grid gap-4 rounded-xl border bg-card p-4 text-sm shadow-sm sm:grid-cols-2 sm:p-5">
         <div>
           <dt>{t("originalLocation")}</dt>
           <dd className="[overflow-wrap:anywhere]">{entry.path.join(" / ")}</dd>
@@ -325,7 +325,7 @@ function FileTrashDetails({ entry }: { entry: FileEntryResponse }) {
 function FolderDetails({ folder }: { folder: FolderResponse }) {
   const { t } = useTranslation("files")
   return (
-    <dl className="space-y-3 rounded-lg border p-4 text-sm">
+    <dl className="grid gap-4 rounded-xl border bg-card p-4 text-sm shadow-sm sm:grid-cols-2 sm:p-5">
       <div>
         <dt className="text-muted-foreground">{t("type")}</dt>
         <dd>{t("folder")}</dd>
@@ -387,7 +387,7 @@ function FileVersionDetails({
     <div className="min-w-0 space-y-6">
       <section
         aria-label={t("files:content")}
-        className="space-y-3 rounded-lg border p-4"
+        className="space-y-4 rounded-xl border bg-card p-4 shadow-sm sm:p-5"
       >
         <h2 className="font-semibold">{t("files:content")}</h2>
         {selected ? (
@@ -419,14 +419,16 @@ function FileVersionDetails({
             />
           </>
         ) : (
-          <p role="alert">{t("files:versionUnavailable")}</p>
+          <p role="alert" className="text-sm text-destructive">
+            {t("files:versionUnavailable")}
+          </p>
         )}
       </section>
       <section aria-label={t("files:versions")} className="space-y-3">
         <h2 className="font-semibold">{t("files:versions")}</h2>
-        <div className="min-w-0 overflow-x-auto rounded-lg border">
-          <Table>
-            <TableHeader>
+        <div className="min-w-0 overflow-x-auto rounded-xl border bg-card shadow-sm">
+          <Table className="min-w-[40rem]">
+            <TableHeader className="bg-muted/40">
               <TableRow>
                 <TableHead>{t("files:versionCreatedAt")}</TableHead>
                 <TableHead>{t("files:type")}</TableHead>
@@ -446,7 +448,7 @@ function FileVersionDetails({
                   <TableCell>
                     <Button
                       variant="link"
-                      className="h-auto p-0 text-start"
+                      className="h-auto p-0 text-start whitespace-nowrap"
                       aria-pressed={version.id === selectedId}
                       onClick={() =>
                         void navigate({ search: { versionId: version.id } })
@@ -458,7 +460,9 @@ function FileVersionDetails({
                       )}
                     </Button>
                   </TableCell>
-                  <TableCell>{version.contentType}</TableCell>
+                  <TableCell className="max-w-56 wrap-anywhere whitespace-normal text-muted-foreground">
+                    {version.contentType}
+                  </TableCell>
                   <TableCell>
                     {t("files:byteCount", {
                       bytes: createFormatter(locale).number(version.bytes),

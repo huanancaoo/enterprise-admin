@@ -60,7 +60,7 @@ export function ProjectsList({
             <Link
               to="/app/projects/$organizationId/$projectId"
               params={{ organizationId, projectId: cell.row.original.id }}
-              className="font-medium underline-offset-4 hover:underline"
+              className="font-medium wrap-anywhere underline-offset-4 hover:underline"
             >
               {cell.getValue()}
             </Link>

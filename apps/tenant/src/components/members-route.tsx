@@ -101,7 +101,7 @@ export function MembersRoute() {
   }
 
   return (
-    <section className="space-y-8">
+    <section className="min-w-0 space-y-6">
       <PageHeader
         title={t("organization:members")}
         description={t("organization:membersDescription")}
@@ -124,7 +124,11 @@ export function MembersRoute() {
           </div>
         }
       />
-      {members.isPending && <p role="status">{t("common:loading")}</p>}
+      {members.isPending && (
+        <p role="status" className="text-sm text-muted-foreground">
+          {t("common:loading")}
+        </p>
+      )}
       {members.error && (
         <p role="alert" className="text-sm text-destructive">
           {members.error.message}
@@ -145,7 +149,7 @@ export function MembersRoute() {
           />
           <ul
             aria-label={t("organization:members")}
-            className="divide-y rounded-xl border"
+            className="divide-y overflow-hidden rounded-xl border bg-card shadow-sm"
           >
             {members.data.members.length === 0 ? (
               <li className="px-4 py-6 text-sm text-muted-foreground">
@@ -166,16 +170,16 @@ export function MembersRoute() {
                 return (
                   <li
                     key={member.id}
-                    className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+                    className="flex flex-col items-start justify-between gap-4 px-4 py-4 sm:flex-row sm:px-5"
                   >
-                    <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex min-w-0 flex-1 items-start gap-3">
                       <PersonalAvatar
                         image={member.user.image}
                         name={member.user.name}
                         organizationId={self ? undefined : organizationId}
                       />
                       <div className="min-w-0">
-                        <p className="font-medium">
+                        <p className="font-medium wrap-anywhere">
                           {member.user.name}
                           {member.userId === session.user.id ? (
                             <Badge variant="secondary" className="ms-2">
@@ -185,7 +189,7 @@ export function MembersRoute() {
                         </p>
                         <p
                           dir="ltr"
-                          className="truncate text-sm text-muted-foreground"
+                          className="text-sm wrap-anywhere text-muted-foreground"
                         >
                           {member.user.email}
                         </p>
@@ -202,8 +206,10 @@ export function MembersRoute() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm">{roleLabel(member.role, t)}</p>
+                    <div className="flex w-full flex-wrap items-center gap-2 border-t pt-3 sm:w-auto sm:justify-end sm:border-0 sm:pt-0">
+                      <p className="rounded-md bg-muted px-2 py-1 text-xs font-medium wrap-anywhere">
+                        {roleLabel(member.role, t)}
+                      </p>
                       {canChangeRole && (
                         <Button
                           variant="outline"
@@ -326,6 +332,7 @@ function MemberDirectoryControls({
   })
   return (
     <form
+      className="rounded-xl border bg-card p-4 shadow-sm sm:p-5"
       onSubmit={(event) => {
         event.preventDefault()
         void form.handleSubmit()
@@ -334,7 +341,7 @@ function MemberDirectoryControls({
       <form.Subscribe selector={(state) => state.isSubmitting}>
         {(pending) => (
           <FieldGroup
-            className="flex-row flex-wrap items-end gap-3"
+            className="grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))_auto]"
             aria-busy={pending}
           >
             <form.Field name="q">
@@ -342,10 +349,7 @@ function MemberDirectoryControls({
                 const isInvalid =
                   field.state.meta.isTouched && !field.state.meta.isValid
                 return (
-                  <Field
-                    className="w-auto min-w-56 flex-1"
-                    data-invalid={isInvalid}
-                  >
+                  <Field className="min-w-0" data-invalid={isInvalid}>
                     <FieldLabel htmlFor="member-search">
                       {t("organization:searchMembers")}
                     </FieldLabel>
@@ -374,10 +378,7 @@ function MemberDirectoryControls({
                 const isInvalid =
                   field.state.meta.isTouched && !field.state.meta.isValid
                 return (
-                  <Field
-                    className="w-auto min-w-32 flex-1"
-                    data-invalid={isInvalid}
-                  >
+                  <Field className="min-w-0" data-invalid={isInvalid}>
                     <FieldLabel htmlFor="member-role">
                       {t("organization:role")}
                     </FieldLabel>
@@ -394,7 +395,11 @@ function MemberDirectoryControls({
                         if (typeof value === "string") field.handleChange(value)
                       }}
                     >
-                      <SelectTrigger id="member-role" aria-invalid={isInvalid}>
+                      <SelectTrigger
+                        id="member-role"
+                        className="w-full"
+                        aria-invalid={isInvalid}
+                      >
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -429,10 +434,7 @@ function MemberDirectoryControls({
                 const isInvalid =
                   field.state.meta.isTouched && !field.state.meta.isValid
                 return (
-                  <Field
-                    className="w-auto min-w-32 flex-1"
-                    data-invalid={isInvalid}
-                  >
+                  <Field className="min-w-0" data-invalid={isInvalid}>
                     <FieldLabel htmlFor="member-sort-by">
                       {t("organization:sortBy")}
                     </FieldLabel>
@@ -449,6 +451,7 @@ function MemberDirectoryControls({
                     >
                       <SelectTrigger
                         id="member-sort-by"
+                        className="w-full"
                         aria-invalid={isInvalid}
                       >
                         <SelectValue />
@@ -474,10 +477,7 @@ function MemberDirectoryControls({
                 const isInvalid =
                   field.state.meta.isTouched && !field.state.meta.isValid
                 return (
-                  <Field
-                    className="w-auto min-w-32 flex-1"
-                    data-invalid={isInvalid}
-                  >
+                  <Field className="min-w-0" data-invalid={isInvalid}>
                     <FieldLabel htmlFor="member-sort-order">
                       {t("organization:sortOrder")}
                     </FieldLabel>
@@ -494,6 +494,7 @@ function MemberDirectoryControls({
                     >
                       <SelectTrigger
                         id="member-sort-order"
+                        className="w-full"
                         aria-invalid={isInvalid}
                       >
                         <SelectValue />
@@ -538,7 +539,7 @@ function MemberDirectoryPager({
   const { t } = useTranslation("common")
   const pages = Math.max(1, Math.ceil(total / pageSize))
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center justify-end gap-2 text-sm text-muted-foreground">
       <Button
         type="button"
         variant="outline"
@@ -547,7 +548,7 @@ function MemberDirectoryPager({
       >
         {t("previous")}
       </Button>
-      <span>
+      <span className="min-w-16 text-center tabular-nums">
         {page} / {pages}
       </span>
       <Button

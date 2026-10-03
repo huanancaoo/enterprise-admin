@@ -297,7 +297,7 @@ function FileWorkspaceBrowser({
   return (
     <>
       <div
-        className="flex flex-wrap gap-2"
+        className="flex w-fit max-w-full flex-wrap gap-1 rounded-lg bg-muted/50 p-1"
         role="group"
         aria-label={t("files:views")}
       >
@@ -534,10 +534,10 @@ export function FileUsageSummary({ usage }: { usage: FileUsageResponse }) {
   return (
     <section
       aria-label={t("usage")}
-      className="space-y-3 rounded-lg border p-4"
+      className="space-y-4 rounded-xl border bg-card p-4 shadow-sm sm:p-5"
     >
       <h2 className="font-semibold">{t("usage")}</h2>
-      <dl className="grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
+      <dl className="grid gap-4 text-sm sm:grid-cols-2 xl:grid-cols-4">
         {[
           [t("usedBytes"), bytes(usage.usedBytes)],
           [t("reservedBytes"), bytes(usage.reservedBytes)],
@@ -549,7 +549,9 @@ export function FileUsageSummary({ usage }: { usage: FileUsageResponse }) {
         ].map(([label, value]) => (
           <div key={label} className="min-w-0">
             <dt className="text-muted-foreground">{label}</dt>
-            <dd className="[overflow-wrap:anywhere]">{value}</dd>
+            <dd className="mt-1 font-medium [overflow-wrap:anywhere] tabular-nums">
+              {value}
+            </dd>
           </div>
         ))}
       </dl>

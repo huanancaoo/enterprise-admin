@@ -25,8 +25,16 @@ import {
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
+import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/select"
 import {
   Field,
   FieldError,
@@ -189,6 +197,7 @@ function AuditFilters({
     <form.Subscribe selector={(state) => state.isSubmitting}>
       {(busy) => (
         <form
+          className="rounded-2xl bg-muted/30 p-4 ring-1 ring-foreground/10 sm:p-5"
           noValidate
           aria-busy={busy || loading}
           onSubmit={(event) => {
@@ -204,35 +213,64 @@ function AuditFilters({
                     const invalid =
                       field.state.meta.isTouched && !field.state.meta.isValid
                     return (
-                      <Field data-invalid={invalid}>
+                      <Field
+                        className={
+                          name === "purpose"
+                            ? "sm:col-span-2 lg:col-span-3"
+                            : undefined
+                        }
+                        data-invalid={invalid}
+                      >
                         <FieldLabel htmlFor={`platform-audit-${name}`}>
                           {t(labels[name])}
                         </FieldLabel>
                         {name === "result" ? (
-                          <select
-                            id={`platform-audit-${name}`}
+                          <Select
+                            items={[
+                              { value: "", label: t("auditAnyResult") },
+                              ...(
+                                [
+                                  "succeeded",
+                                  "denied",
+                                  "failed",
+                                  "no_change",
+                                ] as const
+                              ).map((result) => ({
+                                value: result,
+                                label: t(`audit_result_${result}`),
+                              })),
+                            ]}
                             value={field.state.value}
-                            onChange={(event) =>
-                              field.handleChange(event.target.value)
-                            }
-                            onBlur={field.handleBlur}
-                            aria-invalid={invalid}
-                            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                            onValueChange={(value) => {
+                              if (value !== null) field.handleChange(value)
+                            }}
                           >
-                            <option value="">{t("auditAnyResult")}</option>
-                            {(
-                              [
-                                "succeeded",
-                                "denied",
-                                "failed",
-                                "no_change",
-                              ] as const
-                            ).map((result) => (
-                              <option key={result} value={result}>
-                                {t(`audit_result_${result}`)}
-                              </option>
-                            ))}
-                          </select>
+                            <SelectTrigger
+                              id={`platform-audit-${name}`}
+                              className="w-full data-placeholder:text-foreground"
+                              onBlur={field.handleBlur}
+                              aria-invalid={invalid}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="">
+                                {t("auditAnyResult")}
+                              </SelectItem>
+                              {(
+                                [
+                                  "succeeded",
+                                  "denied",
+                                  "failed",
+                                  "no_change",
+                                ] as const
+                              ).map((result) => (
+                                <SelectItem key={result} value={result}>
+                                  {t(`audit_result_${result}`)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         ) : (
                           <Input
                             id={`platform-audit-${name}`}
@@ -266,9 +304,7 @@ function AuditFilters({
                 </form.Field>
               ))}
             </FieldGroup>
-            <Button variant="secondary" type="submit">
-              {t("platformApplyFilters")}
-            </Button>
+            <Button type="submit">{t("platformApplyFilters")}</Button>
           </fieldset>
         </form>
       )}
@@ -306,7 +342,10 @@ function AuditDetail({
         if (!open) onClose()
       }}
     >
-      <DialogContent showCloseButton={false}>
+      <DialogContent
+        className="max-h-[85svh] overflow-y-auto"
+        showCloseButton={false}
+      >
         <DialogHeader>
           <DialogTitle>{t("auditDetails")}</DialogTitle>
           <DialogDescription>
@@ -411,10 +450,14 @@ function AuditWorkspace({
   useAccessError(query.error)
   return (
     <section className="min-w-0 space-y-6">
-      <h1 className="text-2xl font-semibold">{t("organization:audit")}</h1>
-      <p className="text-muted-foreground">
-        {t("organization:platformAuditDescription")}
-      </p>
+      <div className="space-y-1.5">
+        <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
+          {t("organization:audit")}
+        </h1>
+        <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
+          {t("organization:platformAuditDescription")}
+        </p>
+      </div>
       <AuditFilters
         key={JSON.stringify(search)}
         search={search}
@@ -423,7 +466,9 @@ function AuditWorkspace({
         onApply={onApply}
       />
       {!applied ? (
-        <p>{t("organization:platformAuditEnterPurpose")}</p>
+        <p className="rounded-2xl border border-dashed px-6 py-8 text-center text-sm text-muted-foreground">
+          {t("organization:platformAuditEnterPurpose")}
+        </p>
       ) : query.isPending ? (
         <LoadingState />
       ) : query.isError ? (
@@ -433,8 +478,11 @@ function AuditWorkspace({
           {query.data.items.length === 0 ? (
             <EmptyState />
           ) : (
-            <div className="overflow-x-auto" aria-busy={query.isFetching}>
-              <Table>
+            <div
+              className="overflow-x-auto rounded-2xl bg-card ring-1 ring-foreground/10"
+              aria-busy={query.isFetching}
+            >
+              <Table className="min-w-[960px] [&_td]:align-top">
                 <TableHeader>
                   <TableRow>
                     {[
@@ -461,11 +509,11 @@ function AuditWorkspace({
                           timeStyle: "short",
                         })}
                       </TableCell>
-                      <TableCell>
-                        <bdi>{event.eventCode}</bdi>
+                      <TableCell className="max-w-56 break-words whitespace-normal">
+                        <bdi className="text-sm">{event.eventCode}</bdi>
                       </TableCell>
                       <TableCell>{scopeLabels[event.scope]}</TableCell>
-                      <TableCell>
+                      <TableCell className="max-w-64 break-words whitespace-normal">
                         {event.targetOrganization ? (
                           <>
                             <span>{event.targetOrganization.name}</span>
@@ -478,17 +526,26 @@ function AuditWorkspace({
                           "—"
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="max-w-56 break-words whitespace-normal">
                         {t(`organization:auditActor_${event.actorType}`)}
                         <br />
                         <bdi>{event.actorMaskedEmail ?? event.actorId}</bdi>
                       </TableCell>
                       <TableCell>
-                        {t(`organization:audit_result_${event.result}`)}
+                        <Badge
+                          variant={
+                            event.result === "succeeded"
+                              ? "secondary"
+                              : "outline"
+                          }
+                        >
+                          {t(`organization:audit_result_${event.result}`)}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <Button
-                          variant="secondary"
+                          variant="outline"
+                          size="sm"
                           onClick={() => setSelected(event.id)}
                         >
                           {t("organization:auditDetails")}
@@ -500,7 +557,7 @@ function AuditWorkspace({
               </Table>
             </div>
           )}
-          <div className="flex gap-2">
+          <div className="flex justify-end gap-2">
             <Button
               variant="secondary"
               disabled={cursors.length === 1 || query.isFetching}

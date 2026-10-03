@@ -109,7 +109,7 @@ function RolePermissions({
     actions.map((action) => permissionLabel(resource, action, t))
   )
   return (
-    <div className="space-y-1 text-sm text-muted-foreground">
+    <div className="space-y-1 text-sm leading-relaxed wrap-anywhere text-muted-foreground">
       <p>
         {t("organization:rolePermissionCount", {
           permissionCount: items.length,
@@ -204,7 +204,7 @@ export function RolesRoute() {
   if (!access.data?.canRead) return <PermissionDeniedState />
 
   return (
-    <div className="space-y-8">
+    <div className="min-w-0 space-y-6">
       <PageHeader
         title={t("organization:roles")}
         description={t("organization:rolesDescription")}
@@ -214,11 +214,11 @@ export function RolesRoute() {
         <h2 id="built-in-roles-title" className="text-lg font-semibold">
           {t("organization:builtInRoles")}
         </h2>
-        <ul className="divide-y rounded-md border">
+        <ul className="divide-y overflow-hidden rounded-xl border bg-card shadow-sm">
           {builtInOrganizationRoleKeys.map((role) => (
-            <li key={role} className="space-y-2 p-4">
+            <li key={role} className="min-w-0 space-y-3 p-4 sm:p-5">
               <div className="flex flex-wrap items-center gap-3">
-                <span className="font-medium">
+                <span className="font-medium wrap-anywhere">
                   {t(`organization:role_${role}`)}
                 </span>
                 <Badge variant="secondary">
@@ -254,11 +254,11 @@ export function RolesRoute() {
             {t("organization:rolesEmpty")}
           </p>
         ) : (
-          <ul className="divide-y rounded-md border">
+          <ul className="divide-y overflow-hidden rounded-xl border bg-card shadow-sm">
             {roles.data.map((role: OrganizationRole) => (
-              <li key={role.id} className="space-y-2 p-4">
+              <li key={role.id} className="min-w-0 space-y-3 p-4 sm:p-5">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium">{role.role}</span>
+                  <span className="font-medium wrap-anywhere">{role.role}</span>
                   <Badge variant="outline">
                     {t("organization:roleCustom")}
                   </Badge>
@@ -323,7 +323,10 @@ export function RolesRoute() {
         />
       )}
       {access.data.canCreate && (
-        <section aria-labelledby="create-role-title" className="space-y-4">
+        <section
+          aria-labelledby="create-role-title"
+          className="space-y-5 rounded-xl border bg-card p-4 shadow-sm sm:p-6"
+        >
           <h2 id="create-role-title" className="text-lg font-semibold">
             {t("organization:createRole")}
           </h2>
@@ -387,7 +390,7 @@ export function RolesRoute() {
                             return (
                               <label
                                 key={key}
-                                className="flex items-center gap-2 text-sm"
+                                className="flex min-w-0 cursor-pointer items-start gap-3 rounded-lg border bg-muted/20 p-3 text-sm leading-relaxed wrap-anywhere transition-colors hover:bg-muted/50"
                               >
                                 <Checkbox
                                   checked={checked}

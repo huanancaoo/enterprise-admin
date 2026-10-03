@@ -91,7 +91,7 @@ export function ProjectCreate({ organizationId }: { organizationId: string }) {
             error={failed ? t("common:operationFailed") : undefined}
             submitLabel={t("projects:create")}
           >
-            <FieldGroup className="max-h-[60dvh] overflow-y-auto pe-1">
+            <FieldGroup>
               <form.Field name="name">
                 {(field) => {
                   const invalid =

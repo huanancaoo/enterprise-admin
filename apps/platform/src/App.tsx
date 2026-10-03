@@ -25,7 +25,9 @@ import {
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbList,
+  BreadcrumbLink,
   BreadcrumbPage,
+  BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb"
 import {
   Field,
@@ -36,7 +38,18 @@ import {
 } from "@workspace/ui/components/field"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
-import { BuildingIcon, LayoutDashboardIcon } from "lucide-react"
+import { Badge } from "@workspace/ui/components/badge"
+import { Card, CardContent } from "@workspace/ui/components/card"
+import {
+  ArrowUpRightIcon,
+  BuildingIcon,
+  ClipboardListIcon,
+  LayoutDashboardIcon,
+  SettingsIcon,
+  ShieldCheckIcon,
+  UserRoundIcon,
+  UsersIcon,
+} from "lucide-react"
 import { authClient } from "./lib/auth-client"
 
 export function App() {
@@ -99,14 +112,85 @@ export function PlatformLayout() {
   const location = useLocation()
   const session = useAuthenticatedSession()!
   const { platformAccess } = useRouteContext({ from: "/platform" })
+  const section = location.pathname.startsWith("/platform/organizations")
+    ? { title: t("organization:platformOrganizations"), kind: "organizations" }
+    : location.pathname.startsWith("/platform/users")
+      ? { title: t("organization:platformUsers"), kind: "users" }
+      : location.pathname.startsWith("/platform/audit-events")
+        ? { title: t("organization:audit"), kind: "audit" }
+        : location.pathname.startsWith("/platform/settings")
+          ? { title: t("organization:platformSettings"), kind: "settings" }
+          : location.pathname.startsWith("/platform/personal-settings")
+            ? { title: t("settings:personalSettings"), kind: "personal" }
+            : null
+  const detailId =
+    section && ["organizations", "users"].includes(section.kind)
+      ? location.pathname.split("/")[3]
+      : undefined
   return (
     <AppShell
       breadcrumb={
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbPage>{t("auth:platformTitle")}</BreadcrumbPage>
+              {section ? (
+                <BreadcrumbLink render={<Link to="/platform" />}>
+                  {t("auth:platformTitle")}
+                </BreadcrumbLink>
+              ) : (
+                <BreadcrumbPage>{t("auth:platformTitle")}</BreadcrumbPage>
+              )}
             </BreadcrumbItem>
+            {section && (
+              <>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  {detailId && section.kind === "organizations" ? (
+                    <BreadcrumbLink
+                      render={
+                        <Link
+                          to="/platform/organizations"
+                          search={{
+                            page: 1,
+                            pageSize: 20,
+                            sortBy: "createdAt",
+                            sortOrder: "desc",
+                          }}
+                        />
+                      }
+                    >
+                      {section.title}
+                    </BreadcrumbLink>
+                  ) : detailId && section.kind === "users" ? (
+                    <BreadcrumbLink
+                      render={
+                        <Link
+                          to="/platform/users"
+                          search={{ page: 1, pageSize: 20 }}
+                        />
+                      }
+                    >
+                      {section.title}
+                    </BreadcrumbLink>
+                  ) : (
+                    <BreadcrumbPage>{section.title}</BreadcrumbPage>
+                  )}
+                </BreadcrumbItem>
+                {detailId && (
+                  <>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem className="min-w-0">
+                      <BreadcrumbPage
+                        className="max-w-32 truncate sm:max-w-64"
+                        title={detailId}
+                      >
+                        <bdi>{detailId}</bdi>
+                      </BreadcrumbPage>
+                    </BreadcrumbItem>
+                  </>
+                )}
+              </>
+            )}
           </BreadcrumbList>
         </Breadcrumb>
       }
@@ -129,25 +213,25 @@ export function PlatformLayout() {
           items: [
             {
               title: t("settings:personalSettings"),
-              icon: <LayoutDashboardIcon />,
+              icon: <UserRoundIcon />,
               isActive: location.pathname === "/platform/personal-settings",
               render: <Link to="/platform/personal-settings" />,
             },
             {
               title: t("organization:platformSettings"),
-              icon: <LayoutDashboardIcon />,
+              icon: <SettingsIcon />,
               isActive: location.pathname.startsWith("/platform/settings"),
               render: <Link to="/platform/settings" />,
             },
             {
               title: t("organization:audit"),
-              icon: <LayoutDashboardIcon />,
+              icon: <ClipboardListIcon />,
               isActive: location.pathname.startsWith("/platform/audit-events"),
               render: <Link to="/platform/audit-events" search={{}} />,
             },
             {
               title: t("organization:platformUsers"),
-              icon: <LayoutDashboardIcon />,
+              icon: <UsersIcon />,
               isActive: location.pathname.startsWith("/platform/users"),
               render: (
                 <Link to="/platform/users" search={{ page: 1, pageSize: 20 }} />
@@ -264,7 +348,7 @@ export function PlatformMfaPage() {
   return (
     <main className="mx-auto flex min-h-svh max-w-lg items-center px-6 py-10">
       <form
-        className="w-full space-y-6 rounded-xl border bg-card p-6 shadow-sm"
+        className="w-full space-y-6 rounded-2xl bg-card p-6 ring-1 ring-foreground/10 sm:p-8"
         aria-busy={form.state.isSubmitting}
         onSubmit={(event) => {
           event.preventDefault()
@@ -273,7 +357,7 @@ export function PlatformMfaPage() {
       >
         <FieldGroup>
           <div className="space-y-2 text-center">
-            <h1 className="text-2xl font-semibold">
+            <h1 className="font-heading text-2xl font-semibold tracking-tight">
               {setupRequired && !totpUri
                 ? t("auth:mfaSetupTitle")
                 : t("auth:mfaVerifyTitle")}
@@ -291,6 +375,7 @@ export function PlatformMfaPage() {
               </FieldLabel>
               <Input
                 id="platform-totp-uri"
+                className="font-mono text-xs"
                 readOnly
                 value={totpUri}
                 autoComplete="off"
@@ -313,6 +398,7 @@ export function PlatformMfaPage() {
                     </FieldLabel>
                     <Input
                       id="platform-totp-code"
+                      className="text-center font-mono text-lg tracking-[0.35em]"
                       name={field.name}
                       inputMode="numeric"
                       autoComplete="one-time-code"
@@ -360,7 +446,10 @@ export function PlatformMfaPage() {
             </form.Field>
           )}
           {error && (
-            <p role="alert" className="text-sm text-destructive">
+            <p
+              role="alert"
+              className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+            >
               {t("auth:mfaFailed")}
             </p>
           )}
@@ -392,8 +481,8 @@ export function PlatformAccessDeniedPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-svh max-w-lg flex-col items-center justify-center gap-3 px-6 text-center">
-      <h1 className="text-2xl font-semibold">
+    <main className="mx-auto flex min-h-svh max-w-lg flex-col items-center justify-center gap-5 px-6 py-10 text-center">
+      <h1 className="font-heading text-2xl font-semibold tracking-tight">
         {t("platformAccessDeniedTitle")}
       </h1>
       <p className="text-muted-foreground">
@@ -410,7 +499,10 @@ export function PlatformAccessDeniedPage() {
               : t("signOutAndUseAnotherAccount")}
           </Button>
           {session.signOutError && (
-            <p role="alert" className="text-sm text-destructive">
+            <p
+              role="alert"
+              className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+            >
               {session.signOutError}
             </p>
           )}
@@ -425,23 +517,107 @@ export function PlatformAccessDeniedPage() {
 }
 
 export function PlatformHome() {
-  const { t } = useTranslation(["auth", "organization"])
+  const { t } = useTranslation(["auth", "organization", "settings"])
+  const { platformAccess } = useRouteContext({ from: "/platform" })
+  const shortcutClass =
+    "group rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
+  const contentClass =
+    "flex min-h-28 items-center gap-4 transition-colors group-hover:bg-muted/40"
   return (
-    <div className="space-y-3">
-      <h1 className="text-2xl font-semibold">{t("auth:signedIn")}</h1>
-      <Link
-        className="underline"
-        to="/platform/organizations"
-        search={{
-          page: 1,
-          pageSize: 20,
-          sortBy: "createdAt",
-          sortOrder: "desc",
-        }}
-      >
-        {t("organization:platformOrganizations")}
-      </Link>
-    </div>
+    <section className="min-w-0 space-y-8">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="space-y-2">
+          <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
+            {t("auth:platformTitle")}
+          </h1>
+          <p className="text-sm text-muted-foreground">{t("auth:signedIn")}</p>
+        </div>
+        <Badge
+          variant="secondary"
+          className="max-w-full flex-wrap justify-start gap-2 py-1.5 whitespace-normal"
+        >
+          <ShieldCheckIcon className="size-3.5 shrink-0" />
+          {t(
+            platformAccess.role === "platform_admin"
+              ? "auth:platformAdminRole"
+              : "auth:platformAuditorRole"
+          )}
+          <span className="border-s border-foreground/15 ps-2 text-muted-foreground">
+            {t("auth:globalScope")}
+          </span>
+        </Badge>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <Link
+          className={shortcutClass}
+          to="/platform/organizations"
+          search={{
+            page: 1,
+            pageSize: 20,
+            sortBy: "createdAt",
+            sortOrder: "desc",
+          }}
+        >
+          <Card className={contentClass}>
+            <CardContent className="flex w-full items-center gap-4">
+              <BuildingIcon className="size-5 shrink-0 text-muted-foreground" />
+              <span className="min-w-0 flex-1 text-base font-medium">
+                {t("organization:platformOrganizations")}
+              </span>
+              <ArrowUpRightIcon className="size-4 shrink-0 text-muted-foreground" />
+            </CardContent>
+          </Card>
+        </Link>
+        <Link
+          className={shortcutClass}
+          to="/platform/users"
+          search={{ page: 1, pageSize: 20 }}
+        >
+          <Card className={contentClass}>
+            <CardContent className="flex w-full items-center gap-4">
+              <UsersIcon className="size-5 shrink-0 text-muted-foreground" />
+              <span className="min-w-0 flex-1 text-base font-medium">
+                {t("organization:platformUsers")}
+              </span>
+              <ArrowUpRightIcon className="size-4 shrink-0 text-muted-foreground" />
+            </CardContent>
+          </Card>
+        </Link>
+        <Link className={shortcutClass} to="/platform/audit-events" search={{}}>
+          <Card className={contentClass}>
+            <CardContent className="flex w-full items-center gap-4">
+              <ClipboardListIcon className="size-5 shrink-0 text-muted-foreground" />
+              <span className="min-w-0 flex-1 text-base font-medium">
+                {t("organization:audit")}
+              </span>
+              <ArrowUpRightIcon className="size-4 shrink-0 text-muted-foreground" />
+            </CardContent>
+          </Card>
+        </Link>
+        <Link className={shortcutClass} to="/platform/settings">
+          <Card className={contentClass}>
+            <CardContent className="flex w-full items-center gap-4">
+              <SettingsIcon className="size-5 shrink-0 text-muted-foreground" />
+              <span className="min-w-0 flex-1 text-base font-medium">
+                {t("organization:platformSettings")}
+              </span>
+              <ArrowUpRightIcon className="size-4 shrink-0 text-muted-foreground" />
+            </CardContent>
+          </Card>
+        </Link>
+        <Link className={shortcutClass} to="/platform/personal-settings">
+          <Card className={contentClass}>
+            <CardContent className="flex w-full items-center gap-4">
+              <UserRoundIcon className="size-5 shrink-0 text-muted-foreground" />
+              <span className="min-w-0 flex-1 text-base font-medium">
+                {t("settings:personalSettings")}
+              </span>
+              <ArrowUpRightIcon className="size-4 shrink-0 text-muted-foreground" />
+            </CardContent>
+          </Card>
+        </Link>
+      </div>
+    </section>
   )
 }
 

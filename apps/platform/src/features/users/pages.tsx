@@ -33,6 +33,9 @@ import {
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
+import { ArrowLeftIcon } from "lucide-react"
+import { Badge } from "@workspace/ui/components/badge"
+import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
 import { Textarea } from "@workspace/ui/components/textarea"
@@ -107,12 +110,13 @@ function UserSearch({
   })
   return (
     <form
+      className="rounded-2xl bg-muted/30 p-4 ring-1 ring-foreground/10 sm:p-5"
       onSubmit={(event) => {
         event.preventDefault()
         void form.handleSubmit()
       }}
     >
-      <FieldGroup className="flex flex-row items-end gap-3">
+      <FieldGroup className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <form.Field name="q">
           {(field) => {
             const invalid =
@@ -135,7 +139,7 @@ function UserSearch({
             )
           }}
         </form.Field>
-        <Button type="submit" variant="secondary">
+        <Button type="submit" className="shrink-0">
           {t("platformApplyFilters")}
         </Button>
       </FieldGroup>
@@ -160,7 +164,9 @@ export function PlatformUsersPage() {
   useAccessError(query.error)
   return (
     <section className="min-w-0 space-y-6">
-      <h1 className="text-2xl font-semibold">{t("platformUsers")}</h1>
+      <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
+        {t("platformUsers")}
+      </h1>
       <UserSearch
         key={search.q ?? ""}
         search={search}
@@ -175,8 +181,11 @@ export function PlatformUsersPage() {
           {query.data.items.length === 0 ? (
             <EmptyState />
           ) : (
-            <div className="overflow-x-auto" aria-busy={query.isFetching}>
-              <Table>
+            <div
+              className="overflow-x-auto rounded-2xl bg-card ring-1 ring-foreground/10"
+              aria-busy={query.isFetching}
+            >
+              <Table className="min-w-[880px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>{t("platformUserId")}</TableHead>
@@ -191,11 +200,11 @@ export function PlatformUsersPage() {
                   {query.data.items.map((user) => (
                     <TableRow key={user.userId}>
                       <TableCell>
-                        <bdi>{user.userId}</bdi>
+                        <bdi className="font-mono text-xs">{user.userId}</bdi>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="max-w-56 break-words whitespace-normal">
                         <Link
-                          className="underline"
+                          className="font-medium underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                           to="/platform/users/$userId"
                           params={{ userId: user.userId }}
                         >
@@ -206,9 +215,13 @@ export function PlatformUsersPage() {
                         <bdi>{user.maskedEmail}</bdi>
                       </TableCell>
                       <TableCell>
-                        {user.emailVerified
-                          ? t("platformVerified")
-                          : t("platformUnverified")}
+                        <Badge
+                          variant={user.emailVerified ? "secondary" : "outline"}
+                        >
+                          {user.emailVerified
+                            ? t("platformVerified")
+                            : t("platformUnverified")}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         {format.dateTime(new Date(user.createdAt), "UTC", {
@@ -315,12 +328,22 @@ function SensitiveProfile({ userId }: { userId: string }) {
                 )
               }}
             </form.Field>
-            <Button type="submit" variant="secondary" disabled={submitting}>
+            <Button variant="secondary" type="submit" disabled={submitting}>
               {t("platformReadFullEmail")}
             </Button>
-            {failed && <p role="alert">{t("platformSensitiveReadFailed")}</p>}
+            {failed && (
+              <p
+                role="alert"
+                className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+              >
+                {t("platformSensitiveReadFailed")}
+              </p>
+            )}
             {email && (
-              <p role="status">
+              <p
+                role="status"
+                className="rounded-xl bg-muted px-4 py-3 text-sm break-all"
+              >
                 <bdi>{email}</bdi>
               </p>
             )}
@@ -358,32 +381,66 @@ export function PlatformUserDetailPage() {
   const user = query.data
   return (
     <section className="min-w-0 space-y-6">
-      <h1 className="text-2xl font-semibold">{user.name}</h1>
-      <dl className="grid gap-2 sm:grid-cols-2">
-        <dt>{t("platformUserId")}</dt>
-        <dd>
-          <bdi>{user.userId}</bdi>
-        </dd>
-        <dt>{t("platformMaskedEmail")}</dt>
-        <dd>
-          <bdi>{user.maskedEmail}</bdi>
-        </dd>
-        <dt>{t("platformEmailVerified")}</dt>
-        <dd>
-          {user.emailVerified ? t("platformVerified") : t("platformUnverified")}
-        </dd>
-        <dt>{t("platformTwoFactorEnabled")}</dt>
-        <dd>
-          {user.twoFactorEnabled ? t("platformEnabled") : t("platformDisabled")}
-        </dd>
-        <dt>{t("platformCreatedAt")}</dt>
-        <dd>
-          {format.dateTime(new Date(user.createdAt), "UTC", {
-            dateStyle: "medium",
-            timeStyle: "short",
-          })}
-        </dd>
-      </dl>
+      <Link
+        to="/platform/users"
+        search={{ page: 1, pageSize: 20 }}
+        className="inline-flex items-center gap-2 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+      >
+        <ArrowLeftIcon className="size-4 rtl:rotate-180" />
+        {t("platformUsers")}
+      </Link>
+      <h1 className="font-heading text-2xl font-semibold tracking-tight break-words sm:text-3xl">
+        {user.name}
+      </h1>
+      <Card>
+        <CardContent>
+          <dl className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 [&_dd]:mt-1 [&_dd]:font-medium [&_dd]:break-words [&_dt]:text-sm [&_dt]:text-muted-foreground [&>div]:min-w-0">
+            <div>
+              <dt>{t("platformUserId")}</dt>
+              <dd>
+                <bdi className="font-mono text-xs">{user.userId}</bdi>
+              </dd>
+            </div>
+            <div>
+              <dt>{t("platformMaskedEmail")}</dt>
+              <dd>
+                <bdi>{user.maskedEmail}</bdi>
+              </dd>
+            </div>
+            <div>
+              <dt>{t("platformEmailVerified")}</dt>
+              <dd>
+                <Badge variant={user.emailVerified ? "secondary" : "outline"}>
+                  {user.emailVerified
+                    ? t("platformVerified")
+                    : t("platformUnverified")}
+                </Badge>
+              </dd>
+            </div>
+            <div>
+              <dt>{t("platformTwoFactorEnabled")}</dt>
+              <dd>
+                <Badge
+                  variant={user.twoFactorEnabled ? "secondary" : "outline"}
+                >
+                  {user.twoFactorEnabled
+                    ? t("platformEnabled")
+                    : t("platformDisabled")}
+                </Badge>
+              </dd>
+            </div>
+            <div>
+              <dt>{t("platformCreatedAt")}</dt>
+              <dd>
+                {format.dateTime(new Date(user.createdAt), "UTC", {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}
+              </dd>
+            </div>
+          </dl>
+        </CardContent>
+      </Card>
       {platformAccess.role === "platform_admin" && (
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger render={<Button variant="secondary" />}>
@@ -403,50 +460,64 @@ export function PlatformUserDetailPage() {
           </DialogContent>
         </Dialog>
       )}
-      <h2 className="text-xl font-semibold">
-        {t("platformUserOrganizations")}
-      </h2>
-      {user.organizations.length === 0 ? (
-        <EmptyState />
-      ) : (
-        <div className="overflow-x-auto">
-          {/* 只读表格没有可聚焦操作，键盘通过表格本身滚动长字段。 */}
-          <Table tabIndex={0} aria-label={t("platformUserOrganizations")}>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("platformName")}</TableHead>
-                <TableHead>{t("platformSlug")}</TableHead>
-                <TableHead>{t("platformStatus")}</TableHead>
-                <TableHead>{t("platformUserRole")}</TableHead>
-                <TableHead>{t("platformJoinedAt")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {user.organizations.map((organization) => (
-                <TableRow key={organization.organizationId}>
-                  <TableCell>{organization.name}</TableCell>
-                  <TableCell>
-                    <bdi>{organization.slug}</bdi>
-                  </TableCell>
-                  <TableCell>
-                    {organization.status === "ACTIVE"
-                      ? t("platformActive")
-                      : t("platformSuspended")}
-                  </TableCell>
-                  <TableCell>
-                    <bdi>{organization.role}</bdi>
-                  </TableCell>
-                  <TableCell>
-                    {format.dateTime(new Date(organization.joinedAt), "UTC", {
-                      dateStyle: "medium",
-                    })}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+      <Card>
+        <CardHeader>
+          <h2 className="text-lg font-semibold">
+            {t("platformUserOrganizations")}
+          </h2>
+        </CardHeader>
+        <CardContent>
+          {user.organizations.length === 0 ? (
+            <EmptyState />
+          ) : (
+            <div className="overflow-x-auto rounded-xl ring-1 ring-foreground/10">
+              {/* 只读表格没有可聚焦操作，键盘通过表格本身滚动长字段。 */}
+              <Table
+                className="min-w-[680px]"
+                tabIndex={0}
+                aria-label={t("platformUserOrganizations")}
+              >
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("platformName")}</TableHead>
+                    <TableHead>{t("platformSlug")}</TableHead>
+                    <TableHead>{t("platformStatus")}</TableHead>
+                    <TableHead>{t("platformUserRole")}</TableHead>
+                    <TableHead>{t("platformJoinedAt")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {user.organizations.map((organization) => (
+                    <TableRow key={organization.organizationId}>
+                      <TableCell>{organization.name}</TableCell>
+                      <TableCell>
+                        <bdi>{organization.slug}</bdi>
+                      </TableCell>
+                      <TableCell>
+                        {organization.status === "ACTIVE"
+                          ? t("platformActive")
+                          : t("platformSuspended")}
+                      </TableCell>
+                      <TableCell>
+                        <bdi>{organization.role}</bdi>
+                      </TableCell>
+                      <TableCell>
+                        {format.dateTime(
+                          new Date(organization.joinedAt),
+                          "UTC",
+                          {
+                            dateStyle: "medium",
+                          }
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </section>
   )
 }

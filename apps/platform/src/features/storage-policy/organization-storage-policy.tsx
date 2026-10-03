@@ -20,6 +20,7 @@ import {
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
+import { Card, CardContent } from "@workspace/ui/components/card"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
 import { Textarea } from "@workspace/ui/components/textarea"
@@ -109,7 +110,10 @@ export function OrganizationStoragePolicy({
     })()
   }, [error, navigate, queryClient, refetchSession, session.user.id])
   return (
-    <section className="space-y-4" aria-labelledby="storage-policy-title">
+    <section
+      className="min-w-0 space-y-4"
+      aria-labelledby="storage-policy-title"
+    >
       <h2 id="storage-policy-title" className="text-lg font-semibold">
         {t("organization:storagePolicyTitle")}
       </h2>
@@ -124,44 +128,57 @@ export function OrganizationStoragePolicy({
         <ErrorState onRetry={() => void query.refetch()} />
       ) : (
         <>
-          <dl className="grid gap-3 rounded-xl border p-4 sm:grid-cols-2">
-            {(
-              [
-                [
-                  t("organization:storagePolicyQuotaSummary"),
-                  query.data.quotaBytes,
-                ],
-                [t("organization:storagePolicyUsed"), query.data.usedBytes],
-                [
-                  t("organization:storagePolicyReserved"),
-                  query.data.reservedBytes,
-                ],
-                [
-                  t("organization:storagePolicyTransient"),
-                  query.data.transientBytes,
-                ],
-              ] as const
-            ).map(([label, value]) => (
-              <div key={label}>
-                <dt className="text-sm text-muted-foreground">{label}</dt>
-                <dd>
-                  <bdi>{format.number(value)}</bdi>
-                </dd>
-              </div>
-            ))}
-            <div>
-              <dt>{t("organization:storagePolicyTrashDays")}</dt>
-              <dd>{format.number(query.data.trashDays)}</dd>
-            </div>
-            <div>
-              <dt>{t("organization:storagePolicyHistoryDays")}</dt>
-              <dd>{format.number(query.data.historyDays)}</dd>
-            </div>
-          </dl>
+          <Card>
+            <CardContent>
+              <dl className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 [&_dd]:mt-1 [&_dd]:font-medium [&_dd]:break-words [&_dd]:tabular-nums [&_dt]:text-sm [&_dt]:text-muted-foreground [&>div]:min-w-0">
+                {(
+                  [
+                    [
+                      t("organization:storagePolicyQuotaSummary"),
+                      query.data.quotaBytes,
+                    ],
+                    [t("organization:storagePolicyUsed"), query.data.usedBytes],
+                    [
+                      t("organization:storagePolicyReserved"),
+                      query.data.reservedBytes,
+                    ],
+                    [
+                      t("organization:storagePolicyTransient"),
+                      query.data.transientBytes,
+                    ],
+                  ] as const
+                ).map(([label, value]) => (
+                  <div key={label}>
+                    <dt className="text-sm text-muted-foreground">{label}</dt>
+                    <dd>
+                      <bdi>{format.number(value)}</bdi>
+                    </dd>
+                  </div>
+                ))}
+                <div>
+                  <dt>{t("organization:storagePolicyTrashDays")}</dt>
+                  <dd>{format.number(query.data.trashDays)}</dd>
+                </div>
+                <div>
+                  <dt>{t("organization:storagePolicyHistoryDays")}</dt>
+                  <dd>{format.number(query.data.historyDays)}</dd>
+                </div>
+              </dl>
+            </CardContent>
+          </Card>
           {query.data.overQuota && (
-            <p role="status">{t("organization:storagePolicyOverQuota")}</p>
+            <p
+              role="status"
+              className="rounded-xl border bg-muted/50 px-4 py-3 text-sm"
+            >
+              {t("organization:storagePolicyOverQuota")}
+            </p>
           )}
-          {saved && <p role="status">{t("organization:storagePolicySaved")}</p>}
+          {saved && (
+            <p role="status" className="rounded-xl bg-muted px-4 py-3 text-sm">
+              {t("organization:storagePolicySaved")}
+            </p>
+          )}
           {platformAccess.role === "platform_admin" ? (
             <StoragePolicyForm
               key={query.data.version}
@@ -185,7 +202,9 @@ export function OrganizationStoragePolicy({
               }}
             />
           ) : (
-            <p>{t("organization:storagePolicyReadOnly")}</p>
+            <p className="rounded-xl bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
+              {t("organization:storagePolicyReadOnly")}
+            </p>
           )}
         </>
       )}
@@ -308,7 +327,7 @@ function StoragePolicyForm({
     <form.Subscribe selector={(state) => state.isSubmitting}>
       {(busy) => (
         <form
-          className="max-w-xl space-y-4 rounded-xl border p-6"
+          className="space-y-5 rounded-2xl bg-card p-4 ring-1 ring-foreground/10 sm:p-6"
           aria-busy={busy}
           onSubmit={(event) => {
             event.preventDefault()
@@ -316,7 +335,7 @@ function StoragePolicyForm({
           }}
         >
           <fieldset disabled={busy} className="space-y-4">
-            <FieldGroup>
+            <FieldGroup className="grid gap-5 lg:grid-cols-3">
               {inputs.map((item) => (
                 <form.Field key={item.name} name={item.name}>
                   {(field) => {
@@ -356,7 +375,7 @@ function StoragePolicyForm({
                   const invalid =
                     field.state.meta.isTouched && !field.state.meta.isValid
                   return (
-                    <Field data-invalid={invalid}>
+                    <Field className="lg:col-span-3" data-invalid={invalid}>
                       <FieldLabel htmlFor="storage-policy-reason">
                         {t("organization:platformSettingsReason")}
                       </FieldLabel>
@@ -385,7 +404,10 @@ function StoragePolicyForm({
               {t("organization:storagePolicyFutureOnly")}
             </p>
             {Boolean(error) && (
-              <p role="alert" className="text-sm text-destructive">
+              <p
+                role="alert"
+                className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+              >
                 {error instanceof ApiClientError
                   ? t(`errors:${error.body.code}`)
                   : t("errors:INTERNAL_ERROR")}
@@ -393,7 +415,8 @@ function StoragePolicyForm({
             )}
             {stale && (
               <Button
-                variant="secondary"
+                variant="outline"
+                className="h-auto min-h-9 text-start whitespace-normal"
                 type="button"
                 onClick={() => void onReload()}
               >

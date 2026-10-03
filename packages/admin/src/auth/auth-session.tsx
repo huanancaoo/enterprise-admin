@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react"
 import { useForm } from "@tanstack/react-form"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { Eye, EyeOff } from "lucide-react"
+import { Eye, EyeOff, LoaderCircle } from "lucide-react"
 import { cn } from "cn"
 import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
@@ -84,16 +84,30 @@ export function AuthGate({
 
   if (session.isPending && !sessionSettled) {
     return (
-      <main className="p-8" role="status">
+      <main
+        className="flex min-h-svh items-center justify-center gap-2 p-8 text-sm text-muted-foreground"
+        role="status"
+      >
+        <LoaderCircle
+          className="size-4 animate-spin motion-reduce:animate-none"
+          aria-hidden="true"
+        />
         {t("auth:restoring")}
       </main>
     )
   }
   if (session.error) {
     return (
-      <main className="mx-auto max-w-md space-y-4 p-8">
-        <h1 className="text-xl font-semibold">{restoreTitle}</h1>
-        <p role="alert">{t("auth:restoreFailed")}</p>
+      <main className="mx-auto my-12 w-[calc(100%-3rem)] max-w-md space-y-4 rounded-xl border bg-card p-6 sm:p-8">
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">
+          {restoreTitle}
+        </h1>
+        <p
+          role="alert"
+          className="text-sm leading-relaxed text-muted-foreground"
+        >
+          {t("auth:restoreFailed")}
+        </p>
         <Button onClick={() => void session.refetch()}>
           {t("common:retry")}
         </Button>
@@ -179,7 +193,9 @@ function AuthEntry({
     <AuthPageShell title={title}>
       {checkEmail ? (
         <div className="flex flex-col items-center gap-4 text-center">
-          <h1 className="text-2xl font-bold">{t("checkEmailTitle")}</h1>
+          <h1 className="font-heading text-3xl font-semibold tracking-tight">
+            {t("checkEmailTitle")}
+          </h1>
           <p className="text-sm text-muted-foreground">
             {t("checkEmailDescription")}
           </p>
@@ -272,13 +288,13 @@ function CredentialsForm({
         event.preventDefault()
         void form.handleSubmit()
       }}
-      className={cn("flex flex-col gap-6")}
+      className={cn("flex min-w-0 flex-col gap-6")}
       aria-busy={action.pending}
     >
       <fieldset disabled={action.pending} className="contents">
         <FieldGroup>
-          <div className="flex flex-col items-center gap-1 text-center">
-            <h1 className="text-2xl font-bold">
+          <div className="flex flex-col items-center gap-2 text-center">
+            <h1 className="font-heading text-3xl font-semibold tracking-tight">
               {signUp ? t("auth:signUp") : t("auth:signIn")}
             </h1>
             <p className="text-sm text-balance text-muted-foreground">
@@ -306,6 +322,7 @@ function CredentialsForm({
                       }
                       onBlur={field.handleBlur}
                       autoComplete="name"
+                      className="h-10"
                       aria-invalid={isInvalid}
                       required
                     />
@@ -334,6 +351,7 @@ function CredentialsForm({
                     onBlur={field.handleBlur}
                     type="email"
                     autoComplete="email"
+                    className="h-10"
                     aria-invalid={isInvalid}
                     required
                   />
@@ -348,7 +366,7 @@ function CredentialsForm({
                 field.state.meta.isTouched && !field.state.meta.isValid
               return (
                 <Field data-invalid={isInvalid}>
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <FieldLabel htmlFor="auth-password">
                       {t("auth:password")}
                     </FieldLabel>
@@ -378,20 +396,19 @@ function CredentialsForm({
                       maxLength={128}
                       aria-invalid={isInvalid}
                       required
-                      className="pe-9"
+                      className="h-10 pe-11"
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="absolute end-0 top-0 h-full w-9 p-0 text-muted-foreground hover:bg-transparent hover:text-foreground"
+                      className="absolute end-0 top-0 h-full w-10 p-0 text-muted-foreground hover:bg-transparent hover:text-foreground"
                       onClick={() => setShowPassword(!showPassword)}
                       aria-label={
                         showPassword
                           ? t("auth:hidePassword")
                           : t("auth:showPassword")
                       }
-                      tabIndex={-1}
                     >
                       {showPassword ? (
                         <EyeOff className="size-4" aria-hidden="true" />
@@ -411,14 +428,17 @@ function CredentialsForm({
             }}
           </form.Field>
           {action.error && (
-            <p role="alert" className="text-center text-sm text-destructive">
+            <p
+              role="alert"
+              className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm leading-relaxed wrap-anywhere text-destructive"
+            >
               {action.error}
             </p>
           )}
           <Field>
             <Button
               type="submit"
-              className="w-full"
+              className="h-10 w-full"
               variant={lastLoginMethod === "github" ? "outline" : "default"}
             >
               {action.pending
@@ -440,7 +460,7 @@ function CredentialsForm({
                 <Button
                   variant={lastLoginMethod === "github" ? "default" : "outline"}
                   type="button"
-                  className="w-full"
+                  className="h-10 w-full"
                   onClick={() => {
                     void action.run(() =>
                       client.signIn.social({

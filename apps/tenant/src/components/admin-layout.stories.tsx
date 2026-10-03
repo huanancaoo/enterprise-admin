@@ -27,6 +27,7 @@ function AdminLayoutRouter({
   const [router] = useState(() =>
     createRouter({
       routeTree: applicationRouter.routeTree,
+      scrollToTopSelectors: applicationRouter.options.scrollToTopSelectors,
       history: createMemoryHistory({
         initialEntries: [`/app/projects/${organizations[0].id}`],
       }),
@@ -122,6 +123,25 @@ export const PersistentSidebar: Story = {
     await expect(
       canvasElement.querySelector('[data-slot="sidebar"][data-state]')
     ).toBe(sidebar)
+  },
+}
+
+export const RouteScrollReset: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await canvas.findByRole("link", { name: "办公空间 1-26" })
+    const content = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="sidebar-inset"]'
+    )!
+    content.scrollTop = content.scrollHeight
+    await waitFor(() => expect(content.scrollTop).toBeGreaterThan(0))
+
+    // 从固定侧栏换页，避免点击内容区元素自动滚动而掩盖旧位置残留。
+    await userEvent.click(canvas.getByRole("link", { name: "个人设置" }))
+    await expect(
+      await canvas.findByRole("heading", { name: "个人设置", level: 1 })
+    ).toBeVisible()
+    await waitFor(() => expect(content.scrollTop).toBe(0))
   },
 }
 

@@ -38,6 +38,9 @@ import {
 } from "@workspace/contracts"
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
+import { ArrowLeftIcon } from "lucide-react"
+import { Badge } from "@workspace/ui/components/badge"
+import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
 import { Textarea } from "@workspace/ui/components/textarea"
@@ -143,6 +146,7 @@ function OrganizationFilters({
   })
   return (
     <form
+      className="rounded-2xl bg-muted/30 p-4 ring-1 ring-foreground/10 sm:p-5"
       onSubmit={(event) => {
         event.preventDefault()
         void form.handleSubmit()
@@ -288,7 +292,7 @@ export function PlatformOrganizationsPage() {
   usePlatformAccessFailure(query.error)
   return (
     <section className="min-w-0 space-y-6">
-      <h1 className="text-2xl font-semibold">
+      <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
         {t("organization:platformOrganizations")}
       </h1>
       <OrganizationFilters
@@ -316,11 +320,14 @@ export function PlatformOrganizationsPage() {
         )
       ) : (
         <>
-          <div className="overflow-x-auto" aria-busy={query.isFetching}>
+          <div
+            className="overflow-x-auto rounded-2xl bg-card ring-1 ring-foreground/10"
+            aria-busy={query.isFetching}
+          >
             {query.data.items.length === 0 ? (
               <EmptyState />
             ) : (
-              <Table>
+              <Table className="min-w-[640px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>{t("organization:platformName")}</TableHead>
@@ -335,22 +342,30 @@ export function PlatformOrganizationsPage() {
                 <TableBody>
                   {query.data.items.map((item) => (
                     <TableRow key={item.id}>
-                      <TableCell>
+                      <TableCell className="max-w-64 break-words whitespace-normal">
                         <Link
                           to="/platform/organizations/$organizationId"
                           params={{ organizationId: item.id }}
-                          className="underline"
+                          className="font-medium underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                         >
                           {item.name}
                         </Link>
                       </TableCell>
                       <TableCell>
-                        <bdi>{item.slug}</bdi>
+                        <bdi className="text-sm text-muted-foreground">
+                          {item.slug}
+                        </bdi>
                       </TableCell>
                       <TableCell>
-                        {item.status === "ACTIVE"
-                          ? t("organization:platformActive")
-                          : t("organization:platformSuspended")}
+                        <Badge
+                          variant={
+                            item.status === "ACTIVE" ? "secondary" : "outline"
+                          }
+                        >
+                          {item.status === "ACTIVE"
+                            ? t("organization:platformActive")
+                            : t("organization:platformSuspended")}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         {format.dateTime(new Date(item.createdAt), "UTC", {
@@ -744,12 +759,15 @@ export function PlatformOrganizationDetailPage() {
           sortBy: "createdAt",
           sortOrder: "desc",
         }}
-        className="underline"
+        className="inline-flex items-center gap-2 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       >
+        <ArrowLeftIcon className="size-4 rtl:rotate-180" />
         {t("organization:platformOrganizations")}
       </Link>
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold">{organization.name}</h1>
+        <h1 className="min-w-0 font-heading text-2xl font-semibold tracking-tight break-words sm:text-3xl">
+          {organization.name}
+        </h1>
         {platformAccess.role === "platform_admin" && (
           <OrganizationAction
             key={organization.id}
@@ -758,7 +776,11 @@ export function PlatformOrganizationDetailPage() {
           />
         )}
       </div>
-      {message && <p role="status">{message}</p>}
+      {message && (
+        <p role="status" className="rounded-xl bg-muted px-4 py-3 text-sm">
+          {message}
+        </p>
+      )}
       {query.isError && (
         <ErrorState
           message={
@@ -767,114 +789,142 @@ export function PlatformOrganizationDetailPage() {
           onRetry={() => void query.refetch()}
         />
       )}
-      <dl className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <dt>{t("organization:platformId")}</dt>
-          <dd>
-            <bdi>{organization.id}</bdi>
-          </dd>
-        </div>
-        <div>
-          <dt>{t("organization:platformSlug")}</dt>
-          <dd>
-            <bdi>{organization.slug}</bdi>
-          </dd>
-        </div>
-        <div>
-          <dt>{t("organization:platformStatus")}</dt>
-          <dd>
-            {organization.status === "ACTIVE"
-              ? t("organization:platformActive")
-              : t("organization:platformSuspended")}
-          </dd>
-        </div>
-        <div>
-          <dt>{t("organization:platformVersion")}</dt>
-          <dd>{format.number(organization.version)}</dd>
-        </div>
-        <div>
-          <dt>{t("organization:platformCreatedAt")}</dt>
-          <dd>
-            {format.dateTime(new Date(organization.createdAt), "UTC", {
-              dateStyle: "medium",
-              timeStyle: "short",
-            })}
-          </dd>
-        </div>
-        <div>
-          <dt>{t("organization:platformDefaultLocale")}</dt>
-          <dd>
-            {organization.defaultLocale ??
-              t("organization:platformInheritedLocale")}
-          </dd>
-        </div>
-      </dl>
+      <Card>
+        <CardContent>
+          <dl className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 [&_dd]:mt-1 [&_dd]:font-medium [&_dd]:break-words [&_dt]:text-sm [&_dt]:text-muted-foreground [&>div]:min-w-0">
+            <div>
+              <dt>{t("organization:platformId")}</dt>
+              <dd>
+                <bdi>{organization.id}</bdi>
+              </dd>
+            </div>
+            <div>
+              <dt>{t("organization:platformSlug")}</dt>
+              <dd>
+                <bdi>{organization.slug}</bdi>
+              </dd>
+            </div>
+            <div>
+              <dt>{t("organization:platformStatus")}</dt>
+              <dd>
+                <Badge
+                  variant={
+                    organization.status === "ACTIVE" ? "secondary" : "outline"
+                  }
+                >
+                  {organization.status === "ACTIVE"
+                    ? t("organization:platformActive")
+                    : t("organization:platformSuspended")}
+                </Badge>
+              </dd>
+            </div>
+            <div>
+              <dt>{t("organization:platformVersion")}</dt>
+              <dd>{format.number(organization.version)}</dd>
+            </div>
+            <div>
+              <dt>{t("organization:platformCreatedAt")}</dt>
+              <dd>
+                {format.dateTime(new Date(organization.createdAt), "UTC", {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}
+              </dd>
+            </div>
+            <div>
+              <dt>{t("organization:platformDefaultLocale")}</dt>
+              <dd>
+                {organization.defaultLocale ??
+                  t("organization:platformInheritedLocale")}
+              </dd>
+            </div>
+          </dl>
+        </CardContent>
+      </Card>
       <OrganizationStoragePolicy
         key={organization.id}
         organizationId={organization.id}
       />
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">
-          {t("organization:platformMembers")}
-        </h2>
-        <p>
-          {t("organization:platformMemberTotal", {
-            total: format.number(organization.memberCount),
-          })}
-        </p>
-        <ul>
-          {organization.members.map((item) => (
-            <li key={item.role} className="flex gap-3">
-              <bdi>
-                {item.role === "owner"
-                  ? t("organization:role_owner")
-                  : item.role === "admin"
-                    ? t("organization:role_admin")
-                    : item.role === "member"
-                      ? t("organization:role_member")
-                      : item.role}
-              </bdi>
-              <span>{format.number(item.count)}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">
-          {t("organization:platformHistory")}
-        </h2>
-        {organization.history.length === 0 ? (
-          <p>{t("organization:platformHistoryEmpty")}</p>
-        ) : (
-          <ul className="space-y-3">
-            {organization.history.map((event) => (
-              <li key={event.id} className="rounded-lg border p-3">
-                <p>
-                  {event.eventCode === "platform.organization_suspended"
-                    ? t("organization:platformSuspendSucceeded")
-                    : t("organization:platformResumeSucceeded")}
-                </p>
-                <p>
-                  {format.dateTime(new Date(event.occurredAt), "UTC", {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                  })}
-                </p>
-                <dl>
-                  <dt>{t("organization:platformActor")}</dt>
-                  <dd>
-                    <bdi>{event.actorId}</bdi>
-                  </dd>
-                  <dt>{t("organization:platformOperationId")}</dt>
-                  <dd>
-                    <bdi>{event.operationId}</bdi>
-                  </dd>
-                </dl>
+      <Card>
+        <CardHeader>
+          <h2 className="text-lg font-semibold">
+            {t("organization:platformMembers")}
+          </h2>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            {t("organization:platformMemberTotal", {
+              total: format.number(organization.memberCount),
+            })}
+          </p>
+          <ul className="grid gap-3 sm:grid-cols-3">
+            {organization.members.map((item) => (
+              <li
+                key={item.role}
+                className="flex items-center justify-between gap-3 rounded-xl bg-muted/40 px-4 py-3"
+              >
+                <bdi>
+                  {item.role === "owner"
+                    ? t("organization:role_owner")
+                    : item.role === "admin"
+                      ? t("organization:role_admin")
+                      : item.role === "member"
+                        ? t("organization:role_member")
+                        : item.role}
+                </bdi>
+                <span className="text-lg font-semibold tabular-nums">
+                  {format.number(item.count)}
+                </span>
               </li>
             ))}
           </ul>
-        )}
-      </section>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <h2 className="text-lg font-semibold">
+            {t("organization:platformHistory")}
+          </h2>
+        </CardHeader>
+        <CardContent>
+          {organization.history.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {t("organization:platformHistoryEmpty")}
+            </p>
+          ) : (
+            <ul className="space-y-3">
+              {organization.history.map((event) => (
+                <li
+                  key={event.id}
+                  className="space-y-3 rounded-xl bg-muted/30 p-4"
+                >
+                  <p>
+                    {event.eventCode === "platform.organization_suspended"
+                      ? t("organization:platformSuspendSucceeded")
+                      : t("organization:platformResumeSucceeded")}
+                  </p>
+                  <p>
+                    {format.dateTime(new Date(event.occurredAt), "UTC", {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    })}
+                  </p>
+                  <dl className="grid gap-2 text-sm [&_dd]:break-all [&_dt]:text-muted-foreground">
+                    <dt>{t("organization:platformActor")}</dt>
+                    <dd>
+                      <bdi>{event.actorId}</bdi>
+                    </dd>
+                    <dt>{t("organization:platformOperationId")}</dt>
+                    <dd>
+                      <bdi>{event.operationId}</bdi>
+                    </dd>
+                  </dl>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
     </section>
   )
 }

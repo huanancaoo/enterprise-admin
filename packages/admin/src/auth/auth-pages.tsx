@@ -44,10 +44,10 @@ export function ForgotPasswordPage({ title }: { title: string }) {
     <AuthPageShell title={title}>
       {submitted ? (
         <div className="flex flex-col items-center gap-4 text-center">
-          <h1 className="text-2xl font-bold">
+          <h1 className="font-heading text-3xl font-semibold tracking-tight wrap-anywhere">
             {t("auth:forgotPasswordTitle")}
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm leading-relaxed wrap-anywhere text-muted-foreground">
             {t("auth:forgotPasswordSubmitted")}
           </p>
           <Button
@@ -65,13 +65,13 @@ export function ForgotPasswordPage({ title }: { title: string }) {
             event.stopPropagation()
             void form.handleSubmit()
           }}
-          className="flex flex-col gap-6"
+          className="flex min-w-0 flex-col gap-6"
           aria-busy={action.pending}
         >
           <fieldset disabled={action.pending} className="contents">
             <FieldGroup>
-              <div className="flex flex-col items-center gap-1 text-center">
-                <h1 className="text-2xl font-bold">
+              <div className="flex flex-col items-center gap-2 text-center">
+                <h1 className="font-heading text-3xl font-semibold tracking-tight wrap-anywhere">
                   {t("auth:forgotPasswordTitle")}
                 </h1>
                 <p className="text-sm text-balance text-muted-foreground">
@@ -88,6 +88,7 @@ export function ForgotPasswordPage({ title }: { title: string }) {
                         {t("auth:email")}
                       </FieldLabel>
                       <Input
+                        className="h-10"
                         id="forgot-email"
                         name={field.name}
                         value={field.state.value}
@@ -110,13 +111,13 @@ export function ForgotPasswordPage({ title }: { title: string }) {
               {action.error && (
                 <p
                   role="alert"
-                  className="text-center text-sm text-destructive"
+                  className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm leading-relaxed wrap-anywhere text-destructive"
                 >
                   {action.error}
                 </p>
               )}
               <Field>
-                <Button type="submit" className="w-full">
+                <Button type="submit" className="h-10 w-full">
                   {action.pending
                     ? t("common:submitting")
                     : t("auth:sendResetLink")}
@@ -178,8 +179,10 @@ export function ResetPasswordPage({
     <AuthPageShell title={title}>
       {done ? (
         <div className="flex flex-col items-center gap-4 text-center">
-          <h1 className="text-2xl font-bold">{t("auth:resetPasswordTitle")}</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="font-heading text-3xl font-semibold tracking-tight wrap-anywhere">
+            {t("auth:resetPasswordTitle")}
+          </h1>
+          <p className="text-sm leading-relaxed wrap-anywhere text-muted-foreground">
             {t("auth:resetPasswordSuccess")}
           </p>
           <Button nativeButton={false} render={<Link to="/login" />}>
@@ -193,13 +196,13 @@ export function ResetPasswordPage({
             event.stopPropagation()
             void form.handleSubmit()
           }}
-          className="flex flex-col gap-6"
+          className="flex min-w-0 flex-col gap-6"
           aria-busy={action.pending}
         >
           <fieldset disabled={action.pending || !token} className="contents">
             <FieldGroup>
-              <div className="flex flex-col items-center gap-1 text-center">
-                <h1 className="text-2xl font-bold">
+              <div className="flex flex-col items-center gap-2 text-center">
+                <h1 className="font-heading text-3xl font-semibold tracking-tight wrap-anywhere">
                   {t("auth:resetPasswordTitle")}
                 </h1>
                 <p className="text-sm text-balance text-muted-foreground">
@@ -209,7 +212,7 @@ export function ResetPasswordPage({
               {!token && (
                 <p
                   role="alert"
-                  className="text-center text-sm text-destructive"
+                  className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm leading-relaxed wrap-anywhere text-destructive"
                 >
                   {t("auth:resetLinkInvalid")}
                 </p>
@@ -224,6 +227,7 @@ export function ResetPasswordPage({
                         {t("auth:newPassword")}
                       </FieldLabel>
                       <Input
+                        className="h-10"
                         id="reset-password"
                         name={field.name}
                         value={field.state.value}
@@ -258,6 +262,7 @@ export function ResetPasswordPage({
                         {t("auth:confirmPassword")}
                       </FieldLabel>
                       <Input
+                        className="h-10"
                         id="reset-confirm"
                         name={field.name}
                         value={field.state.value}
@@ -282,13 +287,13 @@ export function ResetPasswordPage({
               {action.error && (
                 <p
                   role="alert"
-                  className="text-center text-sm text-destructive"
+                  className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm leading-relaxed wrap-anywhere text-destructive"
                 >
                   {action.error}
                 </p>
               )}
               <Field>
-                <Button type="submit" className="w-full" disabled={!token}>
+                <Button type="submit" className="h-10 w-full" disabled={!token}>
                   {action.pending
                     ? t("common:submitting")
                     : t("auth:resetPasswordSubmit")}
@@ -314,11 +319,11 @@ export function EmailVerifiedPage({
   return (
     <AuthPageShell title={title}>
       <div className="flex flex-col items-center gap-4 text-center">
-        <h1 className="text-2xl font-bold">
+        <h1 className="font-heading text-3xl font-semibold tracking-tight wrap-anywhere">
           {failed ? t("emailVerifyFailed") : t("emailVerifiedTitle")}
         </h1>
         {!failed && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm leading-relaxed wrap-anywhere text-muted-foreground">
             {t("emailVerifiedDescription")}
           </p>
         )}
@@ -368,7 +373,7 @@ export function AcceptInvitationPage({
   return (
     <AuthPageShell title={title}>
       <div className="flex flex-col items-center gap-4 text-center">
-        <h1 className="text-2xl font-bold">
+        <h1 className="font-heading text-3xl font-semibold tracking-tight wrap-anywhere">
           {t("auth:acceptInvitationTitle")}
         </h1>
         {rejected ? (
@@ -376,7 +381,7 @@ export function AcceptInvitationPage({
         ) : invalid ? (
           <p role="alert">{t("auth:invitationInvalid")}</p>
         ) : organizationName ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm leading-relaxed wrap-anywhere text-muted-foreground">
             {t("auth:acceptInvitationDescription", {
               organization: organizationName,
             })}
@@ -384,12 +389,15 @@ export function AcceptInvitationPage({
         ) : userId ? (
           <p role="status">{t("common:loading")}</p>
         ) : (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm leading-relaxed wrap-anywhere text-muted-foreground">
             {t("auth:signInToAcceptInvitation")}
           </p>
         )}
         {action.error && (
-          <p role="alert" className="text-sm text-destructive">
+          <p
+            role="alert"
+            className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm leading-relaxed wrap-anywhere text-destructive"
+          >
             {action.error}
           </p>
         )}

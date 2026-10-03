@@ -262,7 +262,7 @@ export function ProjectAttachmentsSection({
   const focus = useRef<HTMLElement | null>(null)
   return (
     <section
-      className="min-w-0 space-y-3"
+      className="min-w-0 space-y-4 rounded-xl border bg-card p-4 shadow-sm sm:p-6"
       aria-label={t("projects:attachments")}
     >
       <h2 className="text-lg font-semibold">{t("projects:attachments")}</h2>
@@ -326,7 +326,7 @@ function AttachmentList({
         {items.map((item, index) => (
           <li
             key={`${item.fileId}:${item.versionId}:${index}`}
-            className="min-w-0 space-y-2 rounded-md border p-3"
+            className="min-w-0 space-y-2 rounded-lg border bg-muted/20 p-4"
           >
             <p className="font-medium wrap-anywhere">{item.name}</p>
             <p className="text-sm wrap-anywhere text-muted-foreground">

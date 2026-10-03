@@ -103,7 +103,7 @@ function DataTableGrid<TData extends RowData>({
   return (
     <div
       data-slot="data-table-content"
-      className="overflow-x-auto rounded-2xl border"
+      className="overflow-x-auto rounded-xl border bg-card"
     >
       <table
         data-slot="table"
@@ -129,7 +129,7 @@ function DataTableGrid<TData extends RowData>({
                     key={header.id}
                     colSpan={header.colSpan}
                     style={getColumnStyle(header.column)}
-                    className="bg-background"
+                    className="bg-muted"
                     aria-sort={
                       sorted === "asc"
                         ? "ascending"

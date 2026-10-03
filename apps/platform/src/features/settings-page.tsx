@@ -19,6 +19,7 @@ import {
 import { ErrorState, LoadingState } from "@workspace/admin"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import { localeMeta } from "@workspace/i18n"
+import { Card, CardContent } from "@workspace/ui/components/card"
 import { Button } from "@workspace/ui/components/button"
 import { Textarea } from "@workspace/ui/components/textarea"
 import {
@@ -79,12 +80,12 @@ export function PlatformSettingsPage() {
     })()
   }, [error, navigate, queryClient, refetchSession, session.user.id])
   return (
-    <div className="space-y-6">
+    <div className="max-w-4xl min-w-0 space-y-6">
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold">
+        <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
           {t("organization:platformSettings")}
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           {t("organization:platformSettingsDescription")}
         </p>
       </div>
@@ -94,55 +95,61 @@ export function PlatformSettingsPage() {
         <ErrorState onRetry={() => void query.refetch()} />
       ) : (
         <>
-          <dl className="grid gap-4 rounded-xl border p-6 sm:grid-cols-2 [&_dd]:break-words [&>div]:min-w-0">
-            <div>
-              <dt className="text-sm text-muted-foreground">
-                {t("organization:platformDefaultLocale")}
-              </dt>
-              <dd>{localeMeta[query.data.platformDefaultLocale].label}</dd>
-            </div>
-            <div>
-              <dt className="text-sm text-muted-foreground">
-                {t("organization:platformSupportedLocales")}
-              </dt>
-              <dd>
-                {query.data.supportedLocales
-                  .map((locale) => localeMeta[locale].label)
-                  .join(" · ")}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-sm text-muted-foreground">
-                {t("organization:platformDeploymentEnvironment")}
-              </dt>
-              <dd>
-                <bdi>{query.data.environment}</bdi>
-              </dd>
-            </div>
-            <div>
-              <dt className="text-sm text-muted-foreground">
-                {t("organization:platformApplicationVersion")}
-              </dt>
-              <dd>
-                <bdi>{query.data.applicationVersion}</bdi>
-              </dd>
-            </div>
-            <div>
-              <dt className="text-sm text-muted-foreground">
-                {t("organization:platformSmtpConfiguration")}
-              </dt>
-              <dd>
-                {query.data.smtpConfigured
-                  ? t("organization:platformConfigured")
-                  : t("organization:platformNotConfigured")}
-              </dd>
-              <dd className="text-sm text-muted-foreground">
-                {t("organization:platformSmtpConfigurationHint")}
-              </dd>
-            </div>
-          </dl>
+          <Card>
+            <CardContent>
+              <dl className="grid gap-5 sm:grid-cols-2 [&_dd]:mt-1 [&_dd]:break-words [&>div]:min-w-0">
+                <div>
+                  <dt className="text-sm text-muted-foreground">
+                    {t("organization:platformDefaultLocale")}
+                  </dt>
+                  <dd>{localeMeta[query.data.platformDefaultLocale].label}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm text-muted-foreground">
+                    {t("organization:platformSupportedLocales")}
+                  </dt>
+                  <dd>
+                    {query.data.supportedLocales
+                      .map((locale) => localeMeta[locale].label)
+                      .join(" · ")}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-sm text-muted-foreground">
+                    {t("organization:platformDeploymentEnvironment")}
+                  </dt>
+                  <dd>
+                    <bdi>{query.data.environment}</bdi>
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-sm text-muted-foreground">
+                    {t("organization:platformApplicationVersion")}
+                  </dt>
+                  <dd>
+                    <bdi>{query.data.applicationVersion}</bdi>
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-sm text-muted-foreground">
+                    {t("organization:platformSmtpConfiguration")}
+                  </dt>
+                  <dd>
+                    {query.data.smtpConfigured
+                      ? t("organization:platformConfigured")
+                      : t("organization:platformNotConfigured")}
+                  </dd>
+                  <dd className="text-sm text-muted-foreground">
+                    {t("organization:platformSmtpConfigurationHint")}
+                  </dd>
+                </div>
+              </dl>
+            </CardContent>
+          </Card>
           {saved && (
-            <p role="status">{t("organization:platformSettingsSaved")}</p>
+            <p role="status" className="rounded-xl bg-muted px-4 py-3 text-sm">
+              {t("organization:platformSettingsSaved")}
+            </p>
           )}
           {platformAccess.role === "platform_admin" ? (
             <SettingsForm
@@ -166,7 +173,9 @@ export function PlatformSettingsPage() {
               }}
             />
           ) : (
-            <p>{t("organization:platformSettingsReadOnly")}</p>
+            <p className="rounded-xl bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
+              {t("organization:platformSettingsReadOnly")}
+            </p>
           )}
         </>
       )}
@@ -246,7 +255,7 @@ function SettingsForm({
     <form.Subscribe selector={(state) => state.isSubmitting}>
       {(busy) => (
         <form
-          className="max-w-xl space-y-4 rounded-xl border p-6"
+          className="space-y-5 rounded-2xl bg-card p-4 ring-1 ring-foreground/10 sm:p-6"
           aria-busy={busy}
           onSubmit={(event) => {
             event.preventDefault()
@@ -330,7 +339,10 @@ function SettingsForm({
               </form.Field>
             </FieldGroup>
             {Boolean(error) && (
-              <p role="alert" className="text-sm text-destructive">
+              <p
+                role="alert"
+                className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+              >
                 {error instanceof ApiClientError
                   ? t(`errors:${error.body.code}`)
                   : t("errors:INTERNAL_ERROR")}
@@ -338,14 +350,15 @@ function SettingsForm({
             )}
             {stale && (
               <Button
-                variant="secondary"
+                variant="outline"
+                className="h-auto min-h-9 text-start whitespace-normal"
                 type="button"
                 onClick={() => void onReload()}
               >
                 {t("organization:platformSettingsReload")}
               </Button>
             )}
-            <Button variant="secondary" type="submit" disabled={busy}>
+            <Button type="submit" disabled={busy}>
               {busy ? t("common:submitting") : t("common:save")}
             </Button>
           </fieldset>
