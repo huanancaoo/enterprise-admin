@@ -1,4 +1,3 @@
-import { containerHostURL } from "./container-host.mjs"
 import { createRequire } from "node:module"
 import { randomBytes, randomUUID } from "node:crypto"
 import { readFile } from "node:fs/promises"
@@ -87,12 +86,11 @@ export async function startFilesEnvironment(kind, resources) {
   let invoke
   if (kind === "Local") {
     const applicationConfig = {
-      ...environment.config,
-      databaseURL: await containerHostURL(environment.config.databaseURL),
-      redisURL: await containerHostURL(environment.config.redisURL),
+      ...environment.containerConfig,
       files: { kind: "local", root: "/tmp/maintenance-files" },
     }
     const container = await new GenericContainer(versions.nodeImage)
+      .withNetwork(environment.containerNetwork)
       .withBindMounts([{ source: resolve("."), target: "/app", mode: "ro" }])
       .withWorkingDir("/app")
       .withEnvironment({ FILES_TEST_CONFIG: JSON.stringify(applicationConfig) })

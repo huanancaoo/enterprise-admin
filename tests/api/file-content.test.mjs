@@ -1,4 +1,3 @@
-import { containerHostURL } from "../setup/container-host.mjs"
 import { createHash, randomBytes, randomUUID } from "node:crypto"
 import { createServer, request as httpRequest } from "node:http"
 import { createRequire } from "node:module"
@@ -191,14 +190,13 @@ async function startBackend(kind, resources) {
     resources.defer(() => environment.close())
     const config = { kind: "local", root: "/tmp/content-files-" + randomUUID() }
     const applicationConfig = {
-      ...environment.config,
+      ...environment.containerConfig,
       baseURL: "http://127.0.0.1:3000",
-      databaseURL: await containerHostURL(environment.config.databaseURL),
-      redisURL: await containerHostURL(environment.config.redisURL),
       files: config,
     }
     let startupLogs = ""
     const container = await new GenericContainer(versions.nodeImage)
+      .withNetwork(environment.containerNetwork)
       .withBindMounts([{ source: resolve("."), target: "/app", mode: "ro" }])
       .withWorkingDir("/app")
       .withEnvironment({

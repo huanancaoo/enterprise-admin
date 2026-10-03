@@ -1,4 +1,3 @@
-import { containerHostURL } from "../setup/container-host.mjs"
 import { createHash, randomBytes, randomUUID } from "node:crypto"
 import { readFile } from "node:fs/promises"
 import { createRequire } from "node:module"
@@ -102,13 +101,12 @@ async function startBackend(kind, resources) {
   const environment = await startBrowserApplication({
     startApiServer: async (runtime) => {
       const config = {
-        ...runtime.config,
-        databaseURL: await containerHostURL(runtime.config.databaseURL),
-        redisURL: await containerHostURL(runtime.config.redisURL),
+        ...runtime.containerConfig,
         files: { kind: "local", root: "/tmp/path-product-files" },
       }
       // Local 的正式存储能力要求 Linux 大小写敏感文件系统；数据保存在容器中而非 macOS 挂载卷。
       container = await new GenericContainer(versions.nodeImage)
+        .withNetwork(runtime.containerNetwork)
         .withBindMounts([{ source: resolve("."), target: "/app", mode: "ro" }])
         .withWorkingDir("/app")
         .withEnvironment({ PATH_PRODUCT_CONFIG: JSON.stringify(config) })

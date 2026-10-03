@@ -236,15 +236,14 @@ async function startBackend(kind, resources) {
       root: "/tmp/personal-files-" + randomUUID(),
     }
     const applicationConfig = {
-      ...environment.config,
+      ...environment.containerConfig,
       baseURL: "http://127.0.0.1:3000",
-      databaseURL: await containerHostURL(environment.config.databaseURL),
-      redisURL: await containerHostURL(environment.config.redisURL),
       files: config,
       oauthProbe: await containerHostURL(oauthProbe),
     }
     let startupLogs = ""
     const container = await new GenericContainer(versions.nodeImage)
+      .withNetwork(environment.containerNetwork)
       .withBindMounts([{ source: resolve("."), target: "/app", mode: "ro" }])
       .withWorkingDir("/app")
       .withEnvironment({

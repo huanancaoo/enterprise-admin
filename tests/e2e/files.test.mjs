@@ -1,4 +1,3 @@
-import { containerHostURL } from "../setup/container-host.mjs"
 import { createHash, randomBytes, randomUUID } from "node:crypto"
 import { createReadStream } from "node:fs"
 import { mkdtemp, open, readFile, rm, stat } from "node:fs/promises"
@@ -132,12 +131,11 @@ async function startReadBackend(kind, resources) {
   const environment = await startBrowserApplication({
     startApiServer: async (runtime) => {
       const config = {
-        ...runtime.config,
-        databaseURL: await containerHostURL(runtime.config.databaseURL),
-        redisURL: await containerHostURL(runtime.config.redisURL),
+        ...runtime.containerConfig,
         files: { kind: "local", root: "/tmp/product-file-reads" },
       }
       container = await new GenericContainer(versions.nodeImage)
+        .withNetwork(runtime.containerNetwork)
         .withBindMounts([{ source: resolve("."), target: "/app", mode: "ro" }])
         .withWorkingDir("/app")
         .withEnvironment({ FILES_READ_CONFIG: JSON.stringify(config) })
@@ -1461,13 +1459,12 @@ async function startUploadBackend(kind, resources) {
   const environment = await startBrowserApplication({
     startApiServer: async (runtime) => {
       const config = {
-        ...runtime.config,
-        databaseURL: await containerHostURL(runtime.config.databaseURL),
-        redisURL: await containerHostURL(runtime.config.redisURL),
+        ...runtime.containerConfig,
         files: { kind: "local", root: "/tmp/product-uploads" },
       }
       // 与正式 Local HTTP fixture 相同的生产 createApplication 和 Linux 策略；不定义任何测试业务路由。
       container = await new GenericContainer(versions.nodeImage)
+        .withNetwork(runtime.containerNetwork)
         .withBindMounts([{ source: resolve("."), target: "/app", mode: "ro" }])
         .withWorkingDir("/app")
         .withEnvironment({ FILES_TEST_CONFIG: JSON.stringify(config) })

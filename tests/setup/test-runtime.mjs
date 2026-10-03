@@ -5,7 +5,7 @@ import { createRequire } from "node:module"
 import { createServer as createNetServer } from "node:net"
 import { resolve } from "node:path"
 import { promisify } from "node:util"
-import { GenericContainer, Wait } from "testcontainers"
+import { GenericContainer, Network, Wait } from "testcontainers"
 import { createDatabase } from "../../packages/database/dist/index.js"
 import { startAuthProbeDatabase } from "./auth-probe-database.mjs"
 import { testEmailConfig } from "./email-config.ts"
@@ -41,14 +41,21 @@ export async function startTestApplication({
     const versions = JSON.parse(
       await readFile("docs/architecture/versions.json", "utf8")
     )
-    const database = await startAuthProbeDatabase()
+    const containerNetwork = await new Network().start()
+    resources.defer(() => containerNetwork.stop())
+    const database = await startAuthProbeDatabase(containerNetwork)
     resources.defer(() => database.container.stop())
     const redis = await new GenericContainer(versions.redis.image)
+      .withNetwork(containerNetwork)
+      .withNetworkAliases("redis")
       .withExposedPorts(6379)
       .withWaitStrategy(Wait.forLogMessage("Ready to accept connections"))
       .start()
     resources.defer(() => redis.stop())
     const runtimeURL = database.url("app_runtime", database.passwords[2])
+    const containerDatabaseURL = new URL(runtimeURL)
+    containerDatabaseURL.hostname = "database"
+    containerDatabaseURL.port = "5432"
     const migrationURL = database.url("app_migrator", database.passwords[1])
     const deployerURL = database.url("platform_deployer", database.passwords[4])
     const deployerPool = createDatabase(deployerURL).pool
@@ -117,6 +124,13 @@ export async function startTestApplication({
       baseURL,
       mailpitOrigin,
       config,
+      containerNetwork,
+      // 容器间直接走独立 Docker 网络，宿主机应用仍使用映射端口。
+      containerConfig: {
+        ...config,
+        databaseURL: containerDatabaseURL.toString(),
+        redisURL: "redis://redis:6379",
+      },
       close: () => resources.disposeAsync(),
     }
   } catch (error) {

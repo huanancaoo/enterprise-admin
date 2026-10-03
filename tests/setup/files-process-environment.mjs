@@ -110,13 +110,12 @@ export async function startFilesProcessEnvironment(kind, resources) {
     }
   }
   const config = {
-    ...environment.config,
-    databaseURL: await containerHostURL(environment.config.databaseURL),
-    redisURL: await containerHostURL(environment.config.redisURL),
+    ...environment.containerConfig,
     files: applicationFiles,
   }
   // holder 保留 Linux 文件系统；唯一被杀的是下方启动、记录 PID 的正式 API 子进程。
   const holder = await new GenericContainer(versions.nodeImage)
+    .withNetwork(environment.containerNetwork)
     .withBindMounts([{ source: resolve("."), target: "/app", mode: "ro" }])
     .withWorkingDir("/app")
     .withEnvironment({ FILES_PROCESS_CONFIG: JSON.stringify(config) })
