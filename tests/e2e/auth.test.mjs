@@ -59,8 +59,10 @@ async function selectAdminLocale(page, userName, currentLanguage, locale) {
     exact: true,
   })
   await language.focus()
-  await language.press("Enter")
+  const direction = await page.locator("html").getAttribute("dir")
+  await language.press(direction === "rtl" ? "ArrowLeft" : "ArrowRight")
   const option = page.getByRole("menuitemradio", { name: locale, exact: true })
+  await expectUI(option).toBeVisible()
   await option.focus()
   await option.press("Enter")
 }

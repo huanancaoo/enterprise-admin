@@ -1,3 +1,4 @@
+import { containerHostURL } from "../setup/container-host.mjs"
 import { createHash, randomBytes, randomUUID } from "node:crypto"
 import { readFile } from "node:fs/promises"
 import { createRequire } from "node:module"
@@ -100,15 +101,10 @@ async function startBackend(kind, resources) {
   let container
   const environment = await startBrowserApplication({
     startApiServer: async (runtime) => {
-      const remote = (value) => {
-        const url = new URL(value)
-        url.hostname = "host.docker.internal"
-        return url.toString()
-      }
       const config = {
         ...runtime.config,
-        databaseURL: remote(runtime.config.databaseURL),
-        redisURL: remote(runtime.config.redisURL),
+        databaseURL: await containerHostURL(runtime.config.databaseURL),
+        redisURL: await containerHostURL(runtime.config.redisURL),
         files: { kind: "local", root: "/tmp/path-product-files" },
       }
       // Local 的正式存储能力要求 Linux 大小写敏感文件系统；数据保存在容器中而非 macOS 挂载卷。
@@ -601,9 +597,15 @@ describe.each(["Local", "RustFS"])(
       await page
         .getByPlaceholder(labels["zh-CN"].searchPlaceholder, { exact: true })
         .fill("覆盖")
+      await expectUI(
+        page.getByRole("button", { name: "搜索", exact: true })
+      ).toBeEnabled()
       await page
         .getByPlaceholder(labels["zh-CN"].searchPlaceholder, { exact: true })
         .press("Enter")
+      await expectUI(page).toHaveURL(
+        (url) => url.searchParams.get("name") === "覆盖"
+      )
       await expectUI(row(child.name)).toBeVisible()
       const selectedOrder = await rows()
         .getByRole("row")

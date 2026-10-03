@@ -1,3 +1,4 @@
+import { containerHostURL } from "../setup/container-host.mjs"
 import { createHash, randomBytes, randomUUID } from "node:crypto"
 import { createReadStream } from "node:fs"
 import { mkdtemp, open, readFile, rm, stat } from "node:fs/promises"
@@ -130,15 +131,10 @@ async function startReadBackend(kind, resources) {
   let container
   const environment = await startBrowserApplication({
     startApiServer: async (runtime) => {
-      const remote = (value) => {
-        const url = new URL(value)
-        url.hostname = "host.docker.internal"
-        return url.toString()
-      }
       const config = {
         ...runtime.config,
-        databaseURL: remote(runtime.config.databaseURL),
-        redisURL: remote(runtime.config.redisURL),
+        databaseURL: await containerHostURL(runtime.config.databaseURL),
+        redisURL: await containerHostURL(runtime.config.redisURL),
         files: { kind: "local", root: "/tmp/product-file-reads" },
       }
       container = await new GenericContainer(versions.nodeImage)
@@ -1464,15 +1460,10 @@ async function startUploadBackend(kind, resources) {
   let container
   const environment = await startBrowserApplication({
     startApiServer: async (runtime) => {
-      const remote = (value) => {
-        const url = new URL(value)
-        url.hostname = "host.docker.internal"
-        return url.toString()
-      }
       const config = {
         ...runtime.config,
-        databaseURL: remote(runtime.config.databaseURL),
-        redisURL: remote(runtime.config.redisURL),
+        databaseURL: await containerHostURL(runtime.config.databaseURL),
+        redisURL: await containerHostURL(runtime.config.redisURL),
         files: { kind: "local", root: "/tmp/product-uploads" },
       }
       // 与正式 Local HTTP fixture 相同的生产 createApplication 和 Linux 策略；不定义任何测试业务路由。

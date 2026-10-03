@@ -1,3 +1,4 @@
+import { containerHostURL } from "../setup/container-host.mjs"
 import { createHash, randomBytes, randomUUID } from "node:crypto"
 import { createServer, request as httpRequest } from "node:http"
 import { createRequire } from "node:module"
@@ -234,18 +235,13 @@ async function startBackend(kind, resources) {
       kind: "local",
       root: "/tmp/personal-files-" + randomUUID(),
     }
-    const remoteHost = (value) => {
-      const url = new URL(value)
-      url.hostname = "host.docker.internal"
-      return url.toString()
-    }
     const applicationConfig = {
       ...environment.config,
       baseURL: "http://127.0.0.1:3000",
-      databaseURL: remoteHost(environment.config.databaseURL),
-      redisURL: remoteHost(environment.config.redisURL),
+      databaseURL: await containerHostURL(environment.config.databaseURL),
+      redisURL: await containerHostURL(environment.config.redisURL),
       files: config,
-      oauthProbe: remoteHost(oauthProbe),
+      oauthProbe: await containerHostURL(oauthProbe),
     }
     let startupLogs = ""
     const container = await new GenericContainer(versions.nodeImage)
@@ -1021,7 +1017,7 @@ describe.each(["Local", "RustFS"])(
       expect(upload.operationId).toBe("uploadPersonalMedia")
       expect(upload.parameters).toContainEqual(
         expect.objectContaining({
-          name: "Idempotency-Key",
+          name: "idempotency-key",
           in: "header",
           required: true,
           schema: { type: "string", format: "uuid" },

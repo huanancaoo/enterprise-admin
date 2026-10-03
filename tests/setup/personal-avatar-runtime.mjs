@@ -1,3 +1,4 @@
+import { containerHostURL } from "./container-host.mjs"
 import { createRequire } from "node:module"
 import { randomBytes, randomUUID } from "node:crypto"
 import { createServer } from "node:net"
@@ -70,16 +71,11 @@ export async function startPersonalAvatarBrowser(kind, resources) {
   resources.defer(() => environment.close())
   let baseURL = environment.baseURL
   if (kind === "Local") {
-    const remote = (value) => {
-      const url = new URL(value)
-      url.hostname = "host.docker.internal"
-      return url.toString()
-    }
     const config = {
       ...environment.config,
       baseURL: "http://127.0.0.1:3000",
-      databaseURL: remote(environment.config.databaseURL),
-      redisURL: remote(environment.config.redisURL),
+      databaseURL: await containerHostURL(environment.config.databaseURL),
+      redisURL: await containerHostURL(environment.config.redisURL),
       files: { kind: "local", root: "/tmp/avatar-browser-private" },
     }
     // 浏览器仍访问同一生产 createApplication；Linux 是 Local adapter 明确支持的部署边界。

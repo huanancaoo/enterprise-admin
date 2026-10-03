@@ -1,3 +1,4 @@
+import { containerHostURL } from "./container-host.mjs"
 import { createRequire } from "node:module"
 import { randomBytes, randomUUID } from "node:crypto"
 import { createServer, request as httpRequest } from "node:http"
@@ -64,11 +65,6 @@ export async function startFilesProcessEnvironment(kind, resources) {
   }
   const environment = await startTestApplication({ files })
   resources.defer(() => environment.close())
-  const remote = (value) => {
-    const url = new URL(value)
-    url.hostname = "host.docker.internal"
-    return url.toString()
-  }
   let applicationFiles = { kind: "local", root: "/tmp/process-files" }
   if (kind === "RustFS") {
     // 原样转发签名请求；只对指定真实 DELETE 的成功返回悬置，业务 API 从未被替换。
@@ -108,13 +104,15 @@ export async function startFilesProcessEnvironment(kind, resources) {
     })
     applicationFiles = {
       ...files,
-      endpoint: `http://host.docker.internal:${proxy.address().port}`,
+      endpoint: await containerHostURL(
+        `http://127.0.0.1:${proxy.address().port}`
+      ),
     }
   }
   const config = {
     ...environment.config,
-    databaseURL: remote(environment.config.databaseURL),
-    redisURL: remote(environment.config.redisURL),
+    databaseURL: await containerHostURL(environment.config.databaseURL),
+    redisURL: await containerHostURL(environment.config.redisURL),
     files: applicationFiles,
   }
   // holder 保留 Linux 文件系统；唯一被杀的是下方启动、记录 PID 的正式 API 子进程。

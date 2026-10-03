@@ -1,3 +1,4 @@
+import { containerHostURL } from "../setup/container-host.mjs"
 import { createHash, randomBytes, randomUUID } from "node:crypto"
 import { createServer, request as httpRequest } from "node:http"
 import { createRequire } from "node:module"
@@ -189,16 +190,11 @@ async function startBackend(kind, resources) {
     const environment = await startTestApplication({ origins: [origin] })
     resources.defer(() => environment.close())
     const config = { kind: "local", root: "/tmp/content-files-" + randomUUID() }
-    const remoteHost = (value) => {
-      const url = new URL(value)
-      url.hostname = "host.docker.internal"
-      return url.toString()
-    }
     const applicationConfig = {
       ...environment.config,
       baseURL: "http://127.0.0.1:3000",
-      databaseURL: remoteHost(environment.config.databaseURL),
-      redisURL: remoteHost(environment.config.redisURL),
+      databaseURL: await containerHostURL(environment.config.databaseURL),
+      redisURL: await containerHostURL(environment.config.redisURL),
       files: config,
     }
     let startupLogs = ""

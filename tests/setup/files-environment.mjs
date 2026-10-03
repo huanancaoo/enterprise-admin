@@ -1,3 +1,4 @@
+import { containerHostURL } from "./container-host.mjs"
 import { createRequire } from "node:module"
 import { randomBytes, randomUUID } from "node:crypto"
 import { readFile } from "node:fs/promises"
@@ -85,15 +86,10 @@ export async function startFilesEnvironment(kind, resources) {
   resources.defer(() => environment.close())
   let invoke
   if (kind === "Local") {
-    const remote = (value) => {
-      const url = new URL(value)
-      url.hostname = "host.docker.internal"
-      return url.toString()
-    }
     const applicationConfig = {
       ...environment.config,
-      databaseURL: remote(environment.config.databaseURL),
-      redisURL: remote(environment.config.redisURL),
+      databaseURL: await containerHostURL(environment.config.databaseURL),
+      redisURL: await containerHostURL(environment.config.redisURL),
       files: { kind: "local", root: "/tmp/maintenance-files" },
     }
     const container = await new GenericContainer(versions.nodeImage)
