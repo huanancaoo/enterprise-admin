@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto"
 import { createRequire } from "node:module"
-import { resolve } from "node:path"
+import { tmpdir } from "node:os"
+import { join, resolve } from "node:path"
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest"
 import { expect as expectUI } from "playwright/test"
 import { startBrowserApplication } from "../setup/test-runtime.mjs"
@@ -230,7 +231,7 @@ describe("platform settings browser workflow", () => {
       await expectUI(page.getByText(savedLabel, { exact: true })).toBeVisible()
       await axe()
       await page.screenshot({
-        path: `/private/tmp/enterprise-admin-issue23-${locale}.png`,
+        path: join(tmpdir(), `enterprise-admin-issue23-${locale}.png`),
         fullPage: true,
       })
     })

@@ -1,4 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { execFile } from "node:child_process"
 import { promisify } from "node:util"
 import { expect as expectUI } from "playwright/test"
@@ -115,7 +117,7 @@ describe("S8 cross-feature browser acceptance", () => {
         await page.keyboard.press("Escape")
         await expectUI(page.getByRole("menu")).toHaveCount(0)
         await page.screenshot({
-          path: `/private/tmp/enterprise-admin-s8-manual-${scope}-ar.png`,
+          path: join(tmpdir(), `enterprise-admin-s8-manual-${scope}-ar.png`),
           animations: "disabled",
           fullPage: true,
         })
@@ -301,7 +303,7 @@ describe("S8 cross-feature browser acceptance", () => {
         "该角色仍被 1 位成员和 0 个有效邀请引用，请先解除引用。"
       )
       await page.screenshot({
-        path: "/private/tmp/enterprise-admin-s8-role-reference.png",
+        path: join(tmpdir(), "enterprise-admin-s8-role-reference.png"),
         animations: "disabled",
         fullPage: true,
       })
@@ -684,7 +686,10 @@ describe("S8 cross-feature browser acceptance", () => {
       await expectUI(detailDialog.getByRole("status")).toHaveCount(0)
       expect(await detailDialog.innerText()).not.toContain(internalReason)
       await page.screenshot({
-        path: "/private/tmp/enterprise-admin-s8-tenant-platform-projection.png",
+        path: join(
+          tmpdir(),
+          "enterprise-admin-s8-tenant-platform-projection.png"
+        ),
         animations: "disabled",
         fullPage: true,
       })

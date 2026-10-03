@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto"
 import { createRequire } from "node:module"
-import { resolve } from "node:path"
+import { tmpdir } from "node:os"
+import { join, resolve } from "node:path"
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest"
 import { expect as expectUI } from "playwright/test"
 import { startBrowserApplication } from "../setup/test-runtime.mjs"
@@ -123,7 +124,7 @@ describe("platform organizations browser flow", () => {
       ).status
     ).toBe(200)
     await page.screenshot({
-      path: "/private/tmp/enterprise-admin-issue20-en.png",
+      path: join(tmpdir(), "enterprise-admin-issue20-en.png"),
       fullPage: true,
     })
     await page.context().close()
@@ -324,7 +325,7 @@ describe("platform organizations browser flow", () => {
     )
     expect(violations).toEqual([])
     await page.screenshot({
-      path: "/private/tmp/enterprise-admin-issue20-ar.png",
+      path: join(tmpdir(), "enterprise-admin-issue20-ar.png"),
       fullPage: true,
     })
     await confirm.focus()

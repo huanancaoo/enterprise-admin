@@ -1,4 +1,6 @@
 import { createHash, randomUUID } from "node:crypto"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { readFile } from "node:fs/promises"
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest"
 import { expect as expectUI } from "playwright/test"
@@ -35,7 +37,10 @@ for (const kind of ["Local", "RustFS"])
               await page.locator("main").innerText()
             )
             await page.screenshot({
-              path: `/private/tmp/platform-policy-${kind}-${name}-failure.png`,
+              path: join(
+                tmpdir(),
+                `platform-policy-${kind}-${name}-failure.png`
+              ),
               fullPage: true,
             })
           }

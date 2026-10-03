@@ -30,11 +30,14 @@ async function selectLocale(page, userName, locale) {
   // 子菜单的鼠标入口依赖 hover；键盘流程使用明确的打开动作。
   const language = page.getByRole("menuitem", { name: "语言", exact: true })
   await language.focus()
-  await language.press("Enter")
+  const direction = await page.locator("html").getAttribute("dir")
+  await language.press(direction === "rtl" ? "ArrowLeft" : "ArrowRight")
   const option = page.getByRole("menuitemradio", { name: locale, exact: true })
   await expectUI(option).toBeVisible()
   await option.focus()
   await page.keyboard.press("Enter")
+  // 旧菜单退出时会归还焦点，下一次选择必须等待它完成卸载。
+  await expectUI(page.getByRole("menu", { includeHidden: true })).toHaveCount(0)
 }
 
 async function scrollDialogWithKey(page, dialog, key) {

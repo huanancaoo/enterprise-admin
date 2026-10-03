@@ -1,4 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { expect as expectUI } from "playwright/test"
 import {
   beforeAll,
@@ -457,7 +459,7 @@ it("shows the real unknown SMTP result after creation and reload without claimin
     await page.keyboard.press("Escape")
     await expectUI(page.getByRole("menu")).toHaveCount(0)
     await page.screenshot({
-      path: "/private/tmp/enterprise-admin-s8-invitation-unknown-ar.png",
+      path: join(tmpdir(), "enterprise-admin-s8-invitation-unknown-ar.png"),
       animations: "disabled",
       fullPage: true,
     })

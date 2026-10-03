@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto"
 import { createRequire } from "node:module"
-import { resolve } from "node:path"
+import { tmpdir } from "node:os"
+import { join, resolve } from "node:path"
 import { execFile } from "node:child_process"
 import { promisify } from "node:util"
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest"
@@ -254,7 +255,7 @@ describe("platform audit browser investigation", () => {
       ).toBeVisible()
       await axe(page, '[role="dialog"]')
       await page.screenshot({
-        path: `/private/tmp/enterprise-admin-issue22-${locale}.png`,
+        path: join(tmpdir(), `enterprise-admin-issue22-${locale}.png`),
         fullPage: true,
       })
       await dialog

@@ -68,11 +68,14 @@ async function selectLocale(page, userName, locale, languageLabel = "语言") {
     exact: true,
   })
   await language.focus()
-  await language.press("Enter")
+  const direction = await page.locator("html").getAttribute("dir")
+  await language.press(direction === "rtl" ? "ArrowLeft" : "ArrowRight")
   const option = page.getByRole("menuitemradio", { name: locale, exact: true })
   await expectUI(option).toBeVisible()
   await option.focus()
   await option.press("Enter")
+  // 旧菜单退出时会归还焦点，下一次选择必须等待它完成卸载。
+  await expectUI(page.getByRole("menu", { includeHidden: true })).toHaveCount(0)
 }
 
 async function startReadBackend(kind, resources) {

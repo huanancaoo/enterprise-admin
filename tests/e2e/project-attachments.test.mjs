@@ -1,7 +1,8 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto"
 import { readFile } from "node:fs/promises"
 import { createRequire } from "node:module"
-import { resolve } from "node:path"
+import { tmpdir } from "node:os"
+import { join, resolve } from "node:path"
 import { expect as expectUI } from "playwright/test"
 import {
   afterAll,
@@ -82,7 +83,7 @@ for (const backend of ["Local", "RustFS"])
           )
         )
         await page.screenshot({
-          path: `/private/tmp/project-attachments-${backend}-failure.png`,
+          path: join(tmpdir(), `project-attachments-${backend}-failure.png`),
           fullPage: true,
         })
       }
@@ -617,13 +618,18 @@ for (const backend of ["Local", "RustFS"])
         exact: true,
       })
       await englishLanguage.focus()
-      await englishLanguage.press("Enter")
+      await englishLanguage.press("ArrowRight")
       const english = page.getByRole("menuitemradio", {
         name: "English",
         exact: true,
       })
+      await expectUI(english).toBeVisible()
       await english.focus()
       await english.press("Enter")
+      // 旧菜单退出时会归还焦点，下一次选择必须等待它完成卸载。
+      await expectUI(
+        page.getByRole("menu", { includeHidden: true })
+      ).toHaveCount(0)
       await expectUI(
         page.getByRole("heading", { name: "Attachments", exact: true })
       ).toBeVisible()
@@ -634,11 +640,12 @@ for (const backend of ["Local", "RustFS"])
         exact: true,
       })
       await language.focus()
-      await language.press("Enter")
+      await language.press("ArrowRight")
       const option = page.getByRole("menuitemradio", {
         name: "العربية",
         exact: true,
       })
+      await expectUI(option).toBeVisible()
       await option.focus()
       await option.press("Enter")
       await expectUI(

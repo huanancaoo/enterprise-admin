@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto"
 import { createRequire } from "node:module"
-import { resolve } from "node:path"
+import { tmpdir } from "node:os"
+import { join, resolve } from "node:path"
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest"
 import { expect as expectUI } from "playwright/test"
 import { startBrowserApplication } from "../setup/test-runtime.mjs"
@@ -102,7 +103,7 @@ describe("platform user directory browser flow", () => {
     ).toBeVisible()
     expect(await page.locator("main").innerText()).not.toContain(target.email)
     await page.screenshot({
-      path: "/private/tmp/enterprise-admin-issue21-en.png",
+      path: join(tmpdir(), "enterprise-admin-issue21-en.png"),
       fullPage: true,
     })
   })
@@ -246,7 +247,7 @@ describe("platform user directory browser flow", () => {
       await page.keyboard.press("Enter")
       await expectUI(dialog.getByRole("status")).toHaveText(target.email)
       await page.screenshot({
-        path: `/private/tmp/enterprise-admin-issue21-${locale}.png`,
+        path: join(tmpdir(), `enterprise-admin-issue21-${locale}.png`),
         fullPage: true,
       })
     })

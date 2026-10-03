@@ -65,6 +65,8 @@ async function selectAdminLocale(page, userName, currentLanguage, locale) {
   await expectUI(option).toBeVisible()
   await option.focus()
   await option.press("Enter")
+  // 旧菜单退出时会归还焦点，下一次选择必须等待它完成卸载。
+  await expectUI(page.getByRole("menu", { includeHidden: true })).toHaveCount(0)
 }
 
 async function signOutFromAppShell(page, userName) {

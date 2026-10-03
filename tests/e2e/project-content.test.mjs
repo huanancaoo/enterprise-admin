@@ -2,7 +2,8 @@ import { createHash, randomBytes, randomUUID } from "node:crypto"
 import { deflateSync } from "node:zlib"
 import { readFile } from "node:fs/promises"
 import { createRequire } from "node:module"
-import { resolve } from "node:path"
+import { tmpdir } from "node:os"
+import { join, resolve } from "node:path"
 import { expect as expectUI } from "playwright/test"
 import {
   afterAll,
@@ -97,7 +98,7 @@ for (const backend of ["Local", "RustFS"])
     afterEach(async (testContext) => {
       if (testContext.task.result?.state === "fail")
         await page.screenshot({
-          path: `/private/tmp/project-content-${backend}-failure.png`,
+          path: join(tmpdir(), `project-content-${backend}-failure.png`),
           fullPage: true,
         })
       await context.close()
@@ -424,7 +425,7 @@ for (const backend of ["Local", "RustFS"])
         page.getByText("<b>纯文本摘要仍保留</b>", { exact: true })
       ).toBeVisible()
       await page.screenshot({
-        path: `/private/tmp/project-content-${backend}-uploads.png`,
+        path: join(tmpdir(), `project-content-${backend}-uploads.png`),
         fullPage: true,
       })
     }, 120000)
@@ -571,13 +572,19 @@ for (const backend of ["Local", "RustFS"])
         await page.getByRole("button", { name: /富文本验收用户/ }).click()
         const menu = page.getByRole("menuitem", { name: current, exact: true })
         await menu.focus()
-        await menu.press("Enter")
+        const direction = await page.locator("html").getAttribute("dir")
+        await menu.press(direction === "rtl" ? "ArrowLeft" : "ArrowRight")
         const option = page.getByRole("menuitemradio", {
           name: next,
           exact: true,
         })
+        await expectUI(option).toBeVisible()
         await option.focus()
         await option.press("Enter")
+        // 旧菜单退出时会归还焦点，下一次选择必须等待它完成卸载。
+        await expectUI(
+          page.getByRole("menu", { includeHidden: true })
+        ).toHaveCount(0)
         await expectUI(page.getByText(title, { exact: true })).toBeVisible()
       }
       await expectUI(page.locator("html")).toHaveAttribute("dir", "rtl")
@@ -597,7 +604,7 @@ for (const backend of ["Local", "RustFS"])
         }))
       ).toEqual([])
       await page.screenshot({
-        path: `/private/tmp/project-content-${backend}-rtl.png`,
+        path: join(tmpdir(), `project-content-${backend}-rtl.png`),
         fullPage: true,
       })
     }, 120000)

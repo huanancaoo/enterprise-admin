@@ -154,10 +154,14 @@ async function selectLocale(page, account, language) {
     .click()
   const menu = page.getByRole("menuitem", { name: "语言", exact: true })
   await menu.focus()
-  await menu.press("Enter")
+  const direction = await page.locator("html").getAttribute("dir")
+  await menu.press(direction === "rtl" ? "ArrowLeft" : "ArrowRight")
   const item = page.getByRole("menuitemradio", { name: language, exact: true })
+  await expectUI(item).toBeVisible()
   await item.focus()
   await item.press("Enter")
+  // 旧菜单退出时会归还焦点，下一次选择必须等待它完成卸载。
+  await expectUI(page.getByRole("menu", { includeHidden: true })).toHaveCount(0)
 }
 
 describe.each(["Local", "RustFS"])(

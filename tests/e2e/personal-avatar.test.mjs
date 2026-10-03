@@ -1,6 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto"
 import { createRequire } from "node:module"
-import { resolve } from "node:path"
+import { tmpdir } from "node:os"
+import { join, resolve } from "node:path"
 import { expect as expectUI } from "playwright/test"
 import {
   afterAll,
@@ -123,11 +124,15 @@ async function selectLocale(page, name, option, languageLabel = "语言") {
     exact: true,
   })
   await language.focus()
-  await language.press("Enter")
+  const direction = await page.locator("html").getAttribute("dir")
+  await language.press(direction === "rtl" ? "ArrowLeft" : "ArrowRight")
   const choice = page.getByRole("menuitemradio", { name: option, exact: true })
+  await expectUI(choice).toBeVisible()
   await choice.focus()
   await expectUI(choice).toBeFocused()
   await page.keyboard.press("Enter")
+  // 旧菜单退出时会归还焦点，下一次选择必须等待它完成卸载。
+  await expectUI(page.getByRole("menu", { includeHidden: true })).toHaveCount(0)
 }
 
 describe.each(["Local", "RustFS"])("个人头像正式产品 / %s", (backend) => {
@@ -314,11 +319,11 @@ describe.each(["Local", "RustFS"])("个人头像正式产品 / %s", (backend) =>
       ).toBe(404)
     }
     await page.screenshot({
-      path: `/private/tmp/personal-avatar-${backend}-tenant.png`,
+      path: join(tmpdir(), `personal-avatar-${backend}-tenant.png`),
       fullPage: true,
     })
     await platform.screenshot({
-      path: `/private/tmp/personal-avatar-${backend}-platform.png`,
+      path: join(tmpdir(), `personal-avatar-${backend}-platform.png`),
       fullPage: true,
     })
     const removed = await save(platform, true)

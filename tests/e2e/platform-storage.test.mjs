@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto"
 import { createRequire } from "node:module"
-import { resolve } from "node:path"
+import { tmpdir } from "node:os"
+import { join, resolve } from "node:path"
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest"
 import { expect as expectUI } from "playwright/test"
 import { startBrowserApplication } from "../setup/test-runtime.mjs"
@@ -169,7 +170,7 @@ describe("organization storage policy browser workflow", () => {
       page.getByLabel("Storage quota (GiB)", { exact: true })
     ).toHaveValue("0.5")
     await page.screenshot({
-      path: "/private/tmp/enterprise-admin-issue25-storage-policy-en-US.png",
+      path: join(tmpdir(), "enterprise-admin-issue25-storage-policy-en-US.png"),
       fullPage: true,
     })
   })
@@ -216,7 +217,10 @@ describe("organization storage policy browser workflow", () => {
       await expectUI(page.getByLabel(reason, { exact: true })).toHaveValue("")
       await axe()
       await page.screenshot({
-        path: `/private/tmp/enterprise-admin-issue25-storage-policy-${locale}.png`,
+        path: join(
+          tmpdir(),
+          `enterprise-admin-issue25-storage-policy-${locale}.png`
+        ),
         fullPage: true,
       })
     })
