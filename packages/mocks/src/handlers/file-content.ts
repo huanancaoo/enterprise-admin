@@ -5,19 +5,33 @@ export const fileContentBytes = new Uint8Array([0, 255, 10, 128, 65])
 
 export function createFileContentScenario(
   disposition: string,
-  outcome: "success" | "denied" | "pending" = "success"
+  outcome: "success" | "denied" | "pending" | "network-error" = "success"
 ) {
   const requests: Request[] = []
+  let authorizationVersion = 0
   return {
     requests,
     reset: () => {
       requests.length = 0
+      authorizationVersion = 0
     },
     handlers: [
+      http.get(
+        `*/api/v1/organizations/${filePickerImage.organizationId}/access`,
+        () =>
+          HttpResponse.json({
+            organizationId: filePickerImage.organizationId,
+            status: "ACTIVE",
+            authorizationVersion: ++authorizationVersion,
+            effectiveLocale: "en-US",
+            effectiveLocaleSource: "organization",
+          })
+      ),
       http.get(
         `*/api/v1/organizations/${filePickerImage.organizationId}/files/entries/${filePickerImage.id}/versions/${filePickerImage.currentVersion.id}/content`,
         async ({ request }) => {
           requests.push(request)
+          if (outcome === "network-error") return HttpResponse.error()
           if (outcome === "pending") await delay("infinite")
           if (outcome === "denied")
             return HttpResponse.json(
