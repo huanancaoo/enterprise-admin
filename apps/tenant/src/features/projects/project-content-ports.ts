@@ -8,8 +8,8 @@ import {
   saveProjectContent,
   uploadOrganizationFile,
 } from "@workspace/api-client"
-import { parse as parseContentDisposition } from "content-disposition"
 import { SaveProjectContentSchema } from "@workspace/contracts"
+import { downloadProtectedFile } from "../files/protected-file-download"
 import type {
   FileEntryResponse,
   FileOperationResponse,
@@ -107,27 +107,8 @@ export function createProjectFilePorts(
           options(signal)
         )
       ).data,
-    download: async (reference, signal) => {
-      const response = await getFileVersionContent(
-        organizationId,
-        reference.fileId,
-        reference.versionId,
-        { disposition: "attachment" },
-        undefined,
-        options(signal)
-      )
-      signal.throwIfAborted()
-      const filename = parseContentDisposition(
-        response.headers.get("content-disposition") ?? ""
-      ).parameters.filename
-      if (!filename) throw new Error("Missing authorized download filename")
-      const url = URL.createObjectURL(response.data)
-      const anchor = document.createElement("a")
-      anchor.href = url
-      anchor.download = filename
-      anchor.click()
-      setTimeout(() => URL.revokeObjectURL(url), 0)
-    },
+    download: (reference, signal) =>
+      downloadProtectedFile(organizationId, reference, signal, requestLanguage),
     upload: async (fields, file, signal) =>
       (
         await uploadOrganizationFile(

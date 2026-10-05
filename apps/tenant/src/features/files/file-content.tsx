@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
-import { parse as parseContentDisposition } from "content-disposition"
 import { ErrorState, LoadingState } from "@workspace/admin"
 import {
   getFileVersionContent,
@@ -14,6 +13,7 @@ import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
 import { Button } from "@workspace/ui/components/button"
 import { fileRequestErrorMessage, fileRequestIsDenied } from "./file-queries"
+import { downloadProtectedFile } from "./protected-file-download"
 
 export type FileContentTarget = {
   file: Pick<FileResponse, "id" | "organizationId" | "name">
@@ -64,24 +64,12 @@ export function FileDownloadButton({ target }: { target: FileContentTarget }) {
     setPending(true)
     setError(undefined)
     try {
-      const response = await contentRequest(
-        target,
-        "attachment",
+      await downloadProtectedFile(
+        target.file.organizationId,
+        { fileId: target.file.id, versionId: target.version.id },
         controller.signal,
         locale
       )
-      if (controller.signal.aborted) return
-      // 文件名只采用受保护响应的 Content-Disposition，避免沿用页面缓存中的改名前名称。
-      const filename = parseContentDisposition(
-        response.headers.get("content-disposition") ?? ""
-      ).parameters.filename
-      if (!filename) throw new Error("Missing authorized download filename")
-      const url = URL.createObjectURL(response.data)
-      const anchor = document.createElement("a")
-      anchor.href = url
-      anchor.download = filename
-      anchor.click()
-      setTimeout(() => URL.revokeObjectURL(url), 0)
     } catch (failure) {
       if (controller.signal.aborted) return
       setError(fileRequestErrorMessage(failure, t("common:operationFailed")))
