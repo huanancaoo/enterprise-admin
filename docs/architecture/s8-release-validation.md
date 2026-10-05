@@ -1,6 +1,6 @@
 # S8 跨功能与发布验收记录
 
-日期：2026-10-02。对应 [#24](https://github.com/huanancaoo/enterprise-admin/issues/24)。本记录确认迁移安全、固定规模 HTTP 性能及下文列出的组合浏览器、授权补充、Feature 展示覆盖和完整本机检查。[T01–T28 矩阵](s8-acceptance-matrix.md) 逐项列出证据及边界。ADR/CLI 已按已完成的 #19 对齐已验证用户 UUID 授权；安全回退仍未完成，#24 与父任务 #8 继续保持开放。
+日期：2026-10-02；本地发布与安全回退补充于 2026-10-05。对应 [#24](https://github.com/huanancaoo/enterprise-admin/issues/24)。本记录确认迁移安全、固定规模 HTTP 性能及下文列出的组合浏览器、授权补充、Feature 展示覆盖和各批次本机检查。[T01–T28 矩阵](s8-acceptance-matrix.md) 逐项列出证据及边界。ADR/CLI 已按已完成的 #19 对齐已验证用户 UUID 授权；用户选定的本地 Docker Compose 发布与安全回退已完成下文验收，未据此变更 #24 或父任务 #8 的 GitHub 状态。
 
 ## 迁移安全
 
@@ -12,7 +12,7 @@
 - S7 迁移至当前链并重复执行，成员、角色、邀请、个人/组织语言保留；原 `enabled=false` 保留为 `SUSPENDED`，不隐式授予平台任职。
 - 无 owner、重复成员、重复角色分别阻止升级，原数据与 ledger 保持原状。
 
-原实现曾实际出现双 Migrator 一个失败、无 owner 组织升级成功，两项均已由真实迁移进程复现后修正。Compose 复核使用测试专属项目、随机凭据和数据卷，验证独立镜像迁移、卷重建持久化、重复迁移、错误运行身份的非零退出。它不表示 API/SPA 生产部署或安全回退门禁已完成。
+原实现曾实际出现双 Migrator 一个失败、无 owner 组织升级成功，两项均已由真实迁移进程复现后修正。此批 Compose 复核使用测试专属项目、随机凭据和数据卷，验证独立镜像迁移、卷重建持久化、重复迁移、错误运行身份的非零退出。该批证据只覆盖数据库；API/双 SPA 的本地发布与回退另见 2026-10-05 批次。
 
 ## 固定规模性能
 
@@ -246,11 +246,45 @@ Storybook 构建产物另完成六项原生浏览器检查：键盘创建/更新
 
 最终源码执行 `pnpm verify`，进程退出码 0：API 155 项（Nest HTTP 15、真实业务 HTTP 140）、浏览器 11 文件/78 项、Storybook 22 文件/388 项、数据库 2 文件/24 项、性能 2 项及单元 74 项全部通过。peer、lint/工程边界、类型、i18n、38 页文档内容、数据库 Schema、生产构建及 OpenAPI/Orval 可重现检查全部通过。日志为 `/private/tmp/enterprise-admin-s8-roles-verify-final.log`。检查前后本批 15 个源码文件的 SHA-256 一致，清单为 `/private/tmp/enterprise-admin-s8-roles-source.sha256`；最终验收文档另执行定向格式和内容检查。
 
-## 尚未完成的验收
+## 本地 Compose 发布与安全回退（2026-10-05）
 
-- 平台组织、用户目录、审计、设置、租户审计、个人/组织语言设置、成员、邀请和角色管理已补足上述 Feature Stories；各批次证据仍只覆盖明确列出的状态与流程。
-- 平台任职 CLI 与 [ADR-0002](../adr/0002-platform-assignment.md) 已按完成的 [#19](https://github.com/huanancaoo/enterprise-admin/issues/19) 对齐：grant 只面向已存在且邮箱已验证的用户，CLI 不创建账号或修改验证状态。安全回退入口与实际发布环境仍待明确，对应发布验收尚未完成。
+用户明确选择本地 Docker Compose 发布与回退验收。新增入口为 `compose.release.yaml` 和 `infra/release/publish.mjs`，构建、配置和操作步骤见 [本地发布指南](../guides/local-release.md)。该入口依次等待独立 PostgreSQL/Redis/Mailpit、运行正式 one-shot Migrator、等待 API、发布并等待两个 SPA，最后验证入口响应。迁移失败立即停止发布，不替换已有应用容器。API 以非 root 用户运行，容器不注入 Migrator、部署 CLI 或数据库管理员凭据。
 
-本机验证与远端 CI、生产部署分别记账；本记录不声称 GitHub Actions 或生产发布已通过。
+回退对象从历史提交 `611fc74841354fd56b1f80828f75fdfa83b03507` 的实际源码构建，使用本轮发布 Dockerfile；候选应用从基于 `86062489763ef0e134c5511bac7606f32e5315c3` 的工作区构建，验收时本轮发布配置尚未提交。回退仅替换三个应用镜像，保留当前 Migrator、数据库卷、迁移历史及认证和加密配置，不执行 down migration 或恢复旧数据库快照。每次发布后核对实际运行容器的 image ID。
 
-迁移/性能批次已通过 `pnpm db:check` 和包含 0037 的 Compose 验证。组合浏览器批次已通过完整 `pnpm test:api`（Nest HTTP 15 项及业务 HTTP 130 项，共 145 项）、`pnpm test:e2e`（11 文件、73 项）、`pnpm test:storybook`（13 文件、97 项）、`pnpm lint`、`pnpm typecheck`、API/双 SPA 生产构建及 `pnpm api:check`；文档内容检查覆盖 38 页。这些是此前批次的历史证据，最新结果以上文为准，仍不替代待完成的发布验收。
+`RELEASE_ROLLBACK_REF=611fc74 pnpm test:release` 在 2026-10-05 20:04（Asia/Shanghai）退出码 0，1 文件/4 项通过，总时长 45.99 秒。使用随机项目 `enterprise-release-9edf7b4d5454`、端口、凭据和专属卷，实际链路如下：
+
+| 验收                   | 实际驱动与最终断言                                                                                                                                                                                                                                                                                                                             |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 首次发布的迁移门禁     | 临时迁移副本增加真实待执行失败 SQL；Migrator 非零退出，API、租户 SPA、平台 SPA 均未启动。正式迁移历史未修改。                                                                                                                                                                                                                                  |
+| 历史版可运行与代理边界 | 通过历史镜像注册三个用户、读取 Mailpit 验证链接并登录，创建两个组织及项目、发送和接受邀请；部署 CLI 授予平台任职后通过真实 TOTP。登录页及 Session 读取成功，未知 API 返回 JSON 404，缺失静态资源返回 404。                                                                                                                                     |
+| 在线升级门禁及候选发布 | 在历史应用运行期间执行失败 SQL，原三个容器 ID 与 ledger 不变，原项目仍可读取；随后使用正式 Migrator 发布候选镜像，实际 image ID 匹配且原 Cookie 仍可用。                                                                                                                                                                                       |
+| 安全回退与恢复         | 候选版通过正式入口停用组织 A、移除组织 B 的成员、通过 CLI 撤销平台任职；回退后同一旧 Cookie 对这三类访问仍为 403。数据库核对 A 仍为 SUSPENDED、状态版本为 2，成员关系已删除、平台任职已撤销，B 所有者的原项目仍可读取。随后独立 CLI 重新授予平台任职并正式恢复 A，状态版本为 3，A 原项目可读；恢复组织不重建被移除成员，最后再次撤销平台任职。 |
+
+Playwright 访问真实回退 SPA，验证深链接进入登录、登录后的原项目、刷新保留项目、停用组织清除项目并显示停用提示、平台撤权后的拒绝页及刷新。正式登出后访问受保护的平台路由并刷新均回到登录页，租户 HTTP 请求为 401。两个最终截图已查看：租户页面显示原项目，平台页面显示“无权访问平台后台”。邮箱验证、TOTP、撤权、状态转换及持久化均使用真实服务；GitHub 仅填写必要的测试配置，本轮未执行外部 OAuth。
+
+首次实际运行发现非 root Nginx 启动仍会初始化 FastCGI 临时目录，默认 `/var/cache/nginx/fastcgi_temp` 无写权限而退出。Nginx 配置明确将其与其他模块临时目录放在 `/tmp`，保留非 root 运行；真实旧配置复现日志为 `/private/tmp/enterprise-admin-release-nginx-red.log`。测试客户端另按既有协议补齐成员移除的预期授权版本，并将登出跳转断言放在受保护路由；这两项未改动产品行为。
+
+本次已接受镜像：
+
+| 镜像            | 不可变 image ID                                                           |
+| --------------- | ------------------------------------------------------------------------- |
+| 回退 API        | `sha256:df1446ae3983a3be140f95507f42402c44bb341b443c182f636a939f1e6a53e5` |
+| 回退租户 SPA    | `sha256:77c5d86f7cfda8238df13db0581945fca4abc8296de126821da99df5e9658c5e` |
+| 回退平台 SPA    | `sha256:f626778a5f59c569560f4defb59c05cf63670d85345c108599ef397d987f4d25` |
+| 候选 API        | `sha256:88fc357c3836ce9194a12542573a9fd7a109bcb5b3d0bf5fd2b7e85a9599cf87` |
+| 候选租户 SPA    | `sha256:f4207a2584235a9358de70bdc445c2fe66504d21deeb3e13cc28bd9e85a85006` |
+| 候选平台 SPA    | `sha256:d083c7b13ff3724396b932bcaaf380e3b8c972094f582ee3825f544c9235b231` |
+| 保留的 Migrator | `sha256:501cdf667c27b3f080059b1344f21d8f0370abf97d703ef4c87346291d2803c5` |
+
+证据目录为 `/var/folders/jq/q_45dv8x6z35xkjw8jbkh91c0000gn/T/enterprise-admin-release-VjAOoO`，其中 `result.json` 的 accepted 为 true，`images.json` 记录历史提交与镜像，另保留构建日志、`compose.log`、`tenant-rollback.png` 和 `platform-rollback.png`。验收日志为 `/private/tmp/enterprise-admin-release-acceptance-final.log`。结束后只清理本轮容器、卷、随机凭据及历史源码快照，保留镜像和证据，已有开发容器继续运行。
+
+本批还通过 `pnpm lint`、`pnpm typecheck`、`pnpm test:unit`（166 项）、38 页文档内容与定向格式检查，日志分别为 `/private/tmp/enterprise-admin-release-{lint,typecheck,unit}.log`。发布 Dockerfile、Nginx、发布入口、Compose 和验收测试的通过后源码指纹存于 `/private/tmp/enterprise-admin-release-source.sha256`。本批未重跑完整 `pnpm verify`，此前批次的完整检查不能代替本轮发布证据。
+
+## 验收边界
+
+各批次证据只覆盖明确列出的状态和流程。本地发布与安全回退证据绑定上述历史提交、当前迁移链及镜像 ID；任意其他历史版本须另行验证。本轮使用本机明文 HTTP 和回环端口，Files 显式设为 disabled；实际部署环境、TLS、备份恢复及 S9 Files 发布尚未验收。
+
+本机验证与远端 CI、生产部署分别记账，验收完成时发布变更尚未提交或推送。开始时核对的远端基线 `8606248` 已有成功 [CI](https://github.com/huanancaoo/enterprise-admin/actions/runs/37099043653)，该结果不覆盖本轮发布变更，也不表示生产发布成功。
+
+迁移/性能批次已通过 `pnpm db:check` 和包含 0037 的 Compose 验证。组合浏览器批次已通过完整 `pnpm test:api`（Nest HTTP 15 项及业务 HTTP 130 项，共 145 项）、`pnpm test:e2e`（11 文件、73 项）、`pnpm test:storybook`（13 文件、97 项）、`pnpm lint`、`pnpm typecheck`、API/双 SPA 生产构建及 `pnpm api:check`；文档内容检查覆盖 38 页。这些保留为此前批次的历史证据，后续各批次的具体执行结果分别以上文为准。

@@ -1,6 +1,6 @@
 # S8 T01–T28 验收证据矩阵
 
-日期：2026-10-02。对应 [父规格 #8](https://github.com/huanancaoo/enterprise-admin/issues/8) 和 [验收任务 #24](https://github.com/huanancaoo/enterprise-admin/issues/24)。本表记录测试实际驱动的入口和断言，执行结果见 [发布验收记录](s8-release-validation.md)。测试源码的存在不代替执行结果，矩阵也不代替安全回退和部署验收。
+日期：2026-10-02；本地发布门禁补充于 2026-10-05。对应 [父规格 #8](https://github.com/huanancaoo/enterprise-admin/issues/8) 和 [验收任务 #24](https://github.com/huanancaoo/enterprise-admin/issues/24)。本表记录测试实际驱动的入口和断言，执行结果见 [发布验收记录](s8-release-validation.md)。测试源码的存在不代替执行结果，矩阵也不代替安全回退和部署验收。
 
 除明确标注外，表内文件位于 `tests/api`，使用真实 API、生产构建、项目迁移及 Testcontainers PostgreSQL。fixture 可以布置先决状态；业务转换、授权拒绝和最终持久化事实由相应入口验证。邮箱验证完整流程另由组合浏览器用例完成，直接布置已验证用户的 API fixture 不算邮箱验证流程验收。
 
@@ -71,6 +71,8 @@ T15 另包含空 organizationId/slug 的真实回归：普通原生入口按 tru
 
 平台任职 CLI 已按完成的 [#19](https://github.com/huanancaoo/enterprise-admin/issues/19) 和 [ADR-0002](../adr/0002-platform-assignment.md) 对齐：grant 面向已存在且邮箱已验证的用户，输入精确 UUID、role 和 reason；CLI 不创建账号或修改邮箱验证状态。[真实 CLI 测试](../../tests/api/platform-assignment.test.mjs) 核对未验证用户拒绝、两种角色授予、撤销、重复操作及任职/审计持久化，另验证 MFA 和撤销后旧 Session 的平台请求拒绝。CLI 使用独立部署凭据，在线 API 仍使用上文已确认的共享运行连接。
 
-## 尚未解除的门禁
+## 本地发布门禁与边界
 
-1. 安全回退必须继续拒绝已有停用/撤权事实。数据库 README 目前把 API/双 SPA 发布编排留到 S10；等待用户明确 #24 的本地发布门禁或实际部署入口，再完成对应验证。
+用户已明确选定本地 Docker Compose 发布与回退验收。`RELEASE_ROLLBACK_REF=611fc74 pnpm test:release` 在 2026-10-05 实际通过 4 项：空库迁移失败阻止应用启动、真实历史镜像的登录和代理边界、在线迁移失败保留原容器及数据后成功升级、历史镜像回退保留组织停用及成员/平台撤权。Playwright 另核对回退 SPA 深链接、刷新、拒绝页面和登出后的受保护路由。通过后保留具体历史提交、七个镜像 ID、运行日志及两张已查看截图，详见 [本地发布与安全回退记录](s8-release-validation.md#本地-compose-发布与安全回退2026-10-05) 和 [操作指南](../guides/local-release.md)。
+
+本批通过 166 项单元测试、lint、类型、38 页文档内容与定向格式检查，没有重跑上表全部 API/浏览器/Storybook/性能入口或完整 `pnpm verify`。本地门禁仅接受记录中的具体回退提交及镜像，不表示任意历史版本可回退；实际部署环境、TLS、备份恢复及 S9 Files 发布仍未验收，#24 与 #8 的 GitHub 状态未作变更。

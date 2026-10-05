@@ -16,6 +16,7 @@
     "build:storybook": "turbo build --filter=storybook",
     "test:api": "turbo build --filter=api && pnpm --filter api test:e2e && vitest run --config vitest.config.mjs --project api",
     "test:performance": "turbo build --filter=api && vitest run --config vitest.config.mjs --project performance",
+    "test:release": "vitest run --config vitest.config.mjs --project release",
     "test:storybook": "pnpm --filter storybook test",
     "db:generate": "pnpm --filter @workspace/database db:generate",
     "db:migrate": "pnpm --filter @workspace/database db:migrate",

@@ -2,6 +2,11 @@
 .claude
 .remember
 node_modules
+**/node_modules
+.agents
+.codex
+**/storybook-static
+**/*.tsbuildinfo
 **/.next
 **/.source
 **/.turbo

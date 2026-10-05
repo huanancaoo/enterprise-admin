@@ -5,6 +5,17 @@ export default defineConfig({
     projects: [
       {
         test: {
+          name: "release",
+          environment: "node",
+          include: ["tests/release/**/*.test.mjs"],
+          fileParallelism: false,
+          hookTimeout: 1_800_000,
+          testTimeout: 180_000,
+          forbidOnly: true,
+        },
+      },
+      {
+        test: {
           name: "unit",
           environment: "node",
           include: [

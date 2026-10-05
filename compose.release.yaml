@@ -1,0 +1,90 @@
+services:
+  postgres:
+    image: postgres:18.6-bookworm@sha256:1c59e2c3c818eaa0f0628f695b36e7c9e362d6b219b36a54a32df645cbd7e1af
+    environment:
+      POSTGRES_USER: bootstrap_admin
+      POSTGRES_DB: enterprise_admin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      APP_MIGRATOR_PASSWORD: ${APP_MIGRATOR_PASSWORD:?Set APP_MIGRATOR_PASSWORD}
+      APP_RUNTIME_PASSWORD: ${APP_RUNTIME_PASSWORD:?Set APP_RUNTIME_PASSWORD}
+      PLATFORM_RUNTIME_PASSWORD: ${PLATFORM_RUNTIME_PASSWORD:?Set PLATFORM_RUNTIME_PASSWORD}
+      PLATFORM_DEPLOYER_PASSWORD: ${PLATFORM_DEPLOYER_PASSWORD:?Set PLATFORM_DEPLOYER_PASSWORD}
+    volumes:
+      - release_postgres_data:/var/lib/postgresql
+      - ./infra/postgres/bootstrap.sql:/docker-entrypoint-initdb.d/001-bootstrap.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bootstrap_admin -d enterprise_admin"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+  redis:
+    image: redis:7.4.5-bookworm@sha256:90e7a336d044f1abc9e9dbc05d65566850896d11453bbd1dd0fb7e5059f0e8fb
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+  mailpit:
+    image: axllent/mailpit:v1.27.10
+    ports:
+      - "127.0.0.1:${RELEASE_MAIL_PORT:?Set RELEASE_MAIL_PORT}:8025"
+  migrator:
+    image: ${RELEASE_MIGRATOR_IMAGE:?Set RELEASE_MIGRATOR_IMAGE}
+    environment:
+      MIGRATION_DATABASE_URL: ${MIGRATION_DATABASE_URL:?Set MIGRATION_DATABASE_URL}
+    restart: "no"
+  api:
+    image: ${RELEASE_API_IMAGE:?Set RELEASE_API_IMAGE}
+    init: true
+    environment:
+      PORT: "3000"
+      DATABASE_URL: postgresql://app_runtime:${APP_RUNTIME_PASSWORD}@postgres:5432/enterprise_admin
+      REDIS_URL: redis://redis:6379
+      BETTER_AUTH_URL: ${RELEASE_TENANT_ORIGIN:?Set RELEASE_TENANT_ORIGIN}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET}
+      BETTER_AUTH_TRUSTED_ORIGINS: ${RELEASE_TENANT_ORIGIN},${RELEASE_PLATFORM_ORIGIN:?Set RELEASE_PLATFORM_ORIGIN}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:?Set GITHUB_CLIENT_ID}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:?Set GITHUB_CLIENT_SECRET}
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_SECURE: "false"
+      EMAIL_FROM: noreply@example.test
+      EMAIL_FROM_NAME: Enterprise Admin
+      EMAIL_PAYLOAD_ENCRYPTION_KEY: ${EMAIL_PAYLOAD_ENCRYPTION_KEY:?Set EMAIL_PAYLOAD_ENCRYPTION_KEY}
+      EMAIL_LINK_ORIGIN: ${RELEASE_TENANT_ORIGIN}
+      EMAIL_DISPATCH_INTERVAL_MS: "1000"
+      EMAIL_RETRY_MAX_ATTEMPTS: "5"
+      EMAIL_RETRY_BASE_DELAY_MS: "200"
+      EMAIL_MESSAGE_TTL_MS: "86400000"
+      FILES_STORAGE_BACKEND: disabled
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/auth/get-session').then(r=>process.exit(r.status===200?0:1)).catch(()=>process.exit(1))"
+      interval: 2s
+      timeout: 5s
+      retries: 30
+  tenant:
+    image: ${RELEASE_TENANT_IMAGE:?Set RELEASE_TENANT_IMAGE}
+    ports:
+      - "127.0.0.1:${RELEASE_TENANT_PORT:?Set RELEASE_TENANT_PORT}:8080"
+    healthcheck:
+      test:
+        ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/login"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+  platform:
+    image: ${RELEASE_PLATFORM_IMAGE:?Set RELEASE_PLATFORM_IMAGE}
+    ports:
+      - "127.0.0.1:${RELEASE_PLATFORM_PORT:?Set RELEASE_PLATFORM_PORT}:8080"
+    healthcheck:
+      test:
+        ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/login"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+volumes:
+  release_postgres_data:
