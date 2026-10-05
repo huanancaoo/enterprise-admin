@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { useForm } from "@tanstack/react-form"
 import {
   Link,
@@ -62,32 +62,7 @@ import {
   DialogTrigger,
   DialogClose,
 } from "@workspace/ui/components/dialog"
-import { authClient } from "../../lib/auth-client"
-
-function useAccessError(error: unknown) {
-  const session = useAuthenticatedSession()!
-  const queryClient = useQueryClient()
-  const navigate = useNavigate()
-  const { refetch } = authClient.useSession()
-  useEffect(() => {
-    if (
-      !(error instanceof ApiClientError) ||
-      ![401, 403].includes(error.status)
-    )
-      return
-    void (async () => {
-      const queryKey = ["platform", session.user.id]
-      await queryClient.cancelQueries({ queryKey })
-      queryClient.removeQueries({ queryKey })
-      if (error.status === 401) {
-        await refetch()
-        await navigate({ to: "/login" })
-      } else if (error.body.code === "PLATFORM_MFA_REQUIRED") {
-        await navigate({ to: "/platform/mfa", search: { challenge: false } })
-      } else await navigate({ to: "/platform/access-denied" })
-    })()
-  }, [error, navigate, queryClient, refetch, session.user.id])
-}
+import { usePlatformAccessFailure } from "../../lib/use-platform-access-failure"
 
 function UserSearch({
   search,
@@ -161,7 +136,7 @@ export function PlatformUsersPage() {
       ),
     retry: false,
   })
-  useAccessError(query.error)
+  usePlatformAccessFailure(query.error)
   return (
     <section className="min-w-0 space-y-6">
       <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -369,7 +344,7 @@ export function PlatformUserDetailPage() {
       ),
     retry: false,
   })
-  useAccessError(query.error)
+  usePlatformAccessFailure(query.error)
   if (query.isPending) return <LoadingState />
   if (query.isError)
     return query.error instanceof ApiClientError &&
