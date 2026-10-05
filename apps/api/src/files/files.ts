@@ -11,7 +11,6 @@ import {
   type FileBreadcrumbs,
   type FileEntryResponse,
   type FileListQuery,
-  type FileOperationResponse,
   type FilePage,
   type FileVersions,
   type FileWorkspace,
@@ -22,10 +21,7 @@ import {
   type TenantContext,
   type TenantTx,
 } from '@workspace/database/tenant';
-import {
-  fileRepository,
-  type FileOperation,
-} from '@workspace/database/repositories/files';
+import { fileRepository } from '@workspace/database/repositories/files';
 import { projectRepository } from '@workspace/database/repositories/projects';
 import { AuthRuntime } from '../identity/auth-runtime';
 import { IdentityService } from '../identity/identity.service';
@@ -35,11 +31,7 @@ import {
   type PermissionRequest,
 } from '../authorization/authorization.service';
 import { FilesRuntime } from './files-runtime';
-import {
-  fileEntryResponse,
-  fileOperationResponse,
-  fileVersionResponse,
-} from './file-responses';
+import { fileEntryResponse, fileVersionResponse } from './file-responses';
 import { rethrowFileError } from './file-http-errors';
 
 @Injectable()
@@ -292,62 +284,5 @@ export class Files {
       ],
     );
     return result.response;
-  }
-
-  async operation(
-    context: TenantContext,
-    id: string,
-    headers: Headers,
-  ): Promise<FileOperationResponse> {
-    const operation = await this.read(
-      context,
-      headers,
-      async (tx) => {
-        const operation = await fileRepository.findOperation(tx, id);
-        if (!operation) throw new NotFoundException();
-        return operation;
-      },
-      (operation) => this.operationPermissions(context, operation),
-    );
-    return fileOperationResponse(operation);
-  }
-
-  private operationPermissions(
-    context: TenantContext,
-    operation: FileOperation,
-  ): PermissionRequest[] {
-    const alternatives: PermissionRequest[] = [
-      { file: ['read'], folder: ['read'] },
-    ];
-    if (operation.actorId !== context.userId) return alternatives;
-    switch (operation.action) {
-      case 'create-folder':
-        alternatives.push({ folder: ['create'] });
-        break;
-      case 'upload':
-        alternatives.push({ file: ['upload'] });
-        break;
-      case 'overwrite':
-        alternatives.push({ file: ['upload', 'update'] });
-        break;
-      case 'restore':
-        alternatives.push({ file: ['restore'] });
-        break;
-      case 'purge':
-        alternatives.push({ file: ['purge'] });
-        break;
-      case 'rename':
-      case 'move':
-      case 'trash': {
-        const action = operation.action === 'trash' ? 'delete' : 'update';
-        // 种类来自服务端受理时的不可变事实，清除后仍能按原动作查询自己的回执。
-        if (operation.input.entryKind === 'file')
-          alternatives.push({ file: [action] });
-        if (operation.input.entryKind === 'folder')
-          alternatives.push({ folder: [action] });
-        break;
-      }
-    }
-    return alternatives;
   }
 }

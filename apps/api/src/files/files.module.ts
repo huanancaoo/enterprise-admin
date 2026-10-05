@@ -5,6 +5,7 @@ import { FilesRuntime } from './files-runtime';
 import { FileContent } from './file-content';
 import { FileContentController } from './file-content.controller';
 import { Files } from './files';
+import { FileOperationReads } from './file-operation-reads';
 import { FilesController } from './files.controller';
 import { FileMaintenance } from './file-maintenance';
 import { FileWrites } from './file-writes';
@@ -33,6 +34,7 @@ export class FilesModule {
       providers: [
         { provide: FilesRuntime, useValue: runtime },
         Files,
+        FileOperationReads,
         FileContent,
         FileMaintenance,
         FileWrites,

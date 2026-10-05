@@ -42,6 +42,7 @@ import {
   RequireTenantAny,
 } from '../tenancy/tenant.guard';
 import { Files } from './files';
+import { FileOperationReads } from './file-operation-reads';
 import { FileWrites } from './file-writes';
 
 @ApiTags('files')
@@ -56,6 +57,7 @@ export class FilesController {
   constructor(
     private readonly files: Files,
     private readonly writes: FileWrites,
+    private readonly receipts: FileOperationReads,
   ) {}
 
   @Post('folders')
@@ -177,6 +179,6 @@ export class FilesController {
     @Headers() headers: IncomingHttpHeaders,
     @CurrentTenant() context: TenantContext,
   ): Promise<FileOperationResponse> {
-    return this.files.operation(context, id, fromNodeHeaders(headers));
+    return this.receipts.operation(context, id, fromNodeHeaders(headers));
   }
 }
