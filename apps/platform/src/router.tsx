@@ -11,7 +11,7 @@ import {
 } from "@workspace/admin"
 import { ForgotPasswordPage } from "@workspace/admin/auth"
 import type { WorkspaceRouterContext } from "@workspace/admin/auth"
-import { ApiClientError, apiClient } from "@workspace/api-client"
+import { apiClient } from "@workspace/api-client"
 import {
   PlatformAccessSchema,
   PlatformOrganizationQuerySchema,
@@ -39,6 +39,7 @@ import {
   PlatformResetPasswordPage,
 } from "./App"
 import { authClient } from "./lib/auth-client"
+import { rejectPlatformAccess } from "./lib/platform-access-failure"
 
 import { PlatformSettingsPage } from "./features/settings-page"
 import { PlatformPersonalSettingsPage } from "./features/personal-settings-page"
@@ -103,30 +104,14 @@ const platformRoute = createRoute({
       )
       return { platformAccess: PlatformAccessSchema.parse(response.data) }
     } catch (error) {
-      if (
-        error instanceof ApiClientError &&
-        [401, 403].includes(error.status)
-      ) {
-        await context.queryClient.cancelQueries({
-          queryKey: ["platform", context.user.id],
-        })
-        context.queryClient.removeQueries({
-          queryKey: ["platform", context.user.id],
-        })
-      }
-      if (error instanceof ApiClientError && error.status === 401) {
-        authClient.$store.notify("$sessionSignal")
-        throw redirect({ to: "/login" })
-      }
-      if (
-        error instanceof ApiClientError &&
-        error.body.code === "PLATFORM_MFA_REQUIRED"
-      ) {
-        throw redirect({ to: "/platform/mfa", search: { challenge: false } })
-      }
-      if (error instanceof ApiClientError && error.status === 403) {
-        throw redirect({ to: "/platform/access-denied" })
-      }
+      await rejectPlatformAccess(error, {
+        queryClient: context.queryClient,
+        userId: context.user.id,
+        restoreSession: () => authClient.$store.notify("$sessionSignal"),
+        exit: (destination) => {
+          throw redirect(destination)
+        },
+      })
       throw error
     }
   },

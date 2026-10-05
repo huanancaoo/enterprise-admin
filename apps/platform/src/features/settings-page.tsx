@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react"
+import { useRef, useState } from "react"
 import { useForm } from "@tanstack/react-form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { useNavigate, useRouteContext } from "@tanstack/react-router"
+import { useRouteContext } from "@tanstack/react-router"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
 import {
@@ -36,7 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select"
-import { authClient } from "../lib/auth-client"
+import { usePlatformAccessFailure } from "../lib/use-platform-access-failure"
 
 const formSchema = UpdatePlatformSettingsSchema.omit({ expectedVersion: true })
 
@@ -45,8 +45,6 @@ export function PlatformSettingsPage() {
   const session = useAuthenticatedSession()!
   const { platformAccess } = useRouteContext({ from: "/platform" })
   const queryClient = useQueryClient()
-  const navigate = useNavigate()
-  const { refetch: refetchSession } = authClient.useSession()
   const [saved, setSaved] = useState(false)
   const [mutationError, setMutationError] = useState<unknown>()
   const queryKey = ["platform", session.user.id, "settings"] as const
@@ -59,26 +57,7 @@ export function PlatformSettingsPage() {
     retry: false,
     refetchOnWindowFocus: false,
   })
-  const error = mutationError ?? query.error
-  useEffect(() => {
-    if (
-      !(error instanceof ApiClientError) ||
-      ![401, 403].includes(error.status)
-    )
-      return
-    void (async () => {
-      await queryClient.cancelQueries({
-        queryKey: ["platform", session.user.id],
-      })
-      queryClient.removeQueries({ queryKey: ["platform", session.user.id] })
-      if (error.status === 401) {
-        await refetchSession()
-        await navigate({ to: "/login" })
-      } else if (error.body.code === "PLATFORM_MFA_REQUIRED")
-        await navigate({ to: "/platform/mfa", search: { challenge: false } })
-      else await navigate({ to: "/platform/access-denied" })
-    })()
-  }, [error, navigate, queryClient, refetchSession, session.user.id])
+  usePlatformAccessFailure(mutationError ?? query.error)
   return (
     <div className="max-w-4xl min-w-0 space-y-6">
       <div className="space-y-2">

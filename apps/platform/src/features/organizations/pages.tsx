@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useRef, useState } from "react"
 import { useForm } from "@tanstack/react-form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import {
@@ -67,6 +67,7 @@ import {
 } from "@workspace/ui/components/table"
 import { OrganizationStoragePolicy } from "../storage-policy/organization-storage-policy"
 import { authClient } from "../../lib/auth-client"
+import { usePlatformAccessFailure } from "../../lib/use-platform-access-failure"
 
 const filterSchema = z.strictObject({
   q: z.string().trim().max(200),
@@ -241,37 +242,6 @@ function OrganizationFilters({
       </FieldGroup>
     </form>
   )
-}
-
-function usePlatformAccessFailure(error?: unknown) {
-  const queryClient = useQueryClient()
-  const session = useAuthenticatedSession()!
-  const navigate = useNavigate()
-  const { refetch: refetchSession } = authClient.useSession()
-  const reject = useCallback(
-    async (failure: unknown) => {
-      if (
-        !(failure instanceof ApiClientError) ||
-        (failure.status !== 401 && failure.status !== 403)
-      )
-        return false
-      const queryKey = ["platform", session.user.id]
-      await queryClient.cancelQueries({ queryKey })
-      queryClient.removeQueries({ queryKey })
-      if (failure.status === 401) {
-        await refetchSession()
-        await navigate({ to: "/login" })
-      } else if (failure.body.code === "PLATFORM_MFA_REQUIRED") {
-        await navigate({ to: "/platform/mfa", search: { challenge: false } })
-      } else await navigate({ to: "/platform/access-denied" })
-      return true
-    },
-    [navigate, queryClient, refetchSession, session.user.id]
-  )
-  useEffect(() => {
-    void reject(error)
-  }, [error, reject])
-  return reject
 }
 
 export function PlatformOrganizationsPage() {

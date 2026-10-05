@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useForm } from "@tanstack/react-form"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 import { useNavigate, useSearch } from "@tanstack/react-router"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
@@ -57,7 +57,7 @@ import {
   DialogDescription,
   DialogClose,
 } from "@workspace/ui/components/dialog"
-import { authClient } from "../../lib/auth-client"
+import { usePlatformAccessFailure } from "../../lib/use-platform-access-failure"
 
 const optionalText = <T extends z.ZodType<string, string>>(schema: T) =>
   z
@@ -113,31 +113,6 @@ const labels = {
   from: "platformAuditFrom",
   to: "platformAuditTo",
 } as const
-
-function useAccessError(error: unknown) {
-  const session = useAuthenticatedSession()!
-  const queryClient = useQueryClient()
-  const navigate = useNavigate()
-  const { refetch } = authClient.useSession()
-  useEffect(() => {
-    if (
-      !(error instanceof ApiClientError) ||
-      ![401, 403].includes(error.status)
-    )
-      return
-    void (async () => {
-      const queryKey = ["platform", session.user.id]
-      await queryClient.cancelQueries({ queryKey })
-      queryClient.removeQueries({ queryKey })
-      if (error.status === 401) {
-        await refetch()
-        await navigate({ to: "/login" })
-      } else if (error.body.code === "PLATFORM_MFA_REQUIRED")
-        await navigate({ to: "/platform/mfa", search: { challenge: false } })
-      else await navigate({ to: "/platform/access-denied" })
-    })()
-  }, [error, navigate, queryClient, refetch, session.user.id])
-}
 
 function useScopeLabels() {
   const { t } = useTranslation("organization")
@@ -332,7 +307,7 @@ function AuditDetail({
       ),
     retry: false,
   })
-  useAccessError(query.error)
+  usePlatformAccessFailure(query.error)
   const scopeLabels = useScopeLabels()
   const event = query.data
   return (
@@ -447,7 +422,7 @@ function AuditWorkspace({
     enabled: applied !== null && !applying,
     retry: false,
   })
-  useAccessError(query.error)
+  usePlatformAccessFailure(query.error)
   return (
     <section className="min-w-0 space-y-6">
       <div className="space-y-1.5">
