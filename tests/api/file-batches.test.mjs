@@ -271,6 +271,147 @@ for (const kind of ["Local", "RustFS"])
         )
       ).rows[0].count
 
+    async function usageLock(fixture) {
+      const client = await environment.runtime.pool.connect()
+      const entered = Promise.withResolvers(),
+        release = Promise.withResolvers()
+      const work = createTenantRunner(client)(fixture.context, async (tx) => {
+        await fileRepository.lockOrganization(tx)
+        entered.resolve()
+        await release.promise
+      })
+      await entered.promise
+      const pid = (await client.query("SELECT pg_backend_pid() AS pid")).rows[0]
+        .pid
+      return {
+        pid,
+        async release() {
+          release.resolve()
+          try {
+            await work
+          } finally {
+            client.release()
+          }
+        },
+      }
+    }
+    async function waitForBlocked(lock, minimum = 1) {
+      await expect
+        .poll(async () => {
+          const result = await environment.observer.query(
+            `WITH RECURSIVE blocked(pid) AS (
+               SELECT pid FROM pg_stat_activity WHERE $1=ANY(pg_blocking_pids(pid))
+               UNION
+               SELECT activity.pid FROM pg_stat_activity AS activity
+               JOIN blocked ON blocked.pid=ANY(pg_blocking_pids(activity.pid))
+             ) SELECT count(*)::int AS n FROM blocked`,
+            [lock.pid]
+          )
+          return result.rows[0].n
+        })
+        .toBeGreaterThanOrEqual(minimum)
+    }
+
+    test.each([
+      ["组织角色撤权", "FORBIDDEN"],
+      ["Session删除", "UNAUTHENTICATED"],
+      ["Session到期", "UNAUTHENTICATED"],
+    ])(
+      "批次计划已读取后，root等待usage锁期间%s，不返回旧授权收据",
+      async (change, code) => {
+        const f = await workspace(),
+          one = await upload(f, "observed.bin"),
+          target = await folder(f, "target")
+        const writer = await signUpVerified(
+          environment.baseURL,
+          origin,
+          environment.migrator
+        )
+        const role = (
+          await environment.runtime.auth.api.createOrgRole({
+            headers: f.actor.headers,
+            body: {
+              organizationId: f.organization.id,
+              role: "receipt-writer",
+              permission: { file: ["update"] },
+            },
+          })
+        ).roleData
+        await environment.runtime.auth.api.addMember({
+          headers: f.actor.headers,
+          body: {
+            organizationId: f.organization.id,
+            userId: writer.user.id,
+            role: "receipt-writer",
+          },
+        })
+        const value = input("move", [one], { parentId: target.id })
+        const completed = await batch(f, value, writer)
+        expect(completed.items[0].state).toBe("completed")
+        let first = await usageLock(f),
+          secondPromise,
+          second,
+          pending
+        try {
+          pending = request(f, "/batches/" + value.batchId, {}, writer)
+          await waitForBlocked(first)
+          // 第二个持锁者排在计划读取之后，使撤权精确发生在独立 root 观察的等待阶段。
+          secondPromise = usageLock(f)
+          await waitForBlocked(first, 2)
+          await first.release()
+          first = undefined
+          second = await secondPromise
+          secondPromise = undefined
+          await waitForBlocked(second)
+          if (change === "组织角色撤权") {
+            const version = (
+              await environment.observer.query(
+                "SELECT authorization_version FROM organization_status WHERE organization_id=$1",
+                [f.organization.id]
+              )
+            ).rows[0].authorization_version
+            const headers = new Headers(f.actor.headers)
+            headers.set("X-Expected-Authz-Version", String(version))
+            await environment.runtime.auth.api.updateOrgRole({
+              headers,
+              body: {
+                organizationId: f.organization.id,
+                roleId: role.id,
+                data: { permission: { project: ["read"] } },
+              },
+            })
+          } else {
+            await environment.observer.query(
+              change === "Session删除"
+                ? "DELETE FROM session WHERE user_id=$1"
+                : "UPDATE session SET expires_at=clock_timestamp()-interval '1 second' WHERE user_id=$1",
+              [writer.user.id]
+            )
+          }
+        } finally {
+          if (first) await first.release()
+          if (secondPromise) second = await secondPromise
+          if (second) await second.release()
+        }
+        const response = await pending,
+          body = await response.json()
+        expect(response.status, JSON.stringify(body)).toBe(200)
+        expect(body.items).toEqual([
+          {
+            index: 0,
+            entryId: one.id,
+            requestedOperationId: value.items[0].operationId,
+            rootIndex: 0,
+            operationId: value.items[0].operationId,
+            state: "unavailable",
+            operation: null,
+            error: { code },
+          },
+        ])
+        expect(await get(f, value.batchId)).toEqual(completed)
+      }
+    )
+
     test("正式生成SDK执行批量移动并通过同一batchId读取固定版本与根映射", async () => {
       const f = await workspace(),
         tree = await folder(f, "sdk-tree"),

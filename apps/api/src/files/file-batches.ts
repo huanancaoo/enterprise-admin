@@ -13,7 +13,6 @@ import {
 } from '@workspace/database/tenant';
 import {
   fileRepository,
-  fileBatchRootRequest,
   type FileBatch,
   type FileBatchItem,
 } from '@workspace/database/repositories/files';
@@ -27,18 +26,16 @@ import { apiFailureCode } from '../http/api-error.filter';
 import { ApiException } from '../http/api-exception';
 import { rethrowTenantWriteError } from '../tenancy/tenant-write';
 import { rethrowFileError } from './file-http-errors';
-import { Files } from './files';
+import {
+  FileOperationReads,
+  fileBatchActionPermissions,
+} from './file-operation-reads';
 import { FilesRuntime } from './files-runtime';
-import { FilePathWrites, filePathPermissions } from './file-path-writes';
+import { FilePathWrites } from './file-path-writes';
 
 const hash = (value: unknown) =>
   createHash('sha256').update(JSON.stringify(value)).digest('hex');
 
-function alternatives(action: FileBatch['action']): PermissionRequest[] {
-  if (action === 'restore' || action === 'purge') return [{ file: [action] }];
-  const verb = action === 'move' ? 'update' : 'delete';
-  return [{ file: [verb] }, { folder: [verb] }];
-}
 function publicError(
   error: unknown,
 ): NonNullable<FileBatchItemResponse['error']> {
@@ -58,7 +55,7 @@ export class FileBatches {
     private readonly actors: IdentityService,
     private readonly authorization: AuthorizationService,
     private readonly paths: FilePathWrites,
-    private readonly files: Files,
+    private readonly receipts: FileOperationReads,
     private readonly runtime: FilesRuntime,
   ) {}
 
@@ -81,9 +78,13 @@ export class FileBatches {
           { file: ['read'], folder: ['read'] },
         ];
         if (input)
-          choices.splice(0, choices.length, ...alternatives(input.action));
+          choices.splice(
+            0,
+            choices.length,
+            ...fileBatchActionPermissions(input.action),
+          );
         else if (existing!.batch.actorId === context.userId)
-          choices.push(...alternatives(existing!.batch.action));
+          choices.push(...fileBatchActionPermissions(existing!.batch.action));
         await this.authorization.requireAnyPermissionInTransaction(
           client,
           headers,
@@ -168,47 +169,6 @@ export class FileBatches {
     return this.view(context, headers, await this.plan(context, headers, id));
   }
 
-  private async inspectRoot(
-    context: TenantContext,
-    headers: Headers,
-    batch: FileBatch,
-    root: FileBatchItem,
-  ) {
-    const actor = await this.actors.requireIdentity(headers);
-    const client = await this.identity.pool.connect();
-    try {
-      return await createTenantRunner(client)(context, async (tx) => {
-        await fileRepository.lockOrganization(tx);
-        await fileRepository.requireCurrentActor(tx, actor.sessionId);
-        const choices: PermissionRequest[] = [
-          { file: ['read'], folder: ['read'] },
-        ];
-        if (batch.actorId === context.userId)
-          choices.push(
-            ...(root.entryKind
-              ? [filePathPermissions(root.entryKind, batch.action)]
-              : alternatives(batch.action)),
-          );
-        await this.authorization.requireAnyPermissionInTransaction(
-          client,
-          headers,
-          context.organizationId,
-          choices,
-        );
-        const operation = await fileRepository.findOperation(
-          tx,
-          root.operationId,
-        );
-        await fileRepository.requireCurrentActor(tx, actor.sessionId);
-        return operation;
-      }).catch((error: unknown) => rethrowTenantWriteError(error, context));
-    } catch (error) {
-      rethrowFileError(error);
-    } finally {
-      client.release();
-    }
-  }
-
   private async view(
     context: TenantContext,
     headers: Headers,
@@ -223,21 +183,22 @@ export class FileBatches {
       (item) => item.index === item.rootIndex,
     )) {
       try {
-        const operation = await this.inspectRoot(
+        const observed = await this.receipts.batchRoot(
           context,
           headers,
           plan.batch,
           root,
         );
-        if (!root.entryKind) {
+        if (observed.errorCode) {
           roots.set(root.index, {
             state: 'failed',
             operation: null,
-            error: { code: 'NOT_FOUND' },
+            error: { code: observed.errorCode },
           });
           continue;
         }
-        if (!operation) {
+        const receipt = observed.operation;
+        if (!receipt) {
           roots.set(root.index, {
             state: errors.has(root.index) ? 'unavailable' : 'pending',
             operation: null,
@@ -245,23 +206,6 @@ export class FileBatches {
           });
           continue;
         }
-        if (
-          operation.actorId !== plan.batch.actorId ||
-          operation.action !== plan.batch.action ||
-          operation.requestHash !== hash(fileBatchRootRequest(plan.batch, root))
-        ) {
-          roots.set(root.index, {
-            state: 'failed',
-            operation: null,
-            error: { code: 'IDEMPOTENCY_KEY_REUSED' },
-          });
-          continue;
-        }
-        const receipt = await this.files.operation(
-          context,
-          root.operationId,
-          headers,
-        );
         roots.set(root.index, {
           state: receipt.phase,
           operation: receipt,
