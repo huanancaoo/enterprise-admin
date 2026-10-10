@@ -50,6 +50,9 @@ export function createTaskTenantRunner(connection: Pool | PoolClient) {
           "code" in error.cause
             ? error.cause.code
             : undefined
+        // 无有效目标组织时与成员不存在同类拒绝，不向任务结果暴露组织存在性。
+        if (code === "ORS01")
+          throw new TaskAuthorizationError("MEMBERSHIP_REQUIRED")
         if (code === "ORS02")
           throw new TaskAuthorizationError("ORGANIZATION_SUSPENDED")
         throw error
