@@ -20,14 +20,14 @@ flowchart LR
 
 ## 应用
 
-| 路径             | 职责                         |
-| ---------------- | ---------------------------- |
-| `apps/tenant`    | 组织成员操作面               |
-| `apps/platform`  | 平台管理员操作面             |
-| `apps/api`       | NestJS API Host 与 `ea` CLI  |
-| `apps/docs`      | 本开发者文档站               |
-| `apps/storybook` | 公共组件工作台               |
-| `apps/worker`    | 规划位置，未加入启动任务     |
+| 路径             | 职责                             |
+| ---------------- | -------------------------------- |
+| `apps/tenant`    | 组织成员操作面                   |
+| `apps/platform`  | 平台管理员操作面                 |
+| `apps/api`       | NestJS API Host 与 `ea` CLI      |
+| `apps/docs`      | 本开发者文档站                   |
+| `apps/storybook` | 公共组件工作台                   |
+| `apps/worker`    | 必需核心运行时，默认启动独立进程 |
 
 打开对方后台的路由不是授权证明。`activeOrganizationId` 只是工作区偏好，不是授权输入。
 

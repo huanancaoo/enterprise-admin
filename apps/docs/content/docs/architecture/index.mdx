@@ -20,14 +20,14 @@ flowchart LR
 
 ## Applications
 
-| Path             | Role                                      |
-| ---------------- | ----------------------------------------- |
-| `apps/tenant`    | Organization-member console               |
-| `apps/platform`  | Platform-admin console                    |
-| `apps/api`       | NestJS API host and `ea` CLI              |
-| `apps/docs`      | This documentation site                   |
-| `apps/storybook` | Shared component workbench                |
-| `apps/worker`    | Planned; not in the start graph           |
+| Path             | Role                                                          |
+| ---------------- | ------------------------------------------------------------- |
+| `apps/tenant`    | Organization-member console                                   |
+| `apps/platform`  | Platform-admin console                                        |
+| `apps/api`       | NestJS API host and `ea` CLI                                  |
+| `apps/docs`      | This documentation site                                       |
+| `apps/storybook` | Shared component workbench                                    |
+| `apps/worker`    | Required core runtime; independent process started by default |
 
 Opening the other console's route is not proof of authorization. `activeOrganizationId` is a workspace preference, not an authorization input.
 

@@ -291,6 +291,46 @@ describe("组织任务真实生产者与独立 Worker", () => {
     }
   })
 
+  test("处理中同键异体永久冲突，原 Job 数据及已提交业务保持不变", async () => {
+    const fixture = await workspace(),
+      value = request(fixture),
+      submitted = await producer.submit(value)
+    const worker = await start("after_commit")
+    try {
+      await expect
+        .poll(
+          () =>
+            worker.messages.some(
+              (message) =>
+                message.kind === "committed" &&
+                message.resourceId === fixture.resourceId
+            ),
+          { timeout: 10_000 }
+        )
+        .toBe(true)
+      const active = await state(submitted.jobId, "active")
+      const originalData = active.data
+      // 业务事务已提交但真实队列确认仍等待：生产者可重新查权，不能将 active 去重解释为同意图。
+      await expect(
+        producer.submit({ ...value, input: { amount: 3 } })
+      ).rejects.toMatchObject({ code: "IDEMPOTENCY_CONFLICT" })
+      expect((await state(submitted.jobId, "active")).data).toEqual(
+        originalData
+      )
+      expect(await facts(fixture)).toEqual({ value: 2, audits: 1 })
+      worker.send({ kind: "release", jobId: "after_commit" })
+      expect(
+        (await state(submitted.jobId, "completed")).returnvalue
+      ).toMatchObject({
+        business: "committed",
+        result: { value: 2 },
+      })
+    } finally {
+      worker.send({ kind: "release", jobId: "after_commit" })
+      expect(await stop(worker)).toEqual({ code: 0, signal: null })
+    }
+  })
+
   test("排队后角色撤权，独立进程永久拒绝且不恢复旧任务", async () => {
     const fixture = await delegated(),
       value = request(fixture)
@@ -705,6 +745,66 @@ describe("组织任务真实生产者与独立 Worker", () => {
       expect(await facts(b)).toEqual({ value: 15, audits: 5 })
     } finally {
       await Promise.all(workers.map((worker) => stop(worker)))
+    }
+  })
+
+  test("两个存活 Worker 重叠领取同一业务意图，事务与回执只提交一次业务和成功审计", async () => {
+    const fixture = await workspace(),
+      submitted = await producer.submit(request(fixture))
+    const first = await start("before_commit", { concurrency: 1 })
+    let second
+    try {
+      await expect
+        .poll(
+          () =>
+            first.messages.some(
+              (message) =>
+                message.kind === "gate" && message.jobId === submitted.jobId
+            ),
+          { timeout: 10_000 }
+        )
+        .toBe(true)
+      expect(await facts(fixture)).toEqual({ value: 0, audits: 0 })
+      // 暂停整个真实进程使租约无法续期；旧事务仍存活，第二实例必须与它协调业务幂等。
+      expect(first.kill("SIGSTOP")).toBe(true)
+      second = await start(undefined, { concurrency: 1 })
+      await expect
+        .poll(
+          () =>
+            second.messages.some(
+              (message) =>
+                message.kind === "log" &&
+                message.event.event === "task_started" &&
+                message.event.jobId === submitted.jobId
+            ),
+          { timeout: 15_000 }
+        )
+        .toBe(true)
+      expect(
+        (await state(submitted.jobId, "active")).attemptsStarted
+      ).toBeGreaterThanOrEqual(2)
+      expect(first.exitCode).toBeNull()
+      expect(first.signalCode).toBeNull()
+      expect(second.pid).not.toBe(first.pid)
+      first.send({ kind: "release", jobId: submitted.jobId })
+      expect(first.kill("SIGCONT")).toBe(true)
+      expect(
+        (await state(submitted.jobId, "completed")).returnvalue
+      ).toMatchObject({
+        business: "already_committed",
+        result: { value: 2 },
+      })
+      expect(await facts(fixture)).toEqual({ value: 2, audits: 1 })
+      const receipts = await environment.observer.query(
+        "SELECT count(*)::integer AS count FROM worker_test_receipts WHERE organization_id=$1 AND actor_id=$2 AND task_type='test.increment'",
+        [fixture.organization.id, fixture.actor.user.id]
+      )
+      expect(receipts.rows[0].count).toBe(1)
+    } finally {
+      first.kill("SIGCONT")
+      first.send({ kind: "release", jobId: submitted.jobId })
+      expect(await stop(first)).toEqual({ code: 0, signal: null })
+      if (second) expect(await stop(second)).toEqual({ code: 0, signal: null })
     }
   })
 
