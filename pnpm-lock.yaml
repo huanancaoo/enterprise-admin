@@ -235,6 +235,9 @@ importers:
       '@workspace/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@workspace/jobs':
+        specifier: workspace:*
+        version: link:../../packages/jobs
       '@workspace/permissions':
         specifier: workspace:*
         version: link:../../packages/permissions

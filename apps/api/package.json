@@ -35,6 +35,7 @@
     "@workspace/contracts": "workspace:*",
     "@workspace/database": "workspace:*",
     "@workspace/i18n": "workspace:*",
+    "@workspace/jobs": "workspace:*",
     "@workspace/permissions": "workspace:*",
     "better-auth": "1.7.5",
     "busboy": "1.6.0",

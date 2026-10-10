@@ -5,6 +5,7 @@
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
+    "dev:worker": "pnpm --filter worker dev",
     "lint": "pnpm lint:boundaries && turbo lint",
     "format": "turbo format",
     "typecheck": "turbo typecheck",
@@ -14,7 +15,8 @@
     "lint:boundaries": "node packages/eslint-config/boundaries/check.mjs",
     "test:unit": "turbo build --filter=@workspace/contracts --filter=@workspace/i18n --filter=@workspace/database && vitest run --config vitest.config.mjs --project unit && pnpm --filter api test && pnpm --filter docs test",
     "build:storybook": "turbo build --filter=storybook",
-    "test:api": "turbo build --filter=api && pnpm --filter api test:e2e && vitest run --config vitest.config.mjs --project api",
+    "test:api": "turbo build --filter=api --filter=worker && pnpm --filter api test:e2e && vitest run --config vitest.config.mjs --project api",
+    "test:worker": "turbo build --filter=api --filter=worker && vitest run --config vitest.config.mjs --project api tests/api/worker.test.mjs",
     "test:performance": "turbo build --filter=api && vitest run --config vitest.config.mjs --project performance",
     "test:release": "vitest run --config vitest.config.mjs --project release",
     "test:storybook": "pnpm --filter storybook test",

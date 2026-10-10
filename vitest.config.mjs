@@ -23,6 +23,7 @@ export default defineConfig({
             "tests/unit/**/*.test.ts",
             "packages/mocks/tests/**/*.test.ts",
             "packages/api-client/tests/**/*.test.ts",
+            "packages/jobs/test/**/*.test.ts",
           ],
         },
       },

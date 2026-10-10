@@ -21,6 +21,18 @@ services:
       retries: 30
   redis:
     image: redis:7.4.5-bookworm@sha256:90e7a336d044f1abc9e9dbc05d65566850896d11453bbd1dd0fb7e5059f0e8fb
+    command:
+      [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--appendfsync",
+        "everysec",
+        "--maxmemory-policy",
+        "noeviction",
+      ]
+    volumes:
+      - redis_data:/data
     ports:
       - "127.0.0.1:6379:6379"
     healthcheck:
@@ -33,5 +45,24 @@ services:
     ports:
       - "127.0.0.1:1025:1025"
       - "127.0.0.1:8025:8025"
+  worker:
+    build:
+      context: .
+      dockerfile: infra/release/Dockerfile
+      target: worker
+    init: true
+    stop_grace_period: 35s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://app_runtime:${APP_RUNTIME_PASSWORD}@postgres:5432/enterprise_admin
+      REDIS_URL: redis://redis:6379
+      WORKER_QUEUE_NAME: organization-tasks
+      WORKER_QUEUE_PREFIX: jobs
+      WORKER_SHUTDOWN_MS: "30000"
 volumes:
   postgres_data:
+  redis_data:

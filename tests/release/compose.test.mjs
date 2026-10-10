@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process"
 import { randomBytes, randomUUID } from "node:crypto"
-import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { createServer } from "node:net"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -87,6 +87,7 @@ async function selectImages(selected, migrator = migrationImage) {
     RELEASE_TENANT_IMAGE: selected.tenant,
     RELEASE_PLATFORM_IMAGE: selected.platform,
     RELEASE_MIGRATOR_IMAGE: migrator,
+    RELEASE_WORKER_IMAGE: images.worker,
   })
   await writeFile(
     join(directory, "release.env"),
@@ -106,7 +107,7 @@ const publish = () =>
 async function publishSuccessfully() {
   const result = await publish()
   expect(result.status, result.stderr).toBe(0)
-  expect(result.stdout).toContain("migrator → API → SPA")
+  expect(result.stdout).toContain("migrator → API → Worker → SPA")
 }
 
 async function build(context, dockerfile, target, tag, revision) {
@@ -131,7 +132,12 @@ async function build(context, dockerfile, target, tag, revision) {
 
 async function applicationImages(context, revision, suffix) {
   const result = {}
-  for (const target of ["api", "tenant", "platform"]) {
+  for (const target of [
+    "api",
+    "tenant",
+    "platform",
+    ...(context === root ? ["worker"] : []),
+  ]) {
     result[target] = await build(
       context,
       join(context, "infra/release/Dockerfile"),
@@ -241,7 +247,7 @@ async function transition(action, version) {
 
 async function imageIDs() {
   const result = {}
-  for (const service of ["api", "tenant", "platform"]) {
+  for (const service of ["api", "tenant", "platform", "worker"]) {
     const id = await compose("ps", "-q", service)
     result[service] = id
       ? await checked("docker", ["inspect", "--format", "{{.Image}}", id])
@@ -296,12 +302,11 @@ describe.sequential("local Compose release and S8 rollback", () => {
       "-C",
       previous,
     ])
-    await cp("infra/release", join(previous, "infra/release"), {
-      recursive: true,
-    })
-    await cp(".dockerignore", join(previous, ".dockerignore"))
+    // 历史 API/SPA 使用该已验收提交自己的镜像配方，不能用新依赖伪造历史构建。
     images = await applicationImages(root, "local-candidate", "candidate")
     oldImages = await applicationImages(previous, revision, "previous")
+    // 本用例只回退 S8 的 API/SPA；核心 Worker 保留本轮镜像，不宣称验收了 Worker 版本回退。
+    oldImages.worker = images.worker
     const migratorTag = `${project}:migrator`
     migrationImage = await build(
       root,
@@ -385,6 +390,7 @@ describe.sequential("local Compose release and S8 rollback", () => {
       api: null,
       tenant: null,
       platform: null,
+      worker: null,
     })
   })
 

@@ -19,6 +19,18 @@ services:
       retries: 30
   redis:
     image: redis:7.4.5-bookworm@sha256:90e7a336d044f1abc9e9dbc05d65566850896d11453bbd1dd0fb7e5059f0e8fb
+    command:
+      [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--appendfsync",
+        "everysec",
+        "--maxmemory-policy",
+        "noeviction",
+      ]
+    volumes:
+      - release_redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 2s
@@ -66,6 +78,16 @@ services:
       interval: 2s
       timeout: 5s
       retries: 30
+  worker:
+    image: ${RELEASE_WORKER_IMAGE:?Set RELEASE_WORKER_IMAGE}
+    init: true
+    stop_grace_period: 35s
+    environment:
+      DATABASE_URL: postgresql://app_runtime:${APP_RUNTIME_PASSWORD}@postgres:5432/enterprise_admin
+      REDIS_URL: redis://redis:6379
+      WORKER_QUEUE_NAME: organization-tasks
+      WORKER_QUEUE_PREFIX: jobs
+      WORKER_SHUTDOWN_MS: "30000"
   tenant:
     image: ${RELEASE_TENANT_IMAGE:?Set RELEASE_TENANT_IMAGE}
     ports:
@@ -88,3 +110,4 @@ services:
       retries: 30
 volumes:
   release_postgres_data:
+  release_redis_data:
