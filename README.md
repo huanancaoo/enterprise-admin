@@ -11,7 +11,7 @@
 [功能](#功能) · [仓库结构](#仓库结构) · [快速开始](#快速开始) · [环境配置](#环境配置) · [验证](#验证) · [文档](#文档)
 
 > [!NOTE]
-> 当前已交付认证与组织、租户隔离、Projects 参考领域、成员邀请、认证邮件和双后台入口。平台运营页、Worker、完整自托管发布编排尚未交付，不要按生产发行版验收。
+> 当前已完成认证与组织、租户隔离、Projects、成员与邀请、自定义角色、语言设置、租户审计、平台任职与 MFA、平台组织/用户/审计/设置，以及完整文件管理与业务消费的本机交付。证据见 [S8 验收矩阵](docs/architecture/s8-acceptance-matrix.md) 和 [S9 文件管理验收](docs/architecture/s9-files-validation.md)。通用 Worker 基础设施已交付并作为必需核心运行时；具体业务通知、导入导出与 Webhook 尚未接入；完整自托管发布、安全回退和备份恢复仍未完成验收，当前交付不代表生产发行版。
 
 ## 功能
 
@@ -32,12 +32,13 @@ apps/platform        平台后台（平台管理员操作面）
 apps/api             NestJS API Host 与 ea CLI
 apps/docs            开发者文档站（Fumadocs）
 apps/storybook       公共组件工作台
-apps/worker          规划位置，未启用
+apps/worker          核心后台任务运行时（独立 Node/BullMQ）
 packages/ui          通用 UI primitives
 packages/admin       业务无关后台组合层
 packages/contracts   HTTP Schema
 packages/api-client  生成客户端
 packages/database    仅供服务端的 Schema、迁移、TenantTx
+packages/jobs        仅供服务端的任务契约、生产者与消费者
 packages/permissions 固定权限声明
 packages/i18n        翻译目录与运行时
 packages/mocks       共享 MSW fixtures / handlers
@@ -50,6 +51,8 @@ flowchart LR
   API --> PG[("PostgreSQL 18.6")]
   API --> Redis[("Redis 7.4.5")]
   API --> Mail["SMTP / Mailpit"]
+  Worker["核心 Worker"] --> PG
+  Worker --> Redis
   Docs["文档 :3300"]
   Storybook["Storybook :6006"]
 ```
@@ -76,7 +79,7 @@ cp infra/postgres/.env.example infra/postgres/.env
 填写四个互不相同的密码。它们只在首次初始化空数据卷时生效。
 
 ```sh
-docker compose --env-file infra/postgres/.env up -d
+docker compose --env-file infra/postgres/.env up -d postgres redis mailpit
 ```
 
 PostgreSQL 绑定 `127.0.0.1:5432`，Redis 绑定 `127.0.0.1:6379`，Mailpit SMTP 为 `127.0.0.1:1025`，收件箱为 <http://127.0.0.1:8025>。
@@ -122,7 +125,9 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 `start` / `dev` / `start:debug` 由 Nest CLI 加载 `apps/api/.env`，已有进程环境变量优先。生产 `start:prod` 使用部署环境注入的变量。
 
-### 4. 启动应用
+### 4. 配置 Worker 并启动应用
+
+复制 `apps/worker/.env.example` 为 `apps/worker/.env`，配置与 API 相同的 `DATABASE_URL`（app_runtime）和 `REDIS_URL`。数据库迁移完成后，根开发入口会同时启动独立 Worker。
 
 ```sh
 pnpm dev
@@ -151,7 +156,7 @@ pnpm --filter api exec node --env-file=.env dist/console.js platform admin creat
 该命令把邮箱标为已验证，不入队验证邮件。邮箱已被占用时失败，不会改已有用户。
 
 > [!IMPORTANT]
-> Redis 是认证运行时的 secondary storage，限流与会话缓存依赖它。Worker 仍只有规划目录，未加入启动任务。
+> Redis 是认证运行时的 secondary storage，限流与会话缓存依赖它。Worker 默认加入开发启动、Compose 与发布；配置和接入说明见 [Worker 指南](docs/guides/worker.md)。
 
 ## 环境配置
 
@@ -162,6 +167,7 @@ pnpm --filter api exec node --env-file=.env dist/console.js platform admin creat
 | `apps/tenant/.env.example`、`apps/platform/.env.example` | 公开前端配置；复制为应用目录 `.env.local` 后由 Vite 加载 |
 | `apps/docs/.env.example`                                 | 文档站 Algolia / OpenRouter 配置；`NEXT_PUBLIC_` 会进入浏览器 |
 | `apps/api/.env.example`                                  | API 进程变量                                             |
+| `apps/worker/.env.example`                               | 核心 Worker 的运行变量                                   |
 | `infra/postgres/.env.example`                            | PostgreSQL 首次初始化，不注入 API                        |
 | `packages/database/.env.example`                         | 仅迁移进程                                               |
 

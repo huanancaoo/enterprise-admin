@@ -15,7 +15,7 @@
 ```text
 S0 → S1 → S2 → S3 → S4 → S5 ─┐
        └────────→ S6 ─────────┴→ S7 → S8 → S10 → S11
-                                  └→ S9（按需启用）
+                                  └→ S9（核心 Worker；业务按需接入）
 ```
 
 S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总发布门禁，不代表测试、日志或 CI 到最后才开始；它们随前面每个阶段一起实现。
@@ -27,7 +27,7 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 | M3：双后台边界成立 | 租户成员/角色/设置与平台运营能力具有各自授权边界 | S8 |
 | M4：可发布的自托管版本 | CI、Compose、升级和恢复演练、开源文档齐备 | S10–S11 |
 
-不把 SSO、SCIM、Billing、Plugin Marketplace 或 Kubernetes 加入首个核心闭环。Redis/BullMQ/Worker 只在实际异步需求出现后启用。
+不把 SSO、SCIM、Billing、Plugin Marketplace 或 Kubernetes 加入首个核心闭环。Redis 已用于认证的 secondary storage、限流和会话缓存；BullMQ 与通用 Worker 已进入核心运行时，开发、Compose 和发布默认包含 Worker。
 
 ## 二、逐步实施
 
@@ -58,7 +58,7 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 - [x] S1-01：初始化 pnpm workspace、Turborepo、TypeScript strict、共享 ESLint/TypeScript 配置。
 - [x] S1-02：创建 `apps/tenant`、`apps/platform`、`apps/api`、`apps/storybook` 的可运行入口。
 - [x] S1-03：创建 `packages/ui`、`admin`、`mocks`、`contracts`、`api-client`、`database`、`permissions`、`i18n` 的最小包边界；不一次实现所有预想组件。
-- [x] S1-04：预留 `apps/worker` 的规划位置；未启用异步任务时，不要求它运行或部署。
+- [x] S1-04：该阶段预留 `apps/worker` 的规划位置；S9-03 后已实现为默认运行与部署的必需核心运行时。
 - [x] S1-05：设置依赖边界检查：前端不能依赖 database/API server；contracts 不能依赖 Drizzle；公共 UI 不绑定 Projects 等具体业务模块。
 - [x] S1-06：接入 frozen-lockfile 安装、lint、typecheck、最小 unit test、build。后续阶段逐步增加对应门禁。
 - [x] S1-07：建立 `.env.example`，区分公开前端配置、API runtime 配置和迁移凭据；API 接入 requestId 与结构化日志最小入口。
@@ -228,19 +228,19 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 
 **原文依据：** 总体架构与职责边界；四层权限模型；平台与租户双应用划分。
 
-### S9：按需启用 Files、Notifications 与 Worker
+### S9：Files、业务通知与核心 Worker
 
-**依赖：** 基础能力稳定后按需启动。本阶段不是核心部署的强制前置。
+**依赖：** 基础能力稳定后接入具体业务能力；Worker 基础设施是核心部署的必需组成。
 
 - [ ] S9-01：启用 Files 时先实现 Local/S3-compatible adapter、租户归属和上传/下载授权；加入跨租户 file ID 替换测试。
 - [ ] S9-02：认证/邀请所需 SMTP 已在对应功能阶段提供；复杂通知、重试、导入导出或 Webhook 出现后再增加相应能力。
-- [ ] S9-03：需要异步任务时才启用 Redis、BullMQ 与 `apps/worker`。
-- [ ] S9-04：生产 payload 携带 organizationId、actorId、resourceId、locale、idempotencyKey、requestId/correlationId。
-- [ ] S9-05：Worker 执行时重新检查组织状态和必要授权，再通过受控租户事务访问数据。
-- [ ] S9-06：验证重试、重复执行和幂等；不把队列 Job ID 去重视为业务幂等的替代品。
-- [ ] S9-07：加入角色撤销后旧任务拒绝执行、组织停用后任务拒绝执行、跨租户 resource ID 被拒绝的测试。
+- [x] S9-03：BullMQ 与独立 Worker 是必需核心运行时，根开发入口、Compose 和发布默认包含它；Redis 同时承载认证与分开的任务命名空间。
+- [x] S9-04：通用 Worker 的任务契约携带 organizationId、actorId、resourceId、locale、idempotencyKey、requestId/correlationId。
+- [x] S9-05：Worker 执行时重新检查组织状态和必要授权，再通过受控租户事务访问数据。
+- [x] S9-06：真实 Redis 与独立进程验证任务重试、重复投递、持久业务幂等与进程恢复；已有邮件与文件操作维持各自执行规则。
+- [x] S9-07：为通用 Worker 加入角色撤销后旧任务拒绝执行、组织停用后任务拒绝执行、跨租户 resource ID 被拒绝的测试。
 
-**验收：** 未启用本阶段功能时核心系统不需要 Redis/Worker；启用后对应隔离、权限与幂等测试进入 Release Gate。
+**验收：** 当前认证与任务运行时都需要 Redis；Worker 是必需核心运行时。测试注册处理器证明基础设施链路，具体生产业务任务尚未接入。新增异步业务须将对应隔离、授权、幂等与恢复测试加入 Release Gate。
 
 **原文依据：** 测试、CI/CD、部署、监控与开源交付。
 
@@ -255,9 +255,9 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 - [ ] S10-05：隔离测试覆盖 GET/PATCH/DELETE/translation，以及已启用的 file/export job；检查缺少 scope 的原始查询和并发复用。
 - [ ] S10-06：Playwright 覆盖真实登录、多租户、多用户 context、角色变化、CRUD、Locale/RTL。
 - [ ] S10-07：生成物漂移、构建、镜像安全检查、SBOM 进入发布流水线。
-- [ ] S10-08：建立 Compose 基线：反向代理、admin/platform 静态资源、API、PostgreSQL；Redis/Worker/Storage 扩展保持可选。
+- [ ] S10-08：完成 Compose 发布基线与验收：反向代理、tenant/platform 静态资源、API、Worker、PostgreSQL 和 Redis；Storage 按实际业务配置。Worker 默认包含在本地发布编排中。
 - [ ] S10-09：验证 `/app/*`、`/platform/*` SPA 路由刷新与 `/api/*` 转发，不把 API 错误改写为前端 HTML；验证部署环境登录、会话和登出。
-- [ ] S10-10：发布顺序固定为 migrator 成功 → API → 可选 Worker → SPA → health/smoke。
+- [ ] S10-10：发布顺序固定为 migrator 成功 → API → Worker → SPA → health/smoke。
 - [ ] S10-11：Pino operational logs、OpenTelemetry traces/metrics、PostgreSQL audit 三者分工明确，requestId 可以关联操作与故障。
 - [ ] S10-12：在干净环境测试首次安装；在已有数据环境测试升级；完成一次备份恢复演练。破坏性迁移采用文档的 Expand/Contract 路径。
 
