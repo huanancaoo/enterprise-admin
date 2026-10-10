@@ -1,6 +1,8 @@
 import { sql } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/node-postgres"
 import type { Pool, PoolClient } from "pg"
+import { initializeTenantTransaction } from "./tenant-transaction.ts"
+import type { TenantTx } from "./tenant-transaction.ts"
 
 export type TenantContext = Readonly<{
   organizationId: string
@@ -12,19 +14,7 @@ export type TenantContext = Readonly<{
 
 export type TenantAccess = "read" | "write"
 
-type Transaction = Parameters<
-  Parameters<ReturnType<typeof drizzle>["transaction"]>[0]
->[0]
-const tenantTransaction = Symbol("TenantTx")
-
-// 只暴露事务内查询能力；普通 db 和 Pool 不能满足这个带品牌的类型。
-export type TenantTx = Pick<
-  Transaction,
-  "select" | "insert" | "update" | "delete" | "execute"
-> & {
-  readonly [tenantTransaction]: true
-  readonly context: TenantContext
-}
+export type { TenantTx } from "./tenant-transaction.ts"
 
 export function createTenantRunner(connection: Pool | PoolClient) {
   const db = drizzle(connection)
@@ -41,15 +31,7 @@ export function createTenantRunner(connection: Pool | PoolClient) {
           sql`SELECT public.require_active_organization(${snapshot.organizationId}::uuid)`
         )
       }
-      await tx.execute(
-        sql`SELECT set_config('app.organization_id', ${snapshot.organizationId}, true)`
-      )
-      return work(
-        Object.assign(tx, {
-          [tenantTransaction]: true as const,
-          context: snapshot,
-        })
-      )
+      return work(await initializeTenantTransaction(tx, snapshot))
     })
   }
 }
