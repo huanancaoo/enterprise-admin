@@ -35,6 +35,10 @@
     "./repositories/files": {
       "types": "./dist/repositories/files.d.ts",
       "default": "./dist/repositories/files.js"
+    },
+    "./task-tenant": {
+      "types": "./dist/task-tenant.d.ts",
+      "default": "./dist/task-tenant.js"
     }
   },
   "scripts": {
