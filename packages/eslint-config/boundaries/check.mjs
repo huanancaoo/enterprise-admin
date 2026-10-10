@@ -39,6 +39,13 @@ const allowed = {
     "packages/database",
     "packages/permissions",
     "packages/i18n",
+    "packages/jobs",
+  ],
+  "apps/worker": ["packages/database", "packages/jobs"],
+  "packages/jobs": [
+    "packages/database",
+    "packages/permissions",
+    "packages/i18n",
   ],
   "packages/ui": [],
   "packages/admin": [
@@ -128,10 +135,18 @@ export function checkBoundaries(root) {
       })?.[1]
       if (target === owner || target === "." || configs.includes(target)) return
       const serverDependency =
-        /^(drizzle-orm|drizzle-kit|pg|@nestjs\/[^/]+)(\/|$)/.test(specifier)
+        /^(drizzle-orm|drizzle-kit|pg|bullmq|ioredis|@nestjs\/[^/]+)(\/|$)/.test(
+          specifier
+        )
       if (
         (target && !allowed[owner].includes(target)) ||
-        (serverDependency && !["apps/api", "packages/database"].includes(owner))
+        (serverDependency &&
+          ![
+            "apps/api",
+            "apps/worker",
+            "packages/jobs",
+            "packages/database",
+          ].includes(owner))
       ) {
         errors.push(
           `${relative(root, file)}: ${specifier} violates ${owner} dependency boundary`
