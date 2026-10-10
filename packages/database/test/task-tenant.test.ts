@@ -444,3 +444,17 @@ for (const change of ["role", "membership", "status"] as const) {
     }
   })
 }
+
+test("不存在的目标组织与成员不存在使用相同永久拒绝，避免暴露组织存在性", async () => {
+  const { identity } = await organization()
+  await assert.rejects(
+    run(
+      { ...identity, organizationId: randomUUID() },
+      { project: ["create"] },
+      async () => "missing organization business"
+    ),
+    (error: unknown) =>
+      error instanceof TaskAuthorizationError &&
+      error.code === "MEMBERSHIP_REQUIRED"
+  )
+})
