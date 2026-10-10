@@ -1,0 +1,27 @@
+{
+  "name": "worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint",
+    "start": "node --env-file=.env dist/main.js",
+    "start:prod": "node dist/main.js",
+    "dev": "node --env-file=.env --watch src/main.ts"
+  },
+  "dependencies": {
+    "@workspace/database": "workspace:*",
+    "@workspace/jobs": "workspace:*",
+    "pg": "8.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "26.5.1",
+    "@workspace/eslint-config": "workspace:*",
+    "@workspace/typescript-config": "workspace:*",
+    "eslint": "10.10.0",
+    "typescript": "6.0.3",
+    "@types/pg": "8.23.1"
+  }
+}
