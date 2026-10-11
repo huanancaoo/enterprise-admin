@@ -2,6 +2,8 @@
 
 日期：2026-09-15。依据 [原架构](multi-tenant-foundation.md)、[S5 计划](implementation-plan.md#s5建立-api-契约错误与本地化规则生成客户端) 和 [Projects 全链路计划](implementation-plan.md#s7完成-projects-全链路每个操作纵向交付)。
 
+本文保留 S5 首次验收快照。下文当时待确认的 Update 字段与尚未交付的详情接口已随 [S7](s7-validation.md) 完成；附件与富文本契约已随 [S9-01](s9-files-validation.md) 扩展。当前语言继承与设置见 [S8 集成约束](s8-integration-contract.md)，整体完成状态见 [实施计划](implementation-plan.md)。
+
 ## 当前交付与待确认项
 
 S5 的第一条真实链路已实现：生成 SDK / Query options → Projects List HTTP → Session / Membership / 权限 → TenantTx → PostgreSQL。S5-01 的 Update 字段范围尚待用户确认：只更新 status，还是同时更新基础语言的名称和描述。在确认前不创建 Update Schema，也不宣布整个 S5 已完成。

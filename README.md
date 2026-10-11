@@ -17,8 +17,11 @@
 
 - **双后台、单一 API Host**：组织成员使用租户后台，平台管理员使用平台后台；授权按成员关系或平台任职执行，不按请求来自哪个 SPA 执行。
 - **Better Auth Organization**：邮箱密码登录、邮箱验证、密码重置、组织创建/选择、成员邀请与角色；组织角色不能产生平台任职。
+- **租户管理**：成员目录、角色调整、移除与退出组织、邀请创建/接受/拒绝/取消/重发、自定义角色管理、个人与组织语言设置和租户审计。
+- **平台管理**：部署 CLI 授予独立平台任职，当前会话 TOTP 验证；组织查询/停用/恢复、脱敏用户目录与受控敏感读取、跨组织审计、平台默认语言与部署摘要、文件配额与保留策略。
 - **数据库层租户隔离**：`app_runtime` / `app_migrator` 分权，租户业务表 ENABLE/FORCE RLS，业务访问必须走 `TenantTx`。
-- **Projects 参考领域**：列表、创建、详情、更新、多语言译文、删除与结构化审计，覆盖 Schema → Repository → API → OpenAPI/Orval → 页面 → E2E。
+- **Projects 参考领域**：列表、创建、详情、更新、多语言译文与富文本正文、固定版本附件、删除与结构化审计，覆盖 Schema → Repository → API → OpenAPI/Orval → 页面 → E2E。
+- **文件管理**：Local/S3-compatible 存储、文件夹层级、上传/覆盖与不可变版本、预览下载、引用、回收站、批量操作、配额和保留维护；个人头像独立于组织文件归属。
 - **契约先于页面**：`packages/contracts` 定义 HTTP Schema，Nest 导出 OpenAPI，Orval 生成 TanStack Query 客户端。
 - **i18n 与 RTL**：`zh-CN` / `en-US` / `ar`；界面语言由 i18next 持有，不写入后台 URL；内容语言与界面语言分离。
 - **认证邮件**：SMTP + 本地 Mailpit，验证邮件、密码重置、组织邀请写入 durable outbox 后再投递。
@@ -47,7 +50,7 @@ packages/mocks       共享 MSW fixtures / handlers
 ```mermaid
 flowchart LR
   Tenant["租户后台 :3200"] -->|/api| API["API Host :3000"]
-  Platform["平台后台 :3201"] -->|/api/auth| API
+  Platform["平台后台 :3201"] -->|/api| API
   API --> PG[("PostgreSQL 18.6")]
   API --> Redis[("Redis 7.4.5")]
   API --> Mail["SMTP / Mailpit"]
@@ -76,7 +79,7 @@ pnpm install --frozen-lockfile
 cp infra/postgres/.env.example infra/postgres/.env
 ```
 
-填写四个互不相同的密码。它们只在首次初始化空数据卷时生效。
+填写五个互不相同的密码。它们只在首次初始化空数据卷时生效。
 
 ```sh
 docker compose --env-file infra/postgres/.env up -d postgres redis mailpit
@@ -143,17 +146,18 @@ pnpm dev
 
 租户后台可注册、验证邮箱、创建组织，并在 `/app/projects/:organizationId` 使用 Projects。认证邮件在 Mailpit 收件箱中查看。
 
-平台后台没有注册。创建平台管理员：
+平台后台没有注册入口。目标用户先通过租户后台完成注册和邮箱验证，再由部署操作者按精确用户 UUID 授予平台任职：
 
 ```sh
 pnpm --filter api build
-pnpm --filter api exec node --env-file=.env dist/console.js platform admin create \
-  --email admin@example.test \
-  --password 'your-password' \
-  --name 平台管理员
+PLATFORM_ASSIGNMENT_DATABASE_URL='postgresql://platform_deployer:...@127.0.0.1:5432/enterprise_admin' \
+  node apps/api/dist/console.js platform assignment grant \
+  --user-id '<verified-user-uuid>' \
+  --role platform_admin \
+  --reason '首次平台任职'
 ```
 
-该命令把邮箱标为已验证，不入队验证邮件。邮箱已被占用时失败，不会改已有用户。
+使用 `platform_deployer` 的独立部署连接，替换连接串与目标用户 UUID；该命令检查用户已存在且邮箱已验证，并将任职变更与审计一同提交。平台登录还须完成当前会话的 TOTP 验证。角色初始化、已有数据库升级和撤销任职步骤见 [数据库说明](packages/database/README.md#平台任职与-mfa)。
 
 > [!IMPORTANT]
 > Redis 是认证运行时的 secondary storage，限流与会话缓存依赖它。Worker 默认加入开发启动、Compose 与发布；配置和接入说明见 [Worker 指南](docs/guides/worker.md)。
@@ -162,14 +166,14 @@ pnpm --filter api exec node --env-file=.env dist/console.js platform admin creat
 
 配置按执行环境分开，根目录 [`.env.example`](.env.example) 只做索引，不是统一凭据文件。
 
-| 文件                                                     | 用途                                                     |
-| -------------------------------------------------------- | -------------------------------------------------------- |
-| `apps/tenant/.env.example`、`apps/platform/.env.example` | 公开前端配置；复制为应用目录 `.env.local` 后由 Vite 加载 |
+| 文件                                                     | 用途                                                          |
+| -------------------------------------------------------- | ------------------------------------------------------------- |
+| `apps/tenant/.env.example`、`apps/platform/.env.example` | 公开前端配置；复制为应用目录 `.env.local` 后由 Vite 加载      |
 | `apps/docs/.env.example`                                 | 文档站 Algolia / OpenRouter 配置；`NEXT_PUBLIC_` 会进入浏览器 |
-| `apps/api/.env.example`                                  | API 进程变量                                             |
-| `apps/worker/.env.example`                               | 核心 Worker 的运行变量                                   |
-| `infra/postgres/.env.example`                            | PostgreSQL 首次初始化，不注入 API                        |
-| `packages/database/.env.example`                         | 仅迁移进程                                               |
+| `apps/api/.env.example`                                  | API 进程变量                                                  |
+| `apps/worker/.env.example`                               | 核心 Worker 的运行变量                                        |
+| `infra/postgres/.env.example`                            | PostgreSQL 首次初始化，不注入 API                             |
+| `packages/database/.env.example`                         | 仅迁移进程                                                    |
 
 任何 `VITE_` 变量都可能进入浏览器，只放公开配置。runtime、migrator 与 bootstrap 凭据不得共享同一份环境文件。
 
@@ -198,12 +202,13 @@ pnpm --filter storybook exec playwright install chromium
 pnpm verify
 ```
 
-`pnpm verify` 顺序执行 peer 检查、依赖边界与 lint、typecheck、i18n、文档内容门禁、单元、API HTTP、Storybook、浏览器 E2E、数据库 Schema 漂移、数据库测试、生产构建和 API 生成物检查。GitHub Actions 使用同一入口，并额外运行 `pnpm --filter @workspace/database test:compose`。
+`pnpm verify` 顺序执行 peer 检查、依赖边界与 lint、typecheck、i18n、文档内容门禁、单元、API HTTP、固定规模性能、Storybook、浏览器 E2E、数据库 Schema 漂移、数据库测试、生产构建和 API 生成物检查。GitHub Actions 使用同一入口，并额外运行 `pnpm --filter @workspace/database test:compose`。
 
 | 范围                 | 入口                                        |
 | -------------------- | ------------------------------------------- |
 | 工程边界 / API 单元  | `pnpm test:unit`                            |
 | API HTTP             | `pnpm test:api`                             |
+| 固定规模 HTTP 性能   | `pnpm test:performance`                     |
 | 公共组件交互与无障碍 | `pnpm test:storybook`                       |
 | 浏览器业务流程       | `pnpm test:e2e`                             |
 | Schema 漂移          | `pnpm db:check`                             |

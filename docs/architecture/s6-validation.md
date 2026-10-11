@@ -2,6 +2,8 @@
 
 日期：2026-09-16。范围为 [实施计划 S6](implementation-plan.md#s6并行建设-uistorybookmsw-与-i18n)。在已有 UI、DataTable、认证和 S5 列表契约上实施；工作区开始时干净，未提交或推送。
 
+本文保留 S6 首次验收快照。下文当时待完成的 Projects 页面、Update 契约和持久化闭环已随 [S7](s7-validation.md) 交付；后续管理页面与文件业务消费分别见 [S8 验收矩阵](s8-acceptance-matrix.md) 和 [S9-01](s9-files-validation.md)。当前完成状态见 [实施计划](implementation-plan.md)。
+
 ## 交付与边界
 
 | 任务  | 实现与证据                                                                                                                                                                         |

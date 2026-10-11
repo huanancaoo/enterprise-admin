@@ -4,9 +4,13 @@
 
 依据用户提供的《开源自托管多租户企业应用基础框架：合并修订技术架构》。技术选型、应用与包边界、Projects Reference Domain、国际化、隔离、迁移和自托管原则沿用该文档。
 
-本文中的阶段编号、任务编号、实施先后顺序、建议脚本名、里程碑范围和具体验收方式，是在原架构上整理的实施建议，不是原文已有排期。未取得仓库代码，不判断现有项目完成度；文档未提供团队配置与工期，因此不指定周数。
+本文中的阶段编号、任务编号、实施先后顺序、里程碑范围和具体验收方式，是在原架构上整理的实施建议，不是原文已有排期。完成状态按 2026-10-11 的仓库实现与已有验收记录更新；文档未提供团队配置与工期，因此不指定周数。
 
 原文出处按章节标注。原文未规定的细节列为实施决策，不视为既定架构。
+
+勾选表示该任务已完成本地实施及对应范围的验证。历史验收记录保留各批次当时的事实；后续交付分别见 [S7](s7-validation.md)、[S8 验收矩阵](s8-acceptance-matrix.md) 和 [S9 文件管理](s9-files-validation.md)。本机证据、远端 CI 和实际部署分别记账。
+
+当前 S1–S7 与 S8 功能已交付，S9-01 完整文件管理已完成本机验收。[S8 总任务 #8](https://github.com/huanancaoo/enterprise-admin/issues/8) 和 [发布验收 #24](https://github.com/huanancaoo/enterprise-admin/issues/24) 仍开放；本地发布编排正在实施，安全回退、完整部署与备份恢复尚未完成验收。通用 Worker 基础设施已按 [#30](https://github.com/huanancaoo/enterprise-admin/issues/30) 实现为必需核心运行时；具体业务通知、导入导出和 Webhook 尚未接入；S10–S11 仍有发布与开源交付任务。
 
 ## 一、实施主线
 
@@ -20,12 +24,12 @@ S0 → S1 → S2 → S3 → S4 → S5 ─┐
 
 S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总发布门禁，不代表测试、日志或 CI 到最后才开始；它们随前面每个阶段一起实现。
 
-| 里程碑 | 必须得到的结果 | 对应阶段 |
-|---|---|---|
-| M1：安全底座可验证 | 干净数据库迁移成功，runtime/migrator 分权，RLS 与事务上下文隔离测试通过 | S0–S3 |
-| M2：参考业务闭环 | 真实登录与组织权限下，Projects 跑通数据库、API、SDK、页面、Storybook、i18n 和 E2E | S4–S7 |
-| M3：双后台边界成立 | 租户成员/角色/设置与平台运营能力具有各自授权边界 | S8 |
-| M4：可发布的自托管版本 | CI、Compose、升级和恢复演练、开源文档齐备 | S10–S11 |
+| 里程碑                 | 必须得到的结果                                                                    | 对应阶段 |
+| ---------------------- | --------------------------------------------------------------------------------- | -------- |
+| M1：安全底座可验证     | 干净数据库迁移成功，runtime/migrator 分权，RLS 与事务上下文隔离测试通过           | S0–S3    |
+| M2：参考业务闭环       | 真实登录与组织权限下，Projects 跑通数据库、API、SDK、页面、Storybook、i18n 和 E2E | S4–S7    |
+| M3：双后台边界成立     | 租户成员/角色/设置与平台运营能力具有各自授权边界                                  | S8       |
+| M4：可发布的自托管版本 | CI、Compose、升级和恢复演练、开源文档齐备                                         | S10–S11  |
 
 不把 SSO、SCIM、Billing、Plugin Marketplace 或 Kubernetes 加入首个核心闭环。Redis 已用于认证的 secondary storage、限流和会话缓存；BullMQ 与通用 Worker 已进入核心运行时，开发、Compose 和发布默认包含 Worker。
 
@@ -35,15 +39,15 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 
 **目标：** 开发者不再自行选择状态管理、ORM、认证系统或 API 类型来源。
 
-- [ ] S0-01：将原文纳入 `docs/architecture/`，建立 Architecture Baseline ADR。
-- [ ] S0-02：记录 Node、pnpm、PostgreSQL 和关键依赖的精确版本；原文的版本范围作为候选，不将“当前稳定版”当成可复现版本号。
-- [ ] S0-03：做最小兼容性验证：NestJS/Express + Better Auth/Organization + Drizzle，以及 Zod 输入校验 → OpenAPI → Orval。
-- [ ] S0-04：验证 React/Vite + Storybook/Vitest/MSW，以及 i18next-cli 的生成与检查流程。
-- [ ] S0-05：确定组织 ID 类型。文档保留 UUID 与 text/ULID 的可能性，认证 Schema、业务外键、RLS cast、Contract 必须一致。
-- [ ] S0-06：补充平台权限与跨租户访问 ADR：平台身份来源、权限模型、允许的操作、数据库访问路径、审计要求。原文给出了职责边界，没有给出完整实现模型。
-- [ ] S0-07：细化 Projects 的状态、可筛选/排序字段、分页响应、删除语义、默认内容语言与译文 fallback。原文没有完整规定这些业务细节。
+- [ ] S0-01：原文已归档于 `docs/architecture/`；独立 Architecture Baseline ADR 尚未补齐。
+- [x] S0-02：Node、pnpm、PostgreSQL 和关键依赖的精确版本已由 package.json、锁文件与 Compose 固定。
+- [x] S0-03：NestJS/Express + Better Auth/Organization + Drizzle，以及 Zod → OpenAPI → Orval 已在 [S4](s4-validation.md)、[S5](s5-validation.md) 和 [S7](s7-validation.md) 的真实集成链路验证。
+- [x] S0-04：React/Vite + Storybook/Vitest/MSW 与 i18next-cli 生成/检查已在 [S6](s6-validation.md) 及后续功能验收中验证。
+- [x] S0-05：组织 ID 使用 UUID，认证 Schema、业务外键、RLS 和 Contract 已统一，见 [S2](s2-validation.md) 与 [S3](s3-validation.md)。
+- [x] S0-06：平台身份来源已由 [ADR-0002](../adr/0002-platform-assignment.md) 确定；权限、受控数据库路径与审计约束见 [S8 集成约束](s8-integration-contract.md)。
+- [x] S0-07：Projects 状态、筛选/排序、分页、删除、内容语言和译文解析已在 [S7](s7-validation.md) 固化并验证。
 
-**固定边界：** React + Vite；NestJS 模块化单体；Better Auth Organization；Drizzle/pg；TanStack Router/Query/Table/Form；OpenAPI/Orval；i18next/Intl。不引入 Next.js、Prisma、React Hook Form 或第二套 Organization/Member/Role 系统。
+**固定边界：** 租户后台和平台后台使用 React + Vite；API Host 使用 NestJS 模块化单体；认证使用 Better Auth Organization；数据库使用 Drizzle/pg；页面使用 TanStack Router/Query/Table/Form、OpenAPI/Orval 与 i18next/Intl。文档站使用 Next.js/Fumadocs；业务链路不引入 Prisma、React Hook Form 或第二套 Organization/Member/Role 系统。
 
 **验收：** 关键版本可重现；兼容性验证结果有记录；平台权限与 ID 类型没有隐含假设；没有将“验证失败后允许引入 Adapter”误写成一开始必须引入 `nestjs-zod`。
 
@@ -53,7 +57,7 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 
 **依赖：** S0。
 
-本地实施及验收已完成，见 [S1 验收记录](s1-validation.md)。远端 CI 尚未推送触发。
+本地实施及验收已完成，见 [S1 验收记录](s1-validation.md)。当前 CI 工作流使用根目录 `pnpm verify` 及数据库 Compose 验证；该阶段的历史记录不代表当前远端运行结果。
 
 - [x] S1-01：初始化 pnpm workspace、Turborepo、TypeScript strict、共享 ESLint/TypeScript 配置。
 - [x] S1-02：创建 `apps/tenant`、`apps/platform`、`apps/api`、`apps/storybook` 的可运行入口。
@@ -63,7 +67,7 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 - [x] S1-06：接入 frozen-lockfile 安装、lint、typecheck、最小 unit test、build。后续阶段逐步增加对应门禁。
 - [x] S1-07：建立 `.env.example`，区分公开前端配置、API runtime 配置和迁移凭据；API 接入 requestId 与结构化日志最小入口。
 
-**建议脚本名，需在仓库实现后才可执行：** `dev`、`lint`、`typecheck`、`test:unit`、`build`、`build:storybook`。脚本名称不是原文既有接口。
+**已实现脚本：** `dev`、`lint`、`typecheck`、`test:unit`、`build`、`build:storybook`，均从仓库根目录执行。
 
 **验收：** 全新 clone 后可以按 README 安装并启动四个应用；CI 最小流程通过；模拟一次前端导入数据库包时，依赖边界检查会失败。
 
@@ -73,7 +77,7 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 
 **依赖：** S1。
 
-本地实施及验收已完成，见 [S2 验收记录](s2-validation.md)。远端 CI 尚未推送触发。
+本地实施及验收已完成，见 [S2 验收记录](s2-validation.md)。后续迁移链与 Compose 复核见 [S8 发布验收](s8-release-validation.md) 和 [S9 文件管理验收](s9-files-validation.md)。
 
 - [x] S2-01：创建 PostgreSQL 本地开发服务及持久化配置。
 - [x] S2-02：编写首次 bootstrap SQL，创建 `bootstrap_admin`、`app_migrator`、`app_runtime` 对应的初始化/迁移/运行边界。
@@ -94,7 +98,7 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 
 **依赖：** S2。这个阶段先用测试构造上下文证明数据库隔离，不必等待完整登录 UI。
 
-本地实施及隔离验收已完成，见 [S3 验收记录](s3-validation.md)。远端 CI 尚未推送触发。
+本地实施及隔离验收已完成，见 [S3 验收记录](s3-validation.md)。后续平台与文件能力继续验证原有租户隔离边界，见 [S8 验收矩阵](s8-acceptance-matrix.md) 和 [S9 文件管理验收](s9-files-validation.md)。
 
 - [x] S3-01：建立包含 `organizationId`、`userId`、`membershipId`、`requestId`、`locale` 的 TenantContext。
 - [x] S3-02：实现 `runInTenant(context, work)`：开启事务，使用 transaction-local `set_config`，将同一事务对象交给 Repository。
@@ -106,16 +110,16 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 
 **最低隔离用例：**
 
-| 场景 | 必须观察到的结果 |
-|---|---|
-| org-A 的正常读取 | 只能取得 org-A 数据 |
-| 故意漏写 organization WHERE | RLS 仍不返回 org-B 数据 |
-| org-A 上下文写入 org-B organization_id | 写入失败 |
-| 修改已有行的 organization_id 到另一个组织 | 修改失败 |
-| A/B 并发请求复用连接池 | 不发生上下文串租户 |
-| 事务提交或回滚后的连接复用 | 不继承上一租户事务上下文 |
-| 没有设置租户上下文 | 不可读取租户数据，写入被拒绝 |
-| org-A 译文关联 org-B Project | 约束或策略拒绝 |
+| 场景                                      | 必须观察到的结果             |
+| ----------------------------------------- | ---------------------------- |
+| org-A 的正常读取                          | 只能取得 org-A 数据          |
+| 故意漏写 organization WHERE               | RLS 仍不返回 org-B 数据      |
+| org-A 上下文写入 org-B organization_id    | 写入失败                     |
+| 修改已有行的 organization_id 到另一个组织 | 修改失败                     |
+| A/B 并发请求复用连接池                    | 不发生上下文串租户           |
+| 事务提交或回滚后的连接复用                | 不继承上一租户事务上下文     |
+| 没有设置租户上下文                        | 不可读取租户数据，写入被拒绝 |
+| org-A 译文关联 org-B Project              | 约束或策略拒绝               |
 
 **验收：** 本阶段全部测试必须通过后，才扩展大量业务模块。测试使用表 Owner 或高权限账号，不算完成 RLS 验收。测试构造的上下文不得通过生产 HTTP 接口暴露。
 
@@ -143,9 +147,9 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 
 **依赖：** S4。先用一个 Projects List 操作证明生成链，再逐项扩展。
 
-当前已交付列表、语言协商及生成链，见 [S5 实施与验证记录](s5-validation.md)。S5-01 的 Update 字段范围待确认，阶段尚未整体完成。
+契约、语言协商及生成链已完成；S5 初次验证见 [实施记录](s5-validation.md)，详情、更新、译文和删除契约随 [S7](s7-validation.md) 交付，附件与富文本契约随后在 [S9-01](s9-files-validation.md) 扩展。Update 字段范围已由当前 Contract 固定。
 
-- [ ] S5-01：在 `packages/contracts` 定义语言无关的 ListQuery、Create、Update、Response、分页结果与统一错误 Schema；具体翻译文案与翻译运行时留在 `packages/i18n`，响应可包含 locale 字段。
+- [x] S5-01：在 `packages/contracts` 定义语言无关的 ListQuery、Create、Update、Response、分页结果与统一错误 Schema；具体翻译文案与翻译运行时留在 `packages/i18n`，响应可包含 locale 字段。
 - [x] S5-02：按 S0 的验证结果接入 Zod 校验与 OpenAPI 生成；额外 Adapter 只在验证确有需要时引入。
 - [x] S5-03：固定 REST 路径规则与稳定 operationId。`/api/auth/*` 由 Better Auth Client 使用，`/api/v1/*` 由生成业务客户端使用。
 - [x] S5-04：配置 OpenAPI → Orval → `packages/api-client`，生成业务 API SDK 与 TanStack Query hooks，并遵循 S5-06 的 Query Key 策略；前端不手写另一套业务 DTO，不导入数据库 Schema 当 API 类型。
@@ -164,7 +168,7 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 
 **依赖：** S1；网络相关 Mock 随 S5 契约同步，最终在 S7 汇合。
 
-本地实施与阶段验证已完成，见 [S6 验收记录](s6-validation.md)。ResourceList 与 FormDialog 通过 Projects 用例验证；Create/Edit/Show 的业务抽象随 S7 实际操作补齐。
+本地实施与阶段验证已完成，见 [S6 验收记录](s6-validation.md)。ResourceList 与 FormDialog 通过 Projects 用例验证；Create/Edit/Show 的业务操作已随 [S7](s7-validation.md) 完成页面与持久化闭环。
 
 - [x] S6-01：在 `packages/ui` 建立最小 primitives 与 token；优先 Button/Input/Select/Dialog/Table/Skeleton 等 Projects 会使用的组件。
 - [x] S6-02：在 `packages/admin` 建立 AppShell、PageHeader、TenantSwitcher、LocaleSwitcher、PermissionGate、DataTable、FilterBar、Pagination、FormDialog、状态组件。
@@ -195,13 +199,13 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 - [x] S7-04 多语言内容：ProjectTranslations、`project:translate` 权限、tenant scope、`project.translation.updated` 审计、内容多语言编辑器；多语言整条解析，Arabic RTL 适配。
 - [x] S7-05 删除：Delete、Policy、事务、级联删除译文、保留审计日志、`ConfirmDangerAction` 确认交互；删除后列表即时更新，原详情 URL 返回 404。
 
-| 子步骤 | 后端与契约 | 前端 | 主要验收 |
-|---|---|---|---|
-| S7-01 列表 | List Query、Repository scope、分页/排序/筛选、OpenAPI | Router Search → Query → Table | 刷新保留筛选；切租户不串缓存；无第二份表格分页源 |
-| S7-02 创建 | Create、组织动作权限、事务、审计事件 | TanStack Form + Zod → Mutation | 成功失效列表并 reset；失败保留草稿；Body 不能覆盖组织归属 |
-| S7-03 详情与更新 | Get/Patch、Domain Policy、project.updated | 详情、编辑、保存 | 只能修改被授权资源；dirty 草稿不因后台刷新被静默覆盖 |
-| S7-04 多语言内容 | ProjectTranslations、translate 权限、tenant scope、审计 | localized content editor | 实现已决定的 fallback；不能读写其他组织译文 |
-| S7-05 删除 | Delete、Policy、事务、缓存关联契约 | ConfirmDangerAction、Mutation | 越权删除失败；成功后列表/详情缓存正确处理 |
+| 子步骤           | 后端与契约                                              | 前端                           | 主要验收                                                  |
+| ---------------- | ------------------------------------------------------- | ------------------------------ | --------------------------------------------------------- |
+| S7-01 列表       | List Query、Repository scope、分页/排序/筛选、OpenAPI   | Router Search → Query → Table  | 刷新保留筛选；切租户不串缓存；无第二份表格分页源          |
+| S7-02 创建       | Create、组织动作权限、事务、审计事件                    | TanStack Form + Zod → Mutation | 成功失效列表并 reset；失败保留草稿；Body 不能覆盖组织归属 |
+| S7-03 详情与更新 | Get/Patch、Domain Policy、project.updated               | 详情、编辑、保存               | 只能修改被授权资源；dirty 草稿不因后台刷新被静默覆盖      |
+| S7-04 多语言内容 | ProjectTranslations、translate 权限、tenant scope、审计 | localized content editor       | 实现已决定的 fallback；不能读写其他组织译文               |
+| S7-05 删除       | Delete、Policy、事务、缓存关联契约                      | ConfirmDangerAction、Mutation  | 越权删除失败；成功后列表/详情缓存正确处理                 |
 
 **状态所有权：** Router 管组织路径和已应用列表条件；Query 管服务端事实；Table 管 selection/column visibility 等视图状态；Form 管未提交草稿。输入表单时不写 Query Cache。
 
@@ -215,12 +219,14 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 
 **依赖：** S7；平台访问实现以 S0 的专项 ADR 为前提。
 
-- [ ] S8-01：租户 Members 页面调用 Better Auth Organization 能力，完成邀请、移除与角色调整，不直接由页面写认证表。
-- [ ] S8-02：租户 Roles 复用 Permission Statement 和文档选择的组织角色能力，不再创建独立重复角色系统。
-- [ ] S8-03：Settings 接入用户 preferredLocale 与组织 defaultLocale；提供租户审计查询和当前语言呈现。
-- [ ] S8-04：在 `apps/platform` 实现 Organizations、Users、Audit、Settings；通过独立平台授权策略保护对应 API。
-- [ ] S8-05：按已决定的允许范围实现跨租户运营查询/审计，记录操作者、目标组织、操作、资源、结果与 requestId。
-- [ ] S8-06：测试普通组织 owner/admin 无法提升为平台角色，也不能因访问 `/platform` 路由取得特权。
+功能实施与组合业务验收已完成，见 [S8 验收矩阵](s8-acceptance-matrix.md) 与 [发布验收记录](s8-release-validation.md)。以下功能任务已完成；安全回退和部署门禁仍由 [#24](https://github.com/huanancaoo/enterprise-admin/issues/24) 跟踪，因此 S8 总任务尚未关闭。
+
+- [x] S8-01：租户 Members 页面调用 Better Auth Organization 能力，完成邀请、移除与角色调整，不直接由页面写认证表。
+- [x] S8-02：租户 Roles 复用 Permission Statement 和原生组织角色能力，完成自定义角色的创建、查看、更新、引用检查与删除。
+- [x] S8-03：Settings 接入用户 preferredLocale 与组织 defaultLocale；提供租户审计查询和当前语言呈现。
+- [x] S8-04：在 `apps/platform` 实现 Organizations、Users、Audit、Settings；通过独立平台授权策略与当前会话 MFA 保护对应 API。
+- [x] S8-05：按已决定的允许范围实现跨租户运营查询/审计，记录操作者、目标组织、操作、资源、结果与 requestId。
+- [x] S8-06：测试普通组织 owner/admin 无法提升为平台角色，也不能因访问 `/platform` 路由取得特权。
 
 **注意：** 双 SPA 是应用边界，不是授权证明。原文未提供完整的平台权限表结构或跨租户数据库通道，不能在实现时默认为 app_runtime 增加 BYPASSRLS，也不能简单复用未经明确授权的平台“万能查询”。
 
@@ -232,15 +238,17 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 
 **依赖：** 基础能力稳定后接入具体业务能力；Worker 基础设施是核心部署的必需组成。
 
-- [ ] S9-01：启用 Files 时先实现 Local/S3-compatible adapter、租户归属和上传/下载授权；加入跨租户 file ID 替换测试。
-- [ ] S9-02：认证/邀请所需 SMTP 已在对应功能阶段提供；复杂通知、重试、导入导出或 Webhook 出现后再增加相应能力。
+完整文件管理 [#25](https://github.com/huanancaoo/enterprise-admin/issues/25) 已完成本机交付并关闭，见 [S9-01 验收记录](s9-files-validation.md)。认证与邀请邮件已通过持久化 outbox 和 API 内投递器异步处理；文件路径操作与保留维护也已有持久化计划及进程恢复验证。这些能力已交付；通用 BullMQ/Worker 也已完成基础设施实现，并按用户明确要求成为必需核心运行时。具体范围与证据见 [Worker 验收记录](s9-worker-validation.md)。
+
+- [x] S9-01：Local/S3-compatible adapter、组织文件归属和上传/下载授权、文件夹层级、不可变版本与引用、回收站、批量、配额和保留维护，以及 Projects 附件/分语言富文本正文与个人头像；包含跨组织与真实 Local/RustFS 验证。
+- [ ] S9-02：复杂业务通知、业务导入导出和 Webhook 按实际需求增加；认证/邀请 SMTP、邮件投递结果与重试已在对应阶段交付。
 - [x] S9-03：BullMQ 与独立 Worker 是必需核心运行时，根开发入口、Compose 和发布默认包含它；Redis 同时承载认证与分开的任务命名空间。
 - [x] S9-04：通用 Worker 的任务契约携带 organizationId、actorId、resourceId、locale、idempotencyKey、requestId/correlationId。
 - [x] S9-05：Worker 执行时重新检查组织状态和必要授权，再通过受控租户事务访问数据。
 - [x] S9-06：真实 Redis 与独立进程验证任务重试、重复投递、持久业务幂等与进程恢复；已有邮件与文件操作维持各自执行规则。
 - [x] S9-07：为通用 Worker 加入角色撤销后旧任务拒绝执行、组织停用后任务拒绝执行、跨租户 resource ID 被拒绝的测试。
 
-**验收：** 当前认证与任务运行时都需要 Redis；Worker 是必需核心运行时。测试注册处理器证明基础设施链路，具体生产业务任务尚未接入。新增异步业务须将对应隔离、授权、幂等与恢复测试加入 Release Gate。
+**验收：** 当前认证与任务运行时都需要 Redis；Worker 是必需核心运行时。测试注册处理器证明基础设施链路，具体生产业务任务尚未接入。已启用的 Files 与邮件能力已有对应隔离、权限、幂等和恢复验证；新增异步业务须将对应测试加入 Release Gate。
 
 **原文依据：** 测试、CI/CD、部署、监控与开源交付。
 
@@ -248,12 +256,14 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 
 **依赖：** S8；启用了 S9 的功能必须带上对应测试。测试和日志在之前各阶段已逐步加入。
 
-- [ ] S10-01：Unit 覆盖 Permission、Policy、Query Key、Locale、Formatter、Schema。
-- [ ] S10-02：Storybook/Vitest 覆盖公共组件、interaction、a11y，并通过 Storybook 静态构建。
-- [ ] S10-03：Nest/Supertest 验证 HTTP Contract、AuthZ、错误 code 与 locale。
-- [ ] S10-04：Testcontainers PostgreSQL 验证 migration、constraint、transaction、RLS。声明 PostgreSQL 17 兼容时补充该版本矩阵；主要支持版本必须完整跑通。
-- [ ] S10-05：隔离测试覆盖 GET/PATCH/DELETE/translation，以及已启用的 file/export job；检查缺少 scope 的原始查询和并发复用。
-- [ ] S10-06：Playwright 覆盖真实登录、多租户、多用户 context、角色变化、CRUD、Locale/RTL。
+现有质量门禁已覆盖下列 S10-01 至 S10-06，实际本机结果见 [S8](s8-release-validation.md) 与 [S9-01](s9-files-validation.md)。发布编排仍在实施；未勾选的发布、监控和恢复任务不由测试或生产构建通过推导完成。
+
+- [x] S10-01：Unit 覆盖 Permission、Policy、Query Key、Locale、Formatter、Schema。
+- [x] S10-02：Storybook/Vitest 覆盖公共组件、interaction、a11y，并通过 Storybook 静态构建。
+- [x] S10-03：Nest/Supertest 验证 HTTP Contract、AuthZ、错误 code 与 locale。
+- [x] S10-04：Testcontainers PostgreSQL 验证 migration、constraint、transaction、RLS。当前验证版本为 PostgreSQL 18.6。
+- [x] S10-05：隔离测试覆盖 GET/PATCH/DELETE/translation 和已启用的 Files；检查缺少 scope 的原始查询和并发复用。业务导出任务未启用。
+- [x] S10-06：Playwright 覆盖真实登录、多租户、多用户 context、角色变化、CRUD、Locale/RTL。
 - [ ] S10-07：生成物漂移、构建、镜像安全检查、SBOM 进入发布流水线。
 - [ ] S10-08：完成 Compose 发布基线与验收：反向代理、tenant/platform 静态资源、API、Worker、PostgreSQL 和 Redis；Storage 按实际业务配置。Worker 默认包含在本地发布编排中。
 - [ ] S10-09：验证 `/app/*`、`/platform/*` SPA 路由刷新与 `/api/*` 转发，不把 API 错误改写为前端 HTML；验证部署环境登录、会话和登出。
@@ -269,6 +279,8 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 
 **依赖：** S10。
 
+README、环境示例、数据库说明、开发者文档站与 Projects 简要指南已存在；完整开源文件、业务模块开发指南、升级与备份恢复文档及独立使用验证仍未完成。
+
 - [ ] S11-01：补齐 LICENSE/NOTICE、README、CONTRIBUTING、SECURITY、CODE_OF_CONDUCT、CHANGELOG、`.env.example` 和 `compose.yaml`。
 - [ ] S11-02：完成架构、部署、升级与备份恢复文档。
 - [ ] S11-03：编写 `docs/guides/create-domain-module.md`，逐步说明 Schema → Migration/RLS → Repository → Policy → Contract/API → OpenAPI/Orval → Router/Query/Table/Form → Storybook/i18n → Tests。
@@ -281,30 +293,32 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 
 **原文依据：** 开源交付清单；社区参考项目与最终架构基线。
 
-## 三、建议新增的工程脚本
+## 三、已实现的工程脚本
 
-以下都是拟新增脚本名，需映射到本项目实际实现，不代表现在已存在或原文提供过这些命令。
+以下命令已在根目录 package.json 提供，从仓库根目录执行；实际脚本定义和完整门禁顺序以当前配置为准。
 
-| 脚本 | 职责 |
-|---|---|
-| `pnpm lint` | 代码规范与包依赖边界 |
-| `pnpm typecheck` | TypeScript 类型检查 |
-| `pnpm test:unit` | 纯函数/Schema/Policy/Query Key 测试 |
-| `pnpm test:storybook` | 组件、交互、a11y |
-| `pnpm build:storybook` | 独立工作台静态构建 |
-| `pnpm i18n:check` | catalog、类型、硬编码与缺失翻译 |
-| `pnpm api:generate` | OpenAPI 与 Orval 生成链 |
-| `pnpm api:check` | 检查生成物漂移 |
-| `pnpm db:generate` | 生成待审查 SQL migration |
-| `pnpm db:migrate` | 使用迁移身份执行待执行 migration |
-| `pnpm test:database` | 真实 PostgreSQL migration/constraint/transaction |
-| `pnpm test:isolation` | 实际 runtime 身份的 RLS 与租户攻击测试 |
-| `pnpm test:e2e` | 真实应用 Playwright 流程 |
-| `pnpm build` | 构建本次启用的应用与包 |
+| 脚本                    | 职责                                             |
+| ----------------------- | ------------------------------------------------ |
+| `pnpm lint`             | 代码规范与包依赖边界                             |
+| `pnpm typecheck`        | TypeScript 类型检查                              |
+| `pnpm test:unit`        | 纯函数/Schema/Policy/Query Key 测试              |
+| `pnpm test:storybook`   | 组件、交互、a11y                                 |
+| `pnpm build:storybook`  | 独立工作台静态构建                               |
+| `pnpm i18n:check`       | catalog、类型、硬编码与缺失翻译                  |
+| `pnpm api:generate`     | OpenAPI 与 Orval 生成链                          |
+| `pnpm api:check`        | 检查生成物漂移                                   |
+| `pnpm db:generate`      | 生成待审查 SQL migration                         |
+| `pnpm db:migrate`       | 使用迁移身份执行待执行 migration                 |
+| `pnpm test:database`    | 真实 PostgreSQL migration/constraint/transaction |
+| `pnpm test:isolation`   | 实际 runtime 身份的 RLS 与租户攻击测试           |
+| `pnpm test:e2e`         | 真实应用 Playwright 流程                         |
+| `pnpm test:performance` | 固定规模 HTTP 性能验证                           |
+| `pnpm build`            | 构建本次启用的应用与包                           |
+| `pnpm verify`           | 完整本机质量门禁                                 |
 
 不把 `db:migrate` 配置为 API/Worker 启动的自动前置任务。迁移凭据由专用执行环境提供，不因统一脚本而扩大其可见范围。
 
-## 四、最先执行的五项任务
+## 四、首轮实施主线（已完成）
 
 1. 固定基线及 ID/平台授权决策，完成最小兼容性验证。
 2. 建立四个应用可运行的 Monorepo 与最小 CI。
@@ -312,4 +326,4 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 4. 完成 Projects/ProjectTranslations 的 TenantTx + RLS，跑通真实 PostgreSQL 双租户隔离测试。
 5. 接入真实身份与权限后，先让 Projects List 跑到浏览器；UI/Storybook/i18n 在此期间并行建设。
 
-第一轮目标不是“有一套好看的后台”，而是“能证明安全边界成立，并且第一个业务模块有唯一、可复制的开发路径”。
+首轮主线已完成安全底座与 Projects 业务闭环。当前后续工作是 S8 发布门禁、自托管发布/恢复及 S11 开源交付；新增 S9 异步业务仍按实际需求启用。
