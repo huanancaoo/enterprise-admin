@@ -1,36 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import type { FileOperationResponse } from '@workspace/contracts';
 import type { TenantContext } from '@workspace/database/tenant';
 import { fileRepository } from '@workspace/database/repositories/files';
 import { ApiException } from '../http/api-exception';
 import { FileWriteExecutor } from './file-write-executor';
-import type {
-  FileUploadStream,
-  OrganizationFileUpload,
-} from './file-upload-stream';
-
-export async function verifyFileUploadReplay(
-  upload: FileUploadStream<{ declaredBytes: number; contentSha256: string }>,
-  signal: AbortSignal,
-): Promise<void> {
-  const hash = createHash('sha256');
-  let bytes = 0;
-  for await (const chunk of upload.source) {
-    signal.throwIfAborted();
-    bytes += chunk.byteLength;
-    if (bytes > upload.fields.declaredBytes)
-      throw new ApiException(409, 'FILE_CONTENT_MISMATCH');
-    hash.update(chunk);
-  }
-  await upload.completed;
-  signal.throwIfAborted();
-  if (
-    bytes !== upload.fields.declaredBytes ||
-    hash.digest('hex') !== upload.fields.contentSha256
-  )
-    throw new ApiException(409, 'FILE_CONTENT_MISMATCH');
-}
+import type { OrganizationFileUpload } from './file-upload-stream';
 
 @Injectable()
 export class FileUploads {
@@ -89,14 +64,11 @@ export class FileUploads {
           segments: path,
         };
         await scope.storage.ensureOwner(address.owner, scope.signal);
-        const facts = await scope.storage.write(
+        const facts = await upload.writeTo(
+          scope.storage,
           address,
-          upload.source,
-          fields.declaredBytes,
           scope.signal,
         );
-        // 文件流结束不等于 multipart 结束；多余字段或第二个文件不得发布。
-        await upload.completed;
         await scope.write((tx) =>
           fileRepository.recordPreparedObject(
             tx,
@@ -119,8 +91,7 @@ export class FileUploads {
       },
       {
         signal: upload.signal,
-        // 同一声明摘要仍须核对重传的真实内容，不能把不同文件当作成功重放。
-        onReuse: (_operation, signal) => verifyFileUploadReplay(upload, signal),
+        onReuse: (_operation, signal) => upload.verifyReplay(signal),
       },
     );
   }

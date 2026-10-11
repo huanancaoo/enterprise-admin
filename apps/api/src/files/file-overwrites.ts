@@ -7,7 +7,6 @@ import { ApiException } from '../http/api-exception';
 import { FileWriteExecutor } from './file-write-executor';
 import { createFileWriteObjectPlan } from './file-object-plan';
 import type { OrganizationFileOverwrite } from './file-upload-stream';
-import { verifyFileUploadReplay } from './file-uploads';
 import type { StorageAddress } from './storage/storage';
 
 @Injectable()
@@ -107,13 +106,11 @@ export class FileOverwrites {
           plan.objects,
         );
         await scope.storage.ensureOwner(owner, scope.signal);
-        const newFacts = await scope.storage.write(
+        const newFacts = await upload.writeTo(
+          scope.storage,
           staging,
-          upload.source,
-          fields.declaredBytes,
           scope.signal,
         );
-        await upload.completed;
         await scope.write((tx) =>
           fileRepository.recordPreparedObject(
             tx,
@@ -169,7 +166,7 @@ export class FileOverwrites {
       },
       {
         signal: upload.signal,
-        onReuse: (_operation, signal) => verifyFileUploadReplay(upload, signal),
+        onReuse: (_operation, signal) => upload.verifyReplay(signal),
       },
     );
   }

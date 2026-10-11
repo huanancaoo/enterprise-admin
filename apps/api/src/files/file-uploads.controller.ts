@@ -73,16 +73,9 @@ export class FileUploadsController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const upload = await readFileUpload(request, response);
-    try {
-      return await this.uploads.upload(
-        context,
-        fromNodeHeaders(headers),
-        upload,
-      );
-    } finally {
-      upload.dispose();
-    }
+    return readFileUpload(request, response, (upload) =>
+      this.uploads.upload(context, fromNodeHeaders(headers), upload),
+    );
   }
 
   @Post('entries/:entryId/overwrite')
@@ -111,16 +104,13 @@ export class FileUploadsController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const upload = await readFileOverwrite(request, response);
-    try {
-      return await this.overwrites.overwrite(
+    return readFileOverwrite(request, response, (upload) =>
+      this.overwrites.overwrite(
         context,
         fromNodeHeaders(headers),
         entryId,
         upload,
-      );
-    } finally {
-      upload.dispose();
-    }
+      ),
+    );
   }
 }

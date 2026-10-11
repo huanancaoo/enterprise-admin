@@ -1,5 +1,6 @@
 import busboy from 'busboy';
 import type { Request, Response } from 'express';
+import { createHash } from 'node:crypto';
 import type { Readable } from 'node:stream';
 import {
   maxOrganizationUploadBytes,
@@ -9,23 +10,34 @@ import {
   type UploadFileFields,
 } from '@workspace/contracts';
 import { ApiException } from '../http/api-exception';
-import { StorageError } from './storage/storage';
+import {
+  StorageError,
+  type ContentFacts,
+  type FileStorage,
+  type StorageAddress,
+} from './storage/storage';
 
-export type FileUploadStream<T> = {
+type FileContentFields = { declaredBytes: number; contentSha256: string };
+
+type FileUploadContent<T> = {
   fields: T;
   contentType: string;
-  source: AsyncIterable<Uint8Array>;
-  completed: Promise<void>;
   signal: AbortSignal;
-  dispose(): void;
+  writeTo(
+    storage: Pick<FileStorage, 'write'>,
+    address: StorageAddress,
+    signal: AbortSignal,
+  ): Promise<ContentFacts>;
+  verifyReplay(signal: AbortSignal): Promise<void>;
 };
 
-function readFile<T>(
+function readFile<T extends FileContentFields, Result>(
   request: Request,
   response: Response,
   names: readonly string[],
   parse: (fields: Record<string, string>) => T,
-): Promise<FileUploadStream<T>> {
+  use: (upload: FileUploadContent<T>) => Promise<Result>,
+): Promise<Result> {
   let parser: ReturnType<typeof busboy>;
   try {
     parser = busboy({
@@ -50,9 +62,9 @@ function readFile<T>(
   >;
   let file: Readable | undefined;
   let finished = false;
-  let accept!: (upload: FileUploadStream<T>) => void;
+  let accept!: (upload: FileUploadContent<T>) => void;
   let reject!: (error: unknown) => void;
-  const ready = new Promise<FileUploadStream<T>>((resolve, fail) => {
+  const ready = new Promise<FileUploadContent<T>>((resolve, fail) => {
     accept = resolve;
     reject = fail;
   });
@@ -62,7 +74,7 @@ function readFile<T>(
     complete = resolve;
     rejectCompletion = fail;
   });
-  // 字段受理可能先返回，流读取期间的失败仍由 completed 和 signal 共同传播。
+  // 字段受理后仍可能在业务查权或存储写入前失败，此时尚无人等待终止结果。
   void completed.catch(() => {});
   const fail = (error: unknown) => {
     if (controller.signal.aborted) return;
@@ -84,6 +96,24 @@ function readFile<T>(
     request.removeListener('aborted', interrupted);
     request.removeListener('error', interrupted);
     response.removeListener('close', interrupted);
+  };
+  const consumeContent = async <Result>(
+    signal: AbortSignal,
+    consume: () => Promise<Result>,
+  ): Promise<Result> => {
+    signal.throwIfAborted();
+    // 内容 EOF 后仍须等 multipart 尾部；租约取消不能卡在等待客户端结束请求。
+    const onAbort = () => fail(signal.reason);
+    signal.addEventListener('abort', onAbort, { once: true });
+    try {
+      const result = await consume();
+      // 多余字段或第二个文件可能在内容流结束后才到达，确认完整请求后才返回事实。
+      await completed;
+      signal.throwIfAborted();
+      return result;
+    } finally {
+      signal.removeEventListener('abort', onAbort);
+    }
   };
   parser.on('field', (name, value, info) => {
     // 元数据必须先于内容，才能在写入前固定路径、配额和幂等请求事实。
@@ -119,13 +149,35 @@ function readFile<T>(
       invalid();
       return;
     }
+    const source: AsyncIterable<Uint8Array> = stream;
     accept({
       fields: parsed,
       contentType: info.mimeType,
-      source: stream,
-      completed,
       signal: controller.signal,
-      dispose,
+      writeTo: (storage, address, signal) =>
+        consumeContent(signal, () =>
+          storage.write(address, source, parsed.declaredBytes, signal),
+        ),
+      verifyReplay: async (signal) => {
+        // 重放核对实际字节，不能只凭相同的摘要声明返回历史成功回执。
+        const facts = await consumeContent(signal, async () => {
+          const hash = createHash('sha256');
+          let bytes = 0;
+          for await (const chunk of source) {
+            signal.throwIfAborted();
+            bytes += chunk.byteLength;
+            if (bytes > parsed.declaredBytes)
+              throw new ApiException(409, 'FILE_CONTENT_MISMATCH');
+            hash.update(chunk);
+          }
+          return { bytes, sha256: hash.digest('hex') };
+        });
+        if (
+          facts.bytes !== parsed.declaredBytes ||
+          facts.sha256 !== parsed.contentSha256
+        )
+          throw new ApiException(409, 'FILE_CONTENT_MISMATCH');
+      },
     });
   });
   parser.once('error', invalid);
@@ -142,29 +194,37 @@ function readFile<T>(
     complete();
   });
   request.pipe(parser);
-  return ready.catch((error: unknown) => {
-    dispose();
-    throw error;
-  });
+  // 请求取消持续影响业务发布，监听器须保留到整个操作结束，而非只到内容 EOF。
+  return ready.then(use).finally(dispose);
 }
 
-export function readFileUpload(request: Request, response: Response) {
+export function readFileUpload<Result>(
+  request: Request,
+  response: Response,
+  use: (upload: OrganizationFileUpload) => Promise<Result>,
+) {
   return readFile(
     request,
     response,
     ['operationId', 'parentId', 'name', 'contentSha256', 'declaredBytes'],
     (fields) => UploadFileFieldsSchema.parse(fields),
+    use,
   );
 }
 
-export function readFileOverwrite(request: Request, response: Response) {
+export function readFileOverwrite<Result>(
+  request: Request,
+  response: Response,
+  use: (upload: OrganizationFileOverwrite) => Promise<Result>,
+) {
   return readFile(
     request,
     response,
     ['operationId', 'expectedRevision', 'contentSha256', 'declaredBytes'],
     (fields) => OverwriteFileFieldsSchema.parse(fields),
+    use,
   );
 }
 
-export type OrganizationFileUpload = FileUploadStream<UploadFileFields>;
-export type OrganizationFileOverwrite = FileUploadStream<OverwriteFileFields>;
+export type OrganizationFileUpload = FileUploadContent<UploadFileFields>;
+export type OrganizationFileOverwrite = FileUploadContent<OverwriteFileFields>;
