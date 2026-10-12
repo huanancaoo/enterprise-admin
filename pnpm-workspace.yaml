@@ -58,6 +58,8 @@ saveExact: true
 
 # 发行扫描发现的运行传递依赖漏洞；固定到上游已修复版本。
 overrides:
+  "brace-expansion@2": "2.1.6"
+  "brace-expansion@5": "5.0.11"
   "@grpc/grpc-js": "1.14.5"
   "proxy-addr": "2.0.8"
   "undici@6": "6.28.1"

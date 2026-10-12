@@ -1,4 +1,5 @@
 import type { OnApplicationShutdown } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { redisStorage } from '@better-auth/redis-storage';
 import { createDatabase } from '@workspace/database';
 import {
@@ -105,6 +106,7 @@ function suppressable(hooks: AuthEmailHooks): AuthEmailHooks {
 }
 
 export class AuthRuntime implements OnApplicationShutdown {
+  private readonly logger = new Logger(AuthRuntime.name);
   readonly trustedOrigins: readonly string[];
   readonly pool: ReturnType<typeof createDatabase>['pool'];
   readonly auth: ReturnType<typeof createAuth>;
@@ -123,6 +125,14 @@ export class AuthRuntime implements OnApplicationShutdown {
       .update('enterprise-admin:audit-event-cursor:v1')
       .digest();
     this.pool = createDatabase(config.databaseURL).pool;
+    // pg 已移除失效空闲连接；处理事件避免进程退出及原始连接对象泄露。
+    this.pool.on('error', (error) => {
+      this.logger.error({
+        event: 'database.pool.failed',
+        errorCode: 'DATABASE_CONNECTION_ERROR',
+        errorType: error.name,
+      });
+    });
     // 与 Pool 一样延迟建连：OpenAPI 导出不触达 Redis。
     this.redis = new Redis(config.redisURL, { lazyConnect: true });
     try {

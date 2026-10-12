@@ -24,6 +24,23 @@ const compose = (...command) =>
   execFileSync("docker", [...args, ...command], { stdio: "inherit" })
 
 await withProjectLock(project, async () => {
+  const configuration = JSON.parse(
+    execFileSync("docker", [...args, "config", "--format", "json"], {
+      encoding: "utf8",
+    })
+  )
+  // 发布只消费已准备镜像；Compose 重建会改变镜像身份并在迁移前中断在线数据库。
+  execFileSync(
+    "docker",
+    [
+      "image",
+      "inspect",
+      ...new Set(
+        Object.values(configuration.services).map((service) => service.image)
+      ),
+    ],
+    { stdio: "ignore" }
+  )
   const currentWorker = execFileSync(
     "docker",
     [...args, "ps", "-a", "-q", "worker"],
@@ -59,19 +76,10 @@ await withProjectLock(project, async () => {
     if (missing.length)
       throw new Error(`WORKER_TASK_TYPES_REQUIRED:${missing.join(",")}`)
   }
-  // 固定配方必须在任何数据操作前完成；构建失败不会改变已运行应用与数据库。
-  compose(
-    "build",
-    "postgres",
-    "redis",
-    "mailpit",
-    "otel-collector",
-    "prometheus",
-    "tracing"
-  )
   compose(
     "up",
     "-d",
+    "--no-build",
     "--wait",
     "postgres",
     "redis",

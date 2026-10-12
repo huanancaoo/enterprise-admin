@@ -312,3 +312,72 @@ test("固定本地基础配方的连续缓存构建保留全部镜像身份", ()
   build()
   expect(imageIds()).toBe(accepted)
 })
+
+test("Compose部署配置重复使用已准备镜像，不能改变基础镜像身份", () => {
+  const references = [
+    "enterprise-admin-postgres:18.6-security-1",
+    "enterprise-admin-redis:7.4.5-security-1",
+    "enterprise-admin-mailpit:1.30.4-security-1",
+    "enterprise-admin-otel-collector:0.162.0-security-1",
+    "enterprise-admin-prometheus:3.15.0-security-1",
+    "enterprise-admin-tracing:2.22.0-security-1",
+  ]
+  execFileSync(process.execPath, ["infra/release/build-base-images.mjs"], {
+    stdio: ["ignore", "ignore", "pipe"],
+  })
+  const accepted = docker([
+    "image",
+    "inspect",
+    ...references,
+    "--format",
+    "{{.Id}}",
+  ])
+  const env = { ...process.env }
+  for (const name of [
+    "POSTGRES_PASSWORD",
+    "APP_MIGRATOR_PASSWORD",
+    "APP_RUNTIME_PASSWORD",
+    "PLATFORM_RUNTIME_PASSWORD",
+    "PLATFORM_DEPLOYER_PASSWORD",
+    "BETTER_AUTH_SECRET",
+    "EMAIL_PAYLOAD_ENCRYPTION_KEY",
+    "GITHUB_CLIENT_ID",
+    "GITHUB_CLIENT_SECRET",
+    "RELEASE_API_IMAGE",
+    "RELEASE_WORKER_IMAGE",
+    "RELEASE_TENANT_IMAGE",
+    "RELEASE_PLATFORM_IMAGE",
+    "RELEASE_MIGRATOR_IMAGE",
+  ])
+    env[name] = "identity-not-running"
+  Object.assign(env, {
+    MIGRATION_DATABASE_URL:
+      "postgresql://not-running:not-running@postgres/enterprise_admin",
+    RELEASE_TENANT_ORIGIN: "http://127.0.0.1:1",
+    RELEASE_PLATFORM_ORIGIN: "http://127.0.0.1:2",
+    RELEASE_TENANT_PORT: "1",
+    RELEASE_PLATFORM_PORT: "2",
+    RELEASE_MAIL_PORT: "3",
+  })
+  execFileSync(
+    "docker",
+    [
+      "compose",
+      "-p",
+      "framework-base-identity-test",
+      "-f",
+      "compose.release.yaml",
+      "build",
+      "postgres",
+      "redis",
+      "mailpit",
+      "otel-collector",
+      "prometheus",
+      "tracing",
+    ],
+    { env, stdio: ["ignore", "ignore", "pipe"] }
+  )
+  expect(
+    docker(["image", "inspect", ...references, "--format", "{{.Id}}"])
+  ).toBe(accepted)
+})

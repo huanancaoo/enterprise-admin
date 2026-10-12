@@ -76,7 +76,6 @@ test("正式HTTP经本地Collector到达Prometheus指标与Jaeger关联trace", a
   let environment
   const previous = { ...process.env }
   try {
-    compose("build", "otel-collector", "prometheus", "tracing")
     compose("up", "-d", "otel-collector", "prometheus", "tracing")
     await expect
       .poll(

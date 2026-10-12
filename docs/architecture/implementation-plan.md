@@ -241,14 +241,14 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 完整文件管理 [#25](https://github.com/huanancaoo/enterprise-admin/issues/25) 已完成本机交付并关闭，见 [S9-01 验收记录](s9-files-validation.md)。认证与邀请邮件已通过持久化 outbox 和 API 内投递器异步处理；文件路径操作与保留维护也已有持久化计划及进程恢复验证。这些能力已交付；通用 BullMQ/Worker 也已完成基础设施实现，并按用户明确要求成为必需核心运行时。具体范围与证据见 [Worker 验收记录](s9-worker-validation.md)。
 
 - [x] S9-01：Local/S3-compatible adapter、组织文件归属和上传/下载授权、文件夹层级、不可变版本与引用、回收站、批量、配额和保留维护，以及 Projects 附件/分语言富文本正文与个人头像；包含跨组织与真实 Local/RustFS 验证。
-- [ ] S9-02：复杂业务通知、业务导入导出和 Webhook 按实际需求增加；认证/邀请 SMTP、邮件投递结果与重试已在对应阶段交付。
+- [x] S9-02：按本会话确认范围接入 Projects CSV/XLSX 导入导出、站内与偏好邮件通知、Projects/任务结果薄事件 Webhook；正式生产者、独立 Worker、HTTP/浏览器及本地接收端证据见[八项能力验收](framework-completion-validation.md)。
 - [x] S9-03：BullMQ 与独立 Worker 是必需核心运行时，根开发入口、Compose 和发布默认包含它；Redis 同时承载认证与分开的任务命名空间。
 - [x] S9-04：通用 Worker 的任务契约携带 organizationId、actorId、resourceId、locale、idempotencyKey、requestId/correlationId。
 - [x] S9-05：Worker 执行时重新检查组织状态和必要授权，再通过受控租户事务访问数据。
 - [x] S9-06：真实 Redis 与独立进程验证任务重试、重复投递、持久业务幂等与进程恢复；已有邮件与文件操作维持各自执行规则。
 - [x] S9-07：为通用 Worker 加入角色撤销后旧任务拒绝执行、组织停用后任务拒绝执行、跨租户 resource ID 被拒绝的测试。
 
-**验收：** 当前认证与任务运行时都需要 Redis；Worker 是必需核心运行时。测试注册处理器证明基础设施链路，具体生产业务任务尚未接入。已启用的 Files 与邮件能力已有对应隔离、权限、幂等和恢复验证；新增异步业务须将对应测试加入 Release Gate。
+**验收：** 当前认证与任务运行时都需要 Redis；Worker 是必需核心运行时。正式任务目录已包含 Projects 导入导出；执行时重新检查授权，结果与业务审计持久保存。Files 与邮件继续保持各自的执行规则。新增任务必须取得当前任务目录的真实目标版本回退证据，基础运行时的空目录历史验收不替代它。
 
 **原文依据：** 测试、CI/CD、部署、监控与开源交付。
 
@@ -279,10 +279,10 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 
 **依赖：** S10。
 
-README、环境示例、数据库说明、开发者文档站与 Projects 简要指南已存在；完整开源文件、业务模块开发指南、升级与备份恢复文档及独立使用验证仍未完成。
+Apache-2.0 LICENSE/NOTICE、贡献、安全报告、变更记录、完整模块指南、安装/升级/回退及备份恢复文档已落地；模块指南已有独立照做验证。不可变发行包仍受扫描和实际恢复门禁约束；当前远端 CI 及生产部署结果不由本地证据推导。
 
 - [ ] S11-01：补齐 LICENSE/NOTICE、README、CONTRIBUTING、SECURITY、CODE_OF_CONDUCT、CHANGELOG、`.env.example` 和 `compose.yaml`。
-- [ ] S11-02：完成架构、部署、升级与备份恢复文档。
+- [x] S11-02：完成架构、部署、升级与备份恢复文档；其中实际验收状态另见[八项能力验收记录](framework-completion-validation.md)。
 - [x] S11-03：编写 `docs/guides/create-domain-module.md`，逐步说明 Schema → Migration/RLS → Repository → Policy → Contract/API → OpenAPI/Orval → Router/Query/Table/Form → Storybook/i18n → Tests。
 - [x] S11-04：以一次独立开发验证检查该指南是否可用，修正公开 TenantWrite 与审计资源分类入口；最小演示仅留在隔离源码及可重放 artifact，实际证据见[独立验证](domain-guide-validation.md)。
 - [ ] S11-05：核对各对外功能声明与实际测试结果，不把未启用的 S9 功能写成默认已完成能力。
@@ -326,4 +326,4 @@ README、环境示例、数据库说明、开发者文档站与 Projects 简要�
 4. 完成 Projects/ProjectTranslations 的 TenantTx + RLS，跑通真实 PostgreSQL 双租户隔离测试。
 5. 接入真实身份与权限后，先让 Projects List 跑到浏览器；UI/Storybook/i18n 在此期间并行建设。
 
-首轮主线已完成安全底座与 Projects 业务闭环。当前后续工作是 S8 发布门禁、自托管发布/恢复及 S11 开源交付；新增 S9 异步业务仍按实际需求启用。
+首轮主线已完成安全底座与 Projects 业务闭环，后续确认的八项能力已经进入正式业务链路。当前收尾是本轮不可变镜像的发布、回退、恢复及安全扫描门禁；具体完成与未完成边界以[当前验收记录](framework-completion-validation.md)为准。

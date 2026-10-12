@@ -6,6 +6,7 @@ import { signUpVerified } from "../setup/complete-signup.mjs"
 
 let environment, child, closed, actor, organization, baseURL
 let output = ""
+const applicationName = `operational-log-${randomUUID()}`
 const script = `const {createApplication}=require('./apps/api/dist/create-application.js');const {operationalNestLogger}=require('./apps/api/dist/http/operational-logger.js');(async()=>{const app=await createApplication(JSON.parse(process.env.TEST_APPLICATION_CONFIG),{logger:operationalNestLogger});await app.listen(0,'127.0.0.1');console.log('TEST_API_URL='+await app.getUrl());process.once('SIGTERM',()=>app.close().then(()=>process.exit(0)));})().catch(()=>process.exit(1));`
 beforeAll(async () => {
   environment = await startTestApplication()
@@ -18,11 +19,15 @@ beforeAll(async () => {
     headers: actor.headers,
     body: { name: "Log privacy", slug: randomUUID() },
   })
+  const processConfig = { ...environment.config }
+  const connection = new URL(processConfig.databaseURL)
+  connection.searchParams.set("application_name", applicationName)
+  processConfig.databaseURL = connection.href
   child = spawn(process.execPath, ["-e", script], {
     env: {
       ...process.env,
       OTEL_EXPORTER_OTLP_ENDPOINT: "",
-      TEST_APPLICATION_CONFIG: JSON.stringify(environment.config),
+      TEST_APPLICATION_CONFIG: JSON.stringify(processConfig),
     },
     stdio: ["ignore", "pipe", "pipe"],
   })
@@ -98,4 +103,22 @@ test("JSON解析错误返回400且不把原始请求体写入生产日志", asyn
   expect(failure.code).toBe("VALIDATION_ERROR")
   await expect.poll(() => output.includes(failure.requestId)).toBe(true)
   expect(output).not.toContain(secret)
+})
+
+test("数据库主动断开空闲连接时只记录受控诊断，后续正式HTTP仍可用", async () => {
+  const url = `${baseURL}/api/v1/organizations/${organization.id}/projects`
+  expect((await fetch(url, { headers: actor.headers })).status).toBe(200)
+  // 管理连接只负责注入断连；API 始终保留真实 app_runtime 身份。
+  const terminated = await environment.observer.query(
+    "SELECT pg_terminate_backend(pid) AS terminated FROM pg_stat_activity WHERE application_name=$1 AND state='idle'",
+    [applicationName]
+  )
+  expect(terminated.rows.length).toBeGreaterThan(0)
+  expect(terminated.rows.every((row) => row.terminated)).toBe(true)
+  await vi.waitFor(() => expect(output).toContain("database.pool.failed"))
+  expect(child.exitCode).toBeNull()
+  expect(output).not.toContain("Unhandled 'error' event")
+  expect(output).not.toContain("secretKey")
+  expect(output).not.toContain(environment.config.databaseURL)
+  expect((await fetch(url, { headers: actor.headers })).status).toBe(200)
 })

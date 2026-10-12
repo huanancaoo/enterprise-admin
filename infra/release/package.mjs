@@ -19,6 +19,8 @@ const requiredChecks = [
   "rollback-preserves-suspension-and-revocation",
   "files-publish-and-byte-readback",
   "worker-rollback-actual-source",
+  "business-task-worker-rollback-and-recovery",
+  "credential-revocation-after-recovery",
   "backup-restore-facts-and-files",
   "s3-private-object-recovery",
 ]
@@ -199,11 +201,6 @@ for (const service of [
     `image: ${configuration.services[service].image}`,
     `image: ${images[service].id}`
   )
-// 离线包使用上述已验收 archive，不重新访问依赖源构建基础组件。
-composeSource = composeSource.replace(
-  /\n    build:\n      context: \.\n      dockerfile: infra\/release\/base\/Dockerfile\.(?:database|telemetry)\n      target: (?:postgres|redis|mailpit|otel-collector|prometheus|tracing)\n      provenance: false/g,
-  ""
-)
 await writeFile(join(source, "compose.release.yaml"), composeSource)
 let example = await readFile(join(source, "infra/release/.env.example"), "utf8")
 for (const service of ["api", "worker", "tenant", "platform", "migrator"])

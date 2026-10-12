@@ -27,6 +27,116 @@ let owner, member, operator, suspended, active, membership
 let retainedFile
 const retainedBytes = Buffer.from("发行包必须保留文件的真实字节\n")
 
+let retainedBusinessTask, revokedReleaseCredential
+const businessRequest = (suffix, options = {}) =>
+  fetch(
+    `${env.RELEASE_TENANT_ORIGIN}/api/v1/organizations/${active.id}${suffix}`,
+    {
+      ...options,
+      headers: {
+        cookie: owner.cookie,
+        origin: env.RELEASE_TENANT_ORIGIN,
+        ...options.headers,
+      },
+    }
+  )
+async function completedBusinessTask(kind, body) {
+  const response = await businessRequest(`/projects/${kind}`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "Idempotency-Key": randomUUID(),
+    },
+    body: JSON.stringify(body),
+  })
+  expect(response.status).toBe(202)
+  const task = await response.json()
+  await expect
+    .poll(
+      async () => {
+        const read = await businessRequest(`/tasks/${task.id}`)
+        expect(read.status).toBe(200)
+        return (await read.json()).status
+      },
+      { timeout: 20000 }
+    )
+    .toBe("completed")
+  return task
+}
+async function recordBusinessRecoveryFacts() {
+  const task = await completedBusinessTask("exports", {
+    format: "csv",
+    filter: {},
+  })
+  const result = await businessRequest(`/tasks/${task.id}/result`)
+  expect(result.status).toBe(200)
+  retainedBusinessTask = {
+    id: task.id,
+    sha256: createHash("sha256")
+      .update(Buffer.from(await result.arrayBuffer()))
+      .digest("hex"),
+  }
+  const created = await businessRequest("/access-credentials", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      name: "release-revocation",
+      expiresAt: new Date(Date.now() + 86400000).toISOString(),
+      permissions: { project: ["read"] },
+    }),
+  })
+  expect(created.status).toBe(201)
+  revokedReleaseCredential = await created.json()
+  expect(
+    (
+      await fetch(
+        `${env.RELEASE_TENANT_ORIGIN}/api/v1/organizations/${active.id}/projects`,
+        { headers: { "x-api-key": revokedReleaseCredential.key } }
+      )
+    ).status
+  ).toBe(200)
+  expect(
+    (
+      await businessRequest(
+        `/access-credentials/${revokedReleaseCredential.id}`,
+        { method: "DELETE" }
+      )
+    ).status
+  ).toBe(204)
+}
+async function assertBusinessRecoveryFacts() {
+  const result = await businessRequest(
+    `/tasks/${retainedBusinessTask.id}/result`
+  )
+  expect(result.status).toBe(200)
+  expect(
+    createHash("sha256")
+      .update(Buffer.from(await result.arrayBuffer()))
+      .digest("hex")
+  ).toBe(retainedBusinessTask.sha256)
+  expect(
+    (
+      await fetch(
+        `${env.RELEASE_TENANT_ORIGIN}/api/v1/organizations/${active.id}/projects`,
+        { headers: { "x-api-key": revokedReleaseCredential.key } }
+      )
+    ).status
+  ).toBe(401)
+}
+async function assertBusinessWorkerAfterRollback() {
+  const name = `rollback-worker-${randomUUID()}`
+  const task = await completedBusinessTask("imports", {
+    format: "csv",
+    contentBase64: Buffer.from(
+      `name,description,contentLocale\n${name},after-real-worker-rollback,zh-CN\n`
+    ).toString("base64"),
+  })
+  const read = await businessRequest(`/tasks/${task.id}`)
+  expect((await read.json()).result).toEqual({ count: 1, issues: [] })
+  const projects = await businessRequest(`/projects?name=${name}`)
+  expect((await projects.json()).total).toBe(1)
+}
+
 async function fileRequest(suffix, options = {}) {
   return fetch(
     `${env.RELEASE_TENANT_ORIGIN}/api/v1/organizations/${active.id}/files${suffix}`,
@@ -478,6 +588,8 @@ describe.sequential("local Compose release and S8 rollback", () => {
       record.checks.push(
         "files-publish-and-byte-readback",
         "worker-rollback-actual-source",
+        "business-task-worker-rollback-and-recovery",
+        "credential-revocation-after-recovery",
         "backup-restore-facts-and-files",
         "s3-private-object-recovery"
       )
@@ -639,6 +751,7 @@ describe.sequential("local Compose release and S8 rollback", () => {
   })
 
   it("rolls back to the accepted images while preserving suspension, membership and platform revocation", async () => {
+    await recordBusinessRecoveryFacts()
     expect(await transition("suspend", 1)).toMatchObject({
       status: "SUSPENDED",
       version: 2,
@@ -690,6 +803,8 @@ describe.sequential("local Compose release and S8 rollback", () => {
       )
     ).toBe("revoked")
     expect((await projects(active, owner)).status).toBe(200)
+    await assertBusinessRecoveryFacts()
+    await assertBusinessWorkerAfterRollback()
     await assertRetainedFile()
     const browser = await chromium.launch({ headless: true })
     try {
@@ -838,6 +953,8 @@ describe.sequential("local Compose release and S8 rollback", () => {
       )
       expect(restored.status, restored.stderr).toBe(0)
       await assertRetainedFile()
+      await assertBusinessRecoveryFacts()
+      await assertBusinessWorkerAfterRollback()
       expect((await projects(active, owner)).status).toBe(200)
       expect((await projects(active, member)).status).toBe(403)
       expect((await projects(suspended, owner)).status).toBe(403)

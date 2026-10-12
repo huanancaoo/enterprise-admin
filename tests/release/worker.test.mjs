@@ -63,6 +63,10 @@ async function envFile(connection, suffix) {
 describe.sequential("核心 Worker 生产镜像", () => {
   beforeAll(async () => {
     directory = await mkdtemp(join(tmpdir(), "worker-image-smoke-"))
+    const bases = await command(process.execPath, [
+      "infra/release/build-base-images.mjs",
+    ])
+    expect(bases.code, bases.output.slice(-4000)).toBe(0)
     const build = await docker([
       "build",
       "--target",

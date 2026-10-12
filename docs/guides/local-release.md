@@ -7,6 +7,7 @@
 从源码根目录执行。使用锁定 Node/pnpm、冻结依赖和不可变基础镜像；生产 API/Worker 使用隔离的生产依赖包，以 node 用户运行，SPA 以 nginx 用户运行。环境文件不进入构建上下文。
 
 ```sh
+node infra/release/build-base-images.mjs
 docker build -f infra/release/Dockerfile --target api --build-arg RELEASE_REVISION='<来源>' -t enterprise-admin-api:candidate .
 docker build -f infra/release/Dockerfile --target worker --build-arg RELEASE_REVISION='<来源>' -t enterprise-admin-worker:candidate .
 docker build -f infra/release/Dockerfile --target tenant --build-arg RELEASE_REVISION='<来源>' -t enterprise-admin-tenant:candidate .
@@ -22,7 +23,9 @@ docker build -f infra/release/Dockerfile --target migrator --build-arg RELEASE_R
 node infra/release/publish.mjs enterprise-admin-local-release /private/path/release.env
 ```
 
-发布持有该主机对应 Compose project 的排他锁。先检查旧/目标 Worker 的任务目录，完成基础服务固定配方构建，再启动基础设施，执行正式迁移链与 Files 卷初始化，依次等待 API、当前启动 Worker 的 `worker_ready`、双 SPA，最后核对两入口的登录页、Session 和 API 错误代理。固定配方构建失败时尚未进行数据操作；迁移失败不会替换已有应用容器；Worker 不就绪不会发布 SPA。不可变离线发行包已经绑定并加载验收后的基础镜像，不再次在线构建。
+基础镜像仅由上述固定配方准备入口构建；Compose 配置与发布入口不提供第二条构建路径。重复 Compose 构建会增加部署标签并改变镜像身份，导致升级前重建基础服务；发布因此只消费已经准备或离线加载的镜像。
+
+发布持有该主机对应 Compose project 的排他锁。先校验全部镜像已存在并检查旧/目标 Worker 的任务目录，再启动基础设施，执行正式迁移链与 Files 卷初始化，依次等待 API、当前启动 Worker 的 `worker_ready`、双 SPA，最后核对两入口的登录页、Session 和 API 错误代理。镜像缺失时尚未进行数据操作；迁移失败不会替换已有应用容器；Worker 不就绪不会发布 SPA。
 
 ## 回退边界
 
