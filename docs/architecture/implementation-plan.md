@@ -10,7 +10,7 @@
 
 勾选表示该任务已完成本地实施及对应范围的验证。历史验收记录保留各批次当时的事实；后续交付分别见 [S7](s7-validation.md)、[S8 验收矩阵](s8-acceptance-matrix.md) 和 [S9 文件管理](s9-files-validation.md)。本机证据、远端 CI 和实际部署分别记账。
 
-当前 S1–S7 与 S8 功能已交付，S9-01 完整文件管理已完成本机验收。[S8 总任务 #8](https://github.com/huanancaoo/enterprise-admin/issues/8) 和 [发布验收 #24](https://github.com/huanancaoo/enterprise-admin/issues/24) 仍开放；本地发布编排正在实施，安全回退、完整部署与备份恢复尚未完成验收。通用 Worker 基础设施已按 [#30](https://github.com/huanancaoo/enterprise-admin/issues/30) 实现为必需核心运行时；具体业务通知、导入导出和 Webhook 尚未接入；S10–S11 仍有发布与开源交付任务。
+当前 S1–S7、S8、S9-01 文件管理和必需核心 Worker 已有本机交付证据。本轮已接入 Projects 导入导出、任务中心、通知/Webhook 接口与页面、账户安全和调用凭据，已完成模块指南的独立照做验证；完整集成与不可变发行包门禁仍在进行。具体通过项、生产投递接线与导入边界的待确认事项见[八项能力验收记录](framework-completion-validation.md)。GitHub Issue 的关闭状态、远端 CI 和实际生产部署各自验证，不以本地实施推导。
 
 ## 一、实施主线
 
@@ -262,7 +262,7 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 - [x] S10-02：Storybook/Vitest 覆盖公共组件、interaction、a11y，并通过 Storybook 静态构建。
 - [x] S10-03：Nest/Supertest 验证 HTTP Contract、AuthZ、错误 code 与 locale。
 - [x] S10-04：Testcontainers PostgreSQL 验证 migration、constraint、transaction、RLS。当前验证版本为 PostgreSQL 18.6。
-- [x] S10-05：隔离测试覆盖 GET/PATCH/DELETE/translation 和已启用的 Files；检查缺少 scope 的原始查询和并发复用。业务导出任务未启用。
+- [x] S10-05：隔离测试覆盖 GET/PATCH/DELETE/translation、已启用的 Files 与业务导出；检查缺少 scope 的原始查询、并发复用、凭据与当前角色交集，以及下载时的当前授权。
 - [x] S10-06：Playwright 覆盖真实登录、多租户、多用户 context、角色变化、CRUD、Locale/RTL。
 - [ ] S10-07：生成物漂移、构建、镜像安全检查、SBOM 进入发布流水线。
 - [ ] S10-08：完成 Compose 发布基线与验收：反向代理、tenant/platform 静态资源、API、Worker、PostgreSQL 和 Redis；Storage 按实际业务配置。Worker 默认包含在本地发布编排中。
@@ -283,8 +283,8 @@ README、环境示例、数据库说明、开发者文档站与 Projects 简要�
 
 - [ ] S11-01：补齐 LICENSE/NOTICE、README、CONTRIBUTING、SECURITY、CODE_OF_CONDUCT、CHANGELOG、`.env.example` 和 `compose.yaml`。
 - [ ] S11-02：完成架构、部署、升级与备份恢复文档。
-- [ ] S11-03：编写 `docs/guides/create-domain-module.md`，逐步说明 Schema → Migration/RLS → Repository → Policy → Contract/API → OpenAPI/Orval → Router/Query/Table/Form → Storybook/i18n → Tests。
-- [ ] S11-04：以一次独立开发验证检查该指南是否可用，不要求新增大量演示业务；发现必须绕过 TenantTx、手写 API 类型或复制整套状态管理时回到框架修正。
+- [x] S11-03：编写 `docs/guides/create-domain-module.md`，逐步说明 Schema → Migration/RLS → Repository → Policy → Contract/API → OpenAPI/Orval → Router/Query/Table/Form → Storybook/i18n → Tests。
+- [x] S11-04：以一次独立开发验证检查该指南是否可用，修正公开 TenantWrite 与审计资源分类入口；最小演示仅留在隔离源码及可重放 artifact，实际证据见[独立验证](domain-guide-validation.md)。
 - [ ] S11-05：核对各对外功能声明与实际测试结果，不把未启用的 S9 功能写成默认已完成能力。
 
 **建议的首个版本核心范围：** 认证与组织、成员与角色、租户隔离、Projects 完整范例、租户/平台边界、Storybook/MSW、i18n/RTL、生成 SDK、CI、Compose 与迁移/恢复文档。这个版本范围是实施建议；原文明确的延期项继续延期。

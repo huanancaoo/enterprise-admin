@@ -1,5 +1,5 @@
 FROM node:26.8.2-bookworm-slim
-RUN npm install --global pnpm@12.4.1
+RUN npm install --global pnpm@12.11.2
 WORKDIR /workspace
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/database/package.json packages/database/package.json

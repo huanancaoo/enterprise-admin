@@ -20,7 +20,9 @@ import {
 import { fileRepository } from '@workspace/database/repositories/files';
 import { projectRepository } from '@workspace/database/repositories/projects';
 import { auditRepository } from '@workspace/database/repositories/audit';
+import { domainEventRepository } from '@workspace/database/repositories/domain-events';
 import { AuthRuntime } from '../identity/auth-runtime';
+import { IdentityService } from '../identity/identity.service';
 import {
   AuthorizationService,
   type PermissionRequest,
@@ -35,6 +37,7 @@ export class ProjectFiles {
   constructor(
     private readonly runtime: AuthRuntime,
     private readonly authorization: AuthorizationService,
+    private readonly actors: IdentityService,
   ) {}
 
   async transaction<T>(
@@ -43,20 +46,36 @@ export class ProjectFiles {
     permissions: readonly PermissionRequest[],
     work: (tx: TenantTx) => Promise<T>,
   ): Promise<T> {
+    const credential = headers.has('x-api-key')
+      ? await this.actors.requireBusinessIdentity(
+          headers,
+          context.organizationId,
+        )
+      : undefined;
     const client: PoolClient = await this.runtime.pool.connect();
     try {
       return await createTenantRunner(client)(context, async (tx) => {
         // 引用写、路径操作和清理遵循 usage→Session/status/member→项目/版本的同一锁序。
         await fileRepository.lockOrganization(tx);
-        const session = await this.runtime.auth.withDatabaseClient(client, () =>
-          this.runtime.auth.api.getSession({
-            headers,
-            query: { disableCookieCache: true, disableRefresh: true },
-          }),
-        );
-        if (!session || session.user.id !== context.userId)
-          throw new UnauthorizedException();
-        await fileRepository.requireCurrentActor(tx, session.session.id);
+        let actor: string | { credentialId: string };
+        if (credential && 'credentialId' in credential) {
+          if (credential.userId !== context.userId)
+            throw new UnauthorizedException();
+          actor = { credentialId: credential.credentialId };
+        } else {
+          const session = await this.runtime.auth.withDatabaseClient(
+            client,
+            () =>
+              this.runtime.auth.api.getSession({
+                headers,
+                query: { disableCookieCache: true, disableRefresh: true },
+              }),
+          );
+          if (!session || session.user.id !== context.userId)
+            throw new UnauthorizedException();
+          actor = session.session.id;
+        }
+        await fileRepository.requireCurrentActor(tx, actor);
         await this.authorization.requireAnyPermissionInTransaction(
           client,
           headers,
@@ -71,7 +90,7 @@ export class ProjectFiles {
           context.organizationId,
           permissions,
         );
-        await fileRepository.requireCurrentActor(tx, session.session.id);
+        await fileRepository.requireCurrentActor(tx, actor);
         return result;
       }).catch((error: unknown) => rethrowTenantWriteError(error, context));
     } catch (error) {
@@ -226,9 +245,15 @@ export class ProjectFiles {
         );
         await projectRepository.touch(tx, projectId);
         await auditRepository.record(tx, {
+          resourceType: 'project',
           eventCode: 'project.content.updated',
           resourceId: projectId,
           fields: { locale, revision: content.revision },
+        });
+        await domainEventRepository.record(tx, {
+          type: 'project.updated',
+          resourceId: projectId,
+          payload: { changes: ['content'], locale },
         });
         return {
           locale,

@@ -40,14 +40,22 @@ const allowed = {
     "packages/permissions",
     "packages/i18n",
     "packages/jobs",
+    "packages/observability",
   ],
-  "apps/worker": ["packages/database", "packages/jobs"],
+  "apps/worker": [
+    "packages/database",
+    "packages/jobs",
+    "packages/observability",
+  ],
   "packages/jobs": [
+    "packages/contracts",
+    "packages/observability",
     "packages/database",
     "packages/permissions",
     "packages/i18n",
   ],
   "packages/ui": [],
+  "packages/observability": [],
   "packages/admin": [
     "packages/ui",
     "packages/api-client",
@@ -233,6 +241,7 @@ export function checkBoundaries(root) {
             !(
               specifier === "drizzle-orm" ||
               path.startsWith("packages/database/src/schema/") ||
+              path === "packages/database/src/tenant-actor.ts" ||
               (path === "packages/database/src/tenant.ts" &&
                 ((ts.isImportDeclaration(node) &&
                   node.importClause?.isTypeOnly) ||

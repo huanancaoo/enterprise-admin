@@ -1,0 +1,38 @@
+groups:
+  - name: enterprise-admin
+    rules:
+      - alert: ApiTelemetryMissing
+        expr: absent_over_time(app_process_uptime_seconds{service_name="enterprise-admin-api"}[2m])
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: API 连续缺少运行信号
+      - alert: WorkerTelemetryMissing
+        expr: absent_over_time(app_process_uptime_seconds{service_name="enterprise-admin-worker"}[2m])
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Worker 连续缺少运行信号
+      - alert: TaskBacklog
+        expr: max by (queue) (task_queue_depth{state="waiting"}) > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 组织任务持续积压
+      - alert: TaskExecutionFailure
+        expr: sum by (task_type) (rate(task_attempts_failed_total{outcome="execution_failed"}[5m])) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: 组织任务持续执行失败
+      - alert: HttpServerFailure
+        expr: sum(rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[5m])) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: API 持续返回服务端错误

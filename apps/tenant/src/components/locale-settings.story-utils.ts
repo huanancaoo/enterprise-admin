@@ -1,5 +1,8 @@
 import {
   createLocaleSettingsScenario,
+  createPersonalSecurityScenario,
+  localeSettingsUser,
+  securityUser,
   type LocaleSettingsScenario,
   type LocaleSettingsTarget,
 } from "@workspace/mocks"
@@ -10,14 +13,28 @@ export function localeScenario(
   name: LocaleSettingsScenario = "success"
 ) {
   const fixture = createLocaleSettingsScenario(target, name)
+  const fixtures =
+    target === "personal"
+      ? [
+          fixture,
+          createPersonalSecurityScenario("success", {
+            user: { ...securityUser, ...localeSettingsUser },
+            currentSessionId: "locale-session",
+          }),
+        ]
+      : [fixture]
   return {
-    beforeEach: fixture.reset,
-    parameters: { layout: "fullscreen", msw: { handlers: fixture.handlers } },
+    beforeEach: () => fixtures.forEach((current) => current.reset()),
+    parameters: {
+      layout: "fullscreen",
+      msw: { handlers: fixtures.flatMap((current) => current.handlers) },
+    },
   }
 }
 export async function chooseLocale(canvasElement: HTMLElement, name: string) {
   const canvas = within(canvasElement)
   const control = await canvas.findByRole("combobox", { name: "Language" })
+  const form = within(control.closest("form")!)
   await userEvent.click(control)
   const screen = within(canvasElement.ownerDocument.body)
   const option = await screen.findByRole("option", { name })
@@ -32,14 +49,17 @@ export async function chooseLocale(canvasElement: HTMLElement, name: string) {
   await waitFor(() => expect(popup).not.toBeVisible())
   return {
     canvas,
+    form,
     control,
-    submit: canvas.getByRole("button", { name: "Save" }),
+    submit: form.getByRole("button", { name: "Save" }),
   }
 }
 export async function arabicSaved(canvasElement: HTMLElement) {
   const canvas = within(canvasElement)
   await canvas.findByRole("heading", { name: "الإعدادات الشخصية" })
-  await expect(await canvas.findByRole("status")).toHaveTextContent(
+  const control = await canvas.findByRole("combobox", { name: "اللغة" })
+  const form = within(control.closest("form")!)
+  await expect(await form.findByRole("status")).toHaveTextContent(
     "تم حفظ إعدادات اللغة."
   )
   await expect(canvasElement.ownerDocument.documentElement).toHaveAttribute(

@@ -1,3 +1,6 @@
+import { NotificationsRoute } from "./features/notifications/notifications-route"
+import { TasksRoute } from "./features/tasks/tasks-route"
+import { taskCenterSearchSchema } from "./features/tasks/task-center-search"
 import {
   createRootRouteWithContext,
   createRoute,
@@ -8,6 +11,7 @@ import {
 } from "@tanstack/react-router"
 import {
   AuditEventsQuerySchema,
+  CapabilityPageQuerySchema,
   FileListQuerySchema,
   ProjectListQuerySchema,
 } from "@workspace/contracts"
@@ -28,6 +32,7 @@ import {
   TenantAuthTitlePage,
 } from "./App"
 import { ProjectsRoute } from "./components/projects-route"
+import { IntegrationsRoute } from "./features/integrations/integrations-route"
 import { FilesRoute } from "./features/files/files-route"
 import { FileDetailRoute } from "./features/files/file-detail-route"
 import { fileDetailSearchSchema } from "./features/files/file-detail-search"
@@ -184,6 +189,38 @@ const fileDetailRoute = createRoute({
   validateSearch: fileDetailSearchSchema,
   component: FileDetailRoute,
 })
+const notificationsLayoutRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/notifications",
+  component: AdminLayout,
+})
+const notificationsRoute = createRoute({
+  getParentRoute: () => notificationsLayoutRoute,
+  path: "/$organizationId",
+  validateSearch: CapabilityPageQuerySchema,
+  component: NotificationsRoute,
+})
+const tasksLayoutRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/tasks",
+  component: AdminLayout,
+})
+const tasksRoute = createRoute({
+  getParentRoute: () => tasksLayoutRoute,
+  path: "/$organizationId",
+  validateSearch: taskCenterSearchSchema,
+  component: TasksRoute,
+})
+const integrationsLayoutRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/integrations",
+  component: AdminLayout,
+})
+const integrationsRoute = createRoute({
+  getParentRoute: () => integrationsLayoutRoute,
+  path: "/$organizationId",
+  component: IntegrationsRoute,
+})
 const membersLayoutRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/members",
@@ -247,6 +284,9 @@ export const router = createRouter({
       projectsLayoutRoute.addChildren([projectsRoute, projectDetailRoute]),
       filesLayoutRoute.addChildren([filesRoute, fileDetailRoute]),
       membersLayoutRoute.addChildren([membersRoute]),
+      integrationsLayoutRoute.addChildren([integrationsRoute]),
+      tasksLayoutRoute.addChildren([tasksRoute]),
+      notificationsLayoutRoute.addChildren([notificationsRoute]),
       organizationSettingsLayoutRoute.addChildren([
         rolesRoute,
         organizationSettingsRoute,

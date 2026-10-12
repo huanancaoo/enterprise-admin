@@ -14,7 +14,8 @@
   "dependencies": {
     "@workspace/database": "workspace:*",
     "@workspace/jobs": "workspace:*",
-    "pg": "8.23.0"
+    "pg": "8.23.0",
+    "@workspace/observability": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "26.5.1",

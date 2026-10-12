@@ -22,6 +22,8 @@ Auth emails are written to a durable outbox, then delivered over SMTP. Local dev
 
 ## Platform admins
 
-The platform console has no registration. A platform admin is a login identity plus a row in the platform assignment table. The CLI creates that user with email and password, marks the email verified, and does not enqueue verification mail.
+The platform console has no registration entry point. The target user first registers and verifies their email through the normal authentication flow. A deployment operator then grants a platform assignment through the CLI using the exact user UUID. The CLI does not create users or change email verification status.
+
+Platform assignments use the separate deployment connection `PLATFORM_ASSIGNMENT_DATABASE_URL`. The online API checks the active assignment and current session MFA on every platform request. After an assignment is revoked, the old session's next platform request is denied.
 
 Organization owner is not a platform admin. See [ADR 0002](../adr/0002-platform-assignment.mdx).

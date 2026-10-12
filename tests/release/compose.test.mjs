@@ -1,7 +1,8 @@
-import { spawn } from "node:child_process"
-import { randomBytes, randomUUID } from "node:crypto"
+import { spawn, execFileSync } from "node:child_process"
+import { createHash, randomBytes, randomUUID } from "node:crypto"
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { createServer } from "node:net"
+import { createRequire } from "node:module"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { chromium, expect as expectUI } from "playwright/test"
@@ -12,12 +13,45 @@ import { platformTotp } from "../setup/platform-operator.mjs"
 const rollbackRef = process.env.RELEASE_ROLLBACK_REF
 const project = `enterprise-release-${randomBytes(6).toString("hex")}`
 const root = process.cwd()
+const require = createRequire(
+  new URL("../../apps/api/package.json", import.meta.url)
+)
+const { S3Client, CreateBucketCommand } = require("@aws-sdk/client-s3")
+let executionRoot = root
 let directory, env, oldImages, images, failedImage, migrationImage
+let sourceArchive, sourceArchiveSha256, sourceBaseRevision
+let releaseRecordCreated = false,
+  localRecoveryAccepted = false,
+  s3RecoveryAccepted = false
 let owner, member, operator, suspended, active, membership
+let retainedFile
+const retainedBytes = Buffer.from("发行包必须保留文件的真实字节\n")
+
+async function fileRequest(suffix, options = {}) {
+  return fetch(
+    `${env.RELEASE_TENANT_ORIGIN}/api/v1/organizations/${active.id}/files${suffix}`,
+    {
+      ...options,
+      headers: {
+        cookie: owner.cookie,
+        origin: env.RELEASE_TENANT_ORIGIN,
+        ...options.headers,
+      },
+    }
+  )
+}
+
+async function assertRetainedFile() {
+  const response = await fileRequest(
+    `/entries/${retainedFile.id}/versions/${retainedFile.currentVersion.id}/content`
+  )
+  expect(response.status).toBe(200)
+  expect(Buffer.from(await response.arrayBuffer())).toEqual(retainedBytes)
+}
 
 async function command(file, args, options = {}) {
   const child = spawn(file, args, {
-    cwd: root,
+    cwd: executionRoot,
     env: { ...process.env, ...env },
     stdio: ["ignore", "pipe", "pipe"],
     ...options,
@@ -87,7 +121,7 @@ async function selectImages(selected, migrator = migrationImage) {
     RELEASE_TENANT_IMAGE: selected.tenant,
     RELEASE_PLATFORM_IMAGE: selected.platform,
     RELEASE_MIGRATOR_IMAGE: migrator,
-    RELEASE_WORKER_IMAGE: images.worker,
+    RELEASE_WORKER_IMAGE: selected.worker,
   })
   await writeFile(
     join(directory, "release.env"),
@@ -132,12 +166,7 @@ async function build(context, dockerfile, target, tag, revision) {
 
 async function applicationImages(context, revision, suffix) {
   const result = {}
-  for (const target of [
-    "api",
-    "tenant",
-    "platform",
-    ...(context === root ? ["worker"] : []),
-  ]) {
+  for (const target of ["api", "tenant", "platform", "worker"]) {
     result[target] = await build(
       context,
       join(context, "infra/release/Dockerfile"),
@@ -262,7 +291,12 @@ describe.sequential("local Compose release and S8 rollback", () => {
       throw new Error(
         "Set RELEASE_ROLLBACK_REF to the exact previously accepted commit"
       )
-    directory = await mkdtemp(join(tmpdir(), "enterprise-admin-release-"))
+    if (process.env.RELEASE_EVIDENCE_DIR) {
+      directory = process.env.RELEASE_EVIDENCE_DIR
+      await mkdir(directory, { mode: 0o700 })
+    } else {
+      directory = await mkdtemp(join(tmpdir(), "enterprise-admin-release-"))
+    }
     console.log(`Release evidence: ${directory}`)
     const tenantPort = await reservePort(),
       platformPort = await reservePort(),
@@ -280,6 +314,9 @@ describe.sequential("local Compose release and S8 rollback", () => {
       RELEASE_TENANT_PORT: tenantPort,
       RELEASE_PLATFORM_PORT: platformPort,
       RELEASE_MAIL_PORT: mailPort,
+      RELEASE_OTLP_PORT: await reservePort(),
+      RELEASE_PROMETHEUS_PORT: await reservePort(),
+      RELEASE_TRACING_PORT: await reservePort(),
       RELEASE_TENANT_ORIGIN: `http://127.0.0.1:${tenantPort}`,
       RELEASE_PLATFORM_ORIGIN: `http://127.0.0.1:${platformPort}`,
     }
@@ -302,15 +339,42 @@ describe.sequential("local Compose release and S8 rollback", () => {
       "-C",
       previous,
     ])
-    // 历史 API/SPA 使用该已验收提交自己的镜像配方，不能用新依赖伪造历史构建。
-    images = await applicationImages(root, "local-candidate", "candidate")
+    // 当前工作区先取得不含 ignored 凭据/依赖的源码快照，冷构建期间不会混入后续开发改动。
+    const candidate = join(directory, "candidate")
+    await mkdir(candidate)
+    const paths = execFileSync(
+      "git",
+      ["ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+      { cwd: root }
+    )
+    execFileSync(
+      "tar",
+      ["-cf", join(directory, "candidate.tar"), "--null", "-T", "-"],
+      { cwd: root, input: paths }
+    )
+    execFileSync("tar", [
+      "-xf",
+      join(directory, "candidate.tar"),
+      "-C",
+      candidate,
+    ])
+    sourceArchive = join(directory, "candidate.tar")
+    sourceArchiveSha256 = createHash("sha256")
+      .update(await readFile(sourceArchive))
+      .digest("hex")
+    sourceBaseRevision = execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: root,
+      encoding: "utf8",
+    }).trim()
+    executionRoot = candidate
+    // 历史应用使用该已验收提交自己的镜像配方，不能用新依赖伪造历史构建。
+    images = await applicationImages(candidate, "local-candidate", "candidate")
     oldImages = await applicationImages(previous, revision, "previous")
-    // 本用例只回退 S8 的 API/SPA；核心 Worker 保留本轮镜像，不宣称验收了 Worker 版本回退。
-    oldImages.worker = images.worker
+    expect(oldImages.worker).not.toBe(images.worker)
     const migratorTag = `${project}:migrator`
     migrationImage = await build(
-      root,
-      "infra/release/Dockerfile",
+      candidate,
+      join(candidate, "infra/release/Dockerfile"),
       "migrator",
       migratorTag,
       "local-candidate"
@@ -318,7 +382,10 @@ describe.sequential("local Compose release and S8 rollback", () => {
     const failure = join(directory, "failure")
     await mkdir(join(failure, "meta"), { recursive: true })
     const journal = JSON.parse(
-      await readFile("packages/database/migrations/meta/_journal.json", "utf8")
+      await readFile(
+        join(candidate, "packages/database/migrations/meta/_journal.json"),
+        "utf8"
+      )
     )
     const last = journal.entries.at(-1),
       tag = `${String(journal.entries.length).padStart(4, "0")}_release_gate_failure`
@@ -348,6 +415,8 @@ describe.sequential("local Compose release and S8 rollback", () => {
       "failure-fixture"
     )
     await selectImages(oldImages, failedImage)
+    // 冷启动基础组件构建属于准备阶段；业务用例的超时只衡量真实发布和恢复。
+    await checked(process.execPath, ["infra/release/build-base-images.mjs"])
     await writeFile(
       join(directory, "images.json"),
       JSON.stringify(
@@ -364,6 +433,26 @@ describe.sequential("local Compose release and S8 rollback", () => {
     )
   })
   afterAll(async () => {
+    let infrastructureImages
+    if (releaseRecordCreated && localRecoveryAccepted && s3RecoveryAccepted) {
+      infrastructureImages = {}
+      for (const service of [
+        "postgres",
+        "redis",
+        "mailpit",
+        "otel-collector",
+        "prometheus",
+        "tracing",
+      ]) {
+        const container = await compose("ps", "--all", "-q", service)
+        infrastructureImages[service] = await checked("docker", [
+          "inspect",
+          "--format",
+          "{{.Image}}",
+          container,
+        ])
+      }
+    }
     if (env?.RELEASE_API_IMAGE) {
       try {
         await writeFile(
@@ -379,6 +468,21 @@ describe.sequential("local Compose release and S8 rollback", () => {
       await rm(join(directory, "release.env"), { force: true })
       await rm(join(directory, "previous.tar"), { force: true })
       await rm(join(directory, "previous"), { recursive: true, force: true })
+      await rm(join(directory, "candidate"), { recursive: true, force: true })
+    }
+    if (releaseRecordCreated && localRecoveryAccepted && s3RecoveryAccepted) {
+      const recordPath = join(directory, "result.json")
+      const record = JSON.parse(await readFile(recordPath, "utf8"))
+      record.accepted = true
+      record.infrastructureImages = infrastructureImages
+      record.checks.push(
+        "files-publish-and-byte-readback",
+        "worker-rollback-actual-source",
+        "backup-restore-facts-and-files",
+        "s3-private-object-recovery"
+      )
+      record.completedAt = new Date().toISOString()
+      await writeFile(recordPath, JSON.stringify(record, null, 2) + "\n")
     }
   })
 
@@ -440,6 +544,34 @@ describe.sequential("local Compose release and S8 rollback", () => {
     )
     membership = (await accepted.json()).member
     expect((await projects(active, member)).status).toBe(200)
+    const workspace = await fileRequest("/workspace")
+    expect(workspace.status, await workspace.clone().text()).toBe(200)
+    const form = new FormData()
+    for (const [key, value] of Object.entries({
+      operationId: randomUUID(),
+      parentId: (await workspace.json()).root.id,
+      name: "release-proof.txt",
+      contentSha256: createHash("sha256").update(retainedBytes).digest("hex"),
+      declaredBytes: retainedBytes.byteLength,
+    }))
+      form.append(key, String(value))
+    form.append(
+      "file",
+      new Blob([retainedBytes], { type: "text/plain" }),
+      "release-proof.txt"
+    )
+    const uploaded = await fileRequest("/uploads", {
+      method: "POST",
+      body: form,
+    })
+    expect(uploaded.status, await uploaded.clone().text()).toBe(200)
+    const uploadedOperation = await uploaded.json()
+    const uploadedEntry = await fileRequest(
+      `/entries/${uploadedOperation.result.entryId}`
+    )
+    expect(uploadedEntry.status).toBe(200)
+    retainedFile = await uploadedEntry.json()
+    await assertRetainedFile()
     await assignment("grant")
     const enabled = await auth(
       "two-factor/enable",
@@ -558,6 +690,7 @@ describe.sequential("local Compose release and S8 rollback", () => {
       )
     ).toBe("revoked")
     expect((await projects(active, owner)).status).toBe(200)
+    await assertRetainedFile()
     const browser = await chromium.launch({ headless: true })
     try {
       const page = await browser.newPage()
@@ -636,7 +769,10 @@ describe.sequential("local Compose release and S8 rollback", () => {
       join(directory, "result.json"),
       JSON.stringify(
         {
-          accepted: true,
+          accepted: false,
+          sourceArchive,
+          sourceArchiveSha256,
+          sourceBaseRevision,
           rollbackImages: oldImages,
           candidateImages: images,
           migrationImage,
@@ -652,5 +788,276 @@ describe.sequential("local Compose release and S8 rollback", () => {
         2
       )
     )
+    releaseRecordCreated = true
+  })
+
+  it("maintenance backup restores Files, Redis and authorization facts into new dedicated volumes", async () => {
+    await assignment("grant")
+    expect(await transition("suspend", 3)).toMatchObject({
+      status: "SUSPENDED",
+      version: 4,
+    })
+    await assignment("revoke")
+    const backup = join(directory, "backup")
+    const backedUp = await command(process.execPath, [
+      "infra/release/backup.mjs",
+      project,
+      join(directory, "release.env"),
+      backup,
+    ])
+    expect(backedUp.status, backedUp.stderr).toBe(0)
+    const manifest = JSON.parse(
+      await readFile(join(backup, "manifest.json"), "utf8")
+    )
+    expect(manifest.storage.kind).toBe("local")
+    expect(JSON.stringify(manifest)).not.toContain(env.BETTER_AUTH_SECRET)
+    expect(JSON.stringify(manifest)).not.toContain(
+      env.EMAIL_PAYLOAD_ENCRYPTION_KEY
+    )
+    const restoredProject = project + "-restored"
+    const restoredEnv = {
+      ...env,
+      RELEASE_MAIL_PORT: await reservePort(),
+      RELEASE_OTLP_PORT: await reservePort(),
+      RELEASE_PROMETHEUS_PORT: await reservePort(),
+      RELEASE_TRACING_PORT: await reservePort(),
+    }
+    const restoredFile = join(directory, "restored.env")
+    await writeFile(
+      restoredFile,
+      Object.entries(restoredEnv)
+        .map(([key, value]) => `${key}=${value}`)
+        .join("\n") + "\n",
+      { mode: 0o600 }
+    )
+    try {
+      const restored = await command(
+        process.execPath,
+        ["infra/release/restore.mjs", restoredProject, restoredFile, backup],
+        { env: { ...process.env, ...restoredEnv } }
+      )
+      expect(restored.status, restored.stderr).toBe(0)
+      await assertRetainedFile()
+      expect((await projects(active, owner)).status).toBe(200)
+      expect((await projects(active, member)).status).toBe(403)
+      expect((await projects(suspended, owner)).status).toBe(403)
+      expect((await platformAccess()).status).toBe(403)
+      const session = await fetch(
+        `${env.RELEASE_TENANT_ORIGIN}/api/auth/get-session`,
+        { headers: { cookie: owner.cookie } }
+      )
+      expect((await session.json()).user.id).toBe(owner.user.id)
+      localRecoveryAccepted = true
+    } finally {
+      await command(
+        "docker",
+        [
+          "compose",
+          "-p",
+          restoredProject,
+          "--env-file",
+          restoredFile,
+          "-f",
+          "compose.release.yaml",
+          "down",
+          "--volumes",
+        ],
+        { env: { ...process.env, ...restoredEnv } }
+      )
+      await rm(restoredFile, { force: true })
+    }
+  })
+
+  it("S3-compatible maintenance snapshot restores private object bytes into an empty namespace", async () => {
+    const original = env
+    const objectPort = await reservePort()
+    const accessKey = randomBytes(12).toString("hex"),
+      secretKey = randomBytes(32).toString("hex")
+    const storageFile = join(directory, "object-store.env")
+    const objectName = project + "-objects"
+    const sourceProject = project + "-s3",
+      targetProject = sourceProject + "-restored"
+    const sourceFile = join(directory, "s3.env"),
+      targetFile = join(directory, "s3-restored.env")
+    const sourceEnv = {
+      ...original,
+      RELEASE_API_IMAGE: images.api,
+      RELEASE_WORKER_IMAGE: images.worker,
+      RELEASE_TENANT_IMAGE: images.tenant,
+      RELEASE_PLATFORM_IMAGE: images.platform,
+      RELEASE_MIGRATOR_IMAGE: migrationImage,
+      RELEASE_TENANT_PORT: await reservePort(),
+      RELEASE_PLATFORM_PORT: await reservePort(),
+      RELEASE_MAIL_PORT: await reservePort(),
+      RELEASE_OTLP_PORT: await reservePort(),
+      RELEASE_PROMETHEUS_PORT: await reservePort(),
+      RELEASE_TRACING_PORT: await reservePort(),
+      FILES_STORAGE_BACKEND: "s3",
+      FILES_S3_ENDPOINT: `http://host.docker.internal:${objectPort}`,
+      FILES_S3_REGION: "us-east-1",
+      FILES_S3_BUCKET: "release-" + randomUUID(),
+      FILES_S3_PREFIX: "source",
+      FILES_S3_ACCESS_KEY_ID: accessKey,
+      FILES_S3_SECRET_ACCESS_KEY: secretKey,
+    }
+    sourceEnv.RELEASE_TENANT_ORIGIN = `http://127.0.0.1:${sourceEnv.RELEASE_TENANT_PORT}`
+    sourceEnv.RELEASE_PLATFORM_ORIGIN = `http://127.0.0.1:${sourceEnv.RELEASE_PLATFORM_PORT}`
+    const writeEnvironment = (file, values) =>
+      writeFile(
+        file,
+        Object.entries(values)
+          .map(([key, value]) => `${key}=${value}`)
+          .join("\n") + "\n",
+        { mode: 0o600 }
+      )
+    const run = (args, values = sourceEnv) =>
+      checked("docker", args, { env: { ...process.env, ...values } })
+    const version = JSON.parse(
+      await readFile(
+        join(executionRoot, "docs/architecture/versions.json"),
+        "utf8"
+      )
+    ).rustfs.image
+    await writeEnvironment(storageFile, {
+      RUSTFS_ACCESS_KEY: accessKey,
+      RUSTFS_SECRET_KEY: secretKey,
+      RUSTFS_ADDRESS: ":9000",
+      RUSTFS_CONSOLE_ENABLE: "false",
+    })
+    await writeEnvironment(sourceFile, sourceEnv)
+    const client = new S3Client({
+      endpoint: `http://127.0.0.1:${objectPort}`,
+      region: "us-east-1",
+      forcePathStyle: true,
+      credentials: { accessKeyId: accessKey, secretAccessKey: secretKey },
+    })
+    try {
+      await run([
+        "run",
+        "-d",
+        "--name",
+        objectName,
+        "--env-file",
+        storageFile,
+        "-p",
+        `127.0.0.1:${objectPort}:9000`,
+        version,
+        "/data",
+      ])
+      await expect
+        .poll(
+          async () => {
+            try {
+              return (
+                await fetch(`http://127.0.0.1:${objectPort}/health/ready`)
+              ).status
+            } catch {
+              return 0
+            }
+          },
+          { timeout: 30_000 }
+        )
+        .toBe(200)
+      await client.send(
+        new CreateBucketCommand({ Bucket: sourceEnv.FILES_S3_BUCKET })
+      )
+      const deployed = await command(
+        process.execPath,
+        ["infra/release/publish.mjs", sourceProject, sourceFile],
+        { env: { ...process.env, ...sourceEnv } }
+      )
+      expect(deployed.status, deployed.stderr).toBe(0)
+      env = sourceEnv
+      const actor = await account("S3恢复所有者")
+      const orgResponse = await auth(
+        "organization/create",
+        { name: "S3恢复组织", slug: randomUUID() },
+        actor
+      )
+      const organization = await orgResponse.json()
+      const base = `${sourceEnv.RELEASE_TENANT_ORIGIN}/api/v1/organizations/${organization.id}/files`
+      const headers = {
+        cookie: actor.cookie,
+        origin: sourceEnv.RELEASE_TENANT_ORIGIN,
+      }
+      const workspace = await fetch(base + "/workspace", { headers })
+      expect(workspace.status).toBe(200)
+      const body = Buffer.from("S3一致快照与恢复的真实内容\n")
+      const form = new FormData()
+      for (const [key, value] of Object.entries({
+        operationId: randomUUID(),
+        parentId: (await workspace.json()).root.id,
+        name: "restore.txt",
+        declaredBytes: body.byteLength,
+        contentSha256: createHash("sha256").update(body).digest("hex"),
+      }))
+        form.append(key, String(value))
+      form.append(
+        "file",
+        new Blob([body], { type: "text/plain" }),
+        "restore.txt"
+      )
+      const uploaded = await fetch(base + "/uploads", {
+        method: "POST",
+        headers,
+        body: form,
+      })
+      expect(uploaded.status, await uploaded.clone().text()).toBe(200)
+      const receipt = await uploaded.json()
+      const backup = join(directory, "s3-backup")
+      const captured = await command(
+        process.execPath,
+        ["infra/release/backup.mjs", sourceProject, sourceFile, backup],
+        { env: { ...process.env, ...sourceEnv } }
+      )
+      expect(captured.status, captured.stderr).toBe(0)
+      const targetEnv = {
+        ...sourceEnv,
+        FILES_S3_PREFIX: "restored",
+        RELEASE_MAIL_PORT: await reservePort(),
+        RELEASE_OTLP_PORT: await reservePort(),
+        RELEASE_PROMETHEUS_PORT: await reservePort(),
+        RELEASE_TRACING_PORT: await reservePort(),
+      }
+      await writeEnvironment(targetFile, targetEnv)
+      const recovered = await command(
+        process.execPath,
+        ["infra/release/restore.mjs", targetProject, targetFile, backup],
+        { env: { ...process.env, ...targetEnv } }
+      )
+      expect(recovered.status, recovered.stderr).toBe(0)
+      const content = await fetch(
+        `${base}/entries/${receipt.result.entryId}/versions/${receipt.result.versionId}/content`,
+        { headers }
+      )
+      expect(content.status).toBe(200)
+      expect(Buffer.from(await content.arrayBuffer())).toEqual(body)
+      s3RecoveryAccepted = true
+    } finally {
+      env = original
+      client.destroy()
+      for (const [name, file] of [
+        [sourceProject, sourceFile],
+        [targetProject, targetFile],
+      ])
+        await command(
+          "docker",
+          [
+            "compose",
+            "-p",
+            name,
+            "--env-file",
+            file,
+            "-f",
+            "compose.release.yaml",
+            "down",
+            "--volumes",
+          ],
+          { env: { ...process.env, ...sourceEnv } }
+        )
+      await command("docker", ["rm", "-f", objectName])
+      for (const file of [storageFile, sourceFile, targetFile])
+        await rm(file, { force: true })
+    }
   })
 })

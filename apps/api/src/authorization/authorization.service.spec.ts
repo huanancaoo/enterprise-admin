@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { APIError } from 'better-auth/api';
 import { describe, expect, it, vi } from 'vitest';
+import { CredentialPrincipal } from '../identity/credential-principal';
 import { AuthRuntime } from '../identity/auth-runtime';
 import { AuthorizationService } from './authorization.service';
 
@@ -10,6 +11,7 @@ async function setup() {
   const module = await Test.createTestingModule({
     providers: [
       AuthorizationService,
+      CredentialPrincipal,
       { provide: AuthRuntime, useValue: { auth: { api: { hasPermission } } } },
     ],
   }).compile();

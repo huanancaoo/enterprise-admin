@@ -18,7 +18,10 @@ import {
   type FileEntry,
 } from '@workspace/database/repositories/files';
 import { AuthRuntime } from '../identity/auth-runtime';
-import { IdentityService } from '../identity/identity.service';
+import {
+  IdentityService,
+  businessActorReference,
+} from '../identity/identity.service';
 import {
   AuthorizationService,
   type PermissionRequest,
@@ -69,19 +72,28 @@ export class FilePathWrites {
     action: 'trash' | 'purge',
   ): Promise<FileEntryImpact> {
     const entry = await this.entry(context, id);
-    const actor = await this.actors.requireIdentity(headers);
+    const actor = await this.actors.requireBusinessIdentity(
+      headers,
+      context.organizationId,
+    );
     const client = await this.identity.pool.connect();
     try {
       return await createTenantRunner(client)(context, async (tx) => {
         await fileRepository.lockOrganization(tx);
-        await fileRepository.requireCurrentActor(tx, actor.sessionId);
+        await fileRepository.requireCurrentActor(
+          tx,
+          businessActorReference(actor),
+        );
         await this.authorization.requirePermissionInTransaction(
           client,
           headers,
           context.organizationId,
           filePathPermissions(entry.kind, action),
         );
-        await fileRepository.requireCurrentActor(tx, actor.sessionId);
+        await fileRepository.requireCurrentActor(
+          tx,
+          businessActorReference(actor),
+        );
         return FileEntryImpactSchema.parse(
           await fileRepository.entryImpact(tx, id, action),
         );

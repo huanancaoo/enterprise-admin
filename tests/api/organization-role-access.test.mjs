@@ -124,9 +124,13 @@ describe("organization role permission projection", () => {
       canUpdate: true,
       canDelete: true,
     })
-    expect(access.grantablePermissions).toHaveLength(23)
+    expect(access.grantablePermissions).toHaveLength(25)
     expect(access.grantablePermissions).toEqual(
-      expect.arrayContaining(filePermissions)
+      expect.arrayContaining([
+        ...filePermissions,
+        { resource: "project", action: "export" },
+        { resource: "integration", action: "manage" },
+      ])
     )
     const adminResponse = await read(orgAdmin)
     expect(adminResponse.status).toBe(200)

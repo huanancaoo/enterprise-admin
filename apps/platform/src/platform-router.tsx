@@ -19,14 +19,15 @@ export function PlatformRouter() {
 }
 
 function SessionRouter({ user, queryClient, locale }: WorkspaceRouterContext) {
-  const userId = user?.id ?? "anonymous"
-  const previousUserId = useRef(userId)
+  const sessionId = authClient.useSession().data?.session.id ?? "anonymous"
+  const previousSessionId = useRef(sessionId)
   useLayoutEffect(() => {
-    // RouterProvider 更新 context 不会重跑 beforeLoad。登录/登出后必须 invalidate，否则会停在已失效的路由上。
-    if (previousUserId.current === userId) return
-    previousUserId.current = userId
+    // 同一账号的密码变更也会轮换 Session；新会话不能继续使用旧组织或平台 MFA 的路由事实。
+    if (previousSessionId.current === sessionId) return
+    previousSessionId.current = sessionId
+    void queryClient.invalidateQueries({ queryKey: ["auth"] })
     void router.invalidate()
-  }, [userId])
+  }, [sessionId, queryClient])
   return (
     <RouterProvider router={router} context={{ user, queryClient, locale }} />
   )

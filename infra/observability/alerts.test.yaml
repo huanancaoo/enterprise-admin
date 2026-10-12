@@ -1,0 +1,57 @@
+rule_files: [alerts.yaml]
+evaluation_interval: 1m
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'app_process_uptime_seconds{service_name="enterprise-admin-api"}'
+        values: 0+60x10
+      - series: 'app_process_uptime_seconds{service_name="enterprise-admin-worker"}'
+        values: 0+60x10
+      - series: 'task_queue_depth{queue="organization-tasks",state="waiting"}'
+        values: 0+0x10
+      - series: 'task_attempts_failed_total{task_type="projects.export",outcome="rejected"}'
+        values: 0+1x10
+      - series: 'http_server_request_duration_seconds_count{http_response_status_code="403"}'
+        values: 0+1x10
+    alert_rule_test:
+      - { eval_time: 6m, alertname: ApiTelemetryMissing, exp_alerts: [] }
+      - { eval_time: 6m, alertname: WorkerTelemetryMissing, exp_alerts: [] }
+      - { eval_time: 6m, alertname: TaskBacklog, exp_alerts: [] }
+      - { eval_time: 6m, alertname: TaskExecutionFailure, exp_alerts: [] }
+      - { eval_time: 6m, alertname: HttpServerFailure, exp_alerts: [] }
+  - interval: 1m
+    input_series:
+      - series: 'task_queue_depth{queue="organization-tasks",state="waiting"}'
+        values: 101+0x10
+      - series: 'task_attempts_failed_total{task_type="projects.export",outcome="execution_failed"}'
+        values: 0+1x10
+      - series: 'http_server_request_duration_seconds_count{http_response_status_code="500"}'
+        values: 0+1x10
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: ApiTelemetryMissing
+        exp_alerts:
+          - exp_labels:
+              { severity: critical, service_name: enterprise-admin-api }
+            exp_annotations: { summary: API 连续缺少运行信号 }
+      - eval_time: 6m
+        alertname: WorkerTelemetryMissing
+        exp_alerts:
+          - exp_labels:
+              { severity: critical, service_name: enterprise-admin-worker }
+            exp_annotations: { summary: Worker 连续缺少运行信号 }
+      - eval_time: 6m
+        alertname: TaskBacklog
+        exp_alerts:
+          - exp_labels: { severity: warning, queue: organization-tasks }
+            exp_annotations: { summary: 组织任务持续积压 }
+      - eval_time: 6m
+        alertname: TaskExecutionFailure
+        exp_alerts:
+          - exp_labels: { severity: warning, task_type: projects.export }
+            exp_annotations: { summary: 组织任务持续执行失败 }
+      - eval_time: 6m
+        alertname: HttpServerFailure
+        exp_alerts:
+          - exp_labels: { severity: warning }
+            exp_annotations: { summary: API 持续返回服务端错误 }

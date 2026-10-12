@@ -1,6 +1,53 @@
 services:
+  otel-collector:
+    image: enterprise-admin-otel-collector:0.162.0-security-1
+    build:
+      context: .
+      dockerfile: infra/release/base/Dockerfile.telemetry
+      target: otel-collector
+      provenance: false
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./infra/observability/collector.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "127.0.0.1:${RELEASE_OTLP_PORT:-4318}:4318"
+  prometheus:
+    image: enterprise-admin-prometheus:3.15.0-security-1
+    build:
+      context: .
+      dockerfile: infra/release/base/Dockerfile.telemetry
+      target: prometheus
+      provenance: false
+    command:
+      [
+        "--config.file=/etc/prometheus/prometheus.yaml",
+        "--storage.tsdb.path=/prometheus",
+      ]
+    volumes:
+      - ./infra/observability/prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
+      - ./infra/observability/alerts.yaml:/etc/prometheus/alerts.yaml:ro
+      - release_metrics_data:/prometheus
+    ports:
+      - "127.0.0.1:${RELEASE_PROMETHEUS_PORT:-9090}:9090"
+  tracing:
+    image: enterprise-admin-tracing:2.22.0-security-1
+    build:
+      context: .
+      dockerfile: infra/release/base/Dockerfile.telemetry
+      target: tracing
+      provenance: false
+    command: ["--config=/etc/jaeger/config.yaml"]
+    volumes:
+      - ./infra/observability/jaeger.yaml:/etc/jaeger/config.yaml:ro
+    ports:
+      - "127.0.0.1:${RELEASE_TRACING_PORT:-16686}:16686"
   postgres:
-    image: postgres:18.6-bookworm@sha256:1c59e2c3c818eaa0f0628f695b36e7c9e362d6b219b36a54a32df645cbd7e1af
+    image: enterprise-admin-postgres:18.6-security-1
+    build:
+      context: .
+      dockerfile: infra/release/base/Dockerfile.database
+      target: postgres
+      provenance: false
     environment:
       POSTGRES_USER: bootstrap_admin
       POSTGRES_DB: enterprise_admin
@@ -18,7 +65,12 @@ services:
       timeout: 5s
       retries: 30
   redis:
-    image: redis:7.4.5-bookworm@sha256:90e7a336d044f1abc9e9dbc05d65566850896d11453bbd1dd0fb7e5059f0e8fb
+    image: enterprise-admin-redis:7.4.5-security-1
+    build:
+      context: .
+      dockerfile: infra/release/base/Dockerfile.database
+      target: redis
+      provenance: false
     command:
       [
         "redis-server",
@@ -37,7 +89,12 @@ services:
       timeout: 5s
       retries: 30
   mailpit:
-    image: axllent/mailpit:v1.27.10
+    image: enterprise-admin-mailpit:1.30.4-security-1
+    build:
+      context: .
+      dockerfile: infra/release/base/Dockerfile.telemetry
+      target: mailpit
+      provenance: false
     ports:
       - "127.0.0.1:${RELEASE_MAIL_PORT:?Set RELEASE_MAIL_PORT}:8025"
   migrator:
@@ -52,6 +109,7 @@ services:
       PORT: "3000"
       DATABASE_URL: postgresql://app_runtime:${APP_RUNTIME_PASSWORD}@postgres:5432/enterprise_admin
       REDIS_URL: redis://redis:6379
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       BETTER_AUTH_URL: ${RELEASE_TENANT_ORIGIN:?Set RELEASE_TENANT_ORIGIN}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET}
       BETTER_AUTH_TRUSTED_ORIGINS: ${RELEASE_TENANT_ORIGIN},${RELEASE_PLATFORM_ORIGIN:?Set RELEASE_PLATFORM_ORIGIN}
@@ -68,7 +126,16 @@ services:
       EMAIL_RETRY_MAX_ATTEMPTS: "5"
       EMAIL_RETRY_BASE_DELAY_MS: "200"
       EMAIL_MESSAGE_TTL_MS: "86400000"
-      FILES_STORAGE_BACKEND: disabled
+      FILES_STORAGE_BACKEND: ${FILES_STORAGE_BACKEND:-local}
+      FILES_LOCAL_ROOT: /data/files
+      FILES_S3_ENDPOINT: ${FILES_S3_ENDPOINT:-}
+      FILES_S3_REGION: ${FILES_S3_REGION:-}
+      FILES_S3_BUCKET: ${FILES_S3_BUCKET:-}
+      FILES_S3_PREFIX: ${FILES_S3_PREFIX:-}
+      FILES_S3_ACCESS_KEY_ID: ${FILES_S3_ACCESS_KEY_ID:-}
+      FILES_S3_SECRET_ACCESS_KEY: ${FILES_S3_SECRET_ACCESS_KEY:-}
+    volumes:
+      - release_files_data:/data/files
     healthcheck:
       test:
         - CMD
@@ -78,6 +145,14 @@ services:
       interval: 2s
       timeout: 5s
       retries: 30
+  files-init:
+    image: ${RELEASE_API_IMAGE:?Set RELEASE_API_IMAGE}
+    user: root
+    entrypoint:
+      ["install", "-d", "-m", "0700", "-o", "1000", "-g", "1000", "/data/files"]
+    volumes:
+      - release_files_data:/data/files
+    restart: "no"
   worker:
     image: ${RELEASE_WORKER_IMAGE:?Set RELEASE_WORKER_IMAGE}
     init: true
@@ -88,6 +163,7 @@ services:
       WORKER_QUEUE_NAME: organization-tasks
       WORKER_QUEUE_PREFIX: jobs
       WORKER_SHUTDOWN_MS: "30000"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
   tenant:
     image: ${RELEASE_TENANT_IMAGE:?Set RELEASE_TENANT_IMAGE}
     ports:
@@ -111,3 +187,5 @@ services:
 volumes:
   release_postgres_data:
   release_redis_data:
+  release_files_data:
+  release_metrics_data:

@@ -11,6 +11,10 @@ const namespaces = [
   "organization",
   "projects",
   "settings",
+  "notifications",
+  "tasks",
+  "webhooks",
+  "credentials",
   "validation",
   "errors",
 ]

@@ -43,3 +43,5 @@ export { createUiI18n, localeMeta, syncDocumentLanguage } from "./config.js"
 export { createFormatter } from "./format.js"
 
 export type { TFunction } from "i18next"
+
+export { taskEmailCatalog } from "./task-email-catalog.js"

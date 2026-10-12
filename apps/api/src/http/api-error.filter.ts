@@ -21,12 +21,17 @@ export class ApiErrorFilter implements ExceptionFilter {
 
   catch(error: unknown, host: ArgumentsHost): void {
     const response = host.switchToHttp().getResponse<Response>();
-    const status = error instanceof HttpException ? error.getStatus() : 500;
+    const status = apiFailureStatus(error);
     const code = apiFailureCode(error);
     const locale = getRequestLanguage(response).writeTo(response);
     const requestId = response.locals.requestId as string;
     if (status >= 500)
-      this.logger.error({ event: 'api.request.failed', requestId, error });
+      this.logger.error({
+        event: 'api.request.failed',
+        requestId,
+        code,
+        errorType: error instanceof Error ? error.name : typeof error,
+      });
     const body: ApiError = {
       code,
       message: getTranslator(locale)(code),
@@ -41,14 +46,27 @@ export class ApiErrorFilter implements ExceptionFilter {
 }
 
 export function apiFailureCode(error: unknown): ApiErrorCode {
-  const status = error instanceof HttpException ? error.getStatus() : 500;
+  const status = apiFailureStatus(error);
   const codes: Record<number, ApiErrorCode> = {
     400: 'VALIDATION_ERROR',
     401: 'UNAUTHENTICATED',
     403: 'FORBIDDEN',
     404: 'NOT_FOUND',
+    413: 'VALIDATION_ERROR',
   };
   return declaredCode(error) ?? codes[status] ?? 'INTERNAL_ERROR';
+}
+
+function apiFailureStatus(error: unknown): number {
+  if (error instanceof HttpException) return error.getStatus();
+  // body-parser 的容量拒绝发生在 Controller 前，不能被报告成业务执行故障。
+  if (
+    error instanceof Error &&
+    Reflect.get(error, 'type') === 'entity.too.large' &&
+    Reflect.get(error, 'status') === 413
+  )
+    return 413;
+  return 500;
 }
 
 function declaredCode(error: unknown): ApiErrorCode | undefined {

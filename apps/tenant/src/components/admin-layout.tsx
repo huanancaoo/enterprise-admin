@@ -21,6 +21,9 @@ import { useAuthenticatedSession } from "@workspace/admin/auth"
 import { useUiLocale } from "@workspace/i18n/react"
 import {
   ClipboardListIcon,
+  ListTodoIcon,
+  BellIcon,
+  PlugIcon,
   FolderKanbanIcon,
   FolderOpenIcon,
   SettingsIcon,
@@ -57,6 +60,10 @@ export function AdminLayout() {
     "organization",
     "projects",
     "files",
+    "credentials",
+    "tasks",
+    "notifications",
+    "webhooks",
     "settings",
     "common",
     "errors",
@@ -88,6 +95,9 @@ export function AdminLayout() {
     !organizationId && activeOrganization.isPending
   const organizations = workspace.workspace.data ?? []
   const onMembers = pathname.startsWith("/app/members/")
+  const onNotifications = pathname.startsWith("/app/notifications/")
+  const onTasks = pathname.startsWith("/app/tasks/")
+  const onIntegrations = pathname.startsWith("/app/integrations/")
   const onFiles = pathname.startsWith("/app/files/")
   const onRoles = isOrganizationRolesPath(pathname)
   const onOrganizationSettings =
@@ -199,6 +209,26 @@ export function AdminLayout() {
       params={{ organizationId: currentOrganizationId }}
     />
   ) : undefined
+  const tasksLink = currentOrganizationId ? (
+    <Link
+      to="/app/tasks/$organizationId"
+      params={{ organizationId: currentOrganizationId }}
+      search={{ page: 1, pageSize: 20 }}
+    />
+  ) : undefined
+  const notificationsLink = currentOrganizationId ? (
+    <Link
+      to="/app/notifications/$organizationId"
+      params={{ organizationId: currentOrganizationId }}
+      search={{ page: 1, pageSize: 20 }}
+    />
+  ) : undefined
+  const integrationsLink = currentOrganizationId ? (
+    <Link
+      to="/app/integrations/$organizationId"
+      params={{ organizationId: currentOrganizationId }}
+    />
+  ) : undefined
   const membersLink = currentOrganizationId ? (
     <Link
       to="/app/members/$organizationId"
@@ -244,6 +274,29 @@ export function AdminLayout() {
       }
     } else {
       cancelOrganizationSwitchLocale(nextLocaleSnapshot)
+    }
+    if (onNotifications) {
+      await navigate({
+        to: "/app/notifications/$organizationId",
+        params: { organizationId: nextOrganizationId },
+        search: { page: 1, pageSize: 20 },
+      })
+      return
+    }
+    if (onTasks) {
+      await navigate({
+        to: "/app/tasks/$organizationId",
+        params: { organizationId: nextOrganizationId },
+        search: { page: 1, pageSize: 20 },
+      })
+      return
+    }
+    if (onIntegrations) {
+      await navigate({
+        to: "/app/integrations/$organizationId",
+        params: { organizationId: nextOrganizationId },
+      })
+      return
     }
     if (onFiles) {
       await navigate({
@@ -318,23 +371,29 @@ export function AdminLayout() {
             )}
             <BreadcrumbItem>
               <BreadcrumbPage>
-                {onFiles
-                  ? params.entryId
-                    ? t("files:detail")
-                    : t("files:title")
-                  : onAudit
-                    ? t("organization:audit")
-                    : onMembers
-                      ? t("organization:members")
-                      : onRoles
-                        ? t("organization:roles")
-                        : onOrganizationSettings
-                          ? t("settings:organizationSettings")
-                          : onPersonalSettings
-                            ? t("settings:personalSettings")
-                            : params.projectId
-                              ? t("projects:detail")
-                              : t("projects:title")}
+                {onNotifications
+                  ? t("notifications:title")
+                  : onTasks
+                    ? t("tasks:title")
+                    : onIntegrations
+                      ? t("webhooks:integrations")
+                      : onFiles
+                        ? params.entryId
+                          ? t("files:detail")
+                          : t("files:title")
+                        : onAudit
+                          ? t("organization:audit")
+                          : onMembers
+                            ? t("organization:members")
+                            : onRoles
+                              ? t("organization:roles")
+                              : onOrganizationSettings
+                                ? t("settings:organizationSettings")
+                                : onPersonalSettings
+                                  ? t("settings:personalSettings")
+                                  : params.projectId
+                                    ? t("projects:detail")
+                                    : t("projects:title")}
               </BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
@@ -369,6 +428,27 @@ export function AdminLayout() {
               isActive: onFiles,
               disabled: !currentOrganizationId || suspended,
               render: filesLink,
+            },
+            {
+              title: t("tasks:title"),
+              icon: <ListTodoIcon />,
+              isActive: onTasks,
+              disabled: !currentOrganizationId || suspended,
+              render: tasksLink,
+            },
+            {
+              title: t("notifications:title"),
+              icon: <BellIcon />,
+              isActive: onNotifications,
+              disabled: !currentOrganizationId || suspended,
+              render: notificationsLink,
+            },
+            {
+              title: t("webhooks:integrations"),
+              icon: <PlugIcon />,
+              isActive: onIntegrations,
+              disabled: !currentOrganizationId || suspended,
+              render: integrationsLink,
             },
             {
               title: t("organization:members"),

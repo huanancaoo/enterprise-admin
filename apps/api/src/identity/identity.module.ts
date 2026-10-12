@@ -1,6 +1,7 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { AuthRuntime } from './auth-runtime';
 import { IdentityService } from './identity.service';
+import { CredentialPrincipal } from './credential-principal';
 
 @Module({})
 export class IdentityModule {
@@ -9,8 +10,12 @@ export class IdentityModule {
     return {
       module: IdentityModule,
       global: true,
-      providers: [{ provide: AuthRuntime, useValue: runtime }, IdentityService],
-      exports: [AuthRuntime, IdentityService],
+      providers: [
+        { provide: AuthRuntime, useValue: runtime },
+        IdentityService,
+        CredentialPrincipal,
+      ],
+      exports: [AuthRuntime, IdentityService, CredentialPrincipal],
     };
   }
 }

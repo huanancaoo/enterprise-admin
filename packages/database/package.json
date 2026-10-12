@@ -4,6 +4,18 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./business-task-control": {
+      "types": "./dist/business-task-control.d.ts",
+      "default": "./dist/business-task-control.js"
+    },
+    "./repositories/notifications": {
+      "types": "./dist/repositories/notifications.d.ts",
+      "default": "./dist/repositories/notifications.js"
+    },
+    "./repositories/business-tasks": {
+      "types": "./dist/repositories/business-tasks.d.ts",
+      "default": "./dist/repositories/business-tasks.js"
+    },
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
@@ -39,6 +51,18 @@
     "./task-tenant": {
       "types": "./dist/task-tenant.d.ts",
       "default": "./dist/task-tenant.js"
+    },
+    "./repositories/domain-events": {
+      "types": "./dist/repositories/domain-events.d.ts",
+      "default": "./dist/repositories/domain-events.js"
+    },
+    "./repositories/webhooks": {
+      "types": "./dist/repositories/webhooks.d.ts",
+      "default": "./dist/repositories/webhooks.js"
+    },
+    "./tenant-actor": {
+      "types": "./dist/tenant-actor.d.ts",
+      "default": "./dist/tenant-actor.js"
     }
   },
   "scripts": {
@@ -66,6 +90,7 @@
     "vitest": "4.1.11"
   },
   "dependencies": {
+    "@better-auth/api-key": "1.7.5",
     "@better-auth/drizzle-adapter": "1.7.5",
     "@better-auth/i18n": "1.7.5",
     "@workspace/i18n": "workspace:*",

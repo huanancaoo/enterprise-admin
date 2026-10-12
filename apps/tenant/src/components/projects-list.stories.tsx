@@ -1,4 +1,4 @@
-import { expect, userEvent, waitFor, within } from "storybook/test"
+import { expect, userEvent, waitFor, within, fn } from "storybook/test"
 import type { Meta, StoryObj } from "@storybook/react-vite"
 import {
   createMemoryHistory,
@@ -31,6 +31,7 @@ function ProjectsStoryRoute() {
     <ProjectsList
       organizationId={organizationId}
       search={search}
+      onTaskCreated={fn()}
       onSearchChange={(updater) =>
         void navigate({
           search: (current: ProjectListQuery) => updater(current),

@@ -58,3 +58,5 @@ export type { ConfirmDangerActionProps } from "./components/confirm-danger-actio
 
 export { PersonalAvatar } from "./components/personal-avatar"
 export { PersonalAvatarSettings } from "./components/personal-avatar-settings"
+
+export { PersonalSecuritySettings } from "./components/personal-security-settings"

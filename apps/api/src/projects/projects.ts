@@ -18,6 +18,7 @@ import {
   type TenantTx,
 } from '@workspace/database/tenant';
 import { projectRepository } from '@workspace/database/repositories/projects';
+import { domainEventRepository } from '@workspace/database/repositories/domain-events';
 import { auditRepository } from '@workspace/database/repositories/audit';
 import { AuthRuntime } from '../identity/auth-runtime';
 import { ProjectFiles } from './project-files';
@@ -65,9 +66,15 @@ export class Projects {
           );
         // 与项目和基础译文共用 TenantTx，审计失败必须回滚整个创建。
         await auditRepository.record(tx, {
+          resourceType: 'project',
           eventCode: 'project.created',
           resourceId: project.id,
           fields: { status: project.status, contentLocale },
+        });
+        await domainEventRepository.record(tx, {
+          type: 'project.created',
+          resourceId: project.id,
+          payload: { status: project.status, contentLocale },
         });
         return {
           id: project.id,
@@ -131,9 +138,18 @@ export class Projects {
         if (!deleted) throw new NotFoundException();
         // 删除与审计共用事务；审计未写入时，级联删除的项目及全部译文必须回滚。
         await auditRepository.record(tx, {
+          resourceType: 'project',
           eventCode: 'project.deleted',
           resourceId: deleted.id,
           fields: {
+            status: deleted.status,
+            contentLocale: deleted.contentLocale,
+          },
+        });
+        await domainEventRepository.record(tx, {
+          type: 'project.deleted',
+          resourceId: deleted.id,
+          payload: {
             status: deleted.status,
             contentLocale: deleted.contentLocale,
           },
@@ -197,6 +213,7 @@ export class Projects {
           await projectRepository.updateStatus(tx, projectId, input.status);
           statusChanged = true;
           await auditRepository.record(tx, {
+            resourceType: 'project',
             eventCode: 'project.updated',
             resourceId: projectId,
             fields: { status: input.status },
@@ -226,6 +243,7 @@ export class Projects {
           // 译文本身不带更新时间，必须触及项目才能让列表的更新时间与内容事实一致。
           if (!statusChanged) await projectRepository.touch(tx, projectId);
           await auditRepository.record(tx, {
+            resourceType: 'project',
             eventCode: 'project.translation.updated',
             resourceId: projectId,
             fields: { locale: input.translation.locale },
@@ -241,11 +259,25 @@ export class Projects {
           if (!statusChanged && !input.translation)
             await projectRepository.touch(tx, projectId);
           await auditRepository.record(tx, {
+            resourceType: 'project',
             eventCode: 'project.attachments.updated',
             resourceId: projectId,
             fields: { revision: current.attachmentsRevision + 1 },
           });
         }
+        if (statusChanged || input.translation || input.attachments)
+          await domainEventRepository.record(tx, {
+            type: 'project.updated',
+            resourceId: projectId,
+            payload: {
+              changes: [
+                ...(statusChanged ? ['status'] : []),
+                ...(input.translation ? ['translation'] : []),
+                ...(input.attachments ? ['attachments'] : []),
+              ],
+              locale: input.translation?.locale ?? current.contentLocale,
+            },
+          });
         return projectRepository.findLocalized(tx, projectId);
       },
     );

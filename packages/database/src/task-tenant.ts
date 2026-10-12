@@ -28,15 +28,21 @@ export class TaskAuthorizationError extends Error {
   }
 }
 
-export function createTaskTenantRunner(connection: Pool | PoolClient) {
+type CurrentMembership = {
+  membership_id: string
+  role: string
+  permission: string | null
+}
+
+// 两种能力共享同一组织锁与当前成员读取，membership 能力不会把空权限伪装成合法任务。
+function membershipKernel(connection: Pool | PoolClient) {
   const db = drizzle(connection)
-  return async function runTaskInTenant<T>(
+  return async function withMembership<T>(
     identity: TaskIdentity,
-    permissions: PermissionRequest,
+    authorize: ((member: CurrentMembership) => void) | null,
     work: (tx: TenantTx) => Promise<T>
   ): Promise<T> {
     const snapshot = Object.freeze({ ...identity })
-    const required = structuredClone(permissions)
     return db.transaction(async (tx) => {
       try {
         await tx.execute(
@@ -71,14 +77,7 @@ export function createTaskTenantRunner(connection: Pool | PoolClient) {
       )
       const member = result.rows[0]
       if (!member) throw new TaskAuthorizationError("MEMBERSHIP_REQUIRED")
-      const builtIn = builtInOrganizationRoleKeys.find(
-        (key) => key === member.role
-      )
-      const statements: Statements = builtIn
-        ? builtInOrganizationRolePermissions[builtIn]
-        : JSON.parse(member.permission ?? "{}")
-      if (!role(statements).authorize(required).success)
-        throw new TaskAuthorizationError("PERMISSION_DENIED")
+      authorize?.(member)
       const context = Object.freeze({
         organizationId: snapshot.organizationId,
         userId: snapshot.actorId,
@@ -88,5 +87,40 @@ export function createTaskTenantRunner(connection: Pool | PoolClient) {
       })
       return work(await initializeTenantTransaction(tx, context))
     })
+  }
+}
+
+export function createTaskTenantRunner(connection: Pool | PoolClient) {
+  const run = membershipKernel(connection)
+  return function runTaskInTenant<T>(
+    identity: TaskIdentity,
+    permissions: PermissionRequest,
+    work: (tx: TenantTx) => Promise<T>
+  ): Promise<T> {
+    const required = structuredClone(permissions)
+    return run(
+      identity,
+      (member) => {
+        const builtIn = builtInOrganizationRoleKeys.find(
+          (key) => key === member.role
+        )
+        const statements: Statements = builtIn
+          ? builtInOrganizationRolePermissions[builtIn]
+          : JSON.parse(member.permission ?? "{}")
+        if (!role(statements).authorize(required).success)
+          throw new TaskAuthorizationError("PERMISSION_DENIED")
+      },
+      work
+    )
+  }
+}
+
+export function createMembershipTenantRunner(connection: Pool | PoolClient) {
+  const run = membershipKernel(connection)
+  return function runMemberInTenant<T>(
+    identity: TaskIdentity,
+    work: (tx: TenantTx) => Promise<T>
+  ): Promise<T> {
+    return run(identity, null, work)
   }
 }

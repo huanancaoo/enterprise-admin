@@ -48,17 +48,21 @@ describe("UI locale and formatting", () => {
       new Intl.NumberFormat("ar").format(1234)
     )
   })
-  it("ships all eight namespaces with the same non-empty keys in every locale", () => {
+  it("ships supported feature namespaces with the same non-empty keys in every locale", () => {
     for (const locale of supportedLocales) {
       expect(Object.keys(resources[locale]).sort()).toEqual([
         "auth",
         "common",
+        "credentials",
         "errors",
         "files",
+        "notifications",
         "organization",
         "projects",
         "settings",
+        "tasks",
         "validation",
+        "webhooks",
       ])
       for (const namespace of Object.keys(resources["zh-CN"]) as Array<
         keyof (typeof resources)["zh-CN"]

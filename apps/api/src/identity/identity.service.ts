@@ -11,6 +11,10 @@ import type {
 import { delegableRolePermissions } from '@workspace/permissions';
 import { ApiException } from '../http/api-exception';
 import { AuthRuntime } from './auth-runtime';
+import {
+  CredentialPrincipal,
+  type CredentialIdentity,
+} from './credential-principal';
 
 export interface Identity {
   userId: string;
@@ -22,7 +26,19 @@ export interface Identity {
 export class IdentityService {
   private readonly logger = new Logger(IdentityService.name);
 
-  constructor(private readonly runtime: AuthRuntime) {}
+  constructor(
+    private readonly runtime: AuthRuntime,
+    private readonly credentials: CredentialPrincipal,
+  ) {}
+
+  requireBusinessIdentity(
+    headers: Headers,
+    organizationId: string,
+  ): Promise<Identity | CredentialIdentity> {
+    return headers.has('x-api-key')
+      ? this.credentials.authenticate(headers, organizationId)
+      : this.requireIdentity(headers);
+  }
 
   async getIdentity(headers: Headers): Promise<Identity | null> {
     const result = await this.runtime.auth.api.getSession({
@@ -41,7 +57,7 @@ export class IdentityService {
        INNER JOIN public.session AS active_session
          ON active_session.user_id = account.id
         AND active_session.id = $2
-        AND active_session.expires_at > clock_timestamp()
+        AND active_session.expires_at > (clock_timestamp() AT TIME ZONE 'UTC')
        WHERE account.id = $1
        LIMIT 1`,
       [result.user.id, result.session.id],
@@ -63,7 +79,7 @@ export class IdentityService {
 
   async requireOrganizationMembership(
     organizationId: string,
-    identity: Identity,
+    identity: Pick<Identity, 'userId'>,
     requestId: string,
   ): Promise<{
     membershipId: string;
@@ -104,7 +120,7 @@ export class IdentityService {
   }
 
   async listMembershipOrganizations(
-    identity: Identity,
+    identity: Pick<Identity, 'userId'>,
     requestId: string,
   ): Promise<
     {
@@ -179,4 +195,12 @@ export class IdentityService {
         .map(({ resource, action }) => ({ resource, action })),
     };
   }
+}
+
+export function businessActorReference(
+  actor: Identity | CredentialIdentity,
+): string | { credentialId: string } {
+  return 'credentialId' in actor
+    ? { credentialId: actor.credentialId }
+    : actor.sessionId;
 }

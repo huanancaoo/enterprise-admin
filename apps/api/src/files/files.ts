@@ -24,7 +24,10 @@ import {
 import { fileRepository } from '@workspace/database/repositories/files';
 import { projectRepository } from '@workspace/database/repositories/projects';
 import { AuthRuntime } from '../identity/auth-runtime';
-import { IdentityService } from '../identity/identity.service';
+import {
+  IdentityService,
+  businessActorReference,
+} from '../identity/identity.service';
 import { rethrowTenantWriteError } from '../tenancy/tenant-write';
 import {
   AuthorizationService,
@@ -54,13 +57,19 @@ export class Files {
     this.runtime.requireStorage();
     try {
       // 身份读取不持业务锁；最终授权与文件事实共用已借连接，避免池内互等。
-      const actor = await this.actors.requireIdentity(headers);
+      const actor = await this.actors.requireBusinessIdentity(
+        headers,
+        context.organizationId,
+      );
       const client = await this.identity.pool.connect();
       try {
         return await createTenantRunner(client)(context, async (tx) => {
           // 读取也会懒初始化 workspace；与路径/上传写统一 usage→Session/status 锁序。
           await fileRepository.lockOrganization(tx);
-          await fileRepository.requireCurrentActor(tx, actor.sessionId);
+          await fileRepository.requireCurrentActor(
+            tx,
+            businessActorReference(actor),
+          );
           const result = await load(tx, client);
           await this.authorization.requireAnyPermissionInTransaction(
             client,
@@ -70,7 +79,10 @@ export class Files {
               ? permissions(result)
               : permissions,
           );
-          await fileRepository.requireCurrentActor(tx, actor.sessionId);
+          await fileRepository.requireCurrentActor(
+            tx,
+            businessActorReference(actor),
+          );
           return result;
         }).catch((error: unknown) => rethrowTenantWriteError(error, context));
       } finally {

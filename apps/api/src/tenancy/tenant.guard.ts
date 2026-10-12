@@ -20,7 +20,9 @@ const tenantPermissions = Symbol('tenantPermissions');
 const trustedContext = Symbol('trustedTenantContext');
 type TenantRequest = Request & { [trustedContext]?: TenantContext };
 type TenantPermissionRequirement =
-  PermissionRequest | { anyOf: readonly PermissionRequest[] };
+  | PermissionRequest
+  | { anyOf: readonly PermissionRequest[] }
+  | { membershipOnly: true };
 
 @Injectable()
 export class TenantGuard implements CanActivate {
@@ -54,21 +56,28 @@ export class TenantGuard implements CanActivate {
     const headers = fromNodeHeaders(request.headers);
     const language = getRequestLanguage(response);
     request[trustedContext] =
-      'anyOf' in requirement
-        ? await this.contexts.resolveAny(
+      'membershipOnly' in requirement
+        ? await this.contexts.resolveMembership(
             headers,
             organizationId,
-            requirement.anyOf,
             requestId,
             language,
           )
-        : await this.contexts.resolve(
-            headers,
-            organizationId,
-            requirement,
-            requestId,
-            language,
-          );
+        : 'anyOf' in requirement
+          ? await this.contexts.resolveAny(
+              headers,
+              organizationId,
+              requirement.anyOf,
+              requestId,
+              language,
+            )
+          : await this.contexts.resolve(
+              headers,
+              organizationId,
+              requirement,
+              requestId,
+              language,
+            );
     return true;
   }
 }
@@ -87,7 +96,17 @@ export function RequireTenantAny(...alternatives: PermissionRequest[]) {
   );
 }
 
+// 本人任务与通知读取属于成员身份能力，不要求成员额外取得目录或项目读取动作。
+export function RequireOrganizationMembership() {
+  return applyDecorators(
+    SetMetadata(tenantPermissions, { membershipOnly: true }),
+    UseGuards(TenantGuard),
+  );
+}
+
 function validRequirement(requirement: TenantPermissionRequirement): boolean {
+  if ('membershipOnly' in requirement)
+    return requirement.membershipOnly === true;
   const alternatives =
     'anyOf' in requirement ? requirement.anyOf : [requirement];
   return (

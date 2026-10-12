@@ -16,7 +16,10 @@ import {
   type PermissionRequest,
 } from '../authorization/authorization.service';
 import { AuthRuntime } from '../identity/auth-runtime';
-import { IdentityService } from '../identity/identity.service';
+import {
+  IdentityService,
+  businessActorReference,
+} from '../identity/identity.service';
 import { ApiException } from '../http/api-exception';
 import { apiFailureCode } from '../http/api-error.filter';
 import { rethrowTenantWriteError } from '../tenancy/tenant-write';
@@ -97,10 +100,13 @@ export class FileWriteExecutor implements OnModuleDestroy {
     headers: Headers,
     permissions: PermissionRequest,
   ): Promise<Date> {
-    const actor = await this.actors.requireIdentity(headers);
+    const actor = await this.actors.requireBusinessIdentity(
+      headers,
+      tx.context.organizationId,
+    );
     // 平台策略写也等待 usage；获取身份必须在持锁前，最终授权则复用持锁连接。
     await fileRepository.lockOrganization(tx);
-    await fileRepository.requireCurrentActor(tx, actor.sessionId);
+    await fileRepository.requireCurrentActor(tx, businessActorReference(actor));
     await this.authorization.requirePermissionInTransaction(
       client,
       headers,
@@ -108,7 +114,10 @@ export class FileWriteExecutor implements OnModuleDestroy {
       permissions,
     );
     // 会话/成员锁保护撤销时序；原生授权等待结束后再次检查实际到期时间。
-    return fileRepository.requireCurrentActor(tx, actor.sessionId);
+    return fileRepository.requireCurrentActor(
+      tx,
+      businessActorReference(actor),
+    );
   }
 
   private async perform(

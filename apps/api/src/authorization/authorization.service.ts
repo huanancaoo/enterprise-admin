@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { APIError } from 'better-auth/api';
 import { AuthRuntime } from '../identity/auth-runtime';
+import { CredentialPrincipal } from '../identity/credential-principal';
 import type { PoolClient } from 'pg';
 import type { PermissionRequest } from '@workspace/permissions';
 
@@ -13,7 +14,10 @@ export type { PermissionRequest } from '@workspace/permissions';
 
 @Injectable()
 export class AuthorizationService {
-  constructor(private readonly runtime: AuthRuntime) {}
+  constructor(
+    private readonly runtime: AuthRuntime,
+    private readonly credentials: CredentialPrincipal,
+  ) {}
 
   async requirePermissionInTransaction(
     client: PoolClient,
@@ -21,6 +25,15 @@ export class AuthorizationService {
     organizationId: string,
     permissions: PermissionRequest,
   ): Promise<void> {
+    if (headers.has('x-api-key')) {
+      await this.credentials.authenticate(
+        headers,
+        organizationId,
+        permissions,
+        client,
+      );
+      return;
+    }
     // 最终授权沿持锁事务读取，避免原生组织写占满连接池时无法完成提交。
     await this.runtime.auth.withDatabaseClient(client, () =>
       this.requirePermission(headers, organizationId, permissions),
@@ -33,6 +46,22 @@ export class AuthorizationService {
     organizationId: string,
     alternatives: readonly PermissionRequest[],
   ): Promise<void> {
+    if (headers.has('x-api-key')) {
+      for (const permissions of alternatives) {
+        try {
+          await this.credentials.authenticate(
+            headers,
+            organizationId,
+            permissions,
+            client,
+          );
+          return;
+        } catch (error) {
+          if (!(error instanceof ForbiddenException)) throw error;
+        }
+      }
+      throw new ForbiddenException();
+    }
     await this.runtime.auth.withDatabaseClient(client, () =>
       this.requireAnyPermission(headers, organizationId, alternatives),
     );
@@ -43,6 +72,10 @@ export class AuthorizationService {
     organizationId: string,
     permissions: PermissionRequest,
   ): Promise<void> {
+    if (headers.has('x-api-key')) {
+      await this.credentials.authenticate(headers, organizationId, permissions);
+      return;
+    }
     // Better Auth 会将空组织 ID 解释为 active organization；业务授权禁止这种隐式目标。
     if (!organizationId)
       throw new BadRequestException('organizationId is required');

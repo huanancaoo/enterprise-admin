@@ -4,7 +4,7 @@
   "description": "",
   "author": "",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "bin": {
     "ea": "dist/console.js"
   },
@@ -48,7 +48,8 @@
     "range-parser": "1.3.0",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2",
-    "sharp": "0.35.5"
+    "sharp": "0.35.5",
+    "@workspace/observability": "workspace:*"
   },
   "devDependencies": {
     "@nestjs/cli": "12.0.1",

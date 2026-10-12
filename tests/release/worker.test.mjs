@@ -206,6 +206,9 @@ describe.sequential("核心 Worker 生产镜像", () => {
         RELEASE_TENANT_PORT: await port(),
         RELEASE_PLATFORM_PORT: await port(),
         RELEASE_MAIL_PORT: await port(),
+        RELEASE_OTLP_PORT: await port(),
+        RELEASE_PROMETHEUS_PORT: await port(),
+        RELEASE_TRACING_PORT: await port(),
         RELEASE_API_IMAGE: images.api,
         RELEASE_WORKER_IMAGE: images.worker,
         RELEASE_TENANT_IMAGE: images.tenant,
@@ -287,6 +290,39 @@ describe.sequential("核心 Worker 生产镜像", () => {
       expect(
         (await compose("ps", "-q", "tenant", "platform")).output.trim()
       ).toBe(old)
+      env.RELEASE_WORKER_IMAGE = images.worker
+      await save()
+      expect((await publish()).code).toBe(0)
+      const registered = name + ":additional-task"
+      tags.push(registered)
+      await writeFile(
+        join(failDir, "registry.mjs"),
+        "import { taskRegistry as previous } from './original-registry.js';\nexport const taskRegistry = [...previous, {type: 'release-catalog-marker', permissions: {project: ['read']}, parseInput(input) {return input}, async authorizeResource() {}, async findCommitted() {}, async execute() {return {count: 0}}}];\n"
+      )
+      await writeFile(
+        join(failDir, "Dockerfile"),
+        `FROM ${image}\nUSER root\nRUN mv dist/registry.js dist/original-registry.js\nCOPY registry.mjs dist/registry.js\nUSER node\n`
+      )
+      await checked(["build", "-t", registered, failDir])
+      env.RELEASE_WORKER_IMAGE = registered
+      await save()
+      expect((await publish()).code).toBe(0)
+      env.RELEASE_WORKER_IMAGE = images.worker
+      await save()
+      const missingTask = await publish()
+      expect(missingTask.code).not.toBe(0)
+      expect(missingTask.output).toContain(
+        "WORKER_TASK_TYPES_REQUIRED:release-catalog-marker"
+      )
+      const workerImage = await checked([
+        "inspect",
+        "--format",
+        "{{.Image}}",
+        (await compose("ps", "-q", "worker")).output.trim(),
+      ])
+      expect(workerImage).toBe(
+        await checked(["image", "inspect", "--format", "{{.Id}}", registered])
+      )
     } finally {
       if (configured) await compose("down", "--volumes")
       for (const tag of tags) await docker(["image", "rm", tag])

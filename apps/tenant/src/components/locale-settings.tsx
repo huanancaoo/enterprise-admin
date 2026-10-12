@@ -1,4 +1,8 @@
-import { PageHeader, PersonalAvatarSettings } from "@workspace/admin"
+import {
+  PageHeader,
+  PersonalAvatarSettings,
+  PersonalSecuritySettings,
+} from "@workspace/admin"
 import { useEffect, useId, useState } from "react"
 import { useForm } from "@tanstack/react-form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
@@ -245,6 +249,7 @@ export function PersonalLocaleSettingsRoute() {
         description={t("personalDescription")}
       />
       <PersonalAvatarSettings client={authClient} />
+      <PersonalSecuritySettings client={authClient} />
       <div className="rounded-xl border bg-card p-4 text-sm shadow-sm sm:p-5">
         <dl className="grid gap-4 sm:grid-cols-2">
           <div className="min-w-0 space-y-1">

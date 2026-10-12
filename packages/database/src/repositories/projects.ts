@@ -129,6 +129,25 @@ export const projectRepository = {
     if (row.missingBase) throw new Error("Project base translation is missing")
     return toLocalizedProject(row)
   },
+  async exportMatching(
+    tx: TenantTx,
+    input: Omit<ProjectListInput, "page" | "pageSize">
+  ) {
+    const name = input.name?.trim()
+    const pattern = name ? `%${name.replace(/[\\%_]/g, "\\$&")}%` : undefined
+    const order =
+      input.sortBy === "updatedAt" ? sql`"updatedAt"` : sql`"createdAt"`
+    const direction = input.sortOrder === "asc" ? sql`ASC` : sql`DESC`
+    // 一个数据库快照返回全部匹配结果；跨页循环会在并发编辑时重复或遗漏项目。
+    const result = await tx.execute<SerializedLocalizedProject>(sql`
+      WITH localized AS (${localizedProjects(tx, input.status ? sql`AND p.status = ${input.status}` : sql``)})
+      SELECT * FROM localized ${pattern ? sql`WHERE name ILIKE ${pattern}` : sql``}
+      ORDER BY ${order} ${direction}, id ASC
+    `)
+    if (result.rows.some((row) => row.missingBase))
+      throw new Error("Project base translation is missing")
+    return result.rows.map(toLocalizedProject)
+  },
   async findForUpdate(tx: TenantTx, projectId: string) {
     const [project] = await tx
       .select()

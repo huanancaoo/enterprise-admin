@@ -351,6 +351,69 @@
       "when": 1790940845938,
       "tag": "0049_purple_warhawk",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1791684048415,
+      "tag": "0050_black_bedlam",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1791684049394,
+      "tag": "0051_access-credential-permissions",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1791684297588,
+      "tag": "0052_business-capabilities",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1791684383142,
+      "tag": "0053_business-capabilities-access",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1791685164519,
+      "tag": "0054_notification-webhook-leases",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1791685165175,
+      "tag": "0055_notification-webhook-delivery",
+      "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1791687738520,
+      "tag": "0056_business-tenant-relations",
+      "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1791687749060,
+      "tag": "0057_business-task-control",
+      "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1791690818093,
+      "tag": "0058_native-session-utc",
+      "breakpoints": true
     }
   ]
 }

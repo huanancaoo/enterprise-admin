@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import type { TenantContext } from '@workspace/database/tenant';
 import { OrganizationIdSchema } from '@workspace/contracts';
 import {
@@ -28,6 +32,7 @@ export class TenantContextService {
       organizationId,
       requestId,
       language,
+      'business',
     );
     await this.authorization.requirePermission(
       headers,
@@ -49,6 +54,7 @@ export class TenantContextService {
       organizationId,
       requestId,
       language,
+      'business',
     );
     await this.authorization.requireAnyPermission(
       headers,
@@ -58,15 +64,21 @@ export class TenantContextService {
     return context;
   }
 
-  private async resolveMembership(
+  async resolveMembership(
     headers: Headers,
     organizationId: string,
     requestId: string,
     language: RequestLanguage,
+    authentication: 'cookie' | 'business' = 'cookie',
   ): Promise<TenantContext> {
     if (!OrganizationIdSchema.safeParse(organizationId).success)
       throw new BadRequestException();
-    const actor = await this.identity.requireIdentity(headers);
+    if (authentication === 'cookie' && headers.has('x-api-key'))
+      throw new UnauthorizedException();
+    const actor =
+      authentication === 'business'
+        ? await this.identity.requireBusinessIdentity(headers, organizationId)
+        : await this.identity.requireIdentity(headers);
     language.useUserPreference(actor.preferredLocale);
     const membership = await this.identity.requireOrganizationMembership(
       organizationId,

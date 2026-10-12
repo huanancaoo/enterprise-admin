@@ -1,4 +1,4 @@
-import type { RegisteredTask } from "@workspace/jobs"
+import { projectExchangeTasks, type RegisteredTask } from "@workspace/jobs"
 
-// 生产业务尚未指定；测试处理器只在测试进程入口注册，不能由环境变量加载任意模块。
-export const taskRegistry: readonly RegisteredTask[] = []
+// 注册表固定生产任务定义；测试处理器只在测试进程入口注册，不从环境变量加载模块。
+export const taskRegistry: readonly RegisteredTask[] = projectExchangeTasks

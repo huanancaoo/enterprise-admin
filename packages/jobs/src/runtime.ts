@@ -6,6 +6,8 @@ import {
   type JobState,
 } from "bullmq"
 import { Redis } from "ioredis"
+import { BullMQOtel } from "bullmq-otel"
+import { observeQueue, recordTaskEvent } from "@workspace/observability"
 import {
   assertSameIntent,
   createTaskEnvelope,
@@ -32,7 +34,12 @@ export type TaskRuntimeOptions = {
 }
 export type TaskSubmission =
   | { status: "enqueued"; jobId: string }
-  | { status: "already_exists"; jobId: string; state: JobState | "unknown" }
+  | {
+      status: "already_exists"
+      jobId: string
+      state: JobState | "unknown"
+      failureCode?: string
+    }
   | { status: "already_completed"; jobId: string; result: unknown }
   | { status: "unknown"; jobId: string }
 
@@ -54,12 +61,7 @@ export function taskErrorCode(error: unknown): string | undefined {
   return undefined
 }
 function logger(options: TaskRuntimeOptions): TaskLog {
-  return (
-    options.log ??
-    ((record) => {
-      console.log(JSON.stringify(record))
-    })
-  )
+  return (record) => recordTaskEvent(record, options.log)
 }
 function metadata(
   task: TaskContext,
@@ -117,6 +119,7 @@ export function createTaskProducer(options: TaskRuntimeOptions) {
   const queue = new Queue(config.queueName, {
     connection: client,
     prefix: config.queuePrefix,
+    telemetry: new BullMQOtel("enterprise-admin.tasks"),
     defaultJobOptions: {
       attempts: config.attempts,
       backoff: { type: "exponential", delay: config.backoffMs },
@@ -124,6 +127,10 @@ export function createTaskProducer(options: TaskRuntimeOptions) {
       removeOnFail: { age: 7 * 86400 },
     },
   })
+  const stopObserving = observeQueue(
+    () => queue.getJobCounts("waiting", "active", "delayed", "failed"),
+    config.queueName
+  )
   queue.on("error", () =>
     log({ event: "queue_error", code: "REDIS_UNAVAILABLE", role: "producer" })
   )
@@ -186,6 +193,9 @@ export function createTaskProducer(options: TaskRuntimeOptions) {
                 status: "already_exists",
                 jobId: task.jobId,
                 state: await existing.getState(),
+                failureCode: /^[A-Z_]{1,100}$/.test(existing.failedReason)
+                  ? existing.failedReason
+                  : undefined,
               }
             }
             await queue.add(envelope.type, envelope, { jobId: task.jobId })
@@ -217,6 +227,7 @@ export function createTaskProducer(options: TaskRuntimeOptions) {
       }
     },
     async close(): Promise<void> {
+      stopObserving()
       try {
         await bound(
           queue.close(),
@@ -297,6 +308,7 @@ export async function startTaskWorker(options: TaskRuntimeOptions) {
       lockDuration: config.lockDurationMs,
       stalledInterval: config.stalledIntervalMs,
       maxStalledCount: config.maxStalledCount,
+      telemetry: new BullMQOtel("enterprise-admin.tasks"),
     }
   )
   worker.on("error", () =>

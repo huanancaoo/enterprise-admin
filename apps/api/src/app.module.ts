@@ -1,4 +1,11 @@
 import { DynamicModule, Module } from '@nestjs/common';
+import { WebhooksModule } from './webhooks/webhooks.module';
+import { BusinessModule } from './business/business.module';
+import type { WorkerConfig } from '@workspace/jobs';
+import type { EmailConfig } from './email/email-config';
+import { NotificationsModule } from './notifications/notifications.module';
+import { AccessCredentialsModule } from './access-credentials/access-credentials.module';
+import { TelemetryRuntime } from './http/telemetry-runtime';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AuthorizationModule } from './authorization/authorization.module';
 import { EmailModule } from './email/email.module';
@@ -22,9 +29,12 @@ export class AppModule {
     email: EmailRuntime,
     deployment: DeploymentSummary,
     files: FilesRuntime,
+    jobs: WorkerConfig,
+    emailConfig: EmailConfig,
   ): DynamicModule {
     return {
       module: AppModule,
+      providers: [TelemetryRuntime],
       imports: [
         ScheduleModule.forRoot(),
         IdentityModule.forRoot(runtime),
@@ -34,6 +44,14 @@ export class AppModule {
         TenancyModule,
         OrganizationsModule,
         ProjectsModule,
+        BusinessModule.forRoot(jobs),
+        WebhooksModule.forRoot({
+          worker: jobs,
+          timeoutMs: 10_000,
+          pollIntervalMs: emailConfig.pollIntervalMs,
+        }),
+        NotificationsModule.forRoot({ email: emailConfig, worker: jobs }),
+        AccessCredentialsModule,
         FilesModule.forRoot(files),
         PersonalMediaModule.forRoot(files),
         PlatformModule.forRoot(deployment),

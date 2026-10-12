@@ -1,5 +1,8 @@
 import { useTranslation } from "react-i18next"
-import { PersonalAvatarSettings } from "@workspace/admin"
+import {
+  PersonalAvatarSettings,
+  PersonalSecuritySettings,
+} from "@workspace/admin"
 import { authClient } from "../lib/auth-client"
 
 export function PlatformPersonalSettingsPage() {
@@ -10,6 +13,7 @@ export function PlatformPersonalSettingsPage() {
         {t("personalSettings")}
       </h1>
       <PersonalAvatarSettings client={authClient} />
+      <PersonalSecuritySettings client={authClient} />
     </section>
   )
 }

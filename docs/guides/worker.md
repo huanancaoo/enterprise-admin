@@ -2,7 +2,7 @@
 
 Worker 是默认必需的核心运行时。`pnpm dev`、开发 Compose 与每次发布都包含 Worker；没有可选 profile 或跳过开关。API Host 负责受理服务端业务请求，独立 Worker 负责执行已注册的组织业务任务。
 
-当前生产注册表为空，本期交付的是任务基础设施。认证邮件、文件操作和保留维护继续使用各自已有的运行时；Worker 不加载 API Host，也不启动第二份邮件或 Files 调度器。
+当前生产注册表包含 `projects.import` 与 `projects.export`。认证邮件、业务通知和 Webhook 投递、文件操作与保留维护使用各自的 API 运行时；独立 Worker 不加载 API Host。业务通知和 Webhook 的生产自动启动接线状态见[八项能力验收记录](../architecture/framework-completion-validation.md)。
 
 ## 本地启动
 
@@ -25,7 +25,7 @@ API Host 与 Worker 共用服务端专用的 `@workspace/jobs`。一个任务定
 2. 从可信服务端上下文提供 organizationId、actorId、resourceId、locale、requestId 和业务 idempotencyKey，不把 Session token 或凭据放入任务。
 3. 在 `authorizeResource` 中通过传入 TenantTx 核对资源属于当前组织且符合领域策略。
 4. 在 `findCommitted` 中按组织、发起用户、任务类型和幂等键协调并发，返回已提交事实的意图指纹与结果。
-5. 在 `execute` 中用同一个 TenantTx 提交领域变更、持久幂等事实和成功业务审计。
+5. 在 `execute` 中用同一个 TenantTx 提交领域变更、持久幂等事实和成功业务审计；需要通知或 Webhook 的任务也在同一事务记录发送意图。
 6. 在生产者与 Worker 的服务端组合入口显式注册同一任务定义。不提供任意模块路径、任意代码或客户端选择权限动作的执行入口。
 
 Worker 在组织锁内读取当前成员、角色与组织状态，再重建 TenantContext。成员移除、角色撤权、组织停用和资源范围拒绝为永久拒绝。浏览器退出或 Session 到期不会自行取消仍有当前成员权限的任务。
@@ -45,7 +45,7 @@ BullMQ Job ID 是队列去重身份，不能代替持久化业务幂等。Job �
 
 队列尝试失败与业务结果分开记录：业务已经提交后，进程可能在确认完成前死亡；如果重新领取时已经撤权，本次尝试会被拒绝，但此前业务成功事实和成功审计仍保留。不能为了读取历史结果绕过当前授权或 RLS。
 
-本期不提供通用任务目录、事务投递 outbox、HTTP CRUD 或管理 UI。PostgreSQL 业务事务与 Redis 入队不构成原子事务；需要此语义的具体业务必须单独明确投递边界。非幂等外部服务副作用及 Redis 永久数据丢失不属于本期保证。
+Projects 交换任务先在 PostgreSQL 持久化意图，再由正式生产者提交 Redis。入队确认未知时保留同一任务身份，Worker 从持久意图恢复投递；任务状态、结果、通知及事件分别作为业务事实保存。PostgreSQL 与 Redis 不组成跨系统原子事务，不能把一次入队成功视为业务提交。任务 HTTP 与租户后台任务中心聚合这两种业务任务及现有 Files 操作，并保留各来源自己的生命周期。新业务接入见[模块开发指南](create-domain-module.md)；非幂等外部服务副作用需要其领域明确的投递规则。
 
 ## 生产构建与发布
 

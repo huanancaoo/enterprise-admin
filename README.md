@@ -4,14 +4,14 @@
 
 [![CI](https://github.com/huanancaoo/enterprise-admin/actions/workflows/ci.yml/badge.svg)](https://github.com/huanancaoo/enterprise-admin/actions/workflows/ci.yml)
 ![Node](https://img.shields.io/badge/node-26.8.2-339933)
-![pnpm](https://img.shields.io/badge/pnpm-12.4.1-F69220)
+![pnpm](https://img.shields.io/badge/pnpm-12.11.2-F69220)
 ![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18.6-4169E1)
 
 [功能](#功能) · [仓库结构](#仓库结构) · [快速开始](#快速开始) · [环境配置](#环境配置) · [验证](#验证) · [文档](#文档)
 
 > [!NOTE]
-> 当前已完成认证与组织、租户隔离、Projects、成员与邀请、自定义角色、语言设置、租户审计、平台任职与 MFA、平台组织/用户/审计/设置，以及完整文件管理与业务消费的本机交付。证据见 [S8 验收矩阵](docs/architecture/s8-acceptance-matrix.md) 和 [S9 文件管理验收](docs/architecture/s9-files-validation.md)。通用 Worker 基础设施已交付并作为必需核心运行时；具体业务通知、导入导出与 Webhook 尚未接入；完整自托管发布、安全回退和备份恢复仍未完成验收，当前交付不代表生产发行版。
+> 当前包含认证与组织、租户隔离、Projects、成员与邀请、自定义角色、语言设置、审计、平台任职与 MFA、文件管理，以及 Projects 导入导出、任务中心、账户安全、调用凭据、通知与 Webhook 的接口和页面。独立 Worker 是必需核心运行时。API HTTP 启动入口已接入业务自动投递；完整集成检查与不可变发行包验收仍在进行，实际完成与待验证边界见 [八项能力验收记录](docs/architecture/framework-completion-validation.md)。已有功能的历史证据见 [S8 验收矩阵](docs/architecture/s8-acceptance-matrix.md) 和 [S9 文件管理验收](docs/architecture/s9-files-validation.md)。
 
 ## 功能
 
@@ -21,10 +21,16 @@
 - **平台管理**：部署 CLI 授予独立平台任职，当前会话 TOTP 验证；组织查询/停用/恢复、脱敏用户目录与受控敏感读取、跨组织审计、平台默认语言与部署摘要、文件配额与保留策略。
 - **数据库层租户隔离**：`app_runtime` / `app_migrator` 分权，租户业务表 ENABLE/FORCE RLS，业务访问必须走 `TenantTx`。
 - **Projects 参考领域**：列表、创建、详情、更新、多语言译文与富文本正文、固定版本附件、删除与结构化审计，覆盖 Schema → Repository → API → OpenAPI/Orval → 页面 → E2E。
+- **Projects 导入导出**：CSV/XLSX 仅包含 `name`、`description`、`contentLocale`；原始文件最大 10 MB，XLSX 仅单工作表；导入只新增，整批校验后一次提交；导出当前已应用筛选下的全部匹配项目。任务由独立 Worker 执行，下载时重新检查当前授权。
+- **通用任务中心**：聚合业务任务、Files 操作与批量任务，保留各来源的生命周期；成员看本人，owner/admin 可看组织任务。
+- **个人账户安全**：两个后台共享原生密码变更、邮箱验证变更、会话查看与撤销；修改密码撤销其他会话，平台的新会话重新验证 MFA。
+- **对外调用凭据**：绑定现有用户与一个组织，权限取凭据范围和当前成员权限的交集；凭据到期、撤销及成员撤权作用于后续请求。
+- **业务通知与 Webhook**：导入导出完成或失败生成发起人的站内通知；邮件按当前偏好投递。Projects 变更及任务结果生成薄事件，Webhook 提供签名、持久重试与投递记录。生产自动投递接线的状态见本轮验收记录。
 - **文件管理**：Local/S3-compatible 存储、文件夹层级、上传/覆盖与不可变版本、预览下载、引用、回收站、批量操作、配额和保留维护；个人头像独立于组织文件归属。
 - **契约先于页面**：`packages/contracts` 定义 HTTP Schema，Nest 导出 OpenAPI，Orval 生成 TanStack Query 客户端。
 - **i18n 与 RTL**：`zh-CN` / `en-US` / `ar`；界面语言由 i18next 持有，不写入后台 URL；内容语言与界面语言分离。
 - **认证邮件**：SMTP + 本地 Mailpit，验证邮件、密码重置、组织邀请写入 durable outbox 后再投递。
+- **运行观测**：受控结构化日志、HTTP/Worker traces 与任务指标；Compose 提供 Collector、Prometheus、Jaeger 及本地告警验证。
 - **工程门禁**：依赖边界、类型、i18n 漂移、单元、HTTP、Storybook/a11y、浏览器 E2E、Schema 漂移、真实 PostgreSQL 测试与生成物检查。
 
 ## 仓库结构
@@ -42,6 +48,7 @@ packages/contracts   HTTP Schema
 packages/api-client  生成客户端
 packages/database    仅供服务端的 Schema、迁移、TenantTx
 packages/jobs        仅供服务端的任务契约、生产者与消费者
+packages/observability 仅供服务端的日志、traces 与 metrics
 packages/permissions 固定权限声明
 packages/i18n        翻译目录与运行时
 packages/mocks       共享 MSW fixtures / handlers
@@ -64,12 +71,12 @@ flowchart LR
 
 ## 快速开始
 
-需要 **Node 26.8.2**、**pnpm 12.4.1** 和可用的 **Docker**。版本以根目录 [package.json](package.json) 的 `engines` / `packageManager` 为准。
+需要 **Node 26.8.2**、**pnpm 12.11.2** 和可用的 **Docker**。版本以根目录 [package.json](package.json) 的 `engines` / `packageManager` 为准。
 
 ```sh
 git clone https://github.com/huanancaoo/enterprise-admin.git
 cd enterprise-admin
-npm install --global pnpm@12.4.1
+npm install --global pnpm@12.11.2
 pnpm install --frozen-lockfile
 ```
 
@@ -224,6 +231,9 @@ pnpm verify
 - [领域上下文](CONTEXT-MAP.md)：身份与组织、租户后台、平台后台
 - [数据库说明](packages/database/README.md)：分权、迁移链、TenantTx
 - [实施计划](docs/architecture/implementation-plan.md)：阶段范围与验收
+- [业务模块开发指南](docs/guides/create-domain-module.md)：公开契约、TenantTx、授权、审计、客户端与页面的完整接入
+- [自托管发行包](docs/guides/release-package.md)、[本地发布](docs/guides/local-release.md)、[升级与回退](docs/guides/upgrade.md)、[备份恢复](docs/guides/backup-restore.md)
+- [观测与告警](docs/guides/observability.md)、[八项能力验收记录](docs/architecture/framework-completion-validation.md)
 - [Git 协作规范](docs/agents/git.md)
 
 [多租户基础架构原文](docs/architecture/multi-tenant-foundation.md) 与 [Email 基础设施原文](docs/architecture/email-infrastructure.md) 是归档研究。实施决策以当前代码和已接受 ADR 为准，原文建议不自动成为任务范围。

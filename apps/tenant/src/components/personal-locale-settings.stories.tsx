@@ -111,23 +111,23 @@ export const SaveWithKeyboard: Story = {
 export const SaveLoading: Story = {
   ...scenario("saveLoading"),
   play: async ({ canvasElement }) => {
-    const { canvas, control, submit } = await chooseLocale(
+    const { form, control, submit } = await chooseLocale(
       canvasElement,
       "العربية"
     )
     await userEvent.click(submit)
     await waitFor(() => expect(control).toBeDisabled())
-    await expect(canvas.getByRole("button", { name: "Saving…" })).toBeDisabled()
+    await expect(form.getByRole("button", { name: "Saving…" })).toBeDisabled()
   },
 }
 const retry: Story["play"] = async ({ canvasElement }) => {
-  const { canvas, control, submit } = await chooseLocale(
+  const { canvas, form, control, submit } = await chooseLocale(
     canvasElement,
     "العربية"
   )
   await canvas.findByText("Personal preference")
   await userEvent.click(submit)
-  await expect(await canvas.findByRole("alert")).toHaveTextContent(
+  await expect(await form.findByRole("alert")).toHaveTextContent(
     "Language settings could not be saved. Your draft is still here."
   )
   await expect(control).toHaveTextContent("العربية")
@@ -142,12 +142,12 @@ export const RateLimited: Story = { ...scenario("rateLimited"), play: retry }
 export const StaleVersion: Story = {
   ...scenario("stale"),
   play: async ({ canvasElement }) => {
-    const { canvas, control, submit } = await chooseLocale(
+    const { form, control, submit } = await chooseLocale(
       canvasElement,
       "العربية"
     )
     await userEvent.click(submit)
-    await expect(await canvas.findByRole("alert")).toHaveTextContent(
+    await expect(await form.findByRole("alert")).toHaveTextContent(
       "Another administrator changed these settings."
     )
     await expect(submit).toBeDisabled()
@@ -160,12 +160,12 @@ export const StaleVersion: Story = {
 export const SaveSessionExpired: Story = {
   ...scenario("saveUnauthorized"),
   play: async ({ canvasElement }) => {
-    const { canvas, control, submit } = await chooseLocale(
+    const { form, control, submit } = await chooseLocale(
       canvasElement,
       "العربية"
     )
     await userEvent.click(submit)
-    await expect(await canvas.findByRole("alert")).toHaveTextContent(
+    await expect(await form.findByRole("alert")).toHaveTextContent(
       "Language settings could not be saved."
     )
     await expect(control).toHaveTextContent("العربية")
@@ -197,15 +197,15 @@ export const FollowPlatformWithoutOrganization: Story = {
 export const InheritedRefreshUnavailable: Story = {
   ...scenario("refreshUnavailable"),
   play: async ({ canvasElement }) => {
-    const { canvas, submit } = await chooseLocale(
+    const { canvas, form, submit } = await chooseLocale(
       canvasElement,
       "Follow organization or platform defaults"
     )
     await userEvent.click(submit)
-    await expect(await canvas.findByRole("alert")).toHaveTextContent(
+    await expect(await form.findByRole("alert")).toHaveTextContent(
       "Settings were saved, but the inherited language could not be refreshed."
     )
-    await expect(canvas.getByRole("status")).toHaveTextContent(
+    await expect(form.getByRole("status")).toHaveTextContent(
       "Language settings saved."
     )
     await expect(
@@ -216,15 +216,15 @@ export const InheritedRefreshUnavailable: Story = {
 export const OrganizationLookupUnavailable: Story = {
   ...scenario("organizationUnavailable"),
   play: async ({ canvasElement }) => {
-    const { canvas, control, submit } = await chooseLocale(
+    const { form, control, submit } = await chooseLocale(
       canvasElement,
       "Follow organization or platform defaults"
     )
     await userEvent.click(submit)
-    await expect(await canvas.findByRole("alert")).toHaveTextContent(
+    await expect(await form.findByRole("alert")).toHaveTextContent(
       "Language settings could not be saved. Your draft is still here."
     )
-    await expect(canvas.queryByRole("status")).toBeNull()
+    await expect(form.queryByRole("status")).toBeNull()
     await expect(control).toHaveTextContent(
       "Follow organization or platform defaults"
     )
@@ -249,15 +249,15 @@ export const FixedSelectionWithOrganizationLoading: Story = {
 export const InheritanceWithOrganizationLoading: Story = {
   ...scenario("organizationLoading"),
   play: async ({ canvasElement }) => {
-    const { canvas, control, submit } = await chooseLocale(
+    const { form, control, submit } = await chooseLocale(
       canvasElement,
       "Follow organization or platform defaults"
     )
     await userEvent.click(submit)
-    await expect(await canvas.findByRole("alert")).toHaveTextContent(
+    await expect(await form.findByRole("alert")).toHaveTextContent(
       "Language settings could not be saved. Your draft is still here."
     )
-    await expect(canvas.queryByRole("status")).toBeNull()
+    await expect(form.queryByRole("status")).toBeNull()
     await expect(control).toHaveTextContent(
       "Follow organization or platform defaults"
     )

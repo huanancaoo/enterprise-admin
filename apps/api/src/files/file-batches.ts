@@ -17,7 +17,10 @@ import {
   type FileBatchItem,
 } from '@workspace/database/repositories/files';
 import { AuthRuntime } from '../identity/auth-runtime';
-import { IdentityService } from '../identity/identity.service';
+import {
+  IdentityService,
+  businessActorReference,
+} from '../identity/identity.service';
 import {
   AuthorizationService,
   type PermissionRequest,
@@ -66,12 +69,18 @@ export class FileBatches {
     input?: ExecuteFileBatch,
   ) {
     this.runtime.requireStorage();
-    const actor = await this.actors.requireIdentity(headers);
+    const actor = await this.actors.requireBusinessIdentity(
+      headers,
+      context.organizationId,
+    );
     const client = await this.identity.pool.connect();
     try {
       return await createTenantRunner(client)(context, async (tx) => {
         await fileRepository.lockOrganization(tx);
-        await fileRepository.requireCurrentActor(tx, actor.sessionId);
+        await fileRepository.requireCurrentActor(
+          tx,
+          businessActorReference(actor),
+        );
         const existing = await fileRepository.findBatch(tx, id);
         if (!input && !existing) throw new NotFoundException();
         const choices: PermissionRequest[] = [
@@ -91,7 +100,10 @@ export class FileBatches {
           context.organizationId,
           choices,
         );
-        await fileRepository.requireCurrentActor(tx, actor.sessionId);
+        await fileRepository.requireCurrentActor(
+          tx,
+          businessActorReference(actor),
+        );
         return input
           ? fileRepository.beginBatch(tx, {
               id,

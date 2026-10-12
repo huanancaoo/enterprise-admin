@@ -21,6 +21,7 @@ export const fileActions = [
   "purge",
 ] as const
 export const folderActions = ["read", "create", "update", "delete"] as const
+export const integrationActions = ["read", "manage"] as const
 
 export const delegableRolePermissions = {
   project: projectActions,
@@ -30,6 +31,7 @@ export const delegableRolePermissions = {
   invitation: ["create", "cancel"],
   tenantSettings: ["read"],
   audit: ["read"],
+  integration: integrationActions,
 } as const
 
 export const tenantSettingsActions = ["read", "update"] as const
@@ -52,6 +54,7 @@ export const builtInOrganizationRolePermissions = {
     folder: [...folderActions],
     tenantSettings: ["read", "update"],
     audit: ["read"],
+    integration: [...integrationActions],
   },
   admin: {
     ...adminAc.statements,
@@ -61,6 +64,7 @@ export const builtInOrganizationRolePermissions = {
     folder: [...folderActions],
     tenantSettings: ["read", "update"],
     audit: ["read"],
+    integration: [...integrationActions],
   },
   member: {
     ...memberAc.statements,
@@ -82,6 +86,7 @@ export const permissionStatements = {
   folder: folderActions,
   tenantSettings: tenantSettingsActions,
   audit: auditActions,
+  integration: integrationActions,
 } as const
 export type PermissionRequest = {
   member?: (typeof permissionStatements.member)[number][]
@@ -90,4 +95,5 @@ export type PermissionRequest = {
   folder?: FolderAction[]
   tenantSettings?: (typeof tenantSettingsActions)[number][]
   audit?: AuditAction[]
+  integration?: (typeof integrationActions)[number][]
 }

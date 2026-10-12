@@ -15,7 +15,10 @@ import {
   type FileOperation,
 } from '@workspace/database/repositories/files';
 import { AuthRuntime } from '../identity/auth-runtime';
-import { IdentityService } from '../identity/identity.service';
+import {
+  IdentityService,
+  businessActorReference,
+} from '../identity/identity.service';
 import {
   AuthorizationService,
   type PermissionRequest,
@@ -56,15 +59,24 @@ export class FileOperationReads {
     this.runtime.requireStorage();
     try {
       // 身份读取先于 usage 锁；最终授权复用持锁连接，避免身份连接与业务锁互等。
-      const actor = await this.actors.requireIdentity(headers);
+      const actor = await this.actors.requireBusinessIdentity(
+        headers,
+        context.organizationId,
+      );
       const client = await this.identity.pool.connect();
       try {
         return await createTenantRunner(client)(context, async (tx) => {
           await fileRepository.lockOrganization(tx);
-          await fileRepository.requireCurrentActor(tx, actor.sessionId);
+          await fileRepository.requireCurrentActor(
+            tx,
+            businessActorReference(actor),
+          );
           const result = await read(tx, client);
           // 授权或事实读取可能等待；返回前仍以数据库时钟检查会话实际到期时间。
-          await fileRepository.requireCurrentActor(tx, actor.sessionId);
+          await fileRepository.requireCurrentActor(
+            tx,
+            businessActorReference(actor),
+          );
           return result;
         }).catch((error: unknown) => rethrowTenantWriteError(error, context));
       } finally {

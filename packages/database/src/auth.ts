@@ -4,6 +4,15 @@ import {
   type SecondaryStorage,
 } from "better-auth"
 import { lastLoginMethod, organization, twoFactor } from "better-auth/plugins"
+import { apiKey } from "@better-auth/api-key"
+import type { InferAPI } from "better-auth/types"
+
+export { defaultKeyHasher as hashAccessCredential } from "@better-auth/api-key"
+
+export type NativeCredentialApi = Pick<
+  InferAPI<ReturnType<typeof apiKey>["endpoints"]>,
+  "createApiKey" | "verifyApiKey" | "updateApiKey"
+>
 import { createAccessControl } from "better-auth/plugins/access"
 import { defaultStatements } from "better-auth/plugins/organization/access"
 import {
@@ -778,6 +787,16 @@ export function createAuth(
     basePath: "/api/auth",
     secret,
     trustedOrigins,
+    // 凭据管理仅通过绑定用户与组织的受控业务入口；原生服务端 API 仍承担生成和验证。
+    disabledPaths: [
+      "/api-key/create",
+      "/api-key/get",
+      "/api-key/list",
+      "/api-key/update",
+      "/api-key/delete",
+      "/api-key/delete-all-expired",
+      "/api-key/verify",
+    ],
     database: transactionalAdapter.adapterFactory,
     socialProviders: {
       github: {
@@ -844,6 +863,7 @@ export function createAuth(
       },
     },
     user: {
+      changeEmail: { enabled: true },
       additionalFields: {
         preferredLocale: {
           type: ["zh-CN", "en-US", "ar"],
@@ -984,6 +1004,14 @@ export function createAuth(
         )
       }),
       before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path === "/change-password") {
+          // 改密后的会话存续是服务端策略，调用方不能选择保留其他已登录会话。
+          return {
+            context: {
+              body: { ...ctx.body, revokeOtherSessions: true },
+            },
+          }
+        }
         if (!ctx.path.startsWith("/organization/")) return
         if (ctx.path === "/organization/get-invitation") {
           const session = await getAuthoritativeSessionFromCtx(ctx)
@@ -1104,6 +1132,15 @@ export function createAuth(
       }),
     },
     plugins: [
+      apiKey({
+        references: "user",
+        defaultPrefix: "ea_",
+        maximumNameLength: 64,
+        enableSessionForAPIKeys: false,
+        keyExpiration: { minExpiresIn: 0, maxExpiresIn: Infinity },
+        // 原生验证和事务内复核属于同一次请求，不引入默认的独立每日 key 配额。
+        rateLimit: { enabled: false },
+      }) as BetterAuthPlugin,
       organizationPlugin,
       twoFactor({ issuer: "Enterprise Admin" }) as BetterAuthPlugin,
       createAuthI18n(() =>
@@ -1113,7 +1150,11 @@ export function createAuth(
       lastLoginMethod({ storeInDatabase: true }),
     ],
   })
+  // 用具名原生 API 类型保持声明文件可序列化；运行方法仍由注册的插件生成。
+  const credentialApi: NativeCredentialApi = auth.api as typeof auth.api &
+    NativeCredentialApi
   return Object.assign(auth, {
+    credentialApi,
     async withDatabaseClient<T>(client: PoolClient, work: () => Promise<T>) {
       await auth.$context
       return transactionalAdapter.withDatabaseClient(client, work)

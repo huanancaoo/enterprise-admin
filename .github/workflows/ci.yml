@@ -12,7 +12,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 26.8.2
-      - run: npm install --global pnpm@12.4.1
+      - run: npm install --global pnpm@12.11.2
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter storybook exec playwright install --with-deps chromium
       - run: pnpm verify

@@ -31,13 +31,13 @@ export const auditRepository = {
     input: {
       eventCode: string
       resourceId: string
+      resourceType: string
       fields: Record<string, unknown>
     }
   ) {
     return tx.insert(auditEvents).values({
       ...input,
       scope: "tenant",
-      resourceType: "project",
       tenantVisible: true,
       organizationId: tx.context.organizationId,
       actorId: tx.context.userId,

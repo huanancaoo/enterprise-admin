@@ -17,6 +17,9 @@ const {
 } = require("../../apps/api/dist/create-application.js")
 const { AuthRuntime } = require("../../apps/api/dist/identity/auth-runtime.js")
 const { EmailRuntime } = require("../../apps/api/dist/email/email-runtime.js")
+const {
+  startBusinessDeliveries,
+} = require("../../apps/api/dist/start-business-deliveries.js")
 
 async function reservePort() {
   const server = createNetServer()
@@ -34,6 +37,7 @@ export async function startTestApplication({
   smtp: smtpOverride,
   invitationLimits,
   files,
+  businessDeliveries = false,
 } = {}) {
   // 每取得一个资源立即登记释放；启动中途失败和正常结束使用同一条逆序清理链。
   const resources = new AsyncDisposableStack()
@@ -113,6 +117,8 @@ export async function startTestApplication({
     resources.defer(() => app.close())
     await app.listen(port, "127.0.0.1")
     if (mail) app.get(EmailRuntime).start()
+    // 授权时点测试自行推进投递；自动运行验收与生产使用同一启动入口。
+    if (businessDeliveries) startBusinessDeliveries(app)
     return {
       app,
       runtime: app.get(AuthRuntime),

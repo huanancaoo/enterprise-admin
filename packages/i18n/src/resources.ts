@@ -1,3 +1,15 @@
+import webhooks2 from "./locales/ar/webhooks.json" with { type: "json" }
+import webhooks1 from "./locales/en-US/webhooks.json" with { type: "json" }
+import webhooks0 from "./locales/zh-CN/webhooks.json" with { type: "json" }
+import tasks2 from "./locales/ar/tasks.json" with { type: "json" }
+import tasks1 from "./locales/en-US/tasks.json" with { type: "json" }
+import tasks0 from "./locales/zh-CN/tasks.json" with { type: "json" }
+import credentials2 from "./locales/ar/credentials.json" with { type: "json" }
+import credentials1 from "./locales/en-US/credentials.json" with { type: "json" }
+import credentials0 from "./locales/zh-CN/credentials.json" with { type: "json" }
+import notifications2 from "./locales/ar/notifications.json" with { type: "json" }
+import notifications1 from "./locales/en-US/notifications.json" with { type: "json" }
+import notifications0 from "./locales/zh-CN/notifications.json" with { type: "json" }
 import common0 from "./locales/zh-CN/common.json" with { type: "json" }
 import files0 from "./locales/zh-CN/files.json" with { type: "json" }
 import auth0 from "./locales/zh-CN/auth.json" with { type: "json" }
@@ -33,6 +45,10 @@ export const resources = {
     validation: validation0,
     errors: errors0,
     settings: settings0,
+    notifications: notifications0,
+    tasks: tasks0,
+    webhooks: webhooks0,
+    credentials: credentials0,
   },
   "en-US": {
     common: common1,
@@ -43,6 +59,10 @@ export const resources = {
     validation: validation1,
     errors: errors1,
     settings: settings1,
+    notifications: notifications1,
+    tasks: tasks1,
+    webhooks: webhooks1,
+    credentials: credentials1,
   },
   ar: {
     common: common2,
@@ -53,5 +73,9 @@ export const resources = {
     validation: validation2,
     errors: errors2,
     settings: settings2,
+    notifications: notifications2,
+    tasks: tasks2,
+    webhooks: webhooks2,
+    credentials: credentials2,
   },
 }

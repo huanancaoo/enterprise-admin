@@ -13,6 +13,18 @@ export function ProjectsRoute() {
     <ProjectsList
       organizationId={organizationId}
       search={search}
+      onTaskCreated={(task) =>
+        void navigate({
+          to: "/app/tasks/$organizationId",
+          params: { organizationId },
+          search: {
+            page: 1,
+            pageSize: 20,
+            source: "business",
+            taskId: task.id,
+          },
+        })
+      }
       onSearchChange={(updater) =>
         void navigate({
           search: (current: ProjectListQuery) => updater(current),

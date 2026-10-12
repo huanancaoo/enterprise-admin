@@ -1,0 +1,1198 @@
+{
+  "postgres": {
+    "artifact": "/private/tmp/framework-postgres-security.tar",
+    "tag": ["enterprise-admin-postgres:18.6-security-1"],
+    "physical_paths": {
+      "usr/bin/gzip": {
+        "size": 93752,
+        "mode": "0o755",
+        "type": "0",
+        "link": ""
+      },
+      "usr/bin/infocmp": {
+        "size": 67752,
+        "mode": "0o755",
+        "type": "0",
+        "link": ""
+      },
+      "usr/bin/mount": {
+        "size": 67744,
+        "mode": "0o4755",
+        "type": "0",
+        "link": ""
+      },
+      "usr/bin/mountpoint": {
+        "size": 67744,
+        "mode": "0o755",
+        "type": "0",
+        "link": ""
+      },
+      "usr/bin/nsenter": {
+        "size": 67976,
+        "mode": "0o755",
+        "type": "0",
+        "link": ""
+      },
+      "usr/lib/aarch64-linux-gnu/libacl.so.1": {
+        "size": 0,
+        "mode": "0o777",
+        "type": "2",
+        "link": "libacl.so.1.1.2301"
+      },
+      "usr/lib/aarch64-linux-gnu/libacl.so.1.1.2301": {
+        "size": 67432,
+        "mode": "0o644",
+        "type": "0",
+        "link": ""
+      },
+      "usr/lib/aarch64-linux-gnu/libgnutls.so.30": {
+        "size": 0,
+        "mode": "0o777",
+        "type": "2",
+        "link": "libgnutls.so.30.34.3"
+      },
+      "usr/lib/aarch64-linux-gnu/libgnutls.so.30.34.3": {
+        "size": 2303440,
+        "mode": "0o644",
+        "type": "0",
+        "link": ""
+      },
+      "usr/share/bash-completion/completions/mount": {
+        "size": 2112,
+        "mode": "0o644",
+        "type": "0",
+        "link": ""
+      },
+      "usr/share/bash-completion/completions/mountpoint": {
+        "size": 498,
+        "mode": "0o644",
+        "type": "0",
+        "link": ""
+      },
+      "usr/share/bash-completion/completions/nsenter": {
+        "size": 1195,
+        "mode": "0o644",
+        "type": "0",
+        "link": ""
+      },
+      "var/lib/dpkg/info/gzip.list": {
+        "size": 923,
+        "mode": "0o644",
+        "type": "0",
+        "link": ""
+      },
+      "var/lib/dpkg/info/gzip.md5sums": {
+        "size": 1578,
+        "mode": "0o644",
+        "type": "0",
+        "link": ""
+      },
+      "var/lib/dpkg/info/mount.list": {
+        "size": 1044,
+        "mode": "0o644",
+        "type": "0",
+        "link": ""
+      },
+      "var/lib/dpkg/info/mount.md5sums": {
+        "size": 1505,
+        "mode": "0o644",
+        "type": "0",
+        "link": ""
+      },
+      "usr/lib/aarch64-linux-gnu/libldap-2.5.so.0": {
+        "size": 0,
+        "mode": "0o777",
+        "type": "2",
+        "link": "libldap-2.5.so.0.1.8"
+      },
+      "usr/lib/aarch64-linux-gnu/libldap-2.5.so.0.1.8": {
+        "size": 396656,
+        "mode": "0o644",
+        "type": "0",
+        "link": ""
+      },
+      "usr/lib/aarch64-linux-gnu/libsqlite3.so.0": {
+        "size": 0,
+        "mode": "0o777",
+        "type": "2",
+        "link": "libsqlite3.so.0.8.6"
+      },
+      "usr/lib/aarch64-linux-gnu/libsqlite3.so.0.8.6": {
+        "size": 1458912,
+        "mode": "0o644",
+        "type": "0",
+        "link": ""
+      },
+      "usr/lib/aarch64-linux-gnu/libssl.so.3": {
+        "size": 737192,
+        "mode": "0o644",
+        "type": "0",
+        "link": ""
+      },
+      "usr/lib/aarch64-linux-gnu/libxml2.so.2": {
+        "size": 0,
+        "mode": "0o777",
+        "type": "2",
+        "link": "libxml2.so.2.9.14"
+      },
+      "usr/lib/aarch64-linux-gnu/libxml2.so.2.9.14": {
+        "size": 1708736,
+        "mode": "0o644",
+        "type": "0",
+        "link": ""
+      },
+      "usr/share/perl/5.36.0/Archive/Tar.pm": {
+        "size": 78627,
+        "mode": "0o644",
+        "type": "0",
+        "link": ""
+      }
+    },
+    "installed_packages": {
+      "adduser": {
+        "version": "3.134",
+        "source": "adduser"
+      },
+      "apt": {
+        "version": "2.6.1",
+        "source": "apt"
+      },
+      "base-files": {
+        "version": "12.4+deb12u15",
+        "source": "base-files"
+      },
+      "base-passwd": {
+        "version": "3.6.1",
+        "source": "base-passwd"
+      },
+      "bash": {
+        "version": "5.2.15-2+b13",
+        "source": "bash (5.2.15-2)"
+      },
+      "bsdutils": {
+        "version": "1:2.38.1-5+deb12u3",
+        "source": "util-linux (2.38.1-5+deb12u3)"
+      },
+      "coreutils": {
+        "version": "9.1-1",
+        "source": "coreutils"
+      },
+      "dash": {
+        "version": "0.5.12-2",
+        "source": "dash"
+      },
+      "debconf": {
+        "version": "1.5.82",
+        "source": "debconf"
+      },
+      "debian-archive-keyring": {
+        "version": "2023.3+deb12u2",
+        "source": "debian-archive-keyring"
+      },
+      "debianutils": {
+        "version": "5.7-0.5~deb12u1",
+        "source": "debianutils"
+      },
+      "diffutils": {
+        "version": "1:3.8-4",
+        "source": "diffutils"
+      },
+      "dirmngr": {
+        "version": "2.2.40-1.1+deb12u2",
+        "source": "gnupg2"
+      },
+      "dpkg": {
+        "version": "1.21.23",
+        "source": "dpkg"
+      },
+      "e2fsprogs": {
+        "version": "1.47.0-2+b2",
+        "source": "e2fsprogs (1.47.0-2)"
+      },
+      "findutils": {
+        "version": "4.9.0-4",
+        "source": "findutils"
+      },
+      "gcc-12-base": {
+        "version": "12.2.0-14+deb12u1",
+        "source": "gcc-12"
+      },
+      "gnupg": {
+        "version": "2.2.40-1.1+deb12u2",
+        "source": "gnupg2"
+      },
+      "gnupg-l10n": {
+        "version": "2.2.40-1.1+deb12u2",
+        "source": "gnupg2"
+      },
+      "gnupg-utils": {
+        "version": "2.2.40-1.1+deb12u2",
+        "source": "gnupg2"
+      },
+      "gpg": {
+        "version": "2.2.40-1.1+deb12u2",
+        "source": "gnupg2"
+      },
+      "gpg-agent": {
+        "version": "2.2.40-1.1+deb12u2",
+        "source": "gnupg2"
+      },
+      "gpg-wks-client": {
+        "version": "2.2.40-1.1+deb12u2",
+        "source": "gnupg2"
+      },
+      "gpg-wks-server": {
+        "version": "2.2.40-1.1+deb12u2",
+        "source": "gnupg2"
+      },
+      "gpgconf": {
+        "version": "2.2.40-1.1+deb12u2",
+        "source": "gnupg2"
+      },
+      "gpgsm": {
+        "version": "2.2.40-1.1+deb12u2",
+        "source": "gnupg2"
+      },
+      "gpgv": {
+        "version": "2.2.40-1.1+deb12u2",
+        "source": "gnupg2"
+      },
+      "grep": {
+        "version": "3.8-5",
+        "source": "grep"
+      },
+      "gzip": {
+        "version": "1.12-1",
+        "source": "gzip"
+      },
+      "hostname": {
+        "version": "3.23+nmu1",
+        "source": "hostname"
+      },
+      "init-system-helpers": {
+        "version": "1.65.2+deb12u1",
+        "source": "init-system-helpers"
+      },
+      "less": {
+        "version": "590-2.1~deb12u2",
+        "source": "less"
+      },
+      "libacl1": {
+        "version": "2.3.1-3",
+        "source": "acl"
+      },
+      "libapt-pkg6.0": {
+        "version": "2.6.1",
+        "source": "apt"
+      },
+      "libassuan0": {
+        "version": "2.5.5-5",
+        "source": "libassuan"
+      },
+      "libattr1": {
+        "version": "1:2.5.1-4",
+        "source": "attr"
+      },
+      "libaudit-common": {
+        "version": "1:3.0.9-1",
+        "source": "audit"
+      },
+      "libaudit1": {
+        "version": "1:3.0.9-1",
+        "source": "audit"
+      },
+      "libblkid1": {
+        "version": "2.38.1-5+deb12u3",
+        "source": "util-linux"
+      },
+      "libbsd0": {
+        "version": "0.11.7-2",
+        "source": "libbsd"
+      },
+      "libbz2-1.0": {
+        "version": "1.0.8-5+b1",
+        "source": "bzip2 (1.0.8-5)"
+      },
+      "libcap-ng0": {
+        "version": "0.8.3-1+b3",
+        "source": "libcap-ng (0.8.3-1)"
+      },
+      "libcap2": {
+        "version": "1:2.66-4+deb12u3+b1",
+        "source": "libcap2 (1:2.66-4+deb12u3)"
+      },
+      "libcom-err2": {
+        "version": "1.47.0-2+b2",
+        "source": "e2fsprogs (1.47.0-2)"
+      },
+      "libcrypt1": {
+        "version": "1:4.4.33-2",
+        "source": "libxcrypt"
+      },
+      "libdb5.3": {
+        "version": "5.3.28+dfsg2-1",
+        "source": "db5.3"
+      },
+      "libdebconfclient0": {
+        "version": "0.270",
+        "source": "cdebconf"
+      },
+      "libedit2": {
+        "version": "3.1-20221030-2",
+        "source": "libedit"
+      },
+      "libext2fs2": {
+        "version": "1.47.0-2+b2",
+        "source": "e2fsprogs (1.47.0-2)"
+      },
+      "libffi8": {
+        "version": "3.4.4-1",
+        "source": "libffi"
+      },
+      "libgcc-s1": {
+        "version": "12.2.0-14+deb12u1",
+        "source": "gcc-12"
+      },
+      "libgcrypt20": {
+        "version": "1.10.1-3+deb12u1",
+        "source": "libgcrypt20"
+      },
+      "libgdbm-compat4": {
+        "version": "1.23-3",
+        "source": "gdbm"
+      },
+      "libgdbm6": {
+        "version": "1.23-3",
+        "source": "gdbm"
+      },
+      "libgmp10": {
+        "version": "2:6.2.1+dfsg1-1.1",
+        "source": "gmp"
+      },
+      "libgnutls30": {
+        "version": "3.7.9-2+deb12u7",
+        "source": "gnutls28"
+      },
+      "libgpg-error0": {
+        "version": "1.46-1",
+        "source": "libgpg-error"
+      },
+      "libgssapi-krb5-2": {
+        "version": "1.20.1-2+deb12u5",
+        "source": "krb5"
+      },
+      "libhogweed6": {
+        "version": "3.8.1-2",
+        "source": "nettle"
+      },
+      "libidn2-0": {
+        "version": "2.3.3-1+b1",
+        "source": "libidn2 (2.3.3-1)"
+      },
+      "libjson-perl": {
+        "version": "4.10000-1",
+        "source": "libjson-perl"
+      },
+      "libk5crypto3": {
+        "version": "1.20.1-2+deb12u5",
+        "source": "krb5"
+      },
+      "libkeyutils1": {
+        "version": "1.6.3-2",
+        "source": "keyutils"
+      },
+      "libkrb5-3": {
+        "version": "1.20.1-2+deb12u5",
+        "source": "krb5"
+      },
+      "libkrb5support0": {
+        "version": "1.20.1-2+deb12u5",
+        "source": "krb5"
+      },
+      "libksba8": {
+        "version": "1.6.3-2",
+        "source": "libksba"
+      },
+      "libldap-2.5-0": {
+        "version": "2.5.13+dfsg-5",
+        "source": "openldap"
+      },
+      "libllvm19": {
+        "version": "1:19.1.7-3~deb12u1",
+        "source": "llvm-toolchain-19"
+      },
+      "liblz4-1": {
+        "version": "1.9.4-1",
+        "source": "lz4"
+      },
+      "liblzma5": {
+        "version": "5.4.1-1+deb12u2",
+        "source": "xz-utils"
+      },
+      "libmd0": {
+        "version": "1.0.4-2",
+        "source": "libmd"
+      },
+      "libmount1": {
+        "version": "2.38.1-5+deb12u3",
+        "source": "util-linux"
+      },
+      "libncursesw6": {
+        "version": "6.4-4",
+        "source": "ncurses"
+      },
+      "libnettle8": {
+        "version": "3.8.1-2",
+        "source": "nettle"
+      },
+      "libnpth0": {
+        "version": "1.6-3",
+        "source": "npth"
+      },
+      "libnss-wrapper": {
+        "version": "1.1.12-1",
+        "source": "nss-wrapper"
+      },
+      "libnuma1": {
+        "version": "2.0.16-1",
+        "source": "numactl"
+      },
+      "libp11-kit0": {
+        "version": "0.24.1-2",
+        "source": "p11-kit"
+      },
+      "libpam-modules": {
+        "version": "1.5.2-6+deb12u2",
+        "source": "pam"
+      },
+      "libpam-modules-bin": {
+        "version": "1.5.2-6+deb12u2",
+        "source": "pam"
+      },
+      "libpam-runtime": {
+        "version": "1.5.2-6+deb12u2",
+        "source": "pam"
+      },
+      "libpam0g": {
+        "version": "1.5.2-6+deb12u2",
+        "source": "pam"
+      },
+      "libpcre2-8-0": {
+        "version": "10.42-1+deb12u2",
+        "source": "pcre2"
+      },
+      "libperl5.36": {
+        "version": "5.36.0-7+deb12u4",
+        "source": "perl"
+      },
+      "libpq5": {
+        "version": "18.6-1.pgdg12+2",
+        "source": "postgresql-18"
+      },
+      "libreadline8": {
+        "version": "8.2-1.3",
+        "source": "readline"
+      },
+      "libsasl2-2": {
+        "version": "2.1.28+dfsg-10",
+        "source": "cyrus-sasl2"
+      },
+      "libsasl2-modules-db": {
+        "version": "2.1.28+dfsg-10",
+        "source": "cyrus-sasl2"
+      },
+      "libseccomp2": {
+        "version": "2.5.4-1+deb12u1",
+        "source": "libseccomp"
+      },
+      "libselinux1": {
+        "version": "3.4-1+b6",
+        "source": "libselinux (3.4-1)"
+      },
+      "libsemanage-common": {
+        "version": "3.4-1",
+        "source": "libsemanage"
+      },
+      "libsemanage2": {
+        "version": "3.4-1+b5",
+        "source": "libsemanage (3.4-1)"
+      },
+      "libsepol2": {
+        "version": "3.4-2.1",
+        "source": "libsepol"
+      },
+      "libsmartcols1": {
+        "version": "2.38.1-5+deb12u3",
+        "source": "util-linux"
+      },
+      "libsqlite3-0": {
+        "version": "3.40.1-2+deb12u2",
+        "source": "sqlite3"
+      },
+      "libss2": {
+        "version": "1.47.0-2+b2",
+        "source": "e2fsprogs (1.47.0-2)"
+      },
+      "libssl3": {
+        "version": "3.0.22-1~deb12u1",
+        "source": "openssl"
+      },
+      "libstdc++6": {
+        "version": "12.2.0-14+deb12u1",
+        "source": "gcc-12"
+      },
+      "libsystemd0": {
+        "version": "252.39-1~deb12u2",
+        "source": "systemd"
+      },
+      "libtasn1-6": {
+        "version": "4.19.0-2+deb12u1",
+        "source": "libtasn1-6"
+      },
+      "libtinfo6": {
+        "version": "6.4-4",
+        "source": "ncurses"
+      },
+      "libudev1": {
+        "version": "252.39-1~deb12u2",
+        "source": "systemd"
+      },
+      "libunistring2": {
+        "version": "1.0-2",
+        "source": "libunistring"
+      },
+      "liburing2": {
+        "version": "2.3-3",
+        "source": "liburing"
+      },
+      "libuuid1": {
+        "version": "2.38.1-5+deb12u3",
+        "source": "util-linux"
+      },
+      "libxml2": {
+        "version": "2.9.14+dfsg-1.3~deb12u6",
+        "source": "libxml2"
+      },
+      "libxslt1.1": {
+        "version": "1.1.35-1+deb12u4",
+        "source": "libxslt"
+      },
+      "libxxhash0": {
+        "version": "0.8.1-1",
+        "source": "xxhash"
+      },
+      "libz3-4": {
+        "version": "4.8.12-3.1",
+        "source": "z3"
+      },
+      "libzstd1": {
+        "version": "1.5.4+dfsg2-5",
+        "source": "libzstd"
+      },
+      "login": {
+        "version": "1:4.13+dfsg1-1+deb12u2",
+        "source": "shadow"
+      },
+      "logsave": {
+        "version": "1.47.0-2+b2",
+        "source": "e2fsprogs (1.47.0-2)"
+      },
+      "mawk": {
+        "version": "1.3.4.20200120-3.1",
+        "source": "mawk"
+      },
+      "mount": {
+        "version": "2.38.1-5+deb12u3",
+        "source": "util-linux"
+      },
+      "ncurses-base": {
+        "version": "6.4-4",
+        "source": "ncurses"
+      },
+      "ncurses-bin": {
+        "version": "6.4-4",
+        "source": "ncurses"
+      },
+      "netbase": {
+        "version": "6.4",
+        "source": "netbase"
+      },
+      "openssl": {
+        "version": "3.0.22-1~deb12u1",
+        "source": "openssl"
+      },
+      "passwd": {
+        "version": "1:4.13+dfsg1-1+deb12u2",
+        "source": "shadow"
+      },
+      "perl": {
+        "version": "5.36.0-7+deb12u4",
+        "source": "perl"
+      },
+      "perl-base": {
+        "version": "5.36.0-7+deb12u4",
+        "source": "perl"
+      },
+      "perl-modules-5.36": {
+        "version": "5.36.0-7+deb12u4",
+        "source": "perl"
+      },
+      "pinentry-curses": {
+        "version": "1.2.1-1",
+        "source": "pinentry"
+      },
+      "postgresql-18": {
+        "version": "18.6-1.pgdg12+2",
+        "source": "postgresql-18"
+      },
+      "postgresql-18-jit": {
+        "version": "18.6-1.pgdg12+2",
+        "source": "postgresql-18"
+      },
+      "postgresql-client-18": {
+        "version": "18.6-1.pgdg12+2",
+        "source": "postgresql-18"
+      },
+      "postgresql-client-common": {
+        "version": "293.pgdg12+1",
+        "source": "postgresql-common"
+      },
+      "postgresql-common": {
+        "version": "293.pgdg12+1",
+        "source": "postgresql-common"
+      },
+      "readline-common": {
+        "version": "8.2-1.3",
+        "source": "readline"
+      },
+      "sed": {
+        "version": "4.9-1+deb12u1",
+        "source": "sed"
+      },
+      "sensible-utils": {
+        "version": "0.0.17+nmu1",
+        "source": "sensible-utils"
+      },
+      "ssl-cert": {
+        "version": "1.1.2",
+        "source": "ssl-cert"
+      },
+      "sysvinit-utils": {
+        "version": "3.06-4",
+        "source": "sysvinit"
+      },
+      "tar": {
+        "version": "1.34+dfsg-1.2+deb12u1",
+        "source": "tar"
+      },
+      "ucf": {
+        "version": "3.0043+nmu1+deb12u1",
+        "source": "ucf"
+      },
+      "usr-is-merged": {
+        "version": "37~deb12u1",
+        "source": "usrmerge"
+      },
+      "util-linux": {
+        "version": "2.38.1-5+deb12u3",
+        "source": "util-linux"
+      },
+      "util-linux-extra": {
+        "version": "2.38.1-5+deb12u3",
+        "source": "util-linux"
+      },
+      "xz-utils": {
+        "version": "5.4.1-1+deb12u2",
+        "source": "xz-utils"
+      },
+      "zlib1g": {
+        "version": "1:1.2.13.dfsg-1",
+        "source": "zlib"
+      },
+      "zstd": {
+        "version": "1.5.4+dfsg2-5",
+        "source": "libzstd"
+      }
+    },
+    "archive_tar_header": {
+      "usr/share/perl/5.36.0/Archive/Tar.pm": "### the gnu tar specification:\n### http://www.gnu.org/software/tar/manual/tar.html\n###\n### and the pax format spec, which tar derives from:\n### http://www.opengroup.org/onlinepubs/007904975/utilities/pax.html\n\npackage Archive::Tar;\nrequire 5.005_03;\n\nuse Cwd;\nuse IO::Zlib;\nuse IO::File;\nuse Carp                qw(carp croak);\nuse File::Spec          ();\nuse File::Spec::Unix    ();\nuse File::Path          ();\n\nuse Archive::Tar::File;\nuse Archive::"
+    },
+    "report_image_id": "sha256:f8aa4289e1669e22ec9383105a91f9030a0a6b5e7297e3419ca5f80e5fb581e0",
+    "image_id_and_diff_ids_match_report": true,
+    "method": "Read-only Docker/OCI archive layer replay in manifest order with normal and opaque whiteouts; no Docker, execution or compilation.",
+    "full_inventory_non_directory_path_count": 9176,
+    "full_inventory_sorted_names_sha256": "f1953c669554388e1b616bbb8d9eb53502aa1f7df76fe55c4c4cff769a1e3e10",
+    "affected_component_path_matches": {
+      "minizip": [],
+      "systemd_homed": [],
+      "libxml_python_bindings": [],
+      "archive_tar": ["usr/share/perl/5.36.0/Archive/Tar.pm"]
+    }
+  },
+  "redis": {
+    "artifact": "/private/tmp/framework-redis-security.image.tar",
+    "tag": ["enterprise-admin-redis:7.4.5-security-1"],
+    "physical_paths": {
+      "usr/bin/gzip": {
+        "size": 93752,
+        "mode": "0o755",
+        "type": "0",
+        "link": ""
+      },
+      "usr/bin/infocmp": {
+        "size": 67752,
+        "mode": "0o755",
+        "type": "0",
+        "link": ""
+      },
+      "usr/bin/mount": {
+        "size": 67744,
+        "mode": "0o4755",
+        "type": "0",
+        "link": ""
+      },
+      "usr/bin/mountpoint": {
+        "size": 67744,
+        "mode": "0o755",
+        "type": "0",
+        "link": ""
+      },
+      "usr/bin/nsenter": {
+        "size": 67976,
+        "mode": "0o755",
+        "type": "0",
+        "link": ""
+      },
+      "usr/lib/aarch64-linux-gnu/libacl.so.1": {
+        "size": 0,
+        "mode": "0o777",
+        "type": "2",
+        "link": "libacl.so.1.1.2301"
+      },
+      "usr/lib/aarch64-linux-gnu/libacl.so.1.1.2301": {
+        "size": 67432,
+        "mode": "0o644",
+        "type": "0",
+        "link": ""
+      },
+      "usr/lib/aarch64-linux-gnu/libgnutls.so.30": {
+        "size": 0,
+        "mode": "0o777",
+        "type": "2",
+        "link": "libgnutls.so.30.34.3"
+      },
+      "usr/lib/aarch64-linux-gnu/libgnutls.so.30.34.3": {
+        "size": 2303440,
+        "mode": "0o644",
+        "type": "0",
+        "link": ""
+      },
+      "usr/share/bash-completion/completions/mount": {
+        "size": 2112,
+        "mode": "0o644",
+        "type": "0",
+        "link": ""
+      },
+      "usr/share/bash-completion/completions/mountpoint": {
+        "size": 498,
+        "mode": "0o644",
+        "type": "0",
+        "link": ""
+      },
+      "usr/share/bash-completion/completions/nsenter": {
+        "size": 1195,
+        "mode": "0o644",
+        "type": "0",
+        "link": ""
+      },
+      "var/lib/dpkg/info/gzip.list": {
+        "size": 923,
+        "mode": "0o644",
+        "type": "0",
+        "link": ""
+      },
+      "var/lib/dpkg/info/gzip.md5sums": {
+        "size": 1578,
+        "mode": "0o644",
+        "type": "0",
+        "link": ""
+      },
+      "var/lib/dpkg/info/mount.list": {
+        "size": 1044,
+        "mode": "0o644",
+        "type": "0",
+        "link": ""
+      },
+      "var/lib/dpkg/info/mount.md5sums": {
+        "size": 1505,
+        "mode": "0o644",
+        "type": "0",
+        "link": ""
+      },
+      "usr/lib/aarch64-linux-gnu/libssl.so.3": {
+        "size": 737192,
+        "mode": "0o644",
+        "type": "0",
+        "link": ""
+      }
+    },
+    "installed_packages": {
+      "adduser": {
+        "version": "3.134",
+        "source": "adduser"
+      },
+      "apt": {
+        "version": "2.6.1",
+        "source": "apt"
+      },
+      "base-files": {
+        "version": "12.4+deb12u12",
+        "source": "base-files"
+      },
+      "base-passwd": {
+        "version": "3.6.1",
+        "source": "base-passwd"
+      },
+      "bash": {
+        "version": "5.2.15-2+b9",
+        "source": "bash (5.2.15-2)"
+      },
+      "bsdutils": {
+        "version": "1:2.38.1-5+deb12u3",
+        "source": "util-linux (2.38.1-5+deb12u3)"
+      },
+      "coreutils": {
+        "version": "9.1-1",
+        "source": "coreutils"
+      },
+      "dash": {
+        "version": "0.5.12-2",
+        "source": "dash"
+      },
+      "debconf": {
+        "version": "1.5.82",
+        "source": "debconf"
+      },
+      "debian-archive-keyring": {
+        "version": "2023.3+deb12u2",
+        "source": "debian-archive-keyring"
+      },
+      "debianutils": {
+        "version": "5.7-0.5~deb12u1",
+        "source": "debianutils"
+      },
+      "diffutils": {
+        "version": "1:3.8-4",
+        "source": "diffutils"
+      },
+      "dpkg": {
+        "version": "1.21.22",
+        "source": "dpkg"
+      },
+      "e2fsprogs": {
+        "version": "1.47.0-2+b2",
+        "source": "e2fsprogs (1.47.0-2)"
+      },
+      "findutils": {
+        "version": "4.9.0-4",
+        "source": "findutils"
+      },
+      "gcc-12-base": {
+        "version": "12.2.0-14+deb12u1",
+        "source": "gcc-12"
+      },
+      "gpgv": {
+        "version": "2.2.40-1.1+deb12u2",
+        "source": "gnupg2"
+      },
+      "grep": {
+        "version": "3.8-5",
+        "source": "grep"
+      },
+      "gzip": {
+        "version": "1.12-1",
+        "source": "gzip"
+      },
+      "hostname": {
+        "version": "3.23+nmu1",
+        "source": "hostname"
+      },
+      "init-system-helpers": {
+        "version": "1.65.2+deb12u1",
+        "source": "init-system-helpers"
+      },
+      "libacl1": {
+        "version": "2.3.1-3",
+        "source": "acl"
+      },
+      "libapt-pkg6.0": {
+        "version": "2.6.1",
+        "source": "apt"
+      },
+      "libattr1": {
+        "version": "1:2.5.1-4",
+        "source": "attr"
+      },
+      "libaudit-common": {
+        "version": "1:3.0.9-1",
+        "source": "audit"
+      },
+      "libaudit1": {
+        "version": "1:3.0.9-1",
+        "source": "audit"
+      },
+      "libblkid1": {
+        "version": "2.38.1-5+deb12u3",
+        "source": "util-linux"
+      },
+      "libbz2-1.0": {
+        "version": "1.0.8-5+b1",
+        "source": "bzip2 (1.0.8-5)"
+      },
+      "libcap-ng0": {
+        "version": "0.8.3-1+b3",
+        "source": "libcap-ng (0.8.3-1)"
+      },
+      "libcap2": {
+        "version": "1:2.66-4+deb12u3+b1",
+        "source": "libcap2 (1:2.66-4+deb12u3)"
+      },
+      "libcom-err2": {
+        "version": "1.47.0-2+b2",
+        "source": "e2fsprogs (1.47.0-2)"
+      },
+      "libcrypt1": {
+        "version": "1:4.4.33-2",
+        "source": "libxcrypt"
+      },
+      "libdb5.3": {
+        "version": "5.3.28+dfsg2-1",
+        "source": "db5.3"
+      },
+      "libdebconfclient0": {
+        "version": "0.270",
+        "source": "cdebconf"
+      },
+      "libext2fs2": {
+        "version": "1.47.0-2+b2",
+        "source": "e2fsprogs (1.47.0-2)"
+      },
+      "libffi8": {
+        "version": "3.4.4-1",
+        "source": "libffi"
+      },
+      "libgcc-s1": {
+        "version": "12.2.0-14+deb12u1",
+        "source": "gcc-12"
+      },
+      "libgcrypt20": {
+        "version": "1.10.1-3+deb12u1",
+        "source": "libgcrypt20"
+      },
+      "libgmp10": {
+        "version": "2:6.2.1+dfsg1-1.1",
+        "source": "gmp"
+      },
+      "libgnutls30": {
+        "version": "3.7.9-2+deb12u7",
+        "source": "gnutls28"
+      },
+      "libgpg-error0": {
+        "version": "1.46-1",
+        "source": "libgpg-error"
+      },
+      "libhogweed6": {
+        "version": "3.8.1-2",
+        "source": "nettle"
+      },
+      "libidn2-0": {
+        "version": "2.3.3-1+b1",
+        "source": "libidn2 (2.3.3-1)"
+      },
+      "liblz4-1": {
+        "version": "1.9.4-1",
+        "source": "lz4"
+      },
+      "liblzma5": {
+        "version": "5.4.1-1+deb12u2",
+        "source": "xz-utils"
+      },
+      "libmd0": {
+        "version": "1.0.4-2",
+        "source": "libmd"
+      },
+      "libmount1": {
+        "version": "2.38.1-5+deb12u3",
+        "source": "util-linux"
+      },
+      "libnettle8": {
+        "version": "3.8.1-2",
+        "source": "nettle"
+      },
+      "libp11-kit0": {
+        "version": "0.24.1-2",
+        "source": "p11-kit"
+      },
+      "libpam-modules": {
+        "version": "1.5.2-6+deb12u2",
+        "source": "pam"
+      },
+      "libpam-modules-bin": {
+        "version": "1.5.2-6+deb12u2",
+        "source": "pam"
+      },
+      "libpam-runtime": {
+        "version": "1.5.2-6+deb12u2",
+        "source": "pam"
+      },
+      "libpam0g": {
+        "version": "1.5.2-6+deb12u2",
+        "source": "pam"
+      },
+      "libpcre2-8-0": {
+        "version": "10.42-1+deb12u2",
+        "source": "pcre2"
+      },
+      "libseccomp2": {
+        "version": "2.5.4-1+deb12u1",
+        "source": "libseccomp"
+      },
+      "libselinux1": {
+        "version": "3.4-1+b6",
+        "source": "libselinux (3.4-1)"
+      },
+      "libsemanage-common": {
+        "version": "3.4-1",
+        "source": "libsemanage"
+      },
+      "libsemanage2": {
+        "version": "3.4-1+b5",
+        "source": "libsemanage (3.4-1)"
+      },
+      "libsepol2": {
+        "version": "3.4-2.1",
+        "source": "libsepol"
+      },
+      "libsmartcols1": {
+        "version": "2.38.1-5+deb12u3",
+        "source": "util-linux"
+      },
+      "libss2": {
+        "version": "1.47.0-2+b2",
+        "source": "e2fsprogs (1.47.0-2)"
+      },
+      "libssl3": {
+        "version": "3.0.22-1~deb12u1",
+        "source": "openssl"
+      },
+      "libstdc++6": {
+        "version": "12.2.0-14+deb12u1",
+        "source": "gcc-12"
+      },
+      "libsystemd0": {
+        "version": "252.39-1~deb12u2",
+        "source": "systemd"
+      },
+      "libtasn1-6": {
+        "version": "4.19.0-2+deb12u1",
+        "source": "libtasn1-6"
+      },
+      "libtinfo6": {
+        "version": "6.4-4",
+        "source": "ncurses"
+      },
+      "libudev1": {
+        "version": "252.39-1~deb12u2",
+        "source": "systemd"
+      },
+      "libunistring2": {
+        "version": "1.0-2",
+        "source": "libunistring"
+      },
+      "libuuid1": {
+        "version": "2.38.1-5+deb12u3",
+        "source": "util-linux"
+      },
+      "libxxhash0": {
+        "version": "0.8.1-1",
+        "source": "xxhash"
+      },
+      "libzstd1": {
+        "version": "1.5.4+dfsg2-5",
+        "source": "libzstd"
+      },
+      "login": {
+        "version": "1:4.13+dfsg1-1+deb12u1",
+        "source": "shadow"
+      },
+      "logsave": {
+        "version": "1.47.0-2+b2",
+        "source": "e2fsprogs (1.47.0-2)"
+      },
+      "mawk": {
+        "version": "1.3.4.20200120-3.1",
+        "source": "mawk"
+      },
+      "mount": {
+        "version": "2.38.1-5+deb12u3",
+        "source": "util-linux"
+      },
+      "ncurses-base": {
+        "version": "6.4-4",
+        "source": "ncurses"
+      },
+      "ncurses-bin": {
+        "version": "6.4-4",
+        "source": "ncurses"
+      },
+      "passwd": {
+        "version": "1:4.13+dfsg1-1+deb12u1",
+        "source": "shadow"
+      },
+      "perl-base": {
+        "version": "5.36.0-7+deb12u4",
+        "source": "perl"
+      },
+      "sed": {
+        "version": "4.9-1",
+        "source": "sed"
+      },
+      "sysvinit-utils": {
+        "version": "3.06-4",
+        "source": "sysvinit"
+      },
+      "tar": {
+        "version": "1.34+dfsg-1.2+deb12u1",
+        "source": "tar"
+      },
+      "usr-is-merged": {
+        "version": "37~deb12u1",
+        "source": "usrmerge"
+      },
+      "util-linux": {
+        "version": "2.38.1-5+deb12u3",
+        "source": "util-linux"
+      },
+      "util-linux-extra": {
+        "version": "2.38.1-5+deb12u3",
+        "source": "util-linux"
+      },
+      "zlib1g": {
+        "version": "1:1.2.13.dfsg-1",
+        "source": "zlib"
+      }
+    },
+    "archive_tar_header": {},
+    "report_image_id": "sha256:d957ab3bb476dd3a799d61ebaebd29784eb1ff143636dd309a4122f11e061636",
+    "image_id_and_diff_ids_match_report": true,
+    "method": "Read-only Docker/OCI archive layer replay in manifest order with normal and opaque whiteouts; no Docker, execution or compilation.",
+    "full_inventory_non_directory_path_count": 3798,
+    "full_inventory_sorted_names_sha256": "ba311288d0fa4d254639f5c0132bbda5a796ae90a179f936d2962f63c6e1e2b5",
+    "affected_component_path_matches": {
+      "minizip": [],
+      "systemd_homed": [],
+      "libxml_python_bindings": [],
+      "archive_tar": []
+    }
+  }
+}

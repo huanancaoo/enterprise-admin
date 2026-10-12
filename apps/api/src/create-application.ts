@@ -12,11 +12,15 @@ import { configureApp } from './http/configure-app';
 import { AuthRuntime } from './identity/auth-runtime';
 import { setupSwagger } from './openapi/setup-swagger';
 import { createFilesRuntime, FilesRuntime } from './files/files-runtime';
+import { readWorkerConfig } from '@workspace/jobs';
+import { PROJECT_IMPORT_MAX_BYTES } from '@workspace/contracts';
+import { initializeTelemetry } from '@workspace/observability';
 
 export async function createApplication(
   config: ApplicationConfig,
   options: NestApplicationOptions = {},
 ): Promise<NestExpressApplication> {
+  initializeTelemetry('enterprise-admin-api');
   let email: EmailRuntime | undefined;
   let runtime: AuthRuntime | undefined;
   let files: FilesRuntime | undefined;
@@ -27,7 +31,14 @@ export async function createApplication(
     });
     files = await createFilesRuntime(config.databaseURL, config.files);
     const app = await NestFactory.create<NestExpressApplication>(
-      AppModule.forRoot(runtime, email!, readDeploymentSummary(config), files),
+      AppModule.forRoot(
+        runtime,
+        email!,
+        readDeploymentSummary(config),
+        files,
+        readWorkerConfig({ ...process.env, REDIS_URL: config.redisURL }),
+        config.email,
+      ),
       { ...options, bodyParser: false, abortOnError: false },
     );
     configureApp(app, () => readPlatformDefaultLocale(runtime!.pool));
@@ -43,6 +54,19 @@ export async function createApplication(
         },
         () => authHandler(request, response),
       );
+    });
+    // 仅导入容纳 base64 体积；认证仍读取原始流，其他 JSON 保留现有限制。
+    app.useBodyParser('json', {
+      limit: Math.ceil(PROJECT_IMPORT_MAX_BYTES / 3) * 4 + 1024,
+      type: (request) =>
+        request.method === 'POST' &&
+        /^\/api\/v1\/organizations\/[^/]+\/projects\/imports\/?(?:\?|$)/.test(
+          request.url ?? '',
+        ) &&
+        request.headers['content-type']
+          ?.split(';', 1)[0]
+          ?.trim()
+          .toLowerCase() === 'application/json',
     });
     app.useBodyParser('json');
     app.useBodyParser('urlencoded', { extended: true });

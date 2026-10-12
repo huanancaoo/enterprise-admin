@@ -21,14 +21,14 @@ You need **Node 26.8.2**, **pnpm 12.4.1**, and Docker. Versions are pinned in th
 pnpm dev
 ```
 
-| App        | URL                           | Filter                          |
-| ---------- | ----------------------------- | ------------------------------- |
-| Tenant     | http://localhost:3200         | `pnpm --filter tenant dev`      |
-| Platform   | http://localhost:3201         | `pnpm --filter platform dev`    |
-| API        | http://localhost:3000/api/v1  | `pnpm --filter api dev`         |
-| Storybook  | http://localhost:6006         | `pnpm --filter storybook dev`   |
-| Docs       | http://localhost:3300         | `pnpm --filter docs dev`        |
+| App       | URL                          | Filter                        |
+| --------- | ---------------------------- | ----------------------------- |
+| Tenant    | http://localhost:3200        | `pnpm --filter tenant dev`    |
+| Platform  | http://localhost:3201        | `pnpm --filter platform dev`  |
+| API       | http://localhost:3000/api/v1 | `pnpm --filter api dev`       |
+| Storybook | http://localhost:6006        | `pnpm --filter storybook dev` |
+| Docs      | http://localhost:3300        | `pnpm --filter docs dev`      |
 
 The tenant console can register, verify email, create an organization, and use Projects. Auth mail appears in Mailpit at http://127.0.0.1:8025.
 
-The platform console has no registration. Create a platform admin with the API CLI after the API is built.
+The platform console has no registration entry point. The target user first registers and verifies their email through the tenant console. After the API is built, a deployment operator grants a platform assignment with the API CLI using the user UUID. See [ADR 0002](../adr/0002-platform-assignment.mdx) for the authorization rules.

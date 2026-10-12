@@ -1,3 +1,4 @@
+import { ProjectExchangeActions } from "../features/projects/project-exchange"
 import { useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
@@ -7,6 +8,7 @@ import {
   ProjectStatusSchema,
   type ProjectListQuery,
   type ProjectResponse,
+  type BusinessTask,
 } from "@workspace/contracts"
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
@@ -38,6 +40,7 @@ const statusBadgeVariant = {
 type ProjectsListProps = {
   organizationId: string
   search: ProjectListQuery
+  onTaskCreated: (task: BusinessTask) => void
   onSearchChange: (
     updater: (current: ProjectListQuery) => ProjectListQuery
   ) => void
@@ -47,6 +50,7 @@ export function ProjectsList({
   organizationId,
   search,
   onSearchChange,
+  onTaskCreated,
 }: ProjectsListProps) {
   const { t } = useTranslation(["projects", "common", "organization"])
   const locale = useUiLocale()
@@ -138,7 +142,14 @@ export function ProjectsList({
       title={t("projects:title")}
       status="ready"
       actions={
-        <ProjectCreate key={organizationId} organizationId={organizationId} />
+        <>
+          <ProjectExchangeActions
+            organizationId={organizationId}
+            filter={search}
+            onTaskCreated={onTaskCreated}
+          />
+          <ProjectCreate key={organizationId} organizationId={organizationId} />
+        </>
       }
     >
       <DataTable

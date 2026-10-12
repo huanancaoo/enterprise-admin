@@ -1,22 +1,25 @@
 # 测试框架与 Vitest 统一验收
 
-日期：2026-09-15。测试运行器统一为 **Vitest 4.1.11**。保留 Supertest、Testcontainers、Storybook、MSW 和 Playwright 各自的职责。
+测试说明更新：2026-10-11。测试运行器为 **Vitest 4.1.11**。保留 Supertest、Testcontainers、Storybook、MSW 和 Playwright 各自的职责。本文下方保留 2026-09-15 的运行器迁移验收，历史数量不代表当前覆盖范围。
 
 ## 当前测试分层
 
-| 范围                | 执行入口（仓库根目录）       | 环境与覆盖                                                          |
-| ------------------- | ---------------------------- | ------------------------------------------------------------------- |
-| 工程边界与 API 单元 | `pnpm test:unit`             | Vitest Node；边界回归 5 个，Nest 注入/Controller 测试 1 个          |
-| API HTTP            | `pnpm test:api`              | Vitest Node + Supertest；4 个接口、文档、requestId 测试             |
-| HTTP 性能           | `pnpm test:performance`      | 真实 HTTP、PostgreSQL、Redis；20 并发与固定规模的 S8 目录、审计查询 |
-| 正式组件            | `pnpm test:storybook`        | Vitest 浏览器模式 + Storybook；Button 键盘焦点和 a11y，1 个 Story   |
-| API 单元覆盖率      | `pnpm --filter api test:cov` | Vitest V8 coverage；统计 API src，不包含 spec 文件                  |
+| 范围                | 执行入口（仓库根目录）       | 环境与覆盖                                                                     |
+| ------------------- | ---------------------------- | ------------------------------------------------------------------------------ |
+| 工程边界与 API 单元 | `pnpm test:unit`             | Vitest Node；工程边界、契约、客户端、任务、MSW、Nest 和文档测试                |
+| API HTTP            | `pnpm test:api`              | 真实 HTTP、PostgreSQL、Redis、独立 Worker；权限、事务、SMTP/Webhook 与观测边界 |
+| HTTP 性能           | `pnpm test:performance`      | 真实 HTTP、PostgreSQL、Redis；20 并发与固定规模的 S8 目录、审计查询            |
+| 正式组件            | `pnpm test:storybook`        | Vitest 浏览器模式 + Storybook/MSW；交互、失败、键盘焦点、RTL 和 a11y           |
+| 浏览器业务流程      | `pnpm test:e2e`              | 两个后台的构建产物、真实认证和业务 HTTP；不以 MSW 代替业务验收                 |
+| 数据库与租户隔离    | `pnpm test:database`         | 正式迁移、角色分权、RLS、约束、事务与并发授权                                  |
+| 自托管发行          | `pnpm test:release`          | Compose 首装、升级、回退、备份恢复、本地观测、镜像门禁与不可变发行包           |
+| API 单元覆盖率      | `pnpm --filter api test:cov` | Vitest V8 coverage；统计 API src，不包含 spec 文件                             |
 
 Node 的 `assert` 仍作为断言库使用，`node:test` 与 `node --test` 已移除。生成物检查继续使用普通 Node 命令，不引入另一套测试运行器。
 
 ## 运行方式
 
-前置：Node 26.8.2、pnpm 12.4.1；完整验证需要可用 Docker daemon 和 Chromium。
+前置：Node 26.8.2、pnpm 12.11.2；完整验证需要可用 Docker daemon 和 Chromium。
 
 ```sh
 pnpm install --frozen-lockfile
@@ -26,7 +29,7 @@ pnpm verify
 
 Linux CI 使用 `playwright install --with-deps chromium` 安装浏览器系统依赖。
 
-`verify` 按顺序执行 peer 检查、lint、typecheck、单元、API、HTTP 性能、Storybook、浏览器 E2E、数据库 Schema 漂移、数据库测试、生产构建和 API 生成物检查。CI 执行同一入口，任一步失败都停止。
+`verify` 按顺序执行 peer 检查、lint、typecheck、i18n、文档内容门禁、单元、API、HTTP 性能、Storybook、浏览器 E2E、数据库 Schema 漂移、数据库测试、生产构建和 API 生成物检查。CI 执行同一入口，并额外检查数据库 Compose 初始化；任一步失败都停止。`pnpm test:release` 独立运行，发行与扫描结果不能由普通构建通过推导。
 
 HTTP 性能使用现有 `vitest.config.mjs` 的 `performance` project，位于 `tests/performance`；在 API 回归后独立串行运行，避免其他测试文件负载干扰基准。S8 基准严格使用 100 组织、10000 用户、初始 100000 审计，每个端点预热 20 次后采集 200 个真实 HTTP 样本，20 个并发客户端各使用固定 IP，保留生产限流。普通目录 P95 必须小于 500ms，90 天审计小于 1000ms。测量包含响应体读取，授权、MFA、RLS、审计保持启用；外部 SMTP 不计入。环境、结果与边界见 [S8 发布验收记录](s8-release-validation.md)。
 
@@ -40,7 +43,7 @@ API watch/debug/coverage 入口保留，均由 Vitest 执行。正式浏览器�
 
 API 测试显式从 Vitest 导入测试函数；共享 Nest TypeScript/ESLint 配置不再注入 Jest 全局类型。已移除 Jest、ts-jest、@types/jest 直接依赖、Jest 配置及专用命令参数。
 
-## 本次实测结果
+## 2026-09-15 运行器迁移实测结果（历史）
 
 - `pnpm install --frozen-lockfile`、peer 审计通过。
 - `pnpm verify` 全部通过，无测试跳过：12 个 lint 任务、13 个 typecheck 任务、四应用构建，以及上述 13 个测试。

@@ -13,15 +13,15 @@ import { organizationSettingsRepository } from '@workspace/database/repositories
 import { ApiException } from '../http/api-exception';
 import { AuthRuntime } from '../identity/auth-runtime';
 import type { Identity } from '../identity/identity.service';
-import { AuthorizationService } from '../authorization/authorization.service';
-import { runTenantWrite } from '../tenancy/tenant-write';
+
+import { TenantWrite } from '../tenancy/tenant-write';
 import type { RequestLanguage } from '../http/request-language';
 
 @Injectable()
 export class LocaleSettings {
   constructor(
     private readonly runtime: AuthRuntime,
-    private readonly authorization: AuthorizationService,
+    private readonly writes: TenantWrite,
   ) {}
 
   async getMyPreferences(
@@ -96,22 +96,19 @@ export class LocaleSettings {
     input: UpdateOrganizationSettings,
     headers: Headers,
   ): Promise<OrganizationSettings> {
-    return runTenantWrite(this.runtime.pool, context, async (tx) => {
-      // 组织写锁先于权限复核；并发撤权和设置修改按同一组织顺序线性化。
-      await this.authorization.requirePermission(
-        headers,
-        context.organizationId,
-        {
-          tenantSettings: ['update'],
-        },
-      );
-      const [setting] = await organizationSettingsRepository.update(tx, {
-        organizationId: context.organizationId,
-        expectedVersion: input.expectedVersion,
-        defaultLocale: input.defaultLocale,
-      });
-      if (!setting) throw new ApiException(409, 'VERSION_CONFLICT');
-      return setting;
-    });
+    return this.writes.transaction(
+      context,
+      headers,
+      [{ tenantSettings: ['update'] }],
+      async (tx) => {
+        const [setting] = await organizationSettingsRepository.update(tx, {
+          organizationId: context.organizationId,
+          expectedVersion: input.expectedVersion,
+          defaultLocale: input.defaultLocale,
+        });
+        if (!setting) throw new ApiException(409, 'VERSION_CONFLICT');
+        return setting;
+      },
+    );
   }
 }

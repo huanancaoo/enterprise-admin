@@ -1,51 +1,53 @@
-# 本地 Compose 发布与安全回退
+# 本地 Compose 发行与安全回退
 
-范围为 [#24](https://github.com/huanancaoo/enterprise-admin/issues/24) 的本地发布门禁：独立 PostgreSQL/Redis/Mailpit、one-shot Migrator、API 和两个 SPA。租户、平台分别监听回环端口，保留各自的 `/login`、`/app/*` 和 `/platform/*` 路由。邮件调度使用 API 内已有运行时，Files 在本轮显式设为 disabled。
+发行包含 PostgreSQL、Redis、Mailpit、one-shot Migrator、API、独立 Worker、租户/平台 SPA、OTel Collector、Prometheus 与 Jaeger。Files 默认启用 Local 专属持久卷，也支持已有私有 S3 bucket 的显式配置。租户与平台保留各自的登录及业务路由。
 
 ## 构建与发布
 
-所有命令从仓库根目录执行。镜像使用当前锁定的 Node/pnpm 和冻结依赖；API 仅安装生产依赖，以 node 用户运行，SPA 使用固定 Nginx 镜像且以 nginx 用户运行。镜像不复制环境文件。
+从源码根目录执行。使用锁定 Node/pnpm、冻结依赖和不可变基础镜像；生产 API/Worker 使用隔离的生产依赖包，以 node 用户运行，SPA 以 nginx 用户运行。环境文件不进入构建上下文。
 
 ```sh
-docker build -f infra/release/Dockerfile --target api --build-arg RELEASE_REVISION='<源码提交>' -t enterprise-admin-api:candidate .
-docker build -f infra/release/Dockerfile --target tenant --build-arg RELEASE_REVISION='<源码提交>' -t enterprise-admin-tenant:candidate .
-docker build -f infra/release/Dockerfile --target platform --build-arg RELEASE_REVISION='<源码提交>' -t enterprise-admin-platform:candidate .
-docker build -f infra/release/Dockerfile --target migrator --build-arg RELEASE_REVISION='<源码提交>' -t enterprise-admin-migrator:candidate .
-docker image inspect --format '{{.Id}}' enterprise-admin-api:candidate enterprise-admin-tenant:candidate enterprise-admin-platform:candidate enterprise-admin-migrator:candidate
+docker build -f infra/release/Dockerfile --target api --build-arg RELEASE_REVISION='<来源>' -t enterprise-admin-api:candidate .
+docker build -f infra/release/Dockerfile --target worker --build-arg RELEASE_REVISION='<来源>' -t enterprise-admin-worker:candidate .
+docker build -f infra/release/Dockerfile --target tenant --build-arg RELEASE_REVISION='<来源>' -t enterprise-admin-tenant:candidate .
+docker build -f infra/release/Dockerfile --target platform --build-arg RELEASE_REVISION='<来源>' -t enterprise-admin-platform:candidate .
+docker build -f infra/release/Dockerfile --target migrator --build-arg RELEASE_REVISION='<来源>' -t enterprise-admin-migrator:candidate .
 ```
 
-复制 `infra/release/.env.example` 为该目录的 `.env`，填入生成的随机密码、认证密钥、邮件加密密钥和上一步的四个不可变 image ID。数据库 URL 的迁移密码须与 `APP_MIGRATOR_PASSWORD` 相同；口令中的 URL 特殊字符需编码。GitHub OAuth 配置按 API 的现有要求填写；本轮验收填写测试配置，仅执行邮箱登录，不表示真实 GitHub 登录已验收。
+复制 `infra/release/.env.example` 到私有环境文件，填写随机数据库密码、认证密钥、邮件加密密钥与五个实际 image ID。迁移 URL 密码须对应 migrator 角色，URL 特殊字符需编码。GitHub OAuth、外部邮件和 S3 连接由部署方提供；Mailpit 用于本地邮件验收。
 
-同一安装的升级和回退继续使用同一份数据库、认证与加密配置；PostgreSQL bootstrap 只作用于空卷。API 的 Compose environment 只投影运行凭据，部署 CLI 和 Migrator 的凭据各自注入 one-shot 进程。
+同一安装的升级和回退继续使用同一份数据库、认证及加密配置。空卷 bootstrap 创建角色，已有数据库不重设密码。CLI、Migrator、API 与 Worker 分别得到其运行所需凭据。
 
 ```sh
-node infra/release/publish.mjs enterprise-admin-local-release infra/release/.env
+node infra/release/publish.mjs enterprise-admin-local-release /private/path/release.env
 ```
 
-入口依次等待基础服务、执行正式迁移链、等待 API 就绪、发布并等待双 SPA，最后核对两个入口的登录页、认证 Session 读取和 API 404 JSON 响应。迁移进程非零即停止，已有 API/SPA 容器不会被替换；API 就绪失败即停止 SPA 发布。`/api/*` 始终反代给 API，不进入 SPA 的页面路由处理；不存在的静态资源仍返回 404。
+发布持有该主机对应 Compose project 的排他锁。先检查旧/目标 Worker 的任务目录，完成基础服务固定配方构建，再启动基础设施，执行正式迁移链与 Files 卷初始化，依次等待 API、当前启动 Worker 的 `worker_ready`、双 SPA，最后核对两入口的登录页、Session 和 API 错误代理。固定配方构建失败时尚未进行数据操作；迁移失败不会替换已有应用容器；Worker 不就绪不会发布 SPA。不可变离线发行包已经绑定并加载验收后的基础镜像，不再次在线构建。
 
 ## 回退边界
 
-回退使用已经通过下述真实状态验收的目标镜像 ID，替换 `.env` 中的三个应用镜像，保留当前 Migrator 镜像及全部持久配置，再执行同一个发布入口。数据库保持向前迁移，不执行 down migration、不恢复旧数据快照；组织停用、成员移除与平台撤权是现存业务事实。
+回退替换已接受版本的 API、Worker 和双 SPA image ID，保留当前 Migrator、持久卷、认证密钥和邮件加密密钥，再经过相同发布入口。数据库只向前迁移。组织停用、成员移除和平台撤权是当前事实，旧镜像仍必须拒绝相应旧会话。
 
-允许回退的证据绑定具体源码提交和镜像 ID。旧版本必须在当前迁移链上继续拒绝停用组织及已撤权旧会话；任何未通过这些断言的历史版本都不得作为回退目标。该范围不包含重新启用一个忽略 S8 授权事实的旧 API。
+目标 Worker 必须支持当前已注册的每个任务类型；缺少类型时发布在迁移和替换容器之前停止。任务失败和未知类型不会执行旧处理器。历史 Worker 的真实源码、Dockerfile 与实际 image ID 参与回退断言，重新打 tag 不构成版本回退。
+
+回退验收限定具体提交及镜像。`7fd7b5e` 的基础 Worker 目录为空，只能作为基础运行时的历史证据；它不能作为新增业务任务的完整安全回退目标。新增任务的可回退基线须先具备完整处理器并通过当轮正式验收。
 
 ## 可复现验收
 
 ```sh
-RELEASE_ROLLBACK_REF=611fc74 pnpm test:release
+RELEASE_ROLLBACK_REF=<已接受的真实提交> pnpm test:release
 ```
 
-`release` 是现有 Vitest 配置中的独立串行 project。必须显式指定上一已接受版本的 Git 提交；脚本从该提交的源码构建实际目标镜像，套用本轮发布 Dockerfile，不以重新打标签冒充回退。当前工作区构建候选镜像，最终检查实际运行容器的 image ID。
+独立串行 release project 使用随机 project、端口、密码和专属数据卷；构建前先冻结不含 ignored 凭据/依赖的源码 tar，再从该快照构建候选镜像，历史镜像从明确 Git 提交及其 Dockerfile 构建。测试覆盖：
 
-每轮使用随机 Compose project、端口、密码和专属数据卷，验证：
+- 真实 SQL 迁移失败阻断首装，升级失败保留原容器及 ledger。
+- 正式注册、邮件验证、登录、邀请、平台 CLI 任职、TOTP 与代理路由。
+- 候选发布、停用/移除/撤权、实际旧镜像回退，以及同一旧 Cookie 的安全拒绝。
+- Local 文件上传、发布、升级、回退及恢复后真实字节保留。
+- 停写备份 PostgreSQL、Redis、Local Files；新专属卷恢复业务事实、旧 session 与原文件字节。
+- S3 私有对象停写备份到新空 prefix，正式 HTTP 下载原字节。
+- Worker 任务目录阻断、独立进程、真实 Redis 持久状态、正式遥测传输与本地告警规则。
 
-- 空库的真实待执行 SQL 失败后，API 和两个 SPA 均未启动。
-- 已运行版本的迁移失败后，原三个应用容器和 ledger 保持原状，原业务读取仍可用。
-- 注册、Mailpit 验证链接、登录、邀请接受、平台 CLI 任职与 TOTP 均通过正式入口。
-- 候选发布后，正式停用组织、移除成员、撤销平台任职；镜像回退后同一旧 Cookie 仍被拒绝，数据库事实保持原状，其他启用组织的项目保留。
-- 回退 SPA 深链接及刷新、登录、平台拒绝页面、登出后的 401，以及 API 错误与静态资源 404 的代理边界。
+证据在系统临时目录 `enterprise-admin-release-*`；完整验收和资源清理成功后 `result.json` 才标为 accepted。只清理该轮资源，不执行全局 Docker 清理。备份目录含私有数据，按 [备份恢复指南](backup-restore.md)保存；用于发行的源码包不包含备份或凭据。
 
-证据保存在系统临时目录下的 `enterprise-admin-release-*` 目录，包含构建日志、镜像 ID、最终结果和浏览器截图。失败时 Vitest 输出本轮目录，成功后的具体目录记入 [S8 发布验收记录](../architecture/s8-release-validation.md)。结束只删除本轮容器与数据卷、随机凭据文件和历史源码快照；镜像保留用于复核，不执行全局 Docker 清理。
-
-这是本机明文 HTTP/回环网络验收。实际部署环境、TLS、备份恢复、S9 Files 发布及任意其他历史版本回退，仍各自需要对应验收证据。
+不可变产物扫描及 SBOM 见 [发行包](release-package.md)，安装/升级见 [升级指南](upgrade.md)，观测端口及规则见 [观测指南](observability.md)。本轮交付与证据为本机回环 HTTP/Compose；真实服务器、TLS、外部 OAuth/邮件和外部告警投递仍需对应环境的实际验收。

@@ -1,0 +1,26 @@
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+processors:
+  batch:
+    timeout: 1s
+exporters:
+  otlphttp/traces:
+    endpoint: http://tracing:4318
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    metric_expiration: 1m
+    translation_strategy: UnderscoreEscapingWithSuffixes
+    resource_constant_labels:
+      included: [service.name]
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/traces]
+    metrics:
+      receivers: [otlp]
+      exporters: [prometheus]
