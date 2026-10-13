@@ -7,10 +7,10 @@ if (process.argv.length !== 2)
 for (const [target, image, dockerfile] of [
   [
     "postgres",
-    "enterprise-admin-postgres:18.6-security-1",
+    "enterprise-admin-postgres:18.6-security-2",
     "Dockerfile.database",
   ],
-  ["redis", "enterprise-admin-redis:7.4.5-security-1", "Dockerfile.database"],
+  ["redis", "enterprise-admin-redis:7.4.5-security-2", "Dockerfile.database"],
   [
     "mailpit",
     "enterprise-admin-mailpit:1.30.4-security-1",

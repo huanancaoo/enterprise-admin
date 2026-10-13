@@ -35,7 +35,7 @@ describe("组织任务真实生产者与独立 Worker", () => {
     const versions = JSON.parse(
       await readFile("docs/architecture/versions.json", "utf8")
     )
-    redis = await new GenericContainer(versions.redis.image)
+    redis = await new GenericContainer(versions.releaseFoundation.redis.image)
       .withCommand([
         "redis-server",
         "--appendonly",

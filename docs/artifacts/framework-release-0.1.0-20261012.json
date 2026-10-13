@@ -1,0 +1,130 @@
+{
+  "version": "0.1.0",
+  "artifactDirectory": "test-results/framework-release-0.1.0-accepted-20261012",
+  "platform": "linux/arm64",
+  "manifestSha256": "64f36886b7c162365d0f716c5dcb60ca729dbe515d964b17eb7a92a6ef45f7dc",
+  "createdAt": "2026-10-12T09:00:50.243Z",
+  "sourceBaseRevision": "dc8fc073d388d67cc91f7fcd815d3354274b7419",
+  "sourceArchiveSha256": "d471ac0814fa11b6952d0de02e2a90829bfedbbea521cbc0cc94ab7858fe320e",
+  "accepted": true,
+  "checks": [
+    "migration-failure-blocks-first-deploy",
+    "migration-failure-preserves-running-release",
+    "proxy-login-and-runtime-boundaries",
+    "rollback-preserves-suspension-and-revocation",
+    "files-publish-and-byte-readback",
+    "worker-rollback-actual-source",
+    "business-task-worker-rollback-and-recovery",
+    "credential-revocation-after-recovery",
+    "backup-restore-facts-and-files",
+    "s3-private-object-recovery",
+    "bookworm-alpine-logical-migration-and-sort"
+  ],
+  "images": {
+    "api": {
+      "id": "sha256:7e8f0ee0b01ff34d90cc9d68a28d8ddb1619d956b1ef8a9f4423f1e7ebf158bd",
+      "platform": "linux/arm64"
+    },
+    "tenant": {
+      "id": "sha256:d9acbaf0bed4b33b1fa1402fc04fe2913d5c80c58decd6cbdae313a66b213b0a",
+      "platform": "linux/arm64"
+    },
+    "platform": {
+      "id": "sha256:32d6550d9e9659452aefa03561a44f6af7ba7dcd6c1195b3be15c00cd78af26f",
+      "platform": "linux/arm64"
+    },
+    "worker": {
+      "id": "sha256:582011189fbbed97ad19aaf8c9af15bfe27c33b608329c5c226593ae30338099",
+      "platform": "linux/arm64"
+    },
+    "migrator": {
+      "id": "sha256:6c3377dee62c3b1dfe09147f8e612b4427c22f19d4f6663bf0cc3ff7df4ee793",
+      "platform": "linux/arm64"
+    },
+    "postgres": {
+      "id": "sha256:bf0d81e42d448b0e2938cc14cddade39049fbfc098cd7350f740eabb161ad9a4",
+      "platform": "linux/arm64"
+    },
+    "redis": {
+      "id": "sha256:b39d59c456308f72014400df915f23590664a1abd81290a9b84fa8be21d79154",
+      "platform": "linux/arm64"
+    },
+    "mailpit": {
+      "id": "sha256:584db62d15fcea3c91c341bd35540d8016b61b07621351cee7fb20c9b9a9a090",
+      "platform": "linux/arm64"
+    },
+    "otel-collector": {
+      "id": "sha256:cf27dc17bb1aa31a32d1d99e510f6c8ba18f16e531aa90c8bb6469604af0e6f4",
+      "platform": "linux/arm64"
+    },
+    "prometheus": {
+      "id": "sha256:6a45fbf9d4b8d409548bab592931323bf04c2031763899d0dd89f03d5e12e0b1",
+      "platform": "linux/arm64"
+    },
+    "tracing": {
+      "id": "sha256:e227d33d9dd5ca0dd1896e4b102a6818d48805fe477a13fc06db2796f4716fd4",
+      "platform": "linux/arm64"
+    }
+  },
+  "security": {
+    "scanner": "aquasec/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa",
+    "passed": true,
+    "findings": {
+      "api": {
+        "count": 0,
+        "fixable": 0
+      },
+      "tenant": {
+        "count": 0,
+        "fixable": 0
+      },
+      "platform": {
+        "count": 0,
+        "fixable": 0
+      },
+      "worker": {
+        "count": 0,
+        "fixable": 0
+      },
+      "migrator": {
+        "count": 0,
+        "fixable": 0
+      },
+      "postgres": {
+        "count": 0,
+        "fixable": 0
+      },
+      "redis": {
+        "count": 0,
+        "fixable": 0
+      },
+      "mailpit": {
+        "count": 0,
+        "fixable": 0
+      },
+      "otel-collector": {
+        "count": 0,
+        "fixable": 0
+      },
+      "prometheus": {
+        "count": 0,
+        "fixable": 0
+      },
+      "tracing": {
+        "count": 0,
+        "fixable": 0
+      }
+    }
+  },
+  "releaseTests": {
+    "files": 8,
+    "passed": 20
+  },
+  "load": {
+    "passed": true,
+    "fileCount": 1792,
+    "imageCount": 11,
+    "verifiedOn": "2026-10-13"
+  },
+  "scope": "Local Docker Compose artifact; remote CI and production deployment not claimed"
+}

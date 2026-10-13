@@ -31,6 +31,8 @@ export default defineConfig({
         test: {
           name: "api",
           environment: "node",
+          // 每个文件会启动多套真实服务；限制文件并行以保留单用例的业务时序门槛。
+          maxWorkers: 2,
           include: ["tests/api/**/*.test.mjs"],
           hookTimeout: 180_000,
           testTimeout: 60_000,

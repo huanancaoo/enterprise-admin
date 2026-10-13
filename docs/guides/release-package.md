@@ -14,7 +14,9 @@ RELEASE_ROLLBACK_REF=<已接受的真实提交> node infra/release/verify.mjs <v
 
 组件自身的配置、许可证、NOTICE、开发/升级/恢复指南保留于 `source`；`source.tar` 对应被验收的源码快照。包内 Compose 把基础服务映射到这批验收时实际运行的 image ID，以便从 Docker archive 离线加载；该固定输出也纳入 manifest 哈希。源码和包内 Compose 均不包含在线构建定义，发布只消费已准备镜像。源码仓库的基础配方锁定官方 FROM digest、源码提交与 tar 校验值、工具链和安全库版本，不允许任意环境变量替换基础镜像。`release.env.example` 填入该批应用/Worker/Migrator 的不可变 image ID，其他部署配置由安装方提供。
 
-固定配方位于 `infra/release/base`，通过 `node infra/release/build-base-images.mjs` 构建。PG/Redis 保留既定主版本和 Bookworm，仅更新已确认安全库；PG 的 libc、locale、ICU 与时区数据固定。发布前的真实旧卷读回核对全量 collation catalog/actual version、数据库 locale/version 和原排序数据；Redis 用旧 RDB 验证键值、待处理顺序与延迟分数。不能通过刷新 collation 或重新索引掩盖版本变化。监控与 Mailpit 保留其正式源版本，固定修复 Go/模块并重编译运行二进制；Collector 配方包含发行配置实际使用的 OTLP、batch、Prometheus 与配置 provider。它们仍需通过同一套真实观测链路与告警规则验收。
+仓库内部文件和目录符号链接在 `source` 中展开为实体文件并纳入逐文件校验；链接目标须位于规范化后的源码目录内。原 `source.tar` 保留验收时的链接与源码快照，不以展开后的部署副本改写验收哈希。
+
+固定配方位于 `infra/release/base`，通过 `pnpm release:prepare` 构建。用户已接受 PostgreSQL 18.6/Alpine 3.24 与 Redis 7.4.5/Alpine 新基线：原版 gosu 使用固定 Go 工具链重编译，Redis 同发行安全库固定到已修复版本。已有 Bookworm 数据经[专用基础迁移](backup-restore.md#bookworm-到-alpine-的基础发行迁移)停写、逻辑恢复到新卷并重建索引，明确采用目标排序；不挂载旧 PostgreSQL 卷或刷新版本号掩盖变化。Redis 用旧 RDB 验证键值、待处理顺序与延迟分数。监控与 Mailpit 保留其正式源版本，固定修复 Go/模块并重编译运行二进制；Collector 配方包含发行配置实际使用的 OTLP、batch、Prometheus 与配置 provider。它们仍需通过同一套真实观测链路与告警规则验收。
 
 本地基础构建明确使用 `--provenance=false`，避免 Docker 默认证明中的时间戳改变缓存重建的 OCI index ID，破坏备份与恢复绑定。连续两次正式固定构建验证全部 ID 一致；部署配置另验证不会触发 Compose 重建改变身份。来源由上述锁定配方、源码 tar、文件校验和、实际运行 ID 与 SBOM/扫描报告记录，仍进入不可变 manifest。不能依据运行层相同沿用另一 image ID 的扫描记录。
 

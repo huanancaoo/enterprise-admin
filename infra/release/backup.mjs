@@ -1,6 +1,7 @@
 import { mkdir, readdir, writeFile } from "node:fs/promises"
 import { join, resolve } from "node:path"
 import { releaseRuntime, sha256, withProjectLock } from "./release-runtime.mjs"
+import { readDatabaseMetadata } from "./database-metadata.mjs"
 
 const [project, envFile, destination] = process.argv.slice(2)
 if (process.argv.length !== 5)
@@ -70,8 +71,13 @@ await withProjectLock(project, async () => {
   }
   // 先关闭入口并排空所有写入者，随后冻结 Redis；PostgreSQL 和对象快照处于同一停写窗口。
   runtime.compose("stop", "-t", "35", "tenant", "platform", "api", "worker")
+  const redisVersion = runtime
+    .compose("exec", "-T", "redis", "redis-cli", "INFO", "server")
+    .match(/^redis_version:([^\r\n]+)/m)?.[1]
+  if (redisVersion !== "7.4.5") throw new Error("BACKUP_REDIS_VERSION_REQUIRED")
   runtime.compose("exec", "-T", "redis", "redis-cli", "SAVE")
   runtime.compose("stop", "redis")
+  const database = readDatabaseMetadata(runtime)
   runtime.output(
     join(directory, "database.dump"),
     "exec",
@@ -145,10 +151,12 @@ await withProjectLock(project, async () => {
     for (const name of await readdir(join(directory, "objects")))
       files[`objects/${name}`] = await sha256(join(directory, "objects", name))
   const manifest = {
-    version: 1,
+    version: 2,
     createdAt: new Date().toISOString(),
     storage: { kind },
     images,
+    database,
+    redisVersion,
     keyFingerprint,
     files,
   }

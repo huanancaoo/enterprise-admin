@@ -1,6 +1,6 @@
 # 本地 Compose 发行与安全回退
 
-发行包含 PostgreSQL、Redis、Mailpit、one-shot Migrator、API、独立 Worker、租户/平台 SPA、OTel Collector、Prometheus 与 Jaeger。Files 默认启用 Local 专属持久卷，也支持已有私有 S3 bucket 的显式配置。租户与平台保留各自的登录及业务路由。
+发行包含 PostgreSQL 18.6/Alpine、Redis 7.4.5/Alpine、Mailpit、one-shot Migrator、API、独立 Worker、租户/平台 SPA、OTel Collector、Prometheus 与 Jaeger。Files 默认启用 Local 专属持久卷，也支持已有私有 S3 bucket 的显式配置。租户与平台保留各自的登录及业务路由。已有 Bookworm 安装先完成[基础发行迁移](backup-restore.md#bookworm-到-alpine-的基础发行迁移)，不直接替换旧 PostgreSQL 卷的系统镜像。
 
 ## 构建与发布
 

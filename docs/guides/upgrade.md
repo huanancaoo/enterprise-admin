@@ -16,6 +16,8 @@ node infra/release/publish.mjs <compose-project> /private/path/release.env
 
 ## 已有数据升级
 
+Bookworm 到当前 Alpine 发行基线先按[基础发行迁移](backup-restore.md#bookworm-到-alpine-的基础发行迁移)停写并逻辑恢复到新项目、新卷，验收目标排序与索引。不能用下面的普通应用升级直接替换正在承载旧 PostgreSQL 卷的系统镜像。
+
 先取得 [维护备份](backup-restore.md)，保留上一已接受发行包与镜像。沿用当前数据卷及原认证/邮件加密配置，审查该次迁移和升级前提。已有数据库角色升级先按数据库说明由 DBA 执行，不把 bootstrap 当成已有卷的升级机制。
 
 更新应用、Worker 与 Migrator 的镜像配置，再执行同一个发布入口。迁移失败不会替换在线应用；Worker 未就绪不会发布后续 SPA。SQL/ledger、业务授权与 API 代理错误必须保持原语义。

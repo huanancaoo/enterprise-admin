@@ -1,6 +1,6 @@
 import { spawn, execFileSync } from "node:child_process"
 import { createHash, randomBytes, randomUUID } from "node:crypto"
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { createServer } from "node:net"
 import { createRequire } from "node:module"
 import { tmpdir } from "node:os"
@@ -22,12 +22,22 @@ let directory, env, oldImages, images, failedImage, migrationImage
 let sourceArchive, sourceArchiveSha256, sourceBaseRevision
 let releaseRecordCreated = false,
   localRecoveryAccepted = false,
-  s3RecoveryAccepted = false
+  s3RecoveryAccepted = false,
+  foundationMigrationAccepted = false
 let owner, member, operator, suspended, active, membership
 let retainedFile
 const retainedBytes = Buffer.from("发行包必须保留文件的真实字节\n")
 
 let retainedBusinessTask, revokedReleaseCredential
+async function writeEnvironment(file, values) {
+  await writeFile(
+    file,
+    Object.entries(values)
+      .map(([key, value]) => `${key}=${value}`)
+      .join("\n") + "\n",
+    { mode: 0o600 }
+  )
+}
 const businessRequest = (suffix, options = {}) =>
   fetch(
     `${env.RELEASE_TENANT_ORIGIN}/api/v1/organizations/${active.id}${suffix}`,
@@ -544,7 +554,12 @@ describe.sequential("local Compose release and S8 rollback", () => {
   })
   afterAll(async () => {
     let infrastructureImages
-    if (releaseRecordCreated && localRecoveryAccepted && s3RecoveryAccepted) {
+    if (
+      releaseRecordCreated &&
+      localRecoveryAccepted &&
+      s3RecoveryAccepted &&
+      foundationMigrationAccepted
+    ) {
       infrastructureImages = {}
       for (const service of [
         "postgres",
@@ -580,7 +595,12 @@ describe.sequential("local Compose release and S8 rollback", () => {
       await rm(join(directory, "previous"), { recursive: true, force: true })
       await rm(join(directory, "candidate"), { recursive: true, force: true })
     }
-    if (releaseRecordCreated && localRecoveryAccepted && s3RecoveryAccepted) {
+    if (
+      releaseRecordCreated &&
+      localRecoveryAccepted &&
+      s3RecoveryAccepted &&
+      foundationMigrationAccepted
+    ) {
       const recordPath = join(directory, "result.json")
       const record = JSON.parse(await readFile(recordPath, "utf8"))
       record.accepted = true
@@ -591,7 +611,8 @@ describe.sequential("local Compose release and S8 rollback", () => {
         "business-task-worker-rollback-and-recovery",
         "credential-revocation-after-recovery",
         "backup-restore-facts-and-files",
-        "s3-private-object-recovery"
+        "s3-private-object-recovery",
+        "bookworm-alpine-logical-migration-and-sort"
       )
       record.completedAt = new Date().toISOString()
       await writeFile(recordPath, JSON.stringify(record, null, 2) + "\n")
@@ -1175,6 +1196,212 @@ describe.sequential("local Compose release and S8 rollback", () => {
       await command("docker", ["rm", "-f", objectName])
       for (const file of [storageFile, sourceFile, targetFile])
         await rm(file, { force: true })
+    }
+  })
+
+  it("Bookworm停写快照通过正式基础迁移CLI在Alpine新卷保留业务事实并采用目标排序", async () => {
+    const saved = {
+      env,
+      owner,
+      active,
+      retainedFile,
+      retainedBusinessTask,
+      revokedReleaseCredential,
+    }
+    const legacyRoot = join(directory, "bookworm-source")
+    await mkdir(legacyRoot)
+    await cp(join(executionRoot, "infra"), join(legacyRoot, "infra"), {
+      recursive: true,
+    })
+    const postgres =
+      "postgres:18.6-bookworm@sha256:1c59e2c3c818eaa0f0628f695b36e7c9e362d6b219b36a54a32df645cbd7e1af"
+    const redis =
+      "redis:7.4.5-bookworm@sha256:90e7a336d044f1abc9e9dbc05d65566850896d11453bbd1dd0fb7e5059f0e8fb"
+    for (const image of [postgres, redis])
+      await checked("docker", ["pull", image])
+    const sourceCompose = (
+      await readFile(join(executionRoot, "compose.release.yaml"), "utf8")
+    )
+      .replace(
+        /^    image: enterprise-admin-postgres:.*$/m,
+        `    image: ${postgres}`
+      )
+      .replace(/^    image: enterprise-admin-redis:.*$/m, `    image: ${redis}`)
+    await writeFile(join(legacyRoot, "compose.release.yaml"), sourceCompose)
+    const sourceProject = project + "-bookworm",
+      targetProject = project + "-alpine-migrated"
+    const sourceFile = join(directory, "bookworm.env"),
+      targetFile = join(directory, "alpine-migrated.env")
+    const tenantPort = await reservePort(),
+      platformPort = await reservePort()
+    const sourceEnv = {
+      ...saved.env,
+      RELEASE_MIGRATOR_IMAGE: migrationImage,
+      ...Object.fromEntries(
+        Object.entries(images).map(([service, image]) => [
+          `RELEASE_${service.toUpperCase()}_IMAGE`,
+          image,
+        ])
+      ),
+      RELEASE_TENANT_PORT: tenantPort,
+      RELEASE_PLATFORM_PORT: platformPort,
+      RELEASE_TENANT_ORIGIN: `http://127.0.0.1:${tenantPort}`,
+      RELEASE_PLATFORM_ORIGIN: `http://127.0.0.1:${platformPort}`,
+      RELEASE_MAIL_PORT: await reservePort(),
+      RELEASE_OTLP_PORT: await reservePort(),
+      RELEASE_PROMETHEUS_PORT: await reservePort(),
+      RELEASE_TRACING_PORT: await reservePort(),
+    }
+    await writeEnvironment(sourceFile, sourceEnv)
+    const targetEnv = {
+      ...sourceEnv,
+      RELEASE_MAIL_PORT: await reservePort(),
+      RELEASE_OTLP_PORT: await reservePort(),
+      RELEASE_PROMETHEUS_PORT: await reservePort(),
+      RELEASE_TRACING_PORT: await reservePort(),
+    }
+    await writeEnvironment(targetFile, targetEnv)
+    try {
+      const published = await command(
+        process.execPath,
+        [
+          join(executionRoot, "infra/release/publish.mjs"),
+          sourceProject,
+          sourceFile,
+        ],
+        { cwd: legacyRoot, env: { ...process.env, ...sourceEnv } }
+      )
+      expect(published.status, published.stderr).toBe(0)
+      env = sourceEnv
+      owner = await account("基础迁移所有者")
+      const created = await auth(
+        "organization/create",
+        { name: "基础迁移组织", slug: randomUUID() },
+        owner
+      )
+      expect(created.status).toBe(200)
+      active = await created.json()
+      const names = ["Z", "ä", "Å", "a", "a-a", "a_a", "北京"].map(
+        (value) => `foundation-${value}`
+      )
+      await completedBusinessTask("imports", {
+        format: "csv",
+        contentBase64: Buffer.from(
+          "name,description,contentLocale\n" +
+            names.map((name) => `${name},,zh-CN`).join("\n") +
+            "\n"
+        ).toString("base64"),
+      })
+      await recordBusinessRecoveryFacts()
+      const workspace = await fileRequest("/workspace")
+      expect(workspace.status).toBe(200)
+      const form = new FormData()
+      for (const [key, value] of Object.entries({
+        operationId: randomUUID(),
+        parentId: (await workspace.json()).root.id,
+        name: "foundation-proof.txt",
+        contentSha256: createHash("sha256").update(retainedBytes).digest("hex"),
+        declaredBytes: retainedBytes.byteLength,
+      }))
+        form.append(key, String(value))
+      form.append(
+        "file",
+        new Blob([retainedBytes], { type: "text/plain" }),
+        "foundation-proof.txt"
+      )
+      const uploaded = await fileRequest("/uploads", {
+        method: "POST",
+        body: form,
+      })
+      expect(uploaded.status).toBe(200)
+      const receipt = await uploaded.json()
+      retainedFile = await (
+        await fileRequest(`/entries/${receipt.result.entryId}`)
+      ).json()
+      const backup = join(directory, "foundation-backup")
+      const captured = await command(
+        process.execPath,
+        [
+          join(executionRoot, "infra/release/backup.mjs"),
+          sourceProject,
+          sourceFile,
+          backup,
+        ],
+        { cwd: legacyRoot, env: { ...process.env, ...sourceEnv } }
+      )
+      expect(captured.status, captured.stderr).toBe(0)
+      const migrated = await command(
+        process.execPath,
+        [
+          "infra/release/migrate-foundation.mjs",
+          targetProject,
+          targetFile,
+          backup,
+        ],
+        { env: { ...process.env, ...targetEnv } }
+      )
+      expect(migrated.status, migrated.stderr).toBe(0)
+      env = targetEnv
+      await assertRetainedFile()
+      await assertBusinessRecoveryFacts()
+      await assertBusinessWorkerAfterRollback()
+      const sorted = await businessRequest("/projects?name=foundation-")
+      expect(sorted.status).toBe(200)
+      const migratedNames = (await sorted.json()).items.map((item) => item.name)
+      expect(migratedNames).toHaveLength(7)
+      expect(migratedNames).toEqual(expect.arrayContaining(names))
+      const session = await fetch(
+        `${env.RELEASE_TENANT_ORIGIN}/api/auth/get-session`,
+        { headers: { cookie: owner.cookie } }
+      )
+      expect((await session.json()).user.id).toBe(owner.user.id)
+      const report = JSON.parse(
+        await readFile(join(backup, "foundation-migration.json"), "utf8")
+      )
+      expect(report.source.database.os.id).toBe("debian")
+      expect(report.target.database.os.id).toBe("alpine")
+      expect(report.target.database.serverVersionNum).toBe(180006)
+      expect(report.target.database.sortingProbe).toEqual([
+        "Z",
+        "a",
+        "a-a",
+        "a_a",
+        "Å",
+        "ä",
+        "北京",
+      ])
+      expect(report.invalidIndexes).toBe(0)
+      foundationMigrationAccepted = true
+    } finally {
+      for (const [name, file, cwd] of [
+        [sourceProject, sourceFile, legacyRoot],
+        [targetProject, targetFile, executionRoot],
+      ])
+        await command(
+          "docker",
+          [
+            "compose",
+            "-p",
+            name,
+            "--env-file",
+            file,
+            "-f",
+            "compose.release.yaml",
+            "down",
+            "--volumes",
+          ],
+          { cwd, env: { ...process.env, ...sourceEnv } }
+        )
+      for (const file of [sourceFile, targetFile])
+        await rm(file, { force: true })
+      ;({
+        env,
+        owner,
+        active,
+        retainedFile,
+        retainedBusinessTask,
+        revokedReleaseCredential,
+      } = saved)
     }
   })
 })

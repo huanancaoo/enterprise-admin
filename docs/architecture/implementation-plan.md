@@ -4,13 +4,13 @@
 
 依据用户提供的《开源自托管多租户企业应用基础框架：合并修订技术架构》。技术选型、应用与包边界、Projects Reference Domain、国际化、隔离、迁移和自托管原则沿用该文档。
 
-本文中的阶段编号、任务编号、实施先后顺序、里程碑范围和具体验收方式，是在原架构上整理的实施建议，不是原文已有排期。完成状态按 2026-10-11 的仓库实现与已有验收记录更新；文档未提供团队配置与工期，因此不指定周数。
+本文中的阶段编号、任务编号、实施先后顺序、里程碑范围和具体验收方式，是在原架构上整理的实施建议，不是原文已有排期。完成状态按 2026-10-13 的仓库实现与本地验收记录更新；文档未提供团队配置与工期，因此不指定周数。
 
 原文出处按章节标注。原文未规定的细节列为实施决策，不视为既定架构。
 
 勾选表示该任务已完成本地实施及对应范围的验证。历史验收记录保留各批次当时的事实；后续交付分别见 [S7](s7-validation.md)、[S8 验收矩阵](s8-acceptance-matrix.md) 和 [S9 文件管理](s9-files-validation.md)。本机证据、远端 CI 和实际部署分别记账。
 
-当前 S1–S7、S8、S9-01 文件管理和必需核心 Worker 已有本机交付证据。本轮已接入 Projects 导入导出、任务中心、通知/Webhook 接口与页面、账户安全和调用凭据，已完成模块指南的独立照做验证；完整集成与不可变发行包门禁仍在进行。具体通过项、生产投递接线与导入边界的待确认事项见[八项能力验收记录](framework-completion-validation.md)。GitHub Issue 的关闭状态、远端 CI 和实际生产部署各自验证，不以本地实施推导。
+当前 S1–S7、S8、S9-01 文件管理和必需核心 Worker 已有本机交付证据。本轮确认的八项能力已完成本地实施、分层质量验证与模块指南独立照做验证。2026-10-12 的 Alpine 正式发行验收 20/20 通过，同批 11 个实际镜像的 SBOM 与零 HIGH/CRITICAL 扫描通过，0.1.0 本地候选包已生成最终 manifest。包内公开加载入口已核对 11 个镜像身份及 linux/arm64 平台，1792 个文件哈希全部通过。完整事实见[八项能力验收记录](framework-completion-validation.md)。这些结果来自各层分别执行与修正后的完整回归，不表示一次 `pnpm verify` 首跑全绿。GitHub Issue 的关闭状态、远端 CI 和实际生产部署各自验证，不以本地实施推导。
 
 ## 一、实施主线
 
@@ -256,7 +256,7 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 
 **依赖：** S8；启用了 S9 的功能必须带上对应测试。测试和日志在之前各阶段已逐步加入。
 
-现有质量门禁已覆盖下列 S10-01 至 S10-06，实际本机结果见 [S8](s8-release-validation.md) 与 [S9-01](s9-files-validation.md)。发布编排仍在实施；未勾选的发布、监控和恢复任务不由测试或生产构建通过推导完成。
+下列 S10 任务均已取得对应本地证据。历史结果见 [S8](s8-release-validation.md) 与 [S9-01](s9-files-validation.md)，本轮质量、观测、安装、升级、真实目标版本回退、Local/S3 恢复、Bookworm 到 Alpine 逻辑迁移及同批镜像安全门禁见[八项能力验收记录](framework-completion-validation.md)。勾选仅表示本地验收完成，不代表远端 CI 或实际生产部署。
 
 - [x] S10-01：Unit 覆盖 Permission、Policy、Query Key、Locale、Formatter、Schema。
 - [x] S10-02：Storybook/Vitest 覆盖公共组件、interaction、a11y，并通过 Storybook 静态构建。
@@ -264,12 +264,12 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 - [x] S10-04：Testcontainers PostgreSQL 验证 migration、constraint、transaction、RLS。当前验证版本为 PostgreSQL 18.6。
 - [x] S10-05：隔离测试覆盖 GET/PATCH/DELETE/translation、已启用的 Files 与业务导出；检查缺少 scope 的原始查询、并发复用、凭据与当前角色交集，以及下载时的当前授权。
 - [x] S10-06：Playwright 覆盖真实登录、多租户、多用户 context、角色变化、CRUD、Locale/RTL。
-- [ ] S10-07：生成物漂移、构建、镜像安全检查、SBOM 进入发布流水线。
-- [ ] S10-08：完成 Compose 发布基线与验收：反向代理、tenant/platform 静态资源、API、Worker、PostgreSQL 和 Redis；Storage 按实际业务配置。Worker 默认包含在本地发布编排中。
-- [ ] S10-09：验证 `/app/*`、`/platform/*` SPA 路由刷新与 `/api/*` 转发，不把 API 错误改写为前端 HTML；验证部署环境登录、会话和登出。
-- [ ] S10-10：发布顺序固定为 migrator 成功 → API → Worker → SPA → health/smoke。
-- [ ] S10-11：Pino operational logs、OpenTelemetry traces/metrics、PostgreSQL audit 三者分工明确，requestId 可以关联操作与故障。
-- [ ] S10-12：在干净环境测试首次安装；在已有数据环境测试升级；完成一次备份恢复演练。破坏性迁移采用文档的 Expand/Contract 路径。
+- [x] S10-07：生成物漂移、构建、镜像安全检查、SBOM 进入本地发行流水线，同批 11 个实际镜像通过零 HIGH/CRITICAL 门禁并生成最终 manifest。
+- [x] S10-08：完成 Compose 发布基线与本地验收：反向代理、tenant/platform 静态资源、API、Worker、PostgreSQL 和 Redis；Storage 按实际业务配置。Worker 默认包含在本地发布编排中。
+- [x] S10-09：验证 `/app/*`、`/platform/*` SPA 路由刷新与 `/api/*` 转发，不把 API 错误改写为前端 HTML；验证本地 Compose 部署环境登录、会话和登出。
+- [x] S10-10：发布顺序固定为 migrator 成功 → API → Worker → SPA → health/smoke。
+- [x] S10-11：Pino operational logs、OpenTelemetry traces/metrics、PostgreSQL audit 三者分工明确，requestId 可以关联操作与故障。
+- [x] S10-12：在干净环境验证首次安装，在已有数据环境验证升级及真实目标版本回退；完成 Local/S3 停写备份恢复和 Bookworm 到 Alpine 新卷逻辑迁移、索引重建与目标排序验收。破坏性迁移采用文档的 Expand/Contract 路径。
 
 **验收：** 任一关键隔离/权限/迁移测试失败都阻止发布；migrator 失败不继续 rollout；按照部署文档不依赖商业 SaaS 即可运行核心能力；能够恢复备份并重新通过 smoke test。
 
@@ -279,13 +279,13 @@ S6 的 UI、Storybook、i18n 工作在 S1 完成后即可并行。S10 是汇总�
 
 **依赖：** S10。
 
-Apache-2.0 LICENSE/NOTICE、贡献、安全报告、变更记录、完整模块指南、安装/升级/回退及备份恢复文档已落地；模块指南已有独立照做验证。不可变发行包仍受扫描和实际恢复门禁约束；当前远端 CI 及生产部署结果不由本地证据推导。
+本轮批准的 Apache-2.0 LICENSE/NOTICE、贡献、安全报告、变更记录、完整模块指南、安装/升级/回退及备份恢复文档已落地；模块指南已有独立照做验证。0.1.0 不可变本地候选包已通过发行、恢复与同批镜像扫描门禁并生成最终 manifest。原实施建议中的 CODE_OF_CONDUCT 未纳入本轮确认范围，仍保留为未完成建议项；当前远端 CI、GitHub 发行及生产部署结果不由本地证据推导。
 
-- [ ] S11-01：补齐 LICENSE/NOTICE、README、CONTRIBUTING、SECURITY、CODE_OF_CONDUCT、CHANGELOG、`.env.example` 和 `compose.yaml`。
+- [ ] S11-01：本轮批准的 LICENSE/NOTICE、README、CONTRIBUTING、SECURITY、CHANGELOG、`.env.example` 和 `compose.yaml` 已齐备；原建议 CODE_OF_CONDUCT 未被规格批准且尚无文件，本轮不扩展，原建议项保留未完成。
 - [x] S11-02：完成架构、部署、升级与备份恢复文档；其中实际验收状态另见[八项能力验收记录](framework-completion-validation.md)。
 - [x] S11-03：编写 `docs/guides/create-domain-module.md`，逐步说明 Schema → Migration/RLS → Repository → Policy → Contract/API → OpenAPI/Orval → Router/Query/Table/Form → Storybook/i18n → Tests。
 - [x] S11-04：以一次独立开发验证检查该指南是否可用，修正公开 TenantWrite 与审计资源分类入口；最小演示仅留在隔离源码及可重放 artifact，实际证据见[独立验证](domain-guide-validation.md)。
-- [ ] S11-05：核对各对外功能声明与实际测试结果，不把未启用的 S9 功能写成默认已完成能力。
+- [x] S11-05：逐项核对八项能力的对外声明与实际分层测试、发行及恢复结果；本地候选、远端 CI 与实际生产部署分别记账，不把未启用的功能写成默认已完成能力。
 
 **建议的首个版本核心范围：** 认证与组织、成员与角色、租户隔离、Projects 完整范例、租户/平台边界、Storybook/MSW、i18n/RTL、生成 SDK、CI、Compose 与迁移/恢复文档。这个版本范围是实施建议；原文明确的延期项继续延期。
 
@@ -326,4 +326,4 @@ Apache-2.0 LICENSE/NOTICE、贡献、安全报告、变更记录、完整模块�
 4. 完成 Projects/ProjectTranslations 的 TenantTx + RLS，跑通真实 PostgreSQL 双租户隔离测试。
 5. 接入真实身份与权限后，先让 Projects List 跑到浏览器；UI/Storybook/i18n 在此期间并行建设。
 
-首轮主线已完成安全底座与 Projects 业务闭环，后续确认的八项能力已经进入正式业务链路。当前收尾是本轮不可变镜像的发布、回退、恢复及安全扫描门禁；具体完成与未完成边界以[当前验收记录](framework-completion-validation.md)为准。
+首轮主线已完成安全底座与 Projects 业务闭环，后续确认的八项能力已完成本地实施、质量与不可变候选包验收。具体证据及远端 CI、GitHub 发行、实际生产部署边界以[当前验收记录](framework-completion-validation.md)为准。

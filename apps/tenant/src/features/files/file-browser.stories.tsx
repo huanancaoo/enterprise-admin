@@ -342,6 +342,10 @@ export const FilePickerVersionReference: Story = {
     ).toBeDisabled()
     popup.getByRole("button", { name: "portrait.png" }).focus()
     await userEvent.keyboard("{Enter}")
+    // 键盘选择先更新 React 状态，确认按钮可用后才提交版本引用。
+    await waitFor(() =>
+      expect(popup.getByRole("button", { name: "Use file" })).toBeEnabled()
+    )
     popup.getByRole("button", { name: "Use file" }).focus()
     await userEvent.keyboard("{Enter}")
     await waitFor(() =>

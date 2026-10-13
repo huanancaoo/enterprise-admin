@@ -56,7 +56,10 @@ async function pickAttachment(
   confirmLabel: string
 ) {
   const screen = within(body)
-  await userEvent.click(await screen.findByRole("button", { name: addLabel }))
+  const add = await screen.findByRole("button", { name: addLabel })
+  // 表单先渲染，附件授权异步返回后才开放选择入口。
+  await waitFor(() => expect(add).toBeEnabled())
+  await userEvent.click(add)
   const picker = within(
     await screen.findByRole("dialog", { name: pickerLabel })
   )

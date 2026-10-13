@@ -38,7 +38,9 @@ beforeAll(async () => {
   const passwords = Array.from({ length: 5 }, () =>
     randomBytes(24).toString("hex")
   )
-  container = await new GenericContainer(versions.postgresql.image)
+  container = await new GenericContainer(
+    versions.releaseFoundation.postgresql.image
+  )
     .withEnvironment({
       POSTGRES_USER: "bootstrap_admin",
       POSTGRES_DB: "enterprise_admin",

@@ -13,6 +13,8 @@
 
 数据库固定为 PostgreSQL 18.6，镜像摘要与 `docs/architecture/versions.json` 一致。端口只绑定本机，默认 5432；冲突时调整 `POSTGRES_PORT`。命名卷挂载 PostgreSQL 18 的 `/var/lib/postgresql`，普通 `docker compose down` 保留数据。
 
+上述开发 Compose 保留既有 Bookworm 配置与本地卷。自托管发行和业务/数据库验收使用 `versions.json` 的 `releaseFoundation` 固定 Alpine 镜像，先执行 `pnpm release:prepare`；独立根测试入口已包含该准备步骤。既有自托管 Bookworm 数据须按[基础发行迁移](../../docs/guides/backup-restore.md#bookworm-到-alpine-的基础发行迁移)停写、逻辑恢复新卷并重建索引，不直接挂载给新发行。
+
 ## 唯一迁移链
 
 ```sh

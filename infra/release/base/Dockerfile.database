@@ -10,13 +10,11 @@ WORKDIR /src
 RUN curl -fsSL https://codeload.github.com/tianon/gosu/tar.gz/0d1847490b448a17eb347e5e357f2c0478df87ad -o /tmp/source.tar.gz && printf '%s  /tmp/source.tar.gz\n' 09b5a49c2e00ef33b1ab57e1ad7a7f3a03bd3cf54b30ac24640bd544a7bde790 | sha256sum -c - && tar -xzf /tmp/source.tar.gz --strip-components=1
 RUN --mount=type=cache,id=enterprise-release-gomod,target=/go/pkg/mod,sharing=locked --mount=type=cache,id=enterprise-release-gobuild,target=/root/.cache/go-build,sharing=locked go build -trimpath -buildvcs=false -o /gosu .
 
-FROM postgres:18.6-bookworm@sha256:1c59e2c3c818eaa0f0628f695b36e7c9e362d6b219b36a54a32df645cbd7e1af AS postgres
-# 排序及时区依赖保持原版本；仅从同发行源安装已确认安全库，不升级 PostgreSQL 或刷新 collation。
-RUN apt-mark hold libc6 libc-bin libc-l10n locales libicu72 tzdata && apt-get update -qq && apt-get install -y --only-upgrade --no-install-recommends liblzma5=5.4.1-1+deb12u2 xz-utils=5.4.1-1+deb12u2 libpcre2-8-0=10.42-1+deb12u2 perl=5.36.0-7+deb12u4 perl-base=5.36.0-7+deb12u4 perl-modules-5.36=5.36.0-7+deb12u4 libperl5.36=5.36.0-7+deb12u4 libssl3=3.0.22-1~deb12u1 openssl=3.0.22-1~deb12u1 && rm -rf /var/lib/apt/lists/*
+FROM postgres:18.6-alpine3.24@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873 AS postgres
 COPY --from=gosu-postgres /gosu /usr/local/bin/gosu
-LABEL org.opencontainers.image.source="https://github.com/docker-library/postgres" org.opencontainers.image.version="18.6-bookworm-framework-security-1"
+LABEL org.opencontainers.image.source="https://github.com/docker-library/postgres" org.opencontainers.image.version="18.6-alpine3.24-framework-security-2"
 
-FROM redis:7.4.5-bookworm@sha256:90e7a336d044f1abc9e9dbc05d65566850896d11453bbd1dd0fb7e5059f0e8fb AS redis
-RUN apt-mark hold libc6 libc-bin tzdata && apt-get update -qq && apt-get install -y --only-upgrade --no-install-recommends perl-base=5.36.0-7+deb12u4 gpgv=2.2.40-1.1+deb12u2 libcap2=1:2.66-4+deb12u3+b1 libgnutls30=3.7.9-2+deb12u7 libgcrypt20=1.10.1-3+deb12u1 liblzma5=5.4.1-1+deb12u2 libpcre2-8-0=10.42-1+deb12u2 libssl3=3.0.22-1~deb12u1 libpam0g=1.5.2-6+deb12u2 libpam-modules=1.5.2-6+deb12u2 libpam-modules-bin=1.5.2-6+deb12u2 libpam-runtime=1.5.2-6+deb12u2 libsystemd0=252.39-1~deb12u2 libudev1=252.39-1~deb12u2 && rm -rf /var/lib/apt/lists/*
+FROM redis:7.4.5-alpine@sha256:bb186d083732f669da90be8b0f975a37812b15e913465bb14d845db72a4e3e08 AS redis
+RUN apk add --upgrade --no-cache libcrypto3=3.3.7-r2 libssl3=3.3.7-r2 musl=1.2.5-r11 musl-utils=1.2.5-r11 zlib=1.3.2-r1
 COPY --from=gosu-redis /gosu /usr/local/bin/gosu
-LABEL org.opencontainers.image.source="https://github.com/docker-library/redis" org.opencontainers.image.version="7.4.5-bookworm-framework-security-1"
+LABEL org.opencontainers.image.source="https://github.com/docker-library/redis" org.opencontainers.image.version="7.4.5-alpine-framework-security-2"

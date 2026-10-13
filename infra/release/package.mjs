@@ -1,6 +1,16 @@
 import { execFileSync, spawnSync } from "node:child_process"
-import { copyFile, mkdir, readFile, writeFile, readdir } from "node:fs/promises"
-import { join, resolve } from "node:path"
+import {
+  copyFile,
+  cp,
+  mkdir,
+  readFile,
+  writeFile,
+  readdir,
+  realpath,
+  stat,
+  unlink,
+} from "node:fs/promises"
+import { join, resolve, sep } from "node:path"
 import { sha256 } from "./release-runtime.mjs"
 
 const [version, acceptanceFile, destination] = process.argv.slice(2)
@@ -23,6 +33,7 @@ const requiredChecks = [
   "credential-revocation-after-recovery",
   "backup-restore-facts-and-files",
   "s3-private-object-recovery",
+  "bookworm-alpine-logical-migration-and-sort",
 ]
 if (
   accepted.accepted !== true ||
@@ -44,7 +55,7 @@ if (
   throw new Error("RELEASE_SOURCE_CHECKSUM_MISMATCH")
 const directory = resolve(destination)
 await mkdir(directory, { mode: 0o755 })
-const source = join(directory, "source")
+const source = join(await realpath(directory), "source")
 await mkdir(source)
 execFileSync("tar", ["-xf", accepted.sourceArchive, "-C", source])
 const selected = {
@@ -209,15 +220,27 @@ for (const service of ["api", "worker", "tenant", "platform", "migrator"])
     `RELEASE_${service.toUpperCase()}_IMAGE=${images[service].id}`
   )
 await writeFile(join(directory, "release.env.example"), example)
-async function hashTree(path, prefix = "") {
+async function normalizeAndHashTree(path, prefix = "") {
   for (const entry of await readdir(path, { withFileTypes: true })) {
     const name = prefix + entry.name
-    if (entry.isDirectory()) await hashTree(join(path, entry.name), name + "/")
+    if (entry.isDirectory())
+      await normalizeAndHashTree(join(path, entry.name), name + "/")
     else if (entry.isFile()) files[name] = await sha256(join(path, entry.name))
-    else throw new Error(`RELEASE_FILE_TYPE_UNSUPPORTED:${name}`)
+    else if (entry.isSymbolicLink()) {
+      const file = join(path, entry.name)
+      const target = await realpath(file)
+      if (!target.startsWith(source + sep))
+        throw new Error(`RELEASE_SOURCE_LINK_OUTSIDE:${name}`)
+      // 仓库的代理说明和技能使用内部链接；部署源码展开为实体文件，才能逐文件校验并离线使用。
+      const isDirectory = (await stat(target)).isDirectory()
+      await unlink(file)
+      await cp(target, file, { recursive: true })
+      if (isDirectory) await normalizeAndHashTree(file, name + "/")
+      else files[name] = await sha256(file)
+    } else throw new Error(`RELEASE_FILE_TYPE_UNSUPPORTED:${name}`)
   }
 }
-await hashTree(directory)
+await normalizeAndHashTree(directory)
 const manifest = {
   version,
   createdAt: new Date().toISOString(),

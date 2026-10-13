@@ -11,7 +11,7 @@
 [功能](#功能) · [仓库结构](#仓库结构) · [快速开始](#快速开始) · [环境配置](#环境配置) · [验证](#验证) · [文档](#文档)
 
 > [!NOTE]
-> 当前包含认证与组织、租户隔离、Projects、成员与邀请、自定义角色、语言设置、审计、平台任职与 MFA、文件管理，以及 Projects 导入导出、任务中心、账户安全、调用凭据、通知与 Webhook 的接口和页面。独立 Worker 是必需核心运行时。API HTTP 启动入口已接入业务自动投递；完整集成检查与不可变发行包验收仍在进行，实际完成与待验证边界见 [八项能力验收记录](docs/architecture/framework-completion-validation.md)。已有功能的历史证据见 [S8 验收矩阵](docs/architecture/s8-acceptance-matrix.md) 和 [S9 文件管理验收](docs/architecture/s9-files-validation.md)。
+> 截至 2026-10-13，确认的八项能力已完成本地实施与分层质量验证，并形成 0.1.0 自托管本地候选包：Alpine 正式发行验收 20/20 通过，同批 11 个实际镜像的 SBOM 与零 HIGH/CRITICAL 扫描通过，最终 manifest 已生成，包内公开加载入口完成镜像身份、平台与 1792 个文件的哈希核对。独立 Worker 是必需核心运行时，API HTTP 启动入口自动运行业务投递。完整证据见 [八项能力验收记录](docs/architecture/framework-completion-validation.md)；这些本机结果不代表远端 CI、GitHub 发行或实际生产部署。已有功能的历史证据见 [S8 验收矩阵](docs/architecture/s8-acceptance-matrix.md) 和 [S9 文件管理验收](docs/architecture/s9-files-validation.md)。
 
 ## 功能
 
@@ -25,12 +25,14 @@
 - **通用任务中心**：聚合业务任务、Files 操作与批量任务，保留各来源的生命周期；成员看本人，owner/admin 可看组织任务。
 - **个人账户安全**：两个后台共享原生密码变更、邮箱验证变更、会话查看与撤销；修改密码撤销其他会话，平台的新会话重新验证 MFA。
 - **对外调用凭据**：绑定现有用户与一个组织，权限取凭据范围和当前成员权限的交集；凭据到期、撤销及成员撤权作用于后续请求。
-- **业务通知与 Webhook**：导入导出完成或失败生成发起人的站内通知；邮件按当前偏好投递。Projects 变更及任务结果生成薄事件，Webhook 提供签名、持久重试与投递记录。生产自动投递接线的状态见本轮验收记录。
+- **业务通知与 Webhook**：导入导出完成或失败生成发起人的站内通知；邮件按当前偏好发送给仍是组织成员的发起人。Projects 变更及任务结果生成薄事件，Webhook 提供签名、持久重试与投递记录；API HTTP 启动后自动运行业务投递器。
 - **文件管理**：Local/S3-compatible 存储、文件夹层级、上传/覆盖与不可变版本、预览下载、引用、回收站、批量操作、配额和保留维护；个人头像独立于组织文件归属。
 - **契约先于页面**：`packages/contracts` 定义 HTTP Schema，Nest 导出 OpenAPI，Orval 生成 TanStack Query 客户端。
 - **i18n 与 RTL**：`zh-CN` / `en-US` / `ar`；界面语言由 i18next 持有，不写入后台 URL；内容语言与界面语言分离。
 - **认证邮件**：SMTP + 本地 Mailpit，验证邮件、密码重置、组织邀请写入 durable outbox 后再投递。
 - **运行观测**：受控结构化日志、HTTP/Worker traces 与任务指标；Compose 提供 Collector、Prometheus、Jaeger 及本地告警验证。
+- **自托管发行与恢复**：固定 Alpine 基础镜像、不可变应用产物、同批 SBOM 与漏洞扫描、全文件哈希及离线加载入口；停写备份覆盖 PostgreSQL、Files 与 Redis，已有 Bookworm 安装通过逻辑恢复到新卷、重建索引迁移到目标排序。
+- **业务模块开发指南**：以 Projects 为参考贯通 Schema、迁移/RLS、TenantTx、权限、契约、生成客户端、页面、国际化与测试，并完成独立照做验证。
 - **工程门禁**：依赖边界、类型、i18n 漂移、单元、HTTP、Storybook/a11y、浏览器 E2E、Schema 漂移、真实 PostgreSQL 测试与生成物检查。
 
 ## 仓库结构
@@ -204,6 +206,8 @@ pnpm --filter tenant dev
 
 浏览器测试前安装 Chromium；涉及 Testcontainers 的测试需要 Docker。
 
+正式业务和数据库验收采用固定 Alpine 发行基础镜像，由 `pnpm release:prepare` 准备；根测试入口自动执行它。已有开发 Compose 数据卷继续保持原配置，发行基线迁移见[备份与基础迁移指南](docs/guides/backup-restore.md)。
+
 ```sh
 pnpm --filter storybook exec playwright install chromium
 pnpm verify
@@ -223,6 +227,8 @@ pnpm verify
 | 生产构建             | `pnpm build`                                |
 
 分层、运行前提与阶段证据见 [测试说明](docs/architecture/testing.md)。构建通过不能替代业务流程验收。
+
+截至 2026-10-13，本轮本机分层门禁已通过：lint 与类型各 22/22；单元合计 187（根工作区 109、API 53、文档 25）；Nest 15/15、真实业务 HTTP 562/562、Storybook 637/637、数据库 110/110、性能 2/2；浏览器 E2E 全部 24 个文件执行退出码为 0、无失败；生产构建 12/12，以及 Schema、API 生成物、i18n 和文档内容检查通过。这些是分别执行及修正后的完整回归结果，不表示一次 `pnpm verify` 首跑全绿，也不表示远端 CI 已通过。
 
 ## 文档
 

@@ -15,6 +15,7 @@ jobs:
       - run: npm install --global pnpm@12.11.2
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter storybook exec playwright install --with-deps chromium
+      - run: pnpm release:prepare
       - run: pnpm verify
       - name: Check committed API artifacts
         run: |

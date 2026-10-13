@@ -49,7 +49,9 @@ export async function startTestApplication({
     resources.defer(() => containerNetwork.stop())
     const database = await startAuthProbeDatabase(containerNetwork)
     resources.defer(() => database.container.stop())
-    const redis = await new GenericContainer(versions.redis.image)
+    const redis = await new GenericContainer(
+      versions.releaseFoundation.redis.image
+    )
       .withNetwork(containerNetwork)
       .withNetworkAliases("redis")
       .withExposedPorts(6379)
