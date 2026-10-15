@@ -10,11 +10,8 @@ import {
   EmptyState,
   Pagination,
 } from "@workspace/admin"
-import {
-  getOrganizationAccess,
-  listTaskCenter,
-  requestLanguageHeader,
-} from "@workspace/api-client"
+import { listTaskCenter, requestLanguageHeader } from "@workspace/api-client"
+import { useOrganizationAuthorization } from "@/hooks/use-organization-authorization"
 import { TaskCenterPageSchema } from "@workspace/contracts"
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
@@ -45,17 +42,12 @@ export function TaskCenter({
   const locale = useUiLocale()
   const format = useMemo(() => createFormatter(locale), [locale])
   const client = useQueryClient()
-  const access = useQuery({
-    queryKey: [
-      "organizations",
-      organizationId,
-      "task-center-authority",
-      user.id,
-    ],
-    retry: false,
-    queryFn: ({ signal }) => getOrganizationAccess(organizationId, { signal }),
+  const access = useOrganizationAuthorization({
+    organizationId,
+    userId: user.id,
+    observation: "task-center",
   })
-  const version = access.data?.data.authorizationVersion ?? 0
+  const version = access.data?.authorizationVersion ?? 0
   const prefix = taskCenterKeys.scope(organizationId, user.id)
   const query = useQuery({
     queryKey: [...prefix, version, locale, search.page, search.pageSize],
@@ -247,7 +239,7 @@ export function TaskCenter({
           />
           {search.source && search.taskId && (
             <TaskDetails
-              key={`${version}:${search.source}:${search.taskId}`}
+              key={`${access.data.scopeKey}:${search.source}:${search.taskId}`}
               organizationId={organizationId}
               source={search.source}
               taskId={search.taskId}

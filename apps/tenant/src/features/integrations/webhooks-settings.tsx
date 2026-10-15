@@ -19,7 +19,6 @@ import {
   updateWebhook,
   deleteWebhook,
   listWebhooks,
-  getOrganizationAccess,
   organizationKeys,
   requestLanguageHeader,
 } from "@workspace/api-client"
@@ -60,6 +59,7 @@ import {
   TableRow,
 } from "@workspace/ui/components/table"
 import { authClient } from "@/lib/auth-client"
+import { useOrganizationAuthorization } from "@/hooks/use-organization-authorization"
 
 type Endpoint = ReturnType<typeof WebhookSchema.parse>
 type WebhookEventType = ReturnType<typeof WebhookEventTypeSchema.parse>
@@ -84,14 +84,10 @@ function WebhookAuthority({
   organizationId: string
   userId: string
 }) {
-  const access = useQuery({
-    retry: false,
-    queryFn: ({ signal }) => getOrganizationAccess(organizationId, { signal }),
-    queryKey: [
-      ...organizationKeys.scope(organizationId),
-      "webhook-authority",
-      userId,
-    ],
+  const access = useOrganizationAuthorization({
+    organizationId,
+    userId,
+    observation: "webhooks",
   })
   if (access.isError)
     return (
@@ -103,10 +99,10 @@ function WebhookAuthority({
   if (access.isPending) return <LoadingState />
   return (
     <WebhookScope
-      key={access.data.data.authorizationVersion}
+      key={access.data.scopeKey}
       organizationId={organizationId}
       userId={userId}
-      version={access.data.data.authorizationVersion}
+      version={access.data.authorizationVersion}
     />
   )
 }

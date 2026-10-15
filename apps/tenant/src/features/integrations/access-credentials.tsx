@@ -9,9 +9,9 @@ import {
   listAccessCredentials,
   revokeAccessCredential,
   getOrganizationRoleAccess,
-  getOrganizationAccess,
 } from "@workspace/api-client"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
+import { useOrganizationAuthorization } from "@/hooks/use-organization-authorization"
 import type { AccessCredential } from "@workspace/contracts"
 import { permissionStatements } from "@workspace/permissions"
 import {
@@ -80,16 +80,10 @@ export function AccessCredentialsSettings({
   organizationId: string
 }) {
   const session = useAuthenticatedSession()!
-  const membership = useQuery({
-    retry: false,
-    queryFn: ({ signal }) => getOrganizationAccess(organizationId, { signal }),
-    queryKey: [
-      "organizations",
-      organizationId,
-      "users",
-      session.user.id,
-      "credential-membership",
-    ],
+  const membership = useOrganizationAuthorization({
+    organizationId,
+    userId: session.user.id,
+    observation: "access-credentials",
   })
   if (membership.error)
     return membership.error instanceof ApiClientError &&
@@ -99,11 +93,11 @@ export function AccessCredentialsSettings({
       <ErrorState onRetry={() => void membership.refetch()} />
     )
   if (membership.isPending) return <LoadingState />
-  const authorizationVersion = membership.data.data.authorizationVersion
+  const { authorizationVersion, scopeKey } = membership.data
   // 用户、组织或权威授权版本变化都会销毁一次性密钥和当前草稿。
   return (
     <CredentialScope
-      key={`${session.user.id}:${organizationId}:${authorizationVersion}`}
+      key={scopeKey}
       organizationId={organizationId}
       userId={session.user.id}
       authorizationVersion={authorizationVersion}

@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import {
   ApiClientError,
-  getOrganizationAccess,
   listNotifications,
   readNotification,
   type Notification,
@@ -23,6 +22,7 @@ import {
 import { Button } from "@workspace/ui/components/button"
 import { Badge } from "@workspace/ui/components/badge"
 import { NotificationPreferencesSettings } from "./notification-preferences"
+import { useOrganizationAuthorization } from "@/hooks/use-organization-authorization"
 
 type Props = {
   organizationId: string
@@ -33,17 +33,10 @@ type Props = {
 const columnHelper = createDataTableColumnHelper<Notification>()
 export function NotificationCenter(props: Props) {
   const user = useAuthenticatedSession()!.user
-  const membership = useQuery({
-    queryKey: [
-      "organizations",
-      props.organizationId,
-      "users",
-      user.id,
-      "notification-membership",
-    ],
-    retry: false,
-    queryFn: ({ signal }) =>
-      getOrganizationAccess(props.organizationId, { signal }),
+  const membership = useOrganizationAuthorization({
+    organizationId: props.organizationId,
+    userId: user.id,
+    observation: "notifications",
   })
   if (membership.error)
     return membership.error instanceof ApiClientError &&
@@ -53,10 +46,10 @@ export function NotificationCenter(props: Props) {
       <ErrorState onRetry={() => void membership.refetch()} />
     )
   if (membership.isPending) return <LoadingState />
-  const authorizationVersion = membership.data.data.authorizationVersion
+  const { authorizationVersion, scopeKey } = membership.data
   return (
     <ScopedInbox
-      key={`${user.id}:${props.organizationId}:${authorizationVersion}`}
+      key={scopeKey}
       {...props}
       userId={user.id}
       authorizationVersion={authorizationVersion}
