@@ -1,5 +1,5 @@
 {
-  "activeFiles": "الملفات النشطة",
+  "allFiles": "كل الملفات",
   "batchChooseDestination": "اختر مجلد وجهة.",
   "batchCleaning": "تم الاعتماد؛ جارٍ التنظيف",
   "batchCommitted": "تم الاعتماد",
@@ -47,6 +47,7 @@
   "chooseDestination": "اختيار الوجهة",
   "chooseRestoreLocation": "اختيار مجلد آخر",
   "chooseUploadFiles": "اختيار ملفات",
+  "collapseFolder": "طي {{name}}",
   "confirmOverwrite": "تأكيد الاستبدال",
   "content": "الإصدار المحدد",
   "createFolder": "إنشاء مجلد",
@@ -57,6 +58,7 @@
   "deletedAt": "تاريخ الحذف",
   "destination": "مجلد الوجهة",
   "detail": "تفاصيل الملف",
+  "directory": "المجلدات",
   "dismissOperation": "إزالة المهمة المنتهية",
   "dismissUploadRecord": "إزالة سجل المهمة المحلي",
   "download": "تنزيل الملف",
@@ -64,6 +66,8 @@
   "emptyFolder": "لا توجد ملفات أو مجلدات فرعية في هذا المجلد.",
   "emptyText": "لا يحتوي هذا الملف على نص.",
   "emptyTrash": "سلة المحذوفات فارغة.",
+  "entryActions": "إجراءات {{name}}",
+  "expandFolder": "توسيع {{name}}",
   "expiresAt": "وقت انتهاء الصلاحية",
   "folder": "مجلد",
   "folderCreating": "جارٍ إنشاء المجلد. انتظر اكتمال العملية.",
@@ -76,6 +80,7 @@
   "historicalVersion": "إصدار سابق",
   "historyDays": "مدة الاحتفاظ بالإصدارات غير المرتبطة",
   "impactSummary": "{{files}} ملفات · {{folders}} مجلدات · {{bytes}} بايت",
+  "itemCount": "{{quantity}} عناصر",
   "location": "المجلد",
   "maxUploadBytes": "حد الرفع لكل ملف",
   "moveDescription": "انقل «{{name}}» إلى المجلد المحدد.",
@@ -181,6 +186,5 @@
   "versionCreatedAt": "وقت إنشاء الإصدار",
   "versions": "سجل الإصدارات",
   "versionState": "حالة الإصدار",
-  "versionUnavailable": "هذا الإصدار غير متاح. اختر إصداراً متاحاً من السجل.",
-  "views": "طرق عرض الملفات"
+  "versionUnavailable": "هذا الإصدار غير متاح. اختر إصداراً متاحاً من السجل."
 }

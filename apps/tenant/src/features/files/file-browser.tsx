@@ -19,7 +19,9 @@ import {
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
 import { Button } from "@workspace/ui/components/button"
-import { FileIcon, FolderIcon, MapPinIcon } from "lucide-react"
+import { ChevronRightIcon, MapPinIcon } from "lucide-react"
+import { FileEntryIcon } from "./file-presentation"
+import { fileTypeLabel, formatFileSize } from "./file-format"
 
 const columnHelper = createDataTableColumnHelper<FileEntryResponse>()
 const emptyEntries: FileEntryResponse[] = []
@@ -42,6 +44,9 @@ export type FileBrowserProps = {
   actions?: ReactNode
   renderSelectionActions?: (entries: FileEntryResponse[]) => ReactNode
   rootLabel?: string
+  workspace?: boolean
+  previewedFileId?: string
+  renderEntryActions?: (entry: FileEntryResponse) => ReactNode
 }
 
 export function FileBrowser({
@@ -62,6 +67,9 @@ export function FileBrowser({
   actions,
   renderSelectionActions,
   rootLabel,
+  workspace = false,
+  previewedFileId,
+  renderEntryActions,
 }: FileBrowserProps) {
   const { t } = useTranslation(["files", "common"])
   const locale = useUiLocale()
@@ -78,14 +86,15 @@ export function FileBrowser({
             <DataTableColumnHeader header={header} title={t("files:name")} />
           ),
           meta: { label: t("files:name") },
-          size: 300,
+          size: workspace ? 190 : 300,
           cell: ({ row }) => {
             const entry = row.original
             return (
               <Button
                 id={`${buttonId}-${entry.id}`}
                 variant="link"
-                className="h-auto max-w-full min-w-0 justify-start p-0 text-start [overflow-wrap:anywhere] whitespace-normal"
+                aria-current={entry.id === previewedFileId ? true : undefined}
+                className="h-auto max-w-full min-w-0 justify-start gap-3 p-0 text-start font-normal [overflow-wrap:anywhere] whitespace-normal text-foreground hover:no-underline"
                 title={entry.name}
                 disabled={
                   busy ||
@@ -97,11 +106,7 @@ export function FileBrowser({
                     : onOpenFile(entry)
                 }
               >
-                {entry.kind === "folder" ? (
-                  <FolderIcon aria-hidden="true" className="shrink-0" />
-                ) : (
-                  <FileIcon aria-hidden="true" className="shrink-0" />
-                )}
+                <FileEntryIcon entry={entry} />
                 {entry.name}
               </Button>
             )
@@ -111,10 +116,17 @@ export function FileBrowser({
           header: t("files:type"),
           meta: { label: t("files:type") },
           enableSorting: false,
+          size: workspace ? 70 : 150,
           cell: ({ row }) =>
-            row.original.kind === "folder"
-              ? t("files:folder")
-              : row.original.currentVersion.contentType,
+            row.original.kind === "folder" ? (
+              t("files:folder")
+            ) : (
+              <span title={row.original.currentVersion.contentType}>
+                {workspace
+                  ? fileTypeLabel(row.original)
+                  : row.original.currentVersion.contentType}
+              </span>
+            ),
         }),
         columnHelper.accessor(
           (entry) =>
@@ -125,13 +137,16 @@ export function FileBrowser({
               <DataTableColumnHeader header={header} title={t("files:size")} />
             ),
             meta: { label: t("files:size") },
+            size: workspace ? 90 : 150,
             cell: ({ row }) =>
               row.original.kind === "file"
-                ? t("files:byteCount", {
-                    bytes: createFormatter(locale).number(
-                      row.original.currentVersion.bytes
-                    ),
-                  })
+                ? workspace
+                  ? formatFileSize(row.original.currentVersion.bytes, locale)
+                  : t("files:byteCount", {
+                      bytes: createFormatter(locale).number(
+                        row.original.currentVersion.bytes
+                      ),
+                    })
                 : t("files:folderSize"),
           }
         ),
@@ -143,8 +158,26 @@ export function FileBrowser({
             />
           ),
           meta: { label: t("files:updatedAt") },
+          size: workspace ? 110 : 150,
           cell: (cell) =>
-            createFormatter(locale).dateTime(new Date(cell.getValue()), "UTC"),
+            workspace ? (
+              <time
+                dateTime={cell.getValue()}
+                title={createFormatter(locale).dateTime(
+                  new Date(cell.getValue()),
+                  "UTC"
+                )}
+              >
+                {new Intl.DateTimeFormat(locale, {
+                  year: "numeric",
+                  month: "2-digit",
+                  day: "2-digit",
+                  timeZone: "UTC",
+                }).format(new Date(cell.getValue()))}
+              </time>
+            ) : (
+              createFormatter(locale).dateTime(new Date(cell.getValue()), "UTC")
+            ),
         }),
         columnHelper.accessor("path", {
           header: t(
@@ -180,6 +213,20 @@ export function FileBrowser({
             )
           },
         }),
+        ...(renderEntryActions
+          ? [
+              columnHelper.display({
+                id: "actions",
+                header: () => (
+                  <span className="sr-only">{t("files:detail")}</span>
+                ),
+                size: 64,
+                enableHiding: false,
+                meta: { allowCellOverflow: true },
+                cell: ({ row }) => renderEntryActions(row.original),
+              }),
+            ]
+          : []),
         ...(search.state === "trashed"
           ? [
               columnHelper.accessor("deletedAt", {
@@ -219,6 +266,9 @@ export function FileBrowser({
       search.name,
       search.state,
       t,
+      workspace,
+      previewedFileId,
+      renderEntryActions,
     ]
   )
   const sorting = [{ id: search.sortBy, desc: search.sortOrder === "desc" }]
@@ -227,38 +277,59 @@ export function FileBrowser({
 
   return (
     <div className="min-w-0 space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <nav aria-label={t("files:folderNavigation")}>
-          <ol className="flex flex-wrap items-center gap-2">
-            {breadcrumbs.items.map((folder, index) => (
-              <li key={folder.id} className="flex min-w-0 items-center gap-2">
-                {index > 0 && <span aria-hidden="true">/</span>}
-                <Button
-                  variant="link"
-                  className="h-auto max-w-full p-0 text-start [overflow-wrap:anywhere] whitespace-normal"
-                  disabled={busy}
-                  aria-current={
-                    folder.id === currentFolder.id ? "page" : undefined
-                  }
-                  onClick={() => onOpenFolder(folder)}
-                >
-                  {folder.parentId === null
-                    ? (rootLabel ?? t("files:root"))
-                    : folder.name}
-                </Button>
-              </li>
-            ))}
-          </ol>
-        </nav>
-        {actions}
-      </div>
+      {!workspace && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <FileBreadcrumbNavigation
+            breadcrumbs={breadcrumbs}
+            currentFolder={currentFolder}
+            busy={busy}
+            onOpenFolder={onOpenFolder}
+            rootLabel={rootLabel}
+          />
+          {actions}
+        </div>
+      )}
       {search.name && (
         <p role="status" className="text-sm text-muted-foreground">
           {t("files:organizationSearch", { name: search.name })}
         </p>
       )}
       <DataTable
-        key={JSON.stringify([contentScopeKey, currentFolder.id, search.state])}
+        key={JSON.stringify([
+          contentScopeKey,
+          currentFolder.id,
+          search.state,
+          Boolean(search.name),
+        ])}
+        showSearch={!workspace}
+        initialState={{
+          columnVisibility: {
+            path:
+              !workspace || Boolean(search.name) || search.state === "trashed",
+          },
+        }}
+        toolbarContent={
+          workspace ? (
+            <h2 className="min-w-0 text-lg font-semibold wrap-anywhere">
+              {currentFolder.parentId === null
+                ? (rootLabel ?? t("files:allFiles"))
+                : currentFolder.name}
+              <span className="ms-3 text-sm font-normal text-muted-foreground">
+                {page ? t("files:itemCount", { quantity: page.total }) : ""}
+              </span>
+            </h2>
+          ) : undefined
+        }
+        rowClassName={(row) =>
+          row.original.id === previewedFileId
+            ? "bg-primary/5 shadow-[inset_2px_0_0_var(--color-primary)] rtl:shadow-[inset_-2px_0_0_var(--color-primary)]"
+            : undefined
+        }
+        className={
+          workspace
+            ? "gap-0 [&_[data-slot=data-table-content]]:rounded-none [&_[data-slot=data-table-content]]:border-0 [&_[data-slot=data-table-toolbar]]:px-4 [&_[data-slot=data-table-toolbar]]:py-4 [&_td]:h-16 [&_td]:px-3 [&_td]:text-muted-foreground [&_th]:bg-background [&_th]:px-3 [&>div:last-child]:px-4 [&>div:last-child]:py-4"
+            : undefined
+        }
         columns={columns}
         data={page?.items ?? emptyEntries}
         getRowId={(entry) => entry.id}
@@ -339,5 +410,45 @@ export function FileBrowser({
         }
       />
     </div>
+  )
+}
+
+export function FileBreadcrumbNavigation({
+  breadcrumbs,
+  currentFolder,
+  busy,
+  onOpenFolder,
+  rootLabel,
+}: Pick<
+  FileBrowserProps,
+  "breadcrumbs" | "currentFolder" | "onOpenFolder" | "rootLabel"
+> & { busy: boolean }) {
+  const { t } = useTranslation("files")
+  return (
+    <nav aria-label={t("folderNavigation")}>
+      <ol className="flex flex-wrap items-center gap-2">
+        {breadcrumbs.items.map((folder, index) => (
+          <li key={folder.id} className="flex min-w-0 items-center gap-2">
+            {index > 0 && (
+              <ChevronRightIcon
+                aria-hidden="true"
+                className="size-3.5 shrink-0 text-muted-foreground rtl:rotate-180"
+              />
+            )}
+            <Button
+              variant="link"
+              className="h-auto max-w-full p-0 text-start [overflow-wrap:anywhere] whitespace-normal"
+              disabled={busy}
+              aria-current={folder.id === currentFolder.id ? "page" : undefined}
+              onClick={() => onOpenFolder(folder)}
+            >
+              {folder.parentId === null
+                ? (rootLabel ?? t("root"))
+                : folder.name}
+            </Button>
+          </li>
+        ))}
+      </ol>
+    </nav>
   )
 }

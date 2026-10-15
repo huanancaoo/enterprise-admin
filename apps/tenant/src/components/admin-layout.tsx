@@ -356,6 +356,7 @@ export function AdminLayout() {
 
   return (
     <AppShell
+      layout={onFiles && !params.entryId ? "workspace" : "page"}
       breadcrumb={
         <Breadcrumb>
           <BreadcrumbList>

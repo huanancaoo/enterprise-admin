@@ -50,6 +50,8 @@ export function DataTable<TData extends RowData>({
   initialState,
   renderSelectionActions,
   renderExpandedRow,
+  toolbarContent,
+  rowClassName,
   ...options
 }: DataTableProps<TData>) {
   const { t } = useTranslation("common")
@@ -139,6 +141,7 @@ export function DataTable<TData extends RowData>({
                 />
               ) : (
                 <>
+                  {toolbarContent}
                   {showSearch && (
                     <DataTableSearch
                       key={searchValue}
@@ -179,6 +182,7 @@ export function DataTable<TData extends RowData>({
                 error={error}
                 onRetry={onRetry}
                 renderExpandedRow={renderExpandedRow}
+                rowClassName={rowClassName}
                 hasFilters={hasFilters}
                 onResetFilters={clearFilters}
               />

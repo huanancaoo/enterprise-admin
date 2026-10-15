@@ -279,7 +279,7 @@ export default interface Resources {
     "YOU_CANNOT_LEAVE_THE_ORGANIZATION_WITHOUT_AN_OWNER": "组织必须保留至少一位所有者"
   },
   "files": {
-    "activeFiles": "有效文件",
+    "allFiles": "全部文件",
     "batchChooseDestination": "请选择目标文件夹。",
     "batchCleaning": "已提交，正在清理",
     "batchCommitted": "已提交",
@@ -327,6 +327,7 @@ export default interface Resources {
     "chooseDestination": "选择目标文件夹",
     "chooseRestoreLocation": "选择其他文件夹",
     "chooseUploadFiles": "选择文件",
+    "collapseFolder": "收起 {{name}}",
     "confirmOverwrite": "确认覆盖",
     "content": "所选版本",
     "createFolder": "创建文件夹",
@@ -337,6 +338,7 @@ export default interface Resources {
     "deletedAt": "删除时间",
     "destination": "目标文件夹",
     "detail": "文件详情",
+    "directory": "目录",
     "dismissOperation": "移除已结束的任务",
     "dismissUploadRecord": "移除本机任务记录",
     "download": "下载文件",
@@ -344,6 +346,8 @@ export default interface Resources {
     "emptyFolder": "此文件夹暂无文件或子文件夹。",
     "emptyText": "此文件没有文本内容。",
     "emptyTrash": "回收站为空。",
+    "entryActions": "{{name}} 的操作",
+    "expandFolder": "展开 {{name}}",
     "expiresAt": "到期时间",
     "folder": "文件夹",
     "folderCreating": "正在创建文件夹，请等待操作完成。",
@@ -356,6 +360,7 @@ export default interface Resources {
     "historicalVersion": "历史版本",
     "historyDays": "未引用历史版本保留期限",
     "impactSummary": "{{files}} 个文件 · {{folders}} 个文件夹 · {{bytes}} 字节",
+    "itemCount": "{{quantity}} 项",
     "location": "所在文件夹",
     "maxUploadBytes": "单文件上传上限",
     "moveDescription": "将“{{name}}”移动到选中的文件夹。",
@@ -461,8 +466,7 @@ export default interface Resources {
     "versionCreatedAt": "版本创建时间",
     "versionState": "版本状态",
     "versionUnavailable": "此版本已不可用，请从版本记录中明确选择可用版本。",
-    "versions": "版本记录",
-    "views": "文件视图"
+    "versions": "版本记录"
   },
   "notifications": {
     "actions": "操作",

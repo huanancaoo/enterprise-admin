@@ -1,5 +1,5 @@
 {
-  "activeFiles": "Active files",
+  "allFiles": "All files",
   "batchChooseDestination": "Choose a destination folder.",
   "batchCleaning": "Committed; cleaning",
   "batchCommitted": "Committed",
@@ -47,6 +47,7 @@
   "chooseDestination": "Choose destination",
   "chooseRestoreLocation": "Choose another folder",
   "chooseUploadFiles": "Choose files",
+  "collapseFolder": "Collapse {{name}}",
   "confirmOverwrite": "Confirm overwrite",
   "content": "Selected version",
   "createFolder": "Create folder",
@@ -57,6 +58,7 @@
   "deletedAt": "Deleted at",
   "destination": "Destination folder",
   "detail": "File details",
+  "directory": "Folders",
   "dismissOperation": "Remove finished task",
   "dismissUploadRecord": "Remove local task record",
   "download": "Download file",
@@ -64,6 +66,8 @@
   "emptyFolder": "This folder has no files or subfolders.",
   "emptyText": "This file has no text content.",
   "emptyTrash": "The trash is empty.",
+  "entryActions": "Actions for {{name}}",
+  "expandFolder": "Expand {{name}}",
   "expiresAt": "Expires at",
   "folder": "Folder",
   "folderCreating": "Creating the folder. Wait for the operation to finish.",
@@ -76,6 +80,7 @@
   "historicalVersion": "Historical version",
   "historyDays": "Unreferenced version retention",
   "impactSummary": "{{files}} files · {{folders}} folders · {{bytes}} bytes",
+  "itemCount": "{{quantity}} items",
   "location": "Folder",
   "maxUploadBytes": "Upload limit per file",
   "moveDescription": "Move “{{name}}” into the selected folder.",
@@ -181,6 +186,5 @@
   "versionCreatedAt": "Version created at",
   "versions": "Version history",
   "versionState": "Version status",
-  "versionUnavailable": "This version is unavailable. Choose an available version from the history.",
-  "views": "File views"
+  "versionUnavailable": "This version is unavailable. Choose an available version from the history."
 }

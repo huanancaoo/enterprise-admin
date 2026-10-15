@@ -430,15 +430,21 @@ describe.each(["Local", "RustFS"])(
     }
     async function trashTab() {
       await page
-        .getByRole("group", { name: labels["zh-CN"].views, exact: true })
+        .getByRole("complementary", {
+          name: labels["zh-CN"].directory,
+          exact: true,
+        })
         .getByRole("button", { name: labels["zh-CN"].trash, exact: true })
         .click()
       await expectUI(page).toHaveURL(/state=trashed/)
     }
     async function activeTab() {
       await page
-        .getByRole("group", { name: labels["zh-CN"].views, exact: true })
-        .getByRole("button", { name: labels["zh-CN"].activeFiles, exact: true })
+        .getByRole("navigation", {
+          name: labels["zh-CN"].directory,
+          exact: true,
+        })
+        .getByRole("button", { name: labels["zh-CN"].allFiles, exact: true })
         .click()
     }
     async function trashEntry(f, entry) {

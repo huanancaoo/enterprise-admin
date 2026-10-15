@@ -221,11 +221,13 @@ function FileDetailContent({
           ) : (
             <FolderDetails folder={entry} />
           )}
-          <FileReferenceLocations
-            organizationId={entry.organizationId}
-            entryId={entry.id}
-            authorizationVersion={authorizationVersion}
-          />
+          <div id="file-references">
+            <FileReferenceLocations
+              organizationId={entry.organizationId}
+              entryId={entry.id}
+              authorizationVersion={authorizationVersion}
+            />
+          </div>
         </>
       )}
     </ResourceList>
@@ -424,7 +426,11 @@ function FileVersionDetails({
           </p>
         )}
       </section>
-      <section aria-label={t("files:versions")} className="space-y-3">
+      <section
+        id="file-versions"
+        aria-label={t("files:versions")}
+        className="space-y-3"
+      >
         <h2 className="font-semibold">{t("files:versions")}</h2>
         <div className="min-w-0 overflow-x-auto rounded-xl border bg-card shadow-sm">
           <Table className="min-w-[40rem]">

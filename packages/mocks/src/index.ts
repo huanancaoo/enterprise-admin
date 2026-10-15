@@ -115,3 +115,5 @@ export {
 } from "./notification-center"
 
 export { createOrganizationAuthorizationScenario } from "./organization-authorization"
+
+export { fileWorkspaceScenario } from "./handlers/files-workspace"

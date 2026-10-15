@@ -404,6 +404,10 @@ describe.each(["RustFS", "Local"])(
       await expectUI(
         page.getByRole("heading", { name: "文件", exact: true })
       ).toBeVisible()
+      await page
+        .locator("summary")
+        .filter({ hasText: "容量与保留策略" })
+        .click()
       await expectUI(
         page.getByRole("region", { name: "容量与保留策略", exact: true })
       ).toBeVisible()
@@ -434,7 +438,10 @@ describe.each(["RustFS", "Local"])(
       await expectUI(
         page.getByText("在本组织中搜索“内部”", { exact: true })
       ).toBeVisible()
-      await page.getByRole("button", { name: "合同 2026", exact: true }).click()
+      await page
+        .locator("tbody")
+        .getByRole("button", { name: "合同 2026", exact: true })
+        .click()
       await expectUI(
         page.getByRole("button", { name: "内部说明.txt", exact: true })
       ).toBeVisible()
@@ -442,8 +449,14 @@ describe.each(["RustFS", "Local"])(
         f.directory.id
       )
       expect(new URL(page.url()).searchParams.has("name")).toBe(false)
-      await page.getByRole("button", { name: "根目录", exact: true }).click()
-      await page.getByRole("button", { name: "空目录", exact: true }).click()
+      await page
+        .getByRole("navigation", { name: "文件夹导航", exact: true })
+        .getByRole("button", { name: "全部文件", exact: true })
+        .click()
+      await page
+        .locator("tbody")
+        .getByRole("button", { name: "空目录", exact: true })
+        .click()
       await expectUI(
         page.getByText("此文件夹暂无文件或子文件夹。", { exact: true })
       ).toBeVisible()
@@ -492,7 +505,10 @@ describe.each(["RustFS", "Local"])(
       const f = await fixture()
       await signIn(page, f.owner, environment.tenantOrigin)
       await page.getByRole("link", { name: "文件", exact: true }).click()
-      await page.getByRole("button", { name: "合同 2026", exact: true }).click()
+      await page
+        .locator("tbody")
+        .getByRole("button", { name: "合同 2026", exact: true })
+        .click()
       await expectUI(
         page.getByRole("button", { name: "内部说明.txt", exact: true })
       ).toBeVisible()
@@ -516,7 +532,7 @@ describe.each(["RustFS", "Local"])(
       expect(page.url()).toBe(location)
     })
 
-    it("Sheet 从列表预览并恢复焦点，UTF-8 文本 Range 分页不超过 64 KiB，下载核对原始字节与中文文件名", async () => {
+    it("侧栏从列表预览并恢复焦点，UTF-8 文本 Range 分页不超过 64 KiB，下载核对原始字节与中文文件名", async () => {
       const f = await fixture()
       const body = Buffer.from(
         "a".repeat(65535) + "你مرحبا\n" + "b".repeat(2000)
@@ -536,7 +552,7 @@ describe.each(["RustFS", "Local"])(
           response.request().headers().range === "bytes=0-65535"
       )
       await page.keyboard.press("Enter")
-      const dialog = page.getByRole("dialog")
+      const dialog = page.getByRole("region", { name: "预览", exact: true })
       const content = dialog.getByLabel("文本内容", { exact: true })
       await expectUI(content).toHaveText("a".repeat(65535))
       const firstResponse = await first
@@ -546,15 +562,15 @@ describe.each(["RustFS", "Local"])(
         `bytes 0-65535/${body.length}`
       )
       expect(page.url()).toBe(source)
-      await expectUI(dialog).toHaveCSS("opacity", "1")
+      await expectUI(dialog).toBeVisible()
       await page.addScriptTag({
         path: a11yRequire.resolve("axe-core/axe.min.js"),
       })
       expect(
-        await page.evaluate(
-          async () =>
+        await dialog.evaluate(
+          async (element) =>
             (
-              await window.axe.run(document.querySelector('[role="dialog"]'), {
+              await window.axe.run(element, {
                 runOnly: {
                   type: "tag",
                   values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"],
@@ -590,7 +606,7 @@ describe.each(["RustFS", "Local"])(
         fileRepository.findVersion(tx, text.fileId, text.versionId)
       )
       expect(sha(actual)).toBe(version.version.sha256)
-      await page.keyboard.press("Escape")
+      await dialog.getByRole("button", { name: "关闭", exact: true }).click()
       await expectUI(dialog).toHaveCount(0)
       await expectUI(file).toBeFocused()
       expect(page.url()).toBe(source)
@@ -632,7 +648,7 @@ describe.each(["RustFS", "Local"])(
       await page
         .getByRole("button", { name: image.entry.name, exact: true })
         .click()
-      const dialog = page.getByRole("dialog")
+      const dialog = page.getByRole("region", { name: "预览", exact: true })
       const picture = dialog.getByRole("img", {
         name: image.entry.name,
         exact: true,
@@ -676,7 +692,7 @@ describe.each(["RustFS", "Local"])(
       await page
         .getByRole("button", { name: "资料 00.txt", exact: true })
         .click()
-      const dialog = page.getByRole("dialog")
+      const dialog = page.getByRole("region", { name: "预览", exact: true })
       await expectUI(dialog).toContainText("资源不存在")
       await expectUI(
         dialog.getByLabel("文本内容", { exact: true })
@@ -724,7 +740,7 @@ describe.each(["RustFS", "Local"])(
       await page
         .getByRole("button", { name: "资料 00.txt", exact: true })
         .click()
-      const dialog = page.getByRole("dialog")
+      const dialog = page.getByRole("region", { name: "预览", exact: true })
       await expectUI(dialog.getByLabel("文本内容", { exact: true })).toHaveText(
         f.items[0].body.toString()
       )
@@ -893,7 +909,10 @@ describe.each(["RustFS", "Local"])(
             response.url().includes(media.versionId + "/content") &&
             response.request().headers().range === "bytes=0-0"
         )
-        await page.getByRole("button", { name, exact: true }).click()
+        await page
+          .locator("tbody")
+          .getByRole("button", { name, exact: true })
+          .click()
         const response = await preflight
         expect(response.status()).toBe(206)
         expect(response.headers()["content-length"]).toBe("1")
@@ -901,7 +920,9 @@ describe.each(["RustFS", "Local"])(
           `bytes 0-0/${body.length}`
         )
         const selector = kind === "pdf" ? "iframe" : kind
-        const viewer = page.getByRole("dialog").locator(selector)
+        const viewer = page
+          .getByRole("region", { name: "预览", exact: true })
+          .locator(selector)
         await expectUI(viewer).toHaveAttribute(
           "src",
           new RegExp(
@@ -917,14 +938,14 @@ describe.each(["RustFS", "Local"])(
           ).toBeUndefined()
         } else await expectUI(viewer).toBeVisible()
         await page
-          .getByRole("dialog")
+          .getByRole("region", { name: "预览", exact: true })
           .getByRole("button", { name: "关闭", exact: true })
           .click()
         await expectUI(viewer).toHaveCount(0)
       }
     )
 
-    it("关闭正在读取的 Sheet 会取消真实请求，迟到响应不能创建私有 Blob 或重新打开预览", async () => {
+    it("关闭正在读取的侧栏 会取消真实请求，迟到响应不能创建私有 Blob 或重新打开预览", async () => {
       const f = await fixture()
       const image = await f.publish(
         "等待读取.png",
@@ -968,7 +989,7 @@ describe.each(["RustFS", "Local"])(
         expect(await received.promise).toBe(200)
         const canceled = page.waitForEvent("requestfailed", matches)
         await page
-          .getByRole("dialog")
+          .getByRole("region", { name: "预览", exact: true })
           .getByRole("button", { name: "关闭", exact: true })
           .click()
         expect((await canceled).failure().errorText).toContain("ERR_ABORTED")
@@ -976,7 +997,9 @@ describe.each(["RustFS", "Local"])(
         release.resolve()
         await page.unrouteAll({ behavior: "wait" })
       }
-      await expectUI(page.getByRole("dialog")).toHaveCount(0)
+      await expectUI(
+        page.getByRole("region", { name: "预览", exact: true })
+      ).toHaveCount(0)
       expect(await page.evaluate(() => window.fileObjectUrls)).toEqual([])
     })
 
@@ -1013,7 +1036,7 @@ describe.each(["RustFS", "Local"])(
         await page
           .getByRole("button", { name: input.name, exact: true })
           .click()
-        const dialog = page.getByRole("dialog")
+        const dialog = page.getByRole("region", { name: "预览", exact: true })
         await expectUI(
           dialog.getByLabel("文本内容", { exact: true })
         ).toHaveText(input.expected)
@@ -1066,7 +1089,10 @@ describe.each(["RustFS", "Local"])(
       const f = await fixture()
       await signIn(page, f.owner, environment.tenantOrigin)
       await page.getByRole("link", { name: "文件", exact: true }).click()
-      await page.getByRole("button", { name: "合同 2026", exact: true }).click()
+      await page
+        .locator("tbody")
+        .getByRole("button", { name: "合同 2026", exact: true })
+        .click()
       const location = page.url()
       const dialog = await openCreation("  新合同 目录  ")
       await expectUI(dialog).toContainText("在“合同 2026”中创建一个空文件夹。")
@@ -1119,7 +1145,9 @@ describe.each(["RustFS", "Local"])(
       ).toBeFocused()
       expect(page.url()).toBe(location)
       await expectUI(
-        page.getByRole("button", { name: "新合同 目录", exact: true })
+        page
+          .locator("tbody")
+          .getByRole("button", { name: "新合同 目录", exact: true })
       ).toBeVisible()
       await assertEmptyFolderMarker(f, created.path)
       await page
@@ -1139,7 +1167,10 @@ describe.each(["RustFS", "Local"])(
       const f = await fixture()
       await signIn(page, f.owner, environment.tenantOrigin)
       await page.getByRole("link", { name: "文件", exact: true }).click()
-      await page.getByRole("button", { name: "空目录", exact: true }).click()
+      await page
+        .locator("tbody")
+        .getByRole("button", { name: "空目录", exact: true })
+        .click()
       const writes = []
       page.on("request", (request) => {
         if (folderWrites(f.organization.id)(request))
@@ -1171,7 +1202,7 @@ describe.each(["RustFS", "Local"])(
       expect(Buffer.byteLength(writes[0].name)).toBe(246)
       expect(writes[0].parentId).toBe(f.empty.id)
       await expectUI(
-        page.getByRole("button", { name, exact: true })
+        page.locator("tbody").getByRole("button", { name, exact: true })
       ).toBeVisible()
       await assertEmptyFolderMarker(f, ["空目录", name])
     })
@@ -1230,7 +1261,9 @@ describe.each(["RustFS", "Local"])(
         committedAt: null,
       })
       await expectUI(
-        page.getByRole("button", { name: "明确新建目录", exact: true })
+        page
+          .locator("tbody")
+          .getByRole("button", { name: "明确新建目录", exact: true })
       ).toBeVisible()
       await assertEmptyFolderMarker(f, ["明确新建目录"])
     })
@@ -1268,7 +1301,9 @@ describe.each(["RustFS", "Local"])(
         .click()
       await expectUI(dialog).toHaveCount(0)
       await expectUI(
-        page.getByRole("button", { name: "已完成但未收到响应", exact: true })
+        page
+          .locator("tbody")
+          .getByRole("button", { name: "已完成但未收到响应", exact: true })
       ).toBeVisible()
       expect(writes).toHaveLength(1)
       expect(reads).toEqual([writes[0].operationId])
@@ -1322,7 +1357,9 @@ describe.each(["RustFS", "Local"])(
       }
       await expectUI(dialog).toHaveCount(0)
       await expectUI(
-        page.getByRole("button", { name: "仅一次创建", exact: true })
+        page
+          .locator("tbody")
+          .getByRole("button", { name: "仅一次创建", exact: true })
       ).toBeVisible()
       expect(writes).toHaveLength(1)
     })
@@ -1351,7 +1388,10 @@ describe.each(["RustFS", "Local"])(
       await expectUI(
         page.getByRole("button", { name: "创建文件夹", exact: true })
       ).toHaveCount(0)
-      await page.getByRole("button", { name: "空目录", exact: true }).click()
+      await page
+        .locator("tbody")
+        .getByRole("button", { name: "空目录", exact: true })
+        .click()
       await expectUI(
         page.getByText("此文件夹暂无文件或子文件夹。", { exact: true })
       ).toBeVisible()
@@ -1377,7 +1417,10 @@ describe.each(["RustFS", "Local"])(
       const f = await fixture()
       await signIn(page, f.owner, environment.tenantOrigin)
       await page.getByRole("link", { name: "文件", exact: true }).click()
-      await page.getByRole("button", { name: "合同 2026", exact: true }).click()
+      await page
+        .locator("tbody")
+        .getByRole("button", { name: "合同 2026", exact: true })
+        .click()
       await selectLocale(page, f.owner.user.name, input.locale)
       if (input.locale === "العربية")
         await expectUI(page.locator("html")).toHaveAttribute("dir", "rtl")
@@ -1403,7 +1446,9 @@ describe.each(["RustFS", "Local"])(
       expect(response.request().postDataJSON().parentId).toBe(f.directory.id)
       await expectUI(dialog).toHaveCount(0)
       await expectUI(
-        page.getByRole("button", { name: input.name, exact: true })
+        page
+          .locator("tbody")
+          .getByRole("button", { name: input.name, exact: true })
       ).toBeVisible()
       expect(page.url()).toBe(location)
       await assertEmptyFolderMarker(f, ["合同 2026", input.name])

@@ -110,6 +110,54 @@ export function getFileEntriesOptions(
   })
 }
 
+export function getFileFolderChildrenOptions(
+  organizationId: string,
+  authorizationVersion: number,
+  parentId: string,
+  locale: SupportedLocale
+) {
+  return queryOptions({
+    queryKey: [
+      ...fileKeys.scope(organizationId),
+      authorizationVersion,
+      "list",
+      "folder-tree",
+      parentId,
+      locale,
+    ],
+    retry: false,
+    queryFn: async ({ signal }): Promise<FolderResponse[]> => {
+      const folders: FolderResponse[] = []
+      let page = 1
+      let total: number
+      do {
+        const result = (
+          await listFileEntries(
+            organizationId,
+            {
+              parentId,
+              state: "active",
+              sortBy: "name",
+              sortOrder: "asc",
+              page,
+              pageSize: 100,
+            },
+            requestOptions(signal, locale)
+          )
+        ).data
+        folders.push(
+          ...result.items.filter(
+            (entry): entry is FolderResponse => entry.kind === "folder"
+          )
+        )
+        total = result.total
+        // 接口按文件与目录共同分页，不能把第一页没有目录理解成没有子目录。
+      } while (page++ * 100 < total)
+      return folders
+    },
+  })
+}
+
 export function getFileBreadcrumbsOptions(
   organizationId: string,
   authorizationVersion: number,

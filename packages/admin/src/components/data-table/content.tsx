@@ -63,6 +63,7 @@ type DataTableContentProps<TData extends RowData> = {
   error?: string
   onRetry?: () => void
   renderExpandedRow?: DataTableProps<TData>["renderExpandedRow"]
+  rowClassName?: DataTableProps<TData>["rowClassName"]
 }
 
 export function DataTableContent<TData extends RowData>(
@@ -84,6 +85,7 @@ function DataTableGrid<TData extends RowData>({
   error,
   onRetry,
   renderExpandedRow,
+  rowClassName,
 }: DataTableContentProps<TData> & {
   gridState: ReturnType<typeof selectDataTableGridState>
 }) {
@@ -195,6 +197,7 @@ function DataTableGrid<TData extends RowData>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() ? "selected" : undefined}
+                  className={rowClassName?.(row)}
                 >
                   {row.getVisibleCells().map((cell) =>
                     (() => {

@@ -57,6 +57,8 @@ export interface AppShellProps {
   breadcrumb: ReactNode
   actions?: ReactNode
   children: ReactNode
+  /** 工作区自行提供页头和分栏，避免页面容器压缩文件、编辑器等主工作区域。 */
+  layout?: "page" | "workspace"
 }
 
 export function AppShell({
@@ -64,6 +66,7 @@ export function AppShell({
   breadcrumb,
   actions,
   children,
+  layout = "page",
 }: AppShellProps) {
   const { t, i18n } = useTranslation("common")
   return (
@@ -81,20 +84,29 @@ export function AppShell({
         />
         {/* 主面板独立滚动，使长页面和侧栏弹层共享稳定的视口坐标。 */}
         <SidebarInset className="h-svh min-h-0 min-w-0 overflow-y-auto">
-          <header className="sticky top-0 z-20 flex min-h-16 shrink-0 items-center gap-3 border-b bg-background/95 px-4 py-3 backdrop-blur-sm sm:px-6">
-            <div className="flex min-w-0 flex-1 items-center gap-2 [&_nav]:min-w-0 [&_ol]:gap-1.5 sm:[&_ol]:gap-2.5">
-              <SidebarTrigger className="-ms-1" />
-              <Separator
-                orientation="vertical"
-                className="me-2 data-vertical:h-4 data-vertical:self-auto"
-              />
-              {breadcrumb}
-            </div>
-            {actions && (
-              <div className="flex shrink-0 items-center gap-2">{actions}</div>
+          {layout === "page" && (
+            <header className="sticky top-0 z-20 flex min-h-16 shrink-0 items-center gap-3 border-b bg-background/95 px-4 py-3 backdrop-blur-sm sm:px-6">
+              <div className="flex min-w-0 flex-1 items-center gap-2 [&_nav]:min-w-0 [&_ol]:gap-1.5 sm:[&_ol]:gap-2.5">
+                <SidebarTrigger className="-ms-1" />
+                <Separator
+                  orientation="vertical"
+                  className="me-2 data-vertical:h-4 data-vertical:self-auto"
+                />
+                {breadcrumb}
+              </div>
+              {actions && (
+                <div className="flex shrink-0 items-center gap-2">
+                  {actions}
+                </div>
+              )}
+            </header>
+          )}
+          <div
+            className={cn(
+              "flex w-full min-w-0 flex-1 flex-col",
+              layout === "page" && "mx-auto max-w-7xl gap-6 p-4 sm:p-6 lg:p-8"
             )}
-          </header>
-          <div className="mx-auto flex w-full max-w-7xl min-w-0 flex-1 flex-col gap-6 p-4 sm:p-6 lg:p-8">
+          >
             {children}
           </div>
         </SidebarInset>
