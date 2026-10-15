@@ -1,4 +1,5 @@
 import { useId, useState } from "react"
+import { useTranslation } from "react-i18next"
 import type { Meta, StoryObj } from "@storybook/react-vite"
 import { expect, userEvent, within, waitFor } from "storybook/test"
 import { createOrganizationAuthorizationScenario } from "@workspace/mocks"
@@ -17,14 +18,17 @@ function Draft({
     ReturnType<typeof useOrganizationAuthorization>["data"]
   >
 }) {
+  const { t } = useTranslation("organization")
   const id = useId()
   const [draft, setDraft] = useState("")
   return (
     <div>
       <p>{authority.userId}</p>
       <p>{authority.organizationId}</p>
-      <p>Version {authority.authorizationVersion}</p>
-      <label htmlFor={id}>Draft</label>
+      <p>
+        {t("authorizationVersion", { version: authority.authorizationVersion })}
+      </p>
+      <label htmlFor={id}>{t("authorizationDraft")}</label>
       <input
         id={id}
         value={draft}
@@ -35,15 +39,22 @@ function Draft({
 }
 
 function Observer(props: Parameters<typeof useOrganizationAuthorization>[0]) {
+  const { t } = useTranslation("organization")
   const access = useOrganizationAuthorization(props)
   return (
     <section aria-label={props.observation}>
-      <button onClick={() => void access.refetch()}>Refresh</button>
-      <p role="status">{access.isFetching ? "Refreshing" : "Idle"}</p>
+      <button onClick={() => void access.refetch()}>
+        {t("authorizationRefresh")}
+      </button>
+      <p role="status">
+        {access.isFetching
+          ? t("authorizationRefreshing")
+          : t("authorizationIdle")}
+      </p>
       {access.isError ? (
         <p role="alert">{access.error.message}</p>
       ) : access.isPending ? (
-        <p>Loading</p>
+        <p>{t("authorizationLoading")}</p>
       ) : (
         <Draft key={access.data.scopeKey} authority={access.data} />
       )}
@@ -52,6 +63,7 @@ function Observer(props: Parameters<typeof useOrganizationAuthorization>[0]) {
 }
 
 function Observations() {
+  const { t } = useTranslation("organization")
   const [subject, setSubject] = useState({ organizationId, userId })
   return (
     <div>
@@ -63,7 +75,7 @@ function Observations() {
           })
         }
       >
-        Switch account
+        {t("authorizationSwitchAccount")}
       </button>
       <button
         onClick={() =>
@@ -76,7 +88,7 @@ function Observations() {
           })
         }
       >
-        Switch organization
+        {t("authorizationSwitchOrganization")}
       </button>
       <Observer {...subject} observation="access-credentials" />
       <Observer {...subject} observation="webhooks" />
