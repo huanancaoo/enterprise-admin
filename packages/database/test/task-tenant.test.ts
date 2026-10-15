@@ -13,6 +13,7 @@ import {
 } from "testcontainers"
 import { Pool } from "pg"
 import { sql } from "drizzle-orm"
+import { businessTaskRepository } from "../src/repositories/business-tasks.ts"
 import {
   createTaskTenantRunner,
   TaskAuthorizationError,
@@ -324,6 +325,204 @@ test("后台任务复用连接仍受 RLS 隔离，读取和写入不能跨组织
     (await runtime.query("SELECT * FROM worker_test_resources")).rowCount,
     0
   )
+})
+
+async function seedBusinessTask(identity: TaskIdentity) {
+  return run(identity, { project: ["create"] }, (tx) =>
+    businessTaskRepository.create(tx, {
+      id: identity.resourceId,
+      organizationId: identity.organizationId,
+      actorId: identity.actorId,
+      type: "projects.import",
+      status: "running",
+      format: "csv",
+      locale: identity.locale,
+      idempotencyKey: identity.resourceId,
+      jobId: identity.resourceId,
+      intentFingerprint: identity.resourceId,
+      requestId: identity.requestId,
+      input: {},
+    })
+  )
+}
+
+async function seedTaskWebhook(identity: TaskIdentity) {
+  const id = randomUUID()
+  await owner.query(
+    `INSERT INTO webhook_endpoints(id,organization_id,actor_id,name,url,events,signing_secret)
+     VALUES($1,$2,$3,'Task results','https://example.test/tasks','["task.completed","task.failed"]','test-secret')`,
+    [id, identity.organizationId, identity.actorId]
+  )
+  return id
+}
+
+async function taskResultFacts(identity: TaskIdentity) {
+  const params = [identity.organizationId, identity.resourceId]
+  const [task, notifications, events, deliveries, audits] = await Promise.all([
+    owner.query(
+      "SELECT status,result,result_content,error_code FROM business_tasks WHERE organization_id=$1 AND id=$2",
+      params
+    ),
+    owner.query(
+      "SELECT recipient_id,task_type,type FROM business_notifications WHERE organization_id=$1 AND task_id=$2",
+      params
+    ),
+    owner.query(
+      "SELECT id,actor_id,type,payload FROM domain_events WHERE organization_id=$1 AND resource_id=$2",
+      params
+    ),
+    owner.query(
+      `SELECT d.webhook_id,d.event_id FROM webhook_deliveries d
+       JOIN domain_events e ON e.id=d.event_id AND e.organization_id=d.organization_id
+       WHERE e.organization_id=$1 AND e.resource_id=$2`,
+      params
+    ),
+    owner.query(
+      "SELECT event_code,result,actor_id,resource_type,request_id,fields FROM audit_events WHERE organization_id=$1 AND resource_id=$2",
+      params
+    ),
+  ])
+  return {
+    task: task.rows[0],
+    notifications: notifications.rows,
+    events: events.rows,
+    deliveries: deliveries.rows,
+    audits: audits.rows,
+  }
+}
+
+for (const status of ["completed", "failed"] as const) {
+  test(`任务 finish 原子记录 ${status} 结果与全部派生事实，重复派生复用事件身份`, async () => {
+    const { identity } = await organization()
+    const task = await seedBusinessTask(identity)
+    const webhookId = await seedTaskWebhook(identity)
+    const result = { count: status === "completed" ? 2 : 0, issues: [] }
+    const content = Buffer.from(JSON.stringify(result)).toString("base64")
+    await run(identity, { project: ["create"] }, (tx) =>
+      businessTaskRepository.finish(tx, task.id, result, content, status)
+    )
+    const facts = await taskResultFacts(identity)
+    const eventType = status === "completed" ? "task.completed" : "task.failed"
+    const errorCode = status === "failed" ? "IMPORT_VALIDATION_FAILED" : null
+    assert.deepEqual(facts.task, {
+      status,
+      result,
+      result_content: content,
+      error_code: errorCode,
+    })
+    assert.deepEqual(facts.notifications, [
+      {
+        recipient_id: identity.actorId,
+        task_type: "projects.import",
+        type: eventType,
+      },
+    ])
+    assert.equal(facts.events.length, 1)
+    const eventId = facts.events[0].id
+    assert.deepEqual(facts.events, [
+      {
+        id: eventId,
+        actor_id: identity.actorId,
+        type: eventType,
+        payload: {
+          taskType: "projects.import",
+          status,
+          count: result.count,
+          errorCode,
+        },
+      },
+    ])
+    assert.deepEqual(facts.deliveries, [
+      { webhook_id: webhookId, event_id: eventId },
+    ])
+    assert.deepEqual(facts.audits, [
+      {
+        event_code: eventType,
+        result: status === "completed" ? "succeeded" : "failed",
+        actor_id: identity.actorId,
+        resource_type: "task",
+        request_id: identity.requestId,
+        fields: { count: result.count },
+      },
+    ])
+    const replay = await runtime.query(
+      "SELECT public.record_task_result_delivery($1,$2,$3,$4) AS event_id",
+      [
+        identity.organizationId,
+        identity.actorId,
+        task.id,
+        task.intentFingerprint,
+      ]
+    )
+    assert.equal(replay.rows[0].event_id, eventId)
+    assert.deepEqual(await taskResultFacts(identity), facts)
+  })
+}
+
+test("任务 Webhook 计划写失败回滚业务事实、终态、审计、通知和事件", async () => {
+  const { identity } = await organization()
+  const task = await seedBusinessTask(identity)
+  await seedResource(identity)
+  const webhookId = await seedTaskWebhook(identity)
+  const before = await taskResultFacts(identity)
+  // 在最后一项派生写入处制造真实约束失败，验证之前的写入仍属于同一事务。
+  await owner.query(
+    `ALTER TABLE webhook_deliveries ADD CONSTRAINT task_result_test_failure CHECK (webhook_id <> '${webhookId}'::uuid)`
+  )
+  try {
+    await assert.rejects(
+      run(identity, { project: ["create"] }, async (tx) => {
+        await tx.execute(sql`INSERT INTO worker_test_effects(organization_id,resource_id,intent_key,value)
+          VALUES (${identity.organizationId}::uuid,${task.id}::uuid,'task-finish','effect')`)
+        await businessTaskRepository.finish(
+          tx,
+          task.id,
+          { count: 1 },
+          "result",
+          "completed"
+        )
+      }),
+      sqlCode("23514")
+    )
+    assert.deepEqual(await taskResultFacts(identity), before)
+    assert.equal(
+      (
+        await owner.query(
+          "SELECT 1 FROM worker_test_effects WHERE organization_id=$1",
+          [identity.organizationId]
+        )
+      ).rowCount,
+      0
+    )
+  } finally {
+    await owner.query(
+      "ALTER TABLE webhook_deliveries DROP CONSTRAINT task_result_test_failure"
+    )
+  }
+})
+
+test("任务 finish 不能替同组织其他发起人派生结果，拒绝时回滚终态和审计", async () => {
+  const { identity } = await organization()
+  const task = await seedBusinessTask(identity)
+  const otherActor = (await organization()).identity.actorId
+  await owner.query(
+    "INSERT INTO member(id,organization_id,user_id,role,created_at) VALUES($1,$2,$3,'owner',now())",
+    [randomUUID(), identity.organizationId, otherActor]
+  )
+  const before = await taskResultFacts(identity)
+  await assert.rejects(
+    run({ ...identity, actorId: otherActor }, { project: ["create"] }, (tx) =>
+      businessTaskRepository.finish(
+        tx,
+        task.id,
+        { count: 1 },
+        "result",
+        "completed"
+      )
+    ),
+    /TASK_RESULT_NOT_TERMINAL/
+  )
+  assert.deepEqual(await taskResultFacts(identity), before)
 })
 
 test("业务事实与准确资源类型成功审计原子提交，审计写失败回滚业务事实", async () => {

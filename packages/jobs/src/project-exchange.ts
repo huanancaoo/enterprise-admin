@@ -6,7 +6,6 @@ import {
   CreateProjectImportSchema,
   type BusinessTaskResult,
 } from "@workspace/contracts"
-import { notificationRepository } from "@workspace/database/repositories/notifications"
 import { domainEventRepository } from "@workspace/database/repositories/domain-events"
 import { auditRepository } from "@workspace/database/repositories/audit"
 import { decodeProjectImport } from "./import-projects.ts"
@@ -80,25 +79,13 @@ export const projectExchangeTasks: readonly RegisteredTask[] = [
         count: decoded.issues.length ? 0 : decoded.rows.length,
         issues: decoded.issues,
       }
-      const finished = await businessTaskRepository.finish(
+      await businessTaskRepository.finish(
         tx,
         task.identity.resourceId,
         result,
         Buffer.from(JSON.stringify(result)).toString("base64"),
         decoded.issues.length ? "failed" : "completed"
       )
-      await notificationRepository.recordTaskResult(tx, finished)
-      await domainEventRepository.record(tx, {
-        type:
-          finished.status === "completed" ? "task.completed" : "task.failed",
-        resourceId: finished.id,
-        payload: {
-          taskType: finished.type,
-          status: finished.status,
-          count: result.count,
-          errorCode: finished.errorCode,
-        },
-      })
       return result
     },
   }),
@@ -157,25 +144,13 @@ export const projectExchangeTasks: readonly RegisteredTask[] = [
         bytes = Buffer.from(await workbook.xlsx.writeBuffer())
       }
       const result: BusinessTaskResult = { count: rows.length, issues: [] }
-      const finished = await businessTaskRepository.finish(
+      await businessTaskRepository.finish(
         tx,
         task.identity.resourceId,
         result,
         bytes.toString("base64"),
         "completed"
       )
-      await notificationRepository.recordTaskResult(tx, finished)
-      await domainEventRepository.record(tx, {
-        type:
-          finished.status === "completed" ? "task.completed" : "task.failed",
-        resourceId: finished.id,
-        payload: {
-          taskType: finished.type,
-          status: finished.status,
-          count: result.count,
-          errorCode: finished.errorCode,
-        },
-      })
       return result
     },
   }),

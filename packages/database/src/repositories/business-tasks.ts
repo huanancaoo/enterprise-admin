@@ -168,6 +168,7 @@ export const businessTaskRepository = {
         )
       )
       .returning()
+    if (!finished) throw new Error("TASK_RESULT_NOT_TERMINAL")
     await tx.insert(auditEvents).values({
       organizationId: tx.context.organizationId,
       scope: "tenant",
@@ -181,7 +182,16 @@ export const businessTaskRepository = {
       tenantVisible: true,
       fields: { count: result.count },
     })
-    return finished!
+    // 与受限系统结算共用派生规则，并留在业务 TenantTx 中；任一派生失败必须回滚业务结果。
+    const delivery = await tx.execute<{ event_id: string | null }>(sql`
+      SELECT public.record_task_result_delivery(
+        ${tx.context.organizationId}::uuid, ${tx.context.userId}::uuid,
+        ${finished.id}::uuid, ${finished.intentFingerprint}
+      ) AS event_id
+    `)
+    // 固定入口对身份绑定不匹配返回 NULL，不能将没有派生结果的终态提交。
+    if (!delivery.rows[0]?.event_id) throw new Error("TASK_RESULT_NOT_TERMINAL")
+    return finished
   },
   async findVisible(tx: TenantTx, id: string) {
     const all = await this.canReadOrganization(tx)

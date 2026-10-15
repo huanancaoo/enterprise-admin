@@ -1,7 +1,6 @@
 import { user } from "../schema/auth.ts"
 import { and, count, desc, eq, isNull, sql } from "drizzle-orm"
 import {
-  businessTasks,
   businessNotifications,
   notificationPreferences,
 } from "../schema/business-capabilities.ts"
@@ -30,51 +29,6 @@ export const notificationRepository = {
       )
       .limit(1)
     return item
-  },
-  async recordTaskResult(
-    tx: TenantTx,
-    input: Pick<
-      typeof businessTasks.$inferSelect,
-      "id" | "type" | "status" | "result" | "errorCode"
-    >
-  ) {
-    const [task] = await tx
-      .select({
-        id: businessTasks.id,
-        type: businessTasks.type,
-        status: businessTasks.status,
-      })
-      .from(businessTasks)
-      .where(
-        and(
-          eq(businessTasks.id, input.id),
-          eq(businessTasks.organizationId, tx.context.organizationId),
-          eq(businessTasks.actorId, tx.context.userId)
-        )
-      )
-      .limit(1)
-    if (
-      !task ||
-      task.type !== input.type ||
-      task.status !== input.status ||
-      !["completed", "failed", "rejected"].includes(task.status)
-    )
-      throw new Error("TASK_RESULT_NOT_TERMINAL")
-    await tx
-      .insert(businessNotifications)
-      .values({
-        organizationId: tx.context.organizationId,
-        recipientId: tx.context.userId,
-        taskId: task.id,
-        taskType: task.type,
-        type: task.status === "completed" ? "task.completed" : "task.failed",
-      })
-      .onConflictDoNothing({
-        target: [
-          businessNotifications.taskId,
-          businessNotifications.recipientId,
-        ],
-      })
   },
   async listPage(tx: TenantTx, input: { page: number; pageSize: number }) {
     const visible = and(
