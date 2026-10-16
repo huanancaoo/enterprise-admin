@@ -22,7 +22,7 @@ Auth emails are written to a durable outbox, then delivered over SMTP. Local dev
 
 ## Platform admins
 
-The platform console has no registration entry point. The target user first registers and verifies their email through the normal authentication flow. A deployment operator then grants a platform assignment through the CLI using the exact user UUID. The CLI does not create users or change email verification status. MFA is optional. Password-only accounts can enter the platform directly; accounts that enable MFA retain the native two-factor login challenge.
+The platform console has no registration entry point. A deployment operator can use `platform admin create` to create an email-verified `platform_admin`. The native credential, user, assignment, and audit commit in one transaction, without sending verification mail or creating a session. Existing users still register and verify their email normally before an operator grants an assignment by exact UUID. MFA is optional. Password-only accounts can enter the platform directly; accounts that enable MFA retain the native two-factor login challenge.
 
 Platform assignments use the separate deployment connection `PLATFORM_ASSIGNMENT_DATABASE_URL`. The online API checks the active assignment and authoritative session on every platform request. After an assignment is revoked, the old session's next platform request is denied.
 

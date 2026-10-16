@@ -18,7 +18,7 @@
 - **双后台、单一 API Host**：组织成员使用租户后台，平台管理员使用平台后台；授权按成员关系或平台任职执行，不按请求来自哪个 SPA 执行。
 - **Better Auth Organization**：邮箱密码登录、邮箱验证、密码重置、组织创建/选择、成员邀请与角色；组织角色不能产生平台任职。
 - **租户管理**：成员目录、角色调整、移除与退出组织、邀请创建/接受/拒绝/取消/重发、自定义角色管理、个人与组织语言设置和租户审计。
-- **平台管理**：部署 CLI 授予独立平台任职，MFA 自主启用；组织查询/停用/恢复、脱敏用户目录与受控敏感读取、跨组织审计、平台默认语言与部署摘要、文件配额与保留策略。
+- **平台管理**：部署 CLI 创建管理员或授予独立平台任职，MFA 自主启用；组织查询/停用/恢复、脱敏用户目录与受控敏感读取、跨组织审计、平台默认语言与部署摘要、文件配额与保留策略。
 - **数据库层租户隔离**：`app_runtime` / `app_migrator` 分权，租户业务表 ENABLE/FORCE RLS，业务访问必须走 `TenantTx`。
 - **Projects 参考领域**：列表、创建、详情、更新、多语言译文与富文本正文、固定版本附件、删除与结构化审计，覆盖 Schema → Repository → API → OpenAPI/Orval → 页面 → E2E。
 - **Projects 导入导出**：CSV/XLSX 仅包含 `name`、`description`、`contentLocale`；原始文件最大 10 MB，XLSX 仅单工作表；导入只新增，整批校验后一次提交；导出当前已应用筛选下的全部匹配项目。任务由独立 Worker 执行，下载时重新检查当前授权。
@@ -155,7 +155,18 @@ pnpm dev
 
 租户后台可注册、验证邮箱、创建组织，并在 `/app/projects/:organizationId` 使用 Projects。认证邮件在 Mailpit 收件箱中查看。
 
-平台后台没有注册入口。目标用户先通过租户后台完成注册和邮箱验证，再由部署操作者按精确用户 UUID 授予平台任职：
+平台后台没有注册入口。部署操作者可以直接创建邮箱已验证的 `platform_admin`，账号、密码凭据、平台任职与审计在同一事务提交：
+
+```sh
+pnpm exec turbo build --filter=api
+# 先注入 platform_deployer 的专用 PLATFORM_ASSIGNMENT_DATABASE_URL；密码为 12–128 字符。
+read -rs PLATFORM_ADMIN_PASSWORD
+printf '%s\n' "$PLATFORM_ADMIN_PASSWORD" | node apps/api/dist/console.js platform admin create \
+  --email admin@example.com --name Admin --reason '首次平台管理员' --password-stdin
+unset PLATFORM_ADMIN_PASSWORD
+```
+
+命令不发送验证邮件、不创建登录会话；邮箱已存在时失败，不覆盖密码或修改任职。已有用户仍先完成正常注册和邮箱验证，再按精确用户 UUID 授予平台任职：
 
 ```sh
 pnpm --filter api build

@@ -49,6 +49,7 @@ import { getAuthRequestContext } from "./auth-request-context.ts"
 import { readRoleReferences } from "./role-references.ts"
 import { readPlatformDefaultLocale } from "./platform-locale.ts"
 import { createAuthI18n } from "./auth-i18n.ts"
+import { authPasswordPolicy } from "./auth-password-policy.ts"
 import {
   assertMemberDirectoryRead,
   normalizeMemberListQuery,
@@ -817,7 +818,7 @@ export function createAuth(
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: true,
-      minPasswordLength: 12,
+      ...authPasswordPolicy,
       resetPasswordTokenExpiresIn: 3600,
       revokeSessionsOnPasswordReset: true,
       sendResetPassword: async ({ user, url }) => {

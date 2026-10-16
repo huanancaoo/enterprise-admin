@@ -2,6 +2,10 @@
 import { Module } from '@nestjs/common';
 import { CommandFactory } from 'nest-commander';
 import {
+  PlatformAdminCommand,
+  PlatformAdminCreateCommand,
+} from './platform/platform-admin.command';
+import {
   PlatformAssignmentGrantCommand,
   PlatformAssignmentRevokeCommand,
 } from './platform/platform-assignment.command';
@@ -18,6 +22,8 @@ import {
     PlatformAssignmentCommand,
     PlatformAssignmentGrantCommand,
     PlatformAssignmentRevokeCommand,
+    PlatformAdminCommand,
+    PlatformAdminCreateCommand,
   ],
 })
 class ConsoleModule {}

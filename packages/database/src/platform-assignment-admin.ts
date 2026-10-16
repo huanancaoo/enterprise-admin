@@ -1,3 +1,4 @@
+import { hashPassword } from "better-auth/crypto"
 import type { Pool } from "pg"
 
 export type PlatformRole = "platform_admin" | "platform_auditor"
@@ -83,4 +84,16 @@ export async function managePlatformAssignment(
   } finally {
     client.release()
   }
+}
+
+export async function createPlatformAdmin(
+  pool: Pool,
+  input: { email: string; password: string; name: string; reason: string }
+): Promise<string> {
+  const passwordHash = await hashPassword(input.password)
+  const result = await pool.query<{ user_id: string }>(
+    "SELECT public.create_platform_admin($1, $2, $3, $4) AS user_id",
+    [input.email, input.name, passwordHash, input.reason]
+  )
+  return result.rows[0].user_id
 }

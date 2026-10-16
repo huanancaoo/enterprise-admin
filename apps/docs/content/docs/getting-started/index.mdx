@@ -31,4 +31,4 @@ pnpm dev
 
 The tenant console can register, verify email, create an organization, and use Projects. Auth mail appears in Mailpit at http://127.0.0.1:8025.
 
-The platform console has no registration entry point. The target user first registers and verifies their email through the tenant console. After the API is built, a deployment operator grants a platform assignment with the API CLI using the user UUID. See [ADR 0002](../adr/0002-platform-assignment.mdx) for the authorization rules.
+The platform console has no registration entry point. After building the API, a deployment operator can run `platform admin create --email <email> --name <name> --reason <reason> --password-stdin` with the dedicated `PLATFORM_ASSIGNMENT_DATABASE_URL` and a password on standard input to create an email-verified platform admin. Existing verified users can still receive assignments by exact UUID. See [ADR 0002](../adr/0002-platform-assignment.mdx) for the authorization rules.

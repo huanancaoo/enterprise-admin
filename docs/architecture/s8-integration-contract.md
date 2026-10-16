@@ -8,7 +8,7 @@
 
 复用 Better Auth User/Session。平台权限只来自独立的 platform_assignment：userId 唯一、role、status、version、grantedAt/By、revokedAt/By；一位用户最多一个当前平台角色。组织 owner/admin、自定义角色同名字符串、metadata、URL、Cookie 和客户端状态都不产生平台任职。保留平台角色名称，禁止租户创建。
 
-平台角色只由受控部署 CLI 授予/撤销：输入精确 userId、role、reason，检查用户存在且邮箱已验证，使用独立部署凭据并在同一事务审计。拒绝在线运行凭据；无授予/撤销 HTTP 接口、首位注册者或邮箱域名自动授权。每次平台请求重新检查权威 Session 和有效任职，撤销后旧 Session 的下一请求被拒绝。
+平台角色只由受控部署 CLI 管理。`platform admin create` 使用独立部署凭据，原子创建邮箱已验证的新管理员、密码凭据、任职及审计。已有用户的 grant/revoke 仍输入精确 userId、role、reason；grant 检查用户存在且邮箱已验证，任职变更与审计在同一事务提交。拒绝在线运行凭据；无授予/撤销 HTTP 接口、首位注册者或邮箱域名自动授权。每次平台请求重新检查权威 Session 和有效任职，撤销后旧 Session 的下一请求被拒绝。
 
 | 动作                                   | platform_admin           | platform_auditor   |
 | -------------------------------------- | ------------------------ | ------------------ |

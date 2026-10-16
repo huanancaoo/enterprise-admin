@@ -1,6 +1,6 @@
 ---
 title: 0002 Platform assignment
-description: The deployment CLI grants platform assignments to verified users by exact UUID.
+description: The deployment CLI creates verified platform admins or manages existing user assignments by exact UUID.
 category: adr
 tags:
   - adr
@@ -19,19 +19,19 @@ The platform console has no registration. A platform admin must be able to log i
 
 ## Decision
 
-Record the fact in a dedicated platform assignment table. The target user first registers and verifies their email through normal authentication. The deployment CLI accepts an exact user UUID, role, and non-empty reason to grant or revoke an assignment. A grant requires an existing user with a verified email. The CLI does not create accounts, change verification state, or expose HTTP assignment management. Assignment changes and internal audit records commit in one transaction.
+Record platform identity in a dedicated assignment table. A trusted deployment operator can use `platform admin create` to create an email-verified `platform_admin`, passing the password through standard input. A fixed database function creates the user, native password credential, assignment, and audit in one transaction. It sends no verification mail and creates no session; an existing email fails the operation.
+
+Existing users still register and verify their email through normal authentication. The `platform assignment grant/revoke` commands accept an exact user UUID, role, and non-empty reason. A grant requires an existing verified user; these commands do not create accounts or change verification state. No HTTP assignment management endpoint is exposed.
 
 The CLI uses the dedicated deployment connection `PLATFORM_ASSIGNMENT_DATABASE_URL`; that credential is not injected into the online API. The API shares `DATABASE_URL` and checks the authoritative session and current assignment on every platform request. Revocation rejects the old session's next request.
-
-MFA is optional: users without it can sign in with a password, while users who enable it retain the native two-factor login challenge.
 
 ## Alternatives
 
 - First publicly registered user becomes platform admin: registration and platform assignment are separate facts. Rejected.
 - CLI grants existing users with a verified email: reuse normal authentication and email verification, then select the target by exact UUID. Accepted.
-- CLI creates an account and skips email verification: combines the account lifecycle with assignment authorization and conflicts with the accepted boundary. Rejected.
+- CLI creates an email-verified platform admin: originally rejected; accepted on 2026-10-16 following the user's decision, restricted to a dedicated deployment identity and new accounts, without initializing a session or MFA.
 - Organization owner automatically becomes platform admin: the two assignments would derive from each other. Rejected.
 
 ## Consequences
 
-Platform identity is independent from organization roles. Normal registration and email verification precede the first grant; the deployment operator then explicitly grants the assignment through the CLI. Completed [#19](https://github.com/huanancaoo/enterprise-admin/issues/19) and real CLI/platform-access tests support this behavior; they do not establish a production deployment.
+Platform identity remains independent from organization roles. Operators can create an admin directly or grant an assignment to an existing verified user. MFA is optional: users without it can sign in with a password, while users who enable it retain the native two-factor login challenge. The deployment identity cannot read passwords, change existing accounts, or append credentials to existing users. Real CLI/platform-access tests validate these boundaries without establishing a production deployment.

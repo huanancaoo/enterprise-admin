@@ -63,7 +63,9 @@ API / Worker 启动脚本不运行迁移。运行账号、平台账号、迁移�
 
 ## 平台任职与 MFA
 
-先让目标用户通过正常认证完成注册和邮箱验证，再使用部署 CLI 以精确用户 UUID 授予平台角色。CLI 不创建用户、改邮箱验证状态或提供 HTTP 授予接口；`platform_admin` 与 `platform_auditor` 只存于独立 `platform_assignment`。每次 grant/revoke 都把操作者、角色变化、原因和结果写入内部 `platform_assignment_audit`，写入与任职变更使用同一事务。
+部署 CLI 的 `platform admin create --email <email> --name <name> --reason <reason> --password-stdin` 可直接创建 `platform_admin`。密码通过标准输入传入，使用 Better Auth 原生哈希与统一的 12–128 字符规则；邮箱转小写并默认已验证，不发送验证邮件。账号、credential、平台任职及授权审计在一个事务内提交；邮箱重复或任一步骤失败均回滚，不修改已有账号。命令仅依赖 `PLATFORM_ASSIGNMENT_DATABASE_URL` 指向的 `platform_deployer`，不依赖运行中的 API、Redis 或 SMTP。
+
+已有用户通过正常认证完成注册和邮箱验证后，仍使用 `platform assignment grant/revoke` 以精确 UUID 管理任职；它们不创建账号或修改邮箱验证状态。`platform_admin` 与 `platform_auditor` 只存于独立 `platform_assignment`。每次 grant/revoke 都把操作者、角色变化、原因和结果写入内部 `platform_assignment_audit`，写入与任职变更使用同一事务。创建账号不初始化 MFA 或登录会话；MFA 由用户自主启用，未启用者密码登录后即可进入平台。
 
 ```sh
 PLATFORM_ASSIGNMENT_DATABASE_URL='postgresql://platform_deployer:...@db/enterprise_admin' \
@@ -90,14 +92,14 @@ MIGRATION_DATABASE_URL='postgresql://app_migrator:...@db/enterprise_admin' pnpm 
 
 ## 角色和访问范围
 
-| 角色                | 权限                                                                                                                   |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `bootstrap_admin`   | PostgreSQL 初始化/运维角色；不注入应用或迁移进程                                                                       |
-| `app_migrator`      | 非超级用户，持有应用表与迁移 ledger；仅作为迁移时可切换的 `platform_executor` 成员；无创建数据库/角色或 BYPASSRLS 权限 |
-| `app_runtime`       | Better Auth、邮件、租户 Projects 与审计所需权限；平台身份、MFA 和拒绝审计通过固定函数处理，无平台任职表直接读写权限    |
-| `platform_runtime`  | 历史迁移使用的角色；0024 后不再具有平台固定函数执行权限，API 不使用该账号                                              |
-| `platform_deployer` | 登录用户、查询目标邮箱验证状态、grant/revoke 平台任职并追加内部审计；没有 DDL 或其他应用表权限                         |
-| `platform_executor` | `NOLOGIN` 函数所有者；只获得固定平台函数读取所需列权限，不是运行时账号                                                 |
+| 角色                | 权限                                                                                                                            |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `bootstrap_admin`   | PostgreSQL 初始化/运维角色；不注入应用或迁移进程                                                                                |
+| `app_migrator`      | 非超级用户，持有应用表与迁移 ledger；仅作为迁移时可切换的 `platform_executor` 成员；无创建数据库/角色或 BYPASSRLS 权限          |
+| `app_runtime`       | Better Auth、邮件、租户 Projects 与审计所需权限；平台身份、MFA 和拒绝审计通过固定函数处理，无平台任职表直接读写权限             |
+| `platform_runtime`  | 历史迁移使用的角色；0024 后不再具有平台固定函数执行权限，API 不使用该账号                                                       |
+| `platform_deployer` | 创建原生密码账号、查询目标邮箱验证状态、grant/revoke 平台任职并追加内部审计；不能读取密码、修改已有账号、访问租户业务或执行 DDL |
+| `platform_executor` | `NOLOGIN` 函数所有者；只获得固定平台函数所需的列级读写权限，不是运行时账号                                                      |
 
 组织运营状态的唯一来源是 `organization_status`（ACTIVE/SUSPENDED 及授权版本）。新组织由 INSERT 触发器初始化为 ACTIVE；缺失状态拒绝访问。`app_runtime` 可读状态与授权版本、可更新 `authorization_version`，不能直接改 `status`；`platform_runtime` 不能读写该表。
 

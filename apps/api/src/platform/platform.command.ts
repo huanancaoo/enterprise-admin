@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { CommandRunner, RootCommand, SubCommand } from 'nest-commander';
+import { PlatformAdminCommand } from './platform-admin.command';
 import {
   PlatformAssignmentGrantCommand,
   PlatformAssignmentRevokeCommand,
@@ -30,7 +31,7 @@ export class PlatformAssignmentCommand extends CommandRunner {
 @SubCommand({
   name: 'platform',
   description: '平台',
-  subCommands: [PlatformAssignmentCommand],
+  subCommands: [PlatformAssignmentCommand, PlatformAdminCommand],
 })
 @Injectable()
 export class PlatformCommand extends CommandRunner {

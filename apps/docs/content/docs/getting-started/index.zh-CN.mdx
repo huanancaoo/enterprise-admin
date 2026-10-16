@@ -31,4 +31,4 @@ pnpm dev
 
 租户后台可注册、验证邮箱、创建组织，并使用 Projects。认证邮件在 Mailpit 收件箱查看：http://127.0.0.1:8025。
 
-平台后台没有注册入口。目标用户先通过租户后台注册并验证邮箱，API 构建完成后，再由部署操作者使用 API CLI 按用户 UUID 授予平台任职。具体授权规则见 [ADR 0002](../adr/0002-platform-assignment.mdx)。
+平台后台没有注册入口。API 构建完成后，部署操作者可以使用 `platform admin create --email <email> --name <name> --reason <reason> --password-stdin` 直接创建邮箱已验证的平台管理员；注入专用部署连接 `PLATFORM_ASSIGNMENT_DATABASE_URL`，密码通过标准输入传入。已有且邮箱已验证的用户仍可按 UUID 授予任职。具体授权规则见 [ADR 0002](../adr/0002-platform-assignment.mdx)。
