@@ -1,6 +1,6 @@
 ---
 title: 参考
-description: 来自 OpenAPI 快照的 HTTP API，以及 Orval 生成的 TypeScript SDK。
+description: 来自 OpenAPI 快照的业务与认证接口，以及 Orval 生成的 TypeScript SDK。
 category: reference
 tags:
   - api
@@ -11,14 +11,17 @@ status: published
 
 参考分两层：
 
-- **HTTP API**：由 fumadocs-openapi 渲染 `apps/api/openapi/openapi.json`。覆盖 Endpoint、Request、Response、Schema 和 Error。不包含源码链接或 Try It。
-- **TypeScript SDK**：`packages/api-client` 中的生成客户端。见 [SDK 指南](./sdk.mdx)。
+- **HTTP API**：fumadocs-openapi 读取业务接口快照 `apps/api/openapi/openapi.json` 和 Better Auth 认证快照 `apps/api/openapi/auth-openapi.json`。认证接口按核心或插件标签分组，包括 Organization 和 Two Factor。页面展示请求与响应 Schema、错误和请求示例。
+- **TypeScript SDK**：Orval 生成 `packages/api-client` 中的业务客户端；认证继续使用 Better Auth Client。见 [SDK 指南](./sdk.mdx)和[认证架构](../architecture/auth.mdx)。
 
 流水线：
 
 ```text
-NestJS → OpenAPI Generate → CI Artifact → Docs Build → API Reference
-OpenAPI → Orval → api-client → SDK Docs
+NestJS → openapi.json → Docs Build → API Reference
+Better Auth openAPI → auth-openapi.json → Docs Build → API Reference
+openapi.json → Orval → api-client → SDK Docs
 ```
 
-文档构建读取 OpenAPI 快照，不指向运行中的 `/api/docs-json`。
+执行 `pnpm api:openapi` 可同时重新生成两份快照，不连接数据库或 Redis。文档站构建直接读取这些文件，不依赖运行中的文档端点。
+
+非生产环境还提供 Better Auth 的 Scalar 页面 `/api/auth/reference` 和 JSON Schema `/api/auth/open-api/generate-schema`。生产环境同时关闭这两个 HTTP 端点；静态文档站仍可展示认证参考。

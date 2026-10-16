@@ -3,7 +3,12 @@ import {
   type BetterAuthPlugin,
   type SecondaryStorage,
 } from "better-auth"
-import { lastLoginMethod, organization, twoFactor } from "better-auth/plugins"
+import {
+  lastLoginMethod,
+  openAPI,
+  organization,
+  twoFactor,
+} from "better-auth/plugins"
 import { apiKey } from "@better-auth/api-key"
 import type { InferAPI } from "better-auth/types"
 
@@ -789,6 +794,10 @@ export function createAuth(
     trustedOrigins,
     // 凭据管理仅通过绑定用户与组织的受控业务入口；原生服务端 API 仍承担生成和验证。
     disabledPaths: [
+      // 与业务 Swagger 保持相同的生产边界；静态文档仍由服务端 API 导出。
+      ...(process.env.NODE_ENV === "production"
+        ? ["/reference", "/open-api/generate-schema"]
+        : []),
       "/api-key/create",
       "/api-key/get",
       "/api-key/list",
@@ -1132,6 +1141,7 @@ export function createAuth(
       }),
     },
     plugins: [
+      openAPI(),
       apiKey({
         references: "user",
         defaultPrefix: "ea_",

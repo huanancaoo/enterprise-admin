@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { createApplication } from '../create-application';
+import { AuthRuntime } from '../identity/auth-runtime';
 import { createOpenApiDocument } from './create-document';
 
 async function exportOpenApi(): Promise<void> {
@@ -30,13 +31,23 @@ async function exportOpenApi(): Promise<void> {
     { logger: false },
   );
 
-  const document = createOpenApiDocument(app);
-  const outFile = join(__dirname, '..', '..', 'openapi', 'openapi.json');
+  try {
+    const document = createOpenApiDocument(app);
+    const authDocument = await app
+      .get(AuthRuntime)
+      .auth.api.generateOpenAPISchema();
+    const outFile = join(__dirname, '..', '..', 'openapi', 'openapi.json');
 
-  mkdirSync(dirname(outFile), { recursive: true });
-  writeFileSync(outFile, `${JSON.stringify(document, null, 2)}\n`);
-
-  await app.close();
+    mkdirSync(dirname(outFile), { recursive: true });
+    writeFileSync(outFile, `${JSON.stringify(document, null, 2)}\n`);
+    // 保留认证原生的 OpenAPI 3.1 语义；业务 Orval 客户端继续只读取 Nest 快照。
+    writeFileSync(
+      join(dirname(outFile), 'auth-openapi.json'),
+      `${JSON.stringify(authDocument, null, 2)}\n`,
+    );
+  } finally {
+    await app.close();
+  }
 }
 
 void exportOpenApi();
