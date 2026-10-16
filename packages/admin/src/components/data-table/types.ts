@@ -15,6 +15,7 @@ export type DataTableProps<TData extends RowData> = DataTableOptions<TData> & {
   className?: string
   showSearch?: boolean
   searchPlaceholder?: string
+  searchMaxLength?: number
   toolbarContent?: ReactNode
   /** 行焦点等展示状态独立于批量勾选，不写入 rowSelection。 */
   rowClassName?: (row: Row<DataTableFeatures, TData>) => string | undefined

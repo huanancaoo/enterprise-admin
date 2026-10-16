@@ -59,14 +59,14 @@ export function DataTableToolbar({
   )
 }
 
-const searchSchema = z.object({ query: z.string() })
-
 export function DataTableSearch({
   value,
   placeholder,
+  maxLength,
 }: {
   value: string
   placeholder?: string
+  maxLength?: number
 }) {
   const { t } = useTranslation("common")
   const table = useDataTableContext()
@@ -75,7 +75,9 @@ export function DataTableSearch({
   const pending = status === "loading" || status === "refreshing"
   const form = useForm({
     defaultValues: { query: value },
-    validators: { onSubmit: searchSchema },
+    validators: {
+      onSubmit: z.object({ query: z.string().max(maxLength ?? Infinity) }),
+    },
     onSubmit: ({ value }) => table.setGlobalFilter(value.query.trim()),
   })
 
@@ -102,6 +104,7 @@ export function DataTableSearch({
                 id={id}
                 value={field.state.value}
                 placeholder={placeholder ?? t("search")}
+                maxLength={maxLength}
                 disabled={isActionPending}
                 onBlur={field.handleBlur}
                 onChange={(event) => field.handleChange(event.target.value)}

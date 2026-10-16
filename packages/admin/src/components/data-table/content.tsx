@@ -102,155 +102,161 @@ function DataTableGrid<TData extends RowData>({
   const columnCount = Math.max(visibleColumns.length, 1)
   const skeletonRows = Math.min(gridState.pagination.pageSize, 10)
 
+  // 原生滚动条交给独立外框裁剪，内层仍作为固定列和键盘操作的滚动容器。
   return (
-    <div
-      data-slot="data-table-content"
-      className="overflow-x-auto rounded-xl border bg-card"
-    >
-      <table
-        data-slot="table"
-        aria-busy={isLoading || status === "refreshing" || isActionPending}
-        className="w-full table-fixed caption-bottom text-sm"
-        style={{ minWidth: `${table.getTotalSize()}px` }}
+    <div className="overflow-clip rounded-xl border bg-card">
+      <div
+        data-slot="data-table-content"
+        tabIndex={0}
+        className="overflow-x-auto focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
       >
-        <colgroup>
-          {visibleColumns.map((column) => (
-            <col key={column.id} style={{ width: `${column.getSize()}px` }} />
-          ))}
-        </colgroup>
-        <TableHeader>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow key={headerGroup.id}>
-              {headerGroup.headers.map((header) => {
-                const sorted = header.column.getCanSort()
-                  ? header.column.getIsSorted()
-                  : undefined
+        <table
+          data-slot="table"
+          aria-busy={isLoading || status === "refreshing" || isActionPending}
+          className="w-full table-fixed caption-bottom text-sm"
+          style={{ minWidth: `${table.getTotalSize()}px` }}
+        >
+          <colgroup>
+            {visibleColumns.map((column) => (
+              <col key={column.id} style={{ width: `${column.getSize()}px` }} />
+            ))}
+          </colgroup>
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => {
+                  const sorted = header.column.getCanSort()
+                    ? header.column.getIsSorted()
+                    : undefined
 
-                return (
-                  <TableHead
-                    key={header.id}
-                    colSpan={header.colSpan}
-                    style={getColumnStyle(header.column)}
-                    className="bg-muted"
-                    aria-sort={
-                      sorted === "asc"
-                        ? "ascending"
-                        : sorted === "desc"
-                          ? "descending"
-                          : sorted === false
-                            ? "none"
-                            : undefined
-                    }
-                  >
-                    {header.isPlaceholder ? null : (
-                      <table.FlexRender header={header} />
-                    )}
-                  </TableHead>
-                )
-              })}
-            </TableRow>
-          ))}
-        </TableHeader>
-        <TableBody>
-          {status === "error" && table.options.data.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={columnCount} className="whitespace-normal">
-                <DataTableFeedback
-                  status={status}
-                  error={error}
-                  onRetry={onRetry}
-                  isActionPending={isActionPending}
-                  hasData={false}
-                />
-              </TableCell>
-            </TableRow>
-          ) : visibleColumns.length === 0 ? (
-            <TableRow>
-              <TableCell className="p-8 text-center whitespace-normal">
-                <p role="status" className="mb-3">
-                  {t("tableNoColumns")}
-                </p>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    // 初始配置也可能全部隐藏，恢复时必须直接显示所有列。
-                    table.resetColumnVisibility(true)
-                  }}
-                >
-                  {t("resetColumns")}
-                </Button>
-              </TableCell>
-            </TableRow>
-          ) : isLoading ? (
-            Array.from({ length: skeletonRows }, (_, index) => (
-              <TableRow key={index} className="hover:bg-transparent">
-                {Array.from({ length: columnCount }, (_, cellIndex) => (
-                  <TableCell key={cellIndex}>
-                    <Skeleton className="h-4 w-full" />
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))
-          ) : rows.length > 0 ? (
-            rows.map((row) => (
-              <React.Fragment key={row.id}>
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() ? "selected" : undefined}
-                  className={rowClassName?.(row)}
-                >
-                  {row.getVisibleCells().map((cell) =>
-                    (() => {
-                      const allowCellOverflow =
-                        cell.column.columnDef.meta?.allowCellOverflow === true
-
-                      return (
-                        <TableCell
-                          key={cell.id}
-                          style={getColumnStyle(cell.column)}
-                          className={cn(
-                            allowCellOverflow
-                              ? "overflow-visible"
-                              : "overflow-hidden",
-                            cell.column.getIsPinned() && "bg-background",
-                            row.getIsSelected() &&
-                              cell.column.getIsPinned() &&
-                              "bg-muted"
-                          )}
-                        >
-                          <div className={cn(!allowCellOverflow && "truncate")}>
-                            <table.FlexRender cell={cell} />
-                          </div>
-                        </TableCell>
-                      )
-                    })()
-                  )}
-                </TableRow>
-                {row.getIsExpanded() && renderExpandedRow ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={columnCount}
-                      className="bg-muted/30 p-4 whitespace-normal"
+                  return (
+                    <TableHead
+                      key={header.id}
+                      colSpan={header.colSpan}
+                      style={getColumnStyle(header.column)}
+                      className="bg-muted"
+                      aria-sort={
+                        sorted === "asc"
+                          ? "ascending"
+                          : sorted === "desc"
+                            ? "descending"
+                            : sorted === false
+                              ? "none"
+                              : undefined
+                      }
                     >
-                      {renderExpandedRow(row)}
+                      {header.isPlaceholder ? null : (
+                        <table.FlexRender header={header} />
+                      )}
+                    </TableHead>
+                  )
+                })}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {status === "error" && table.options.data.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={columnCount} className="whitespace-normal">
+                  <DataTableFeedback
+                    status={status}
+                    error={error}
+                    onRetry={onRetry}
+                    isActionPending={isActionPending}
+                    hasData={false}
+                  />
+                </TableCell>
+              </TableRow>
+            ) : visibleColumns.length === 0 ? (
+              <TableRow>
+                <TableCell className="p-8 text-center whitespace-normal">
+                  <p role="status" className="mb-3">
+                    {t("tableNoColumns")}
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      // 初始配置也可能全部隐藏，恢复时必须直接显示所有列。
+                      table.resetColumnVisibility(true)
+                    }}
+                  >
+                    {t("resetColumns")}
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ) : isLoading ? (
+              Array.from({ length: skeletonRows }, (_, index) => (
+                <TableRow key={index} className="hover:bg-transparent">
+                  {Array.from({ length: columnCount }, (_, cellIndex) => (
+                    <TableCell key={cellIndex}>
+                      <Skeleton className="h-4 w-full" />
                     </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : rows.length > 0 ? (
+              rows.map((row) => (
+                <React.Fragment key={row.id}>
+                  <TableRow
+                    key={row.id}
+                    data-state={row.getIsSelected() ? "selected" : undefined}
+                    className={rowClassName?.(row)}
+                  >
+                    {row.getVisibleCells().map((cell) =>
+                      (() => {
+                        const allowCellOverflow =
+                          cell.column.columnDef.meta?.allowCellOverflow === true
+
+                        return (
+                          <TableCell
+                            key={cell.id}
+                            style={getColumnStyle(cell.column)}
+                            className={cn(
+                              allowCellOverflow
+                                ? "overflow-visible"
+                                : "overflow-hidden",
+                              cell.column.getIsPinned() && "bg-background",
+                              row.getIsSelected() &&
+                                cell.column.getIsPinned() &&
+                                "bg-muted"
+                            )}
+                          >
+                            <div
+                              className={cn(!allowCellOverflow && "truncate")}
+                            >
+                              <table.FlexRender cell={cell} />
+                            </div>
+                          </TableCell>
+                        )
+                      })()
+                    )}
                   </TableRow>
-                ) : null}
-              </React.Fragment>
-            ))
-          ) : (
-            <TableRow className="hover:bg-transparent">
-              <TableCell colSpan={columnCount} className="whitespace-normal">
-                <DataTableEmpty
-                  empty={empty}
-                  hasFilters={hasFilters}
-                  onResetFilters={onResetFilters}
-                />
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </table>
+                  {row.getIsExpanded() && renderExpandedRow ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={columnCount}
+                        className="bg-muted/30 p-4 whitespace-normal"
+                      >
+                        {renderExpandedRow(row)}
+                      </TableCell>
+                    </TableRow>
+                  ) : null}
+                </React.Fragment>
+              ))
+            ) : (
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={columnCount} className="whitespace-normal">
+                  <DataTableEmpty
+                    empty={empty}
+                    hasFilters={hasFilters}
+                    onResetFilters={onResetFilters}
+                  />
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </table>
+      </div>
     </div>
   )
 }

@@ -39,6 +39,7 @@ export function DataTable<TData extends RowData>({
   columns,
   data,
   searchPlaceholder,
+  searchMaxLength,
   showSearch = true,
   className,
   status = "ready",
@@ -133,42 +134,44 @@ export function DataTable<TData extends RowData>({
               hasData={data.length > 0}
             />
           )}
-          {status !== "forbidden" && !isCollectionEmpty && (
-            <DataTableToolbar>
-              {showSelection ? (
-                <DataTableSelectionActions<TData>
-                  renderActions={renderSelectionActions}
-                />
-              ) : (
-                <>
-                  {toolbarContent}
-                  {showSearch && (
-                    <DataTableSearch
-                      key={searchValue}
-                      value={searchValue}
-                      placeholder={searchPlaceholder}
-                    />
-                  )}
-                  {table
-                    .getAllLeafColumns()
-                    .map((column) =>
-                      column.columnDef.meta?.facetOptions ? (
-                        <DataTableFacetedFilter
-                          key={column.id}
-                          column={column}
-                          options={column.columnDef.meta.facetOptions}
-                        />
-                      ) : null
+          {status !== "forbidden" &&
+            (!isCollectionEmpty || toolbarContent != null) && (
+              <DataTableToolbar>
+                {showSelection ? (
+                  <DataTableSelectionActions<TData>
+                    renderActions={renderSelectionActions}
+                  />
+                ) : (
+                  <>
+                    {toolbarContent}
+                    {showSearch && (
+                      <DataTableSearch
+                        key={searchValue}
+                        value={searchValue}
+                        placeholder={searchPlaceholder}
+                        maxLength={searchMaxLength}
+                      />
                     )}
-                  {hasFilters && (
-                    <Button variant="ghost" size="sm" onClick={clearFilters}>
-                      {t("clearFilters")}
-                    </Button>
-                  )}
-                </>
-              )}
-            </DataTableToolbar>
-          )}
+                    {table
+                      .getAllLeafColumns()
+                      .map((column) =>
+                        column.columnDef.meta?.facetOptions ? (
+                          <DataTableFacetedFilter
+                            key={column.id}
+                            column={column}
+                            options={column.columnDef.meta.facetOptions}
+                          />
+                        ) : null
+                      )}
+                    {hasFilters && (
+                      <Button variant="ghost" size="sm" onClick={clearFilters}>
+                        {t("clearFilters")}
+                      </Button>
+                    )}
+                  </>
+                )}
+              </DataTableToolbar>
+            )}
           {status !== "forbidden" &&
             (isCollectionEmpty ? (
               <DataTableEmpty
