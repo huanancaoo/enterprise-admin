@@ -5,7 +5,7 @@ import {
   RichTextEditor,
   type JSONContent,
   type RichTextEditorProps,
-} from "@workspace/admin"
+} from "@workspace/admin/rich-text-editor"
 import { DirectionProvider } from "@workspace/ui/components/direction"
 import { Button } from "@workspace/ui/components/button"
 

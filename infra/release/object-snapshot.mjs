@@ -6,7 +6,7 @@ import { Transform } from "node:stream"
 import { join } from "node:path"
 import {
   S3Client,
-  ListObjectsV2Command,
+  paginateListObjectsV2,
   GetObjectCommand,
   PutObjectCommand,
 } from "@aws-sdk/client-s3"
@@ -30,18 +30,12 @@ const client = new S3Client({
 })
 async function objects() {
   const result = []
-  let token
-  do {
-    const page = await client.send(
-      new ListObjectsV2Command({
-        Bucket: bucket,
-        Prefix: prefix,
-        ContinuationToken: token,
-      })
-    )
+  for await (const page of paginateListObjectsV2(
+    { client },
+    { Bucket: bucket, Prefix: prefix }
+  )) {
     for (const item of page.Contents ?? []) result.push(item.Key)
-    token = page.NextContinuationToken
-  } while (token)
+  }
   return result.sort()
 }
 try {

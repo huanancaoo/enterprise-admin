@@ -9,7 +9,7 @@ import {
   FolderResponseSchema,
   type FileEntryResponse,
   type FileOperationResponse,
-} from "@workspace/contracts"
+} from "@workspace/contracts/files"
 import {
   createFilePickerScenario,
   filePickerRoot,

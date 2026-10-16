@@ -13,7 +13,7 @@ import {
 import {
   ProjectListQuerySchema,
   type ProjectListQuery,
-} from "@workspace/contracts"
+} from "@workspace/contracts/project-query"
 import { organizations, projectScenarios } from "@workspace/mocks"
 import { useState } from "react"
 import { ProjectsList } from "./projects-list"

@@ -1,4 +1,4 @@
-import { ApiErrorSchema, type ApiError } from "@workspace/contracts"
+import { ApiErrorSchema, type ApiError } from "@workspace/contracts/api-error"
 import { boundRequestLocale, requestLanguageHeader } from "./request-locale"
 
 export type ApiClientConfig = {

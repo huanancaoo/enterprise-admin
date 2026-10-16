@@ -1,7 +1,5 @@
-import {
-  ProjectListQuerySchema,
-  type SupportedLocale,
-} from "@workspace/contracts"
+import { ProjectListQuerySchema } from "@workspace/contracts/project-query"
+import { type SupportedLocale } from "@workspace/contracts/locale"
 import type {
   GetProjectHeaders,
   ListProjectsHeaders,

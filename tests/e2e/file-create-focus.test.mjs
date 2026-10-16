@@ -89,8 +89,9 @@ it("真实创建完成后，当前目录列表仍在重取时恢复创建入口�
   const listGate = new Promise((resolveGate) => {
     releaseList = resolveGate
   })
+  let page
   try {
-    const page = await context.newPage()
+    page = await context.newPage()
     await page.goto(environment.tenantOrigin + "/app/")
     await page.getByLabel("邮箱", { exact: true }).fill(owner.email)
     await page.getByLabel("密码", { exact: true }).fill(owner.password)
@@ -173,10 +174,17 @@ it("真实创建完成后，当前目录列表仍在重取时恢复创建入口�
     ).toHaveLength(0)
     releaseList()
     await expectUI(
-      page.getByRole("button", { name: "焦点验收目录", exact: true })
+      page
+        .locator("tbody")
+        .getByRole("button", { name: "焦点验收目录", exact: true })
     ).toBeVisible()
   } finally {
     releaseList()
-    await context.close()
+    // 目录树和列表可能各有在途 GET，关闭 context 前须等全部拦截回调结束。
+    try {
+      await page?.unrouteAll({ behavior: "wait" })
+    } finally {
+      await context.close()
+    }
   }
 })

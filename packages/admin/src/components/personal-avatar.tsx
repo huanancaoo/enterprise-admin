@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { getPersonalMediaContent } from "@workspace/api-client"
-import { PersonalMediaSchema } from "@workspace/contracts"
+import { PersonalMediaSchema } from "@workspace/contracts/personal-media"
 import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar"
 import { useAuthenticatedSession } from "../auth/authenticated-session"
 import { useBlobImageRef } from "../hooks/use-blob-image-ref"

@@ -1,12 +1,14 @@
 import { describe, it, expect } from "vitest"
 import {
   createFormatter,
-  createUiI18n,
-  getTranslator,
-  syncDocumentLanguage,
-  resources,
   supportedLocales,
 } from "../../packages/i18n/src/index"
+import {
+  createUiI18n,
+  syncDocumentLanguage,
+  resources,
+} from "../../packages/i18n/src/ui"
+import { getTranslator } from "../../packages/i18n/src/server"
 
 describe("UI locale and formatting", () => {
   it("keeps browser instances and server translators independent", async () => {

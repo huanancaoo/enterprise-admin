@@ -10,15 +10,17 @@ import {
 import {
   NotificationPageSchema,
   type CapabilityPageQuery,
-} from "@workspace/contracts"
+} from "@workspace/contracts/framework-capabilities"
 import {
-  DataTable,
-  createDataTableColumnHelper,
   ErrorState,
   LoadingState,
   PermissionDeniedState,
   PageHeader,
 } from "@workspace/admin"
+import {
+  DataTable,
+  createDataTableColumnHelper,
+} from "@workspace/admin/data-table"
 import { Button } from "@workspace/ui/components/button"
 import { Badge } from "@workspace/ui/components/badge"
 import { NotificationPreferencesSettings } from "./notification-preferences"

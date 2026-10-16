@@ -16,7 +16,22 @@
       "types": "./dist/catalog.d.ts",
       "default": "./dist/catalog.js"
     },
-    "./react": "./src/react.tsx"
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "default": "./dist/react.js"
+    },
+    "./ui": {
+      "types": "./dist/ui.d.ts",
+      "default": "./dist/ui.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "default": "./dist/server.js"
+    },
+    "./email": {
+      "types": "./dist/email.d.ts",
+      "default": "./dist/email.js"
+    }
   },
   "scripts": {
     "lint": "eslint",

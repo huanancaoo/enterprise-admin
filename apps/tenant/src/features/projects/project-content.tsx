@@ -11,18 +11,22 @@ import {
   ErrorState,
   LoadingState,
   PermissionDeniedState,
-  type JSONContent,
 } from "@workspace/admin"
+import type { JSONContent } from "@workspace/admin/rich-text-editor"
+import {
+  ProjectEditorDocumentSchema,
+  SaveProjectEditorContentSchema,
+} from "@workspace/rich-text"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import {
   ProjectContentResponseSchema,
-  ProjectRichTextDocumentSchema,
-  SaveProjectContentSchema,
-  SupportedLocaleSchema,
   type ProjectContentResponse,
+} from "@workspace/contracts/projects"
+import {
+  SupportedLocaleSchema,
   type SupportedLocale,
-  type FolderResponse,
-} from "@workspace/contracts"
+} from "@workspace/contracts/locale"
+import { type FolderResponse } from "@workspace/contracts/files"
 import { localeMeta, supportedLocales } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
 import { Button } from "@workspace/ui/components/button"
@@ -388,9 +392,9 @@ function ContentSession(props: PanelProps) {
   )
 }
 const documentFormSchema = z.object({
-  expectedRevision: SaveProjectContentSchema.shape.expectedRevision,
+  expectedRevision: SaveProjectEditorContentSchema.shape.expectedRevision,
   document: z.custom<JSONContent>(
-    (value) => ProjectRichTextDocumentSchema.safeParse(value).success
+    (value) => ProjectEditorDocumentSchema.safeParse(value).success
   ),
 })
 function ProjectContentForm({
@@ -431,7 +435,7 @@ function ProjectContentForm({
         const result = ProjectContentResponseSchema.parse(
           await props.ports.save(
             locale,
-            SaveProjectContentSchema.parse(value),
+            SaveProjectEditorContentSchema.parse(value),
             controller.signal
           )
         )

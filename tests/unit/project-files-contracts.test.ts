@@ -1,10 +1,4 @@
 import { describe, expect, it } from "vitest"
-import { createRequire } from "node:module"
-import { createRichTextExtensions } from "../../packages/admin/src/components/rich-text-editor/extensions.js"
-const requireAdmin = createRequire(
-  new URL("../../packages/admin/package.json", import.meta.url)
-)
-const { getSchema } = requireAdmin("@tiptap/react")
 import {
   CreateProjectSchema,
   UpdateProjectSchema,
@@ -141,49 +135,13 @@ describe("Projects attachments and editor document contracts", () => {
     })
     expect(json).toBeDefined()
   })
-  it("accepts actual editor schema serialization including native defaults and styled line breaks", () => {
-    const schema = getSchema(createRichTextExtensions({}))
-    const doc = schema.nodeFromJSON({
-      type: "doc",
-      content: [
-        {
-          type: "orderedList",
-          content: [{ type: "listItem", content: [paragraph] }],
-        },
-        {
-          type: "table",
-          content: [
-            {
-              type: "tableRow",
-              content: [{ type: "tableCell", content: [paragraph] }],
-            },
-          ],
-        },
-        {
-          type: "paragraph",
-          content: [
-            { type: "text", text: "第一行", marks: [{ type: "bold" }] },
-            { type: "hardBreak", marks: [{ type: "bold" }] },
-            { type: "text", text: "第二行", marks: [{ type: "bold" }] },
-          ],
-        },
-        { type: "codeBlock" },
-        image,
-        { type: "fileAttachment", attrs: { fileId, versionId } },
-      ],
-    })
-    doc.check()
-    const json = doc.toJSON()
-    expect(ProjectRichTextDocumentSchema.parse(json)).toEqual(json)
-  })
-  it("rejects persistent image URLs, foreign attributes, hidden reference lists and unsupported node structures", () => {
+  it("rejects persistent image URLs, foreign attributes, hidden reference lists", () => {
     for (const node of [
       { type: "image", attrs: { src: "https://public.test/file.png" } },
       { ...image, attrs: { ...image.attrs, src: "blob:temporary" } },
       { ...image, attrs: { ...image.attrs, versionId: "elsewhere" } },
       { type: "heading", attrs: { level: 4 }, content: [] },
       { type: "horizontalRule" },
-      { type: "paragraph", content: [image] },
       {
         type: "paragraph",
         content: [

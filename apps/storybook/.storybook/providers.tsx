@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { createUiI18n, type SupportedLocale } from "@workspace/i18n"
+import type { SupportedLocale } from "@workspace/i18n"
+import { createUiI18n } from "@workspace/i18n/ui"
 import { UiI18nProvider } from "@workspace/i18n/react"
 import { bindWorkspaceRequestLocale } from "@workspace/admin/auth"
 import { AdminDirectionProvider, ThemeProvider } from "@workspace/admin"

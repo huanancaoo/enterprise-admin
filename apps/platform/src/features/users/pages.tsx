@@ -22,7 +22,7 @@ import {
   PlatformSensitiveProfileSchema,
   SensitiveProfileQuerySchema,
   PlatformUsersQuerySchema,
-} from "@workspace/contracts"
+} from "@workspace/contracts/platform"
 import {
   EmptyState,
   ErrorState,

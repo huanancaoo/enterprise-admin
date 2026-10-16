@@ -10,12 +10,12 @@ import {
   SupportedLocaleSchema,
   ProjectAttachmentsResponseSchema,
   ProjectContentResponseSchema,
-  SaveProjectContentSchema,
   type SupportedLocale,
   type SaveProjectContent,
   type ProjectAttachmentsResponse,
   type ProjectContentResponse,
 } from '@workspace/contracts';
+import { SaveProjectEditorContentSchema } from '@workspace/rich-text';
 import {
   CurrentTenant,
   RequireTenant,
@@ -91,7 +91,7 @@ export class ProjectFilesController {
     _organizationId: string,
     @Param('projectId', { schema: ProjectIdSchema }) projectId: string,
     @Param('locale', { schema: SupportedLocaleSchema }) locale: SupportedLocale,
-    @Body({ schema: SaveProjectContentSchema }) input: SaveProjectContent,
+    @Body({ schema: SaveProjectEditorContentSchema }) input: SaveProjectContent,
     @Headers() headers: IncomingHttpHeaders,
     @CurrentTenant() context: TenantContext,
   ): Promise<ProjectContentResponse> {

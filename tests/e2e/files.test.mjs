@@ -475,7 +475,13 @@ describe.each(["RustFS", "Local"])(
       await page
         .getByRole("button", { name: "资料 00.txt", exact: true })
         .click()
-      await page.getByRole("button", { name: "文件详情", exact: true }).click()
+      await page
+        .locator("tbody")
+        .getByRole("button", { name: "资料 00.txt 的操作", exact: true })
+        .click()
+      await page
+        .getByRole("menuitem", { name: "文件详情", exact: true })
+        .click()
       await expectUI(
         page.getByRole("heading", { name: "资料 00.txt", exact: true })
       ).toBeVisible()
@@ -661,6 +667,21 @@ describe.each(["RustFS", "Local"])(
         )
       ).toBe(true)
       expect(await page.evaluate(() => window.fileObjectUrls.size)).toBe(1)
+      const firstImageUrl = await picture.getAttribute("src")
+      await dialog.getByRole("button", { name: "关闭", exact: true }).click()
+      await expectUI(dialog).toHaveCount(0)
+      expect(await page.evaluate(() => window.fileObjectUrls.size)).toBe(0)
+      const reopened = page.waitForResponse(
+        (response) =>
+          response.url().includes(image.versionId + "/content") &&
+          response.url().includes("disposition=inline")
+      )
+      await page
+        .getByRole("button", { name: image.entry.name, exact: true })
+        .click()
+      expect((await reopened).status()).toBe(200)
+      await expectUI(picture).toHaveAttribute("src", /^blob:/)
+      expect(await picture.getAttribute("src")).not.toBe(firstImageUrl)
       await dialog.getByRole("button", { name: "关闭", exact: true }).click()
       await expectUI(dialog).toHaveCount(0)
       expect(await page.evaluate(() => window.fileObjectUrls.size)).toBe(0)
@@ -937,6 +958,36 @@ describe.each(["RustFS", "Local"])(
             await viewer.evaluate((element) => element.error?.message)
           ).toBeUndefined()
         } else await expectUI(viewer).toBeVisible()
+        if (kind === "audio") {
+          const rechecked = page.waitForResponse(
+            (response) =>
+              response.url().includes(media.versionId + "/content") &&
+              response.request().headers().range === "bytes=0-0"
+          )
+          await viewer.evaluate((element) =>
+            element.dispatchEvent(new Event("error"))
+          )
+          expect((await rechecked).status()).toBe(206)
+          const preview = page.getByRole("region", {
+            name: "预览",
+            exact: true,
+          })
+          await expectUI(preview).toContainText(
+            "当前浏览器无法展示此内容，你可以下载后打开。"
+          )
+          const retried = page.waitForResponse(
+            (response) =>
+              response.url().includes(media.versionId + "/content") &&
+              response.request().headers().range === "bytes=0-0"
+          )
+          await preview
+            .getByRole("button", { name: "重试", exact: true })
+            .click()
+          expect((await retried).status()).toBe(206)
+          await expect
+            .poll(() => viewer.evaluate((element) => element.readyState))
+            .toBeGreaterThanOrEqual(1)
+        }
         await page
           .getByRole("region", { name: "预览", exact: true })
           .getByRole("button", { name: "关闭", exact: true })
@@ -1151,6 +1202,7 @@ describe.each(["RustFS", "Local"])(
       ).toBeVisible()
       await assertEmptyFolderMarker(f, created.path)
       await page
+        .locator("tbody")
         .getByRole("button", { name: "新合同 目录", exact: true })
         .click()
       await expectUI(

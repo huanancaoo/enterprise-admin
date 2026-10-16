@@ -73,6 +73,68 @@ function withWorkspace(patterns, run) {
   }
 }
 
+test("富文本能力可以依赖协议，协议不能反向依赖编辑器", () => {
+  withWorkspace(["packages/*"], ({ root, write, pkg }) => {
+    pkg("packages/contracts", "@workspace/contracts")
+    pkg("packages/rich-text", "@workspace/rich-text", {
+      dependencies: { "@workspace/contracts": "workspace:*" },
+    })
+    write("packages/rich-text/src/index.ts", 'import "@workspace/contracts"')
+    assert.deepEqual(checkBoundaries(root), [])
+    for (const dependency of [
+      "@workspace/rich-text",
+      "@tiptap/core",
+      "@tiptap/starter-kit",
+      "prosemirror-model",
+      "react",
+      "@tanstack/react-query",
+    ]) {
+      write("packages/contracts/src/index.ts", `import "${dependency}"`)
+      assert.equal(checkBoundaries(root).length, 1, dependency)
+      write("packages/contracts/src/index.ts", "export {}")
+      pkg("packages/contracts", "@workspace/contracts", {
+        dependencies: {
+          [dependency]: dependency.startsWith("@workspace/")
+            ? "workspace:*"
+            : "1.0.0",
+        },
+      })
+      assert.equal(checkBoundaries(root).length, 1, dependency)
+      pkg("packages/contracts", "@workspace/contracts")
+    }
+  })
+})
+
+test("服务端翻译与邮件目录不能进入浏览器，路径别名也受约束", () => {
+  withWorkspace(["apps/*", "packages/*"], ({ root, write, pkg }) => {
+    pkg("apps/tenant", "tenant")
+    pkg("apps/api", "api")
+    pkg("packages/i18n", "@workspace/i18n")
+    write("packages/i18n/src/server.ts", "export {}")
+    write("packages/i18n/src/email.ts", "export {}")
+    write(
+      "apps/tenant/tsconfig.json",
+      JSON.stringify({
+        compilerOptions: {
+          paths: { "@server-i18n": ["../../packages/i18n/src/server.ts"] },
+        },
+      })
+    )
+    for (const source of [
+      'import "@workspace/i18n/server"',
+      'import "@workspace/i18n/email"',
+      'import "../../../packages/i18n/src/server"',
+      'import "@server-i18n"',
+    ]) {
+      write("apps/tenant/src/index.ts", source)
+      assert.equal(checkBoundaries(root).length, 1, source)
+    }
+    write("apps/tenant/src/index.ts", 'import "@workspace/i18n/react"')
+    write("apps/api/src/index.ts", 'import "@workspace/i18n/server"')
+    assert.deepEqual(checkBoundaries(root), [])
+  })
+})
+
 test("新增 workspace 即使尚未被依赖，也必须声明边界策略", () => {
   withWorkspace(
     ["apps/*", "packages/*", "extensions/**", "!extensions/excluded"],

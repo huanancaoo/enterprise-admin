@@ -985,6 +985,30 @@ for (const kind of ["Local", "RustFS"])
           ],
         },
         { ...emptyDoc, references: [] },
+        { type: "doc", content: [] },
+        {
+          type: "doc",
+          content: [
+            {
+              type: "paragraph",
+              content: [
+                { type: "fileImage", attrs: { ...reference, alt: "图片" } },
+              ],
+            },
+          ],
+        },
+        ...[
+          [{ type: "bold" }, { type: "code" }],
+          [{ type: "bold" }, { type: "bold" }],
+        ].map((marks) => ({
+          type: "doc",
+          content: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: "Invalid marks", marks }],
+            },
+          ],
+        })),
       ])
         await error(
           await save(f, p.id, "zh-CN", null, document),

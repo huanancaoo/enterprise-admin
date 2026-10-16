@@ -11,7 +11,7 @@ import {
   UpdatePlatformStoragePolicySchema,
   type PlatformStoragePolicy,
   type PlatformStoragePolicyUpdateResult,
-} from "@workspace/contracts"
+} from "@workspace/contracts/platform-storage"
 import {
   ErrorState,
   LoadingState,

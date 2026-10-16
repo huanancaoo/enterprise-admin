@@ -13,7 +13,7 @@
     "api:generate": "orval",
     "verify": "pnpm peers check && pnpm lint && pnpm typecheck && pnpm i18n:check && pnpm --filter docs check:content && pnpm test:unit && pnpm test:api && pnpm test:performance && pnpm test:storybook && pnpm test:e2e && pnpm db:check && pnpm test:database && pnpm build && pnpm api:check",
     "lint:boundaries": "node packages/eslint-config/boundaries/check.mjs",
-    "test:unit": "turbo build --filter=@workspace/contracts --filter=@workspace/i18n --filter=@workspace/database && vitest run --config vitest.config.mjs --project unit && pnpm --filter api test && pnpm --filter docs test",
+    "test:unit": "turbo build --filter=@workspace/contracts --filter=@workspace/rich-text --filter=@workspace/i18n --filter=@workspace/database --filter=@workspace/jobs && vitest run --config vitest.config.mjs --project unit && pnpm --filter api test && pnpm --filter docs test",
     "build:storybook": "turbo build --filter=storybook",
     "test:api": "pnpm release:prepare && turbo build --filter=api --filter=worker && pnpm --filter api test:e2e && vitest run --config vitest.config.mjs --project api",
     "test:worker": "pnpm release:prepare && turbo build --filter=api --filter=worker && vitest run --config vitest.config.mjs --project api tests/api/worker.test.mjs",

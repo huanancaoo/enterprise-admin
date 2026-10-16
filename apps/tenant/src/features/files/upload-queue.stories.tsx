@@ -4,7 +4,7 @@ import { expect, userEvent, within } from "storybook/test"
 import {
   FileVersionReferenceSchema,
   type FileVersionReference,
-} from "@workspace/contracts"
+} from "@workspace/contracts/files"
 import {
   UploadQueue,
   type FileUploadJobView,

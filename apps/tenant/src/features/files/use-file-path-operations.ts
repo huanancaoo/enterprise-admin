@@ -18,7 +18,7 @@ import {
   type TrashFileEntry,
   type RestoreFileEntry,
   type PurgeFileEntry,
-} from "@workspace/contracts"
+} from "@workspace/contracts/files"
 import { fileRequestErrorMessage } from "./file-queries"
 import { useFileOperationObserver } from "./use-file-operation-observer"
 

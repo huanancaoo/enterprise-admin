@@ -1,8 +1,8 @@
-import type { JSONContent } from "@workspace/admin"
+import type { JSONContent } from "@workspace/admin/rich-text-editor"
 import {
   FileVersionReferenceSchema,
   type FileVersionReference,
-} from "@workspace/contracts"
+} from "@workspace/contracts/files"
 
 export type ProjectFileNode = {
   path: number[]

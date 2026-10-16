@@ -2,7 +2,7 @@ import type { Editor } from "@tiptap/react"
 import {
   FileVersionReferenceSchema,
   type FileVersionReference,
-} from "@workspace/contracts"
+} from "@workspace/contracts/files"
 
 export const IMAGE_MIME_TYPES = [
   "image/jpeg",

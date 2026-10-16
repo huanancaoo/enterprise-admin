@@ -2,7 +2,7 @@ import {
   BusinessTaskIdSchema,
   CapabilityPageQuerySchema,
   TaskCenterItemSchema,
-} from "@workspace/contracts"
+} from "@workspace/contracts/framework-capabilities"
 export const taskCenterSearchSchema = CapabilityPageQuerySchema.extend({
   source: TaskCenterItemSchema.shape.source.optional(),
   taskId: BusinessTaskIdSchema.optional(),

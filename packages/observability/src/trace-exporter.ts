@@ -12,6 +12,7 @@ const attributeNames = new Set([
   "task.outcome",
   "task.business_outcome",
   "error.code",
+  "error.type",
   "exception.type",
   "bullmq.queue.name",
   "bullmq.queue.operation",

@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
-import type { RichTextEditorProps } from "@workspace/admin"
+import type { RichTextEditorProps } from "@workspace/admin/rich-text-editor"
 import {
   FileVersionReferenceSchema,
   type FolderResponse,
-} from "@workspace/contracts"
+} from "@workspace/contracts/files"
 import { useUploadQueue } from "../files/use-upload-queue"
 import { uploadRecordKey } from "../files/upload-records"
 import { fileKeys } from "../files/file-queries"

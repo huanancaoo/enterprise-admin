@@ -14,6 +14,7 @@ const allowed = {
     "packages/permissions",
     "packages/i18n",
     "packages/mocks",
+    "packages/rich-text",
   ],
   "apps/platform": [
     "packages/ui",
@@ -36,6 +37,7 @@ const allowed = {
   "apps/docs": [],
   "apps/api": [
     "packages/contracts",
+    "packages/rich-text",
     "packages/database",
     "packages/permissions",
     "packages/i18n",
@@ -62,8 +64,10 @@ const allowed = {
     "packages/contracts",
     "packages/permissions",
     "packages/i18n",
+    "packages/rich-text",
   ],
   "packages/contracts": [],
+  "packages/rich-text": ["packages/contracts"],
   "packages/api-client": ["packages/contracts"],
   "packages/database": ["packages/permissions", "packages/i18n"],
   "packages/permissions": [],
@@ -129,7 +133,7 @@ export function checkBoundaries(root) {
       )
   }
   for (const owner of packages.filter((path) => path in allowed)) {
-    function check(specifier, file, target) {
+    function check(specifier, file, target, resolvedPath) {
       target ??= [...names].find(([name]) => {
         if (specifier !== name && !specifier.startsWith(name + "/"))
           return false
@@ -145,9 +149,20 @@ export function checkBoundaries(root) {
       const serverDependency =
         /^(drizzle-orm|drizzle-kit|pg|bullmq|ioredis|@nestjs\/[^/]+)(\/|$)/.test(
           specifier
+        ) ||
+        /^@workspace\/i18n\/(?:server|email)(?:\/|$)/.test(specifier) ||
+        /^packages\/i18n\/(?:src|dist)\/(?:server|email|task-email)(?:[./-]|$)/.test(
+          resolvedPath ?? ""
+        )
+      // 通用协议不能依赖编辑器实现，避免错误解析等基础调用加载整个编辑器。
+      const uiInContracts =
+        owner === "packages/contracts" &&
+        /^(?:@tiptap\/|prosemirror-|react(?:-dom|-i18next)?(?:\/|$)|@tanstack\/react-)/.test(
+          specifier
         )
       if (
         (target && !allowed[owner].includes(target)) ||
+        uiInContracts ||
         (serverDependency &&
           ![
             "apps/api",
@@ -251,7 +266,7 @@ export function checkBoundaries(root) {
             errors.push(
               `${relative(root, file)}: ${specifier} violates TenantTx repository boundary`
             )
-          check(specifier, file, target)
+          check(specifier, file, target, path)
         }
         ts.forEachChild(node, visit)
       }

@@ -3,10 +3,10 @@ import { Inject, Injectable, type OnApplicationShutdown } from '@nestjs/common';
 import {
   createTaskEnvelope,
   createTaskProducer,
-  projectExchangeTasks,
   TaskPermanentError,
   type WorkerConfig,
 } from '@workspace/jobs';
+import { projectExchangeTasks } from '@workspace/jobs/project-exchange';
 import {
   createTaskTenantRunner,
   TaskAuthorizationError,

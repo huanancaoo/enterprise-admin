@@ -5,11 +5,13 @@ import { z } from "zod"
 import {
   FileNameSchema,
   FolderNameSchema,
-  maxFileNameBytes,
-  maxFolderNameBytes,
   type FileEntryResponse,
   type FolderResponse,
-} from "@workspace/contracts"
+} from "@workspace/contracts/files"
+import {
+  maxFileNameBytes,
+  maxFolderNameBytes,
+} from "@workspace/contracts/file-path"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
 import {

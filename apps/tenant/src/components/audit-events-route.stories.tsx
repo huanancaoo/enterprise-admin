@@ -9,7 +9,7 @@ import {
 } from "@tanstack/react-router"
 import type { Meta, StoryObj } from "@storybook/react-vite"
 import { expect, fireEvent, userEvent, waitFor, within } from "storybook/test"
-import { AuditEventsQuerySchema } from "@workspace/contracts"
+import { AuditEventsQuerySchema } from "@workspace/contracts/audit"
 import {
   createOrganizationAuditScenario,
   organizationAuditFixture,

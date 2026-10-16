@@ -4,7 +4,7 @@
 
 ## DataTable
 
-从 `@workspace/admin` 导入 `DataTable`、`DataTableColumnHeader` 和列定义 helper。
+从 `@workspace/admin/data-table` 导入 `DataTable`、`DataTableColumnHeader` 和列定义 helper。
 
 - `createDataTableColumnHelper<T>()` 定义业务字段；列的 `meta.facetOptions` 声明筛选选项。`meta.facetMode` 省略时为 `"multiple"`，以 `string[]` 和 `arrHas` 匹配；设为 `"single"` 时以标量字符串和 `equalsString` 匹配。筛选器按列定义顺序显示，无需另配 `filterFn` 或列 ID。
 - `createDataTableSelectColumn<T>()`、`createDataTableRowControlsColumn<T>()` 创建固定尺寸、不可隐藏的选择列与行控制列。
@@ -27,7 +27,7 @@
 - `FormDialog`：受控弹窗和提交外壳。字段、Zod Schema、TanStack Form 草稿、提交结果由调用方持有；提交期间禁用字段与关闭操作。
 - `LoadingState`、`EmptyState`、`ErrorState`、`PermissionDeniedState`：共享状态文案。
 
-应用先用 `@workspace/i18n/react` 的 `UiI18nProvider` 提供实例，再用 `AdminDirectionProvider` 同步 Base UI 的方向。只使用语言和工作区控件时，从 `@workspace/admin/workspace` 导入，避免加载表格与编辑器模块。此 Provider 不建立第二份 locale 状态。
+应用先用 `@workspace/i18n/react` 的 `UiI18nProvider` 提供实例，再用 `AdminDirectionProvider` 同步 Base UI 的方向。只使用语言和工作区控件时，从 `@workspace/admin/workspace` 导入；表格和富文本编辑器分别使用独立入口，通用后台组件不初始化这些可选能力。此 Provider 不建立第二份 locale 状态。
 
 DataTable 自带文案使用翻译目录。列标题、业务状态与选项由调用方翻译；名称等租户内容直接来自 API。没有名称搜索能力的页面使用 `showSearch={false}`；使用内置搜索时，调用方将受控状态连接到 URL 与请求，不能额外添加平行的筛选栏。请求使用 `manualFiltering/manualSorting/manualPagination` 和受控分页。列宽拖拽及键盘调整遵循当前文字方向。
 

@@ -1,20 +1,4 @@
-export { DataTable, DataTableColumnHeader } from "./components/data-table"
 export { Pagination } from "./components/pagination"
-export type { DataTableProps, DataTableStatus } from "./components/data-table"
-export { createDataTableColumnHelper } from "./hooks/use-data-table"
-export type {
-  DataTableColumnMeta,
-  DataTableFacetedFilterOption,
-} from "./hooks/use-data-table"
-export {
-  createDataTableRowControlsColumn,
-  createDataTableSelectColumn,
-} from "./lib/data-table"
-export { RichTextEditor } from "./components/rich-text-editor"
-export type {
-  JSONContent,
-  RichTextEditorProps,
-} from "./components/rich-text-editor"
 export {
   AdminDirectionProvider,
   LocaleSwitcher,

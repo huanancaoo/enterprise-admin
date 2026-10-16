@@ -1,3 +1,9 @@
+export const localeMeta = {
+  "zh-CN": { label: "简体中文", direction: "ltr" },
+  "en-US": { label: "English", direction: "ltr" },
+  ar: { label: "العربية", direction: "rtl" },
+} as const
+
 export const supportedLocales = ["zh-CN", "en-US", "ar"] as const
 export type SupportedLocale = (typeof supportedLocales)[number]
 export const platformDefaultLocale: SupportedLocale = "zh-CN"

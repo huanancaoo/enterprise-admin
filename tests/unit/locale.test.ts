@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest"
 import {
   resolveLocale,
   resolveEmailLocale,
-  getTranslator,
 } from "../../packages/i18n/src/index"
+import { getTranslator } from "../../packages/i18n/src/server"
 
 describe("Locale negotiation", () => {
   it("Header → user → organization → platform", () => {

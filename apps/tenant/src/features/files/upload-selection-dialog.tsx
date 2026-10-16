@@ -7,7 +7,7 @@ import {
   maxOrganizationUploadBytes,
   type FileResponse,
   type FolderResponse,
-} from "@workspace/contracts"
+} from "@workspace/contracts/files"
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
 import { Button } from "@workspace/ui/components/button"

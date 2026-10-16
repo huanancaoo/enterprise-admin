@@ -82,7 +82,12 @@ export const PersistentSidebar: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const screen = within(canvasElement.ownerDocument.body)
-    const project = await canvas.findByRole("link", { name: "办公空间 1-26" })
+    // 首屏还需加载认证会话与懒加载路由，这里验证持久化而非首屏性能。
+    const project = await canvas.findByRole(
+      "link",
+      { name: "办公空间 1-26" },
+      { timeout: 5000 }
+    )
     const sidebar = canvasElement.querySelector(
       '[data-slot="sidebar"][data-state]'
     )

@@ -8,8 +8,8 @@ import {
   PermissionDeniedState,
   ResourceList,
   useDocumentTitle,
-  type DataTableStatus,
 } from "@workspace/admin"
+import { type DataTableStatus } from "@workspace/admin/data-table"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import {
   createFileFolder,
@@ -27,7 +27,7 @@ import type {
 } from "@workspace/contracts"
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
-import { Button } from "@workspace/ui/components/button"
+import { Button, buttonVariants } from "@workspace/ui/components/button"
 import { CreateFolderDialog } from "./create-folder-dialog"
 import { FilePreviewPanel } from "./file-preview-panel"
 import { FileDirectoryTree } from "./file-directory-tree"
@@ -500,18 +500,13 @@ function FileWorkspaceBrowser({
                           selected.length === 1 ? selected[0] : undefined
                         return entry ? (
                           <div className="flex flex-wrap gap-2">
-                            <Button
-                              nativeButton={false}
-                              variant="outline"
-                              render={
-                                <Link
-                                  to="/app/files/$organizationId/entries/$entryId"
-                                  params={{ organizationId, entryId: entry.id }}
-                                />
-                              }
+                            <Link
+                              to="/app/files/$organizationId/entries/$entryId"
+                              params={{ organizationId, entryId: entry.id }}
+                              className={buttonVariants({ variant: "outline" })}
                             >
                               {t("files:detail")}
-                            </Button>
+                            </Link>
                             <FileEntryActions
                               idPrefix={`${actionScope}-selection-${entry.id}`}
                               entry={entry}

@@ -21,8 +21,8 @@ import {
   PROJECT_IMPORT_MAX_BYTES,
   ProjectExportFilterSchema,
   type BusinessTask,
-  type ProjectListQuery,
-} from "@workspace/contracts"
+} from "@workspace/contracts/framework-capabilities"
+import { type ProjectListQuery } from "@workspace/contracts/project-query"
 import { useUiLocale } from "@workspace/i18n/react"
 import { Button } from "@workspace/ui/components/button"
 import {

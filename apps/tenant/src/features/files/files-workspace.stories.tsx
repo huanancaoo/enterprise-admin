@@ -10,7 +10,10 @@ import {
   useNavigate,
   useSearch,
 } from "@tanstack/react-router"
-import { FileListQuerySchema, type FileListQuery } from "@workspace/contracts"
+import {
+  FileListQuerySchema,
+  type FileListQuery,
+} from "@workspace/contracts/files"
 import { AppShell } from "@workspace/admin"
 import { AuthenticatedSessionProvider } from "@workspace/admin/auth"
 import { fileWorkspaceScenario, personalAvatarUser } from "@workspace/mocks"

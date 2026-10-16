@@ -11,7 +11,7 @@ import {
   taskCenterOrganizationId,
   taskCenterUser,
 } from "@workspace/mocks"
-import { ProjectListQuerySchema } from "@workspace/contracts"
+import { ProjectListQuerySchema } from "@workspace/contracts/project-query"
 import { ProjectExchangeActions } from "./project-exchange"
 function selectFile(input: HTMLInputElement, file: File) {
   // 原生 FileList 同时更新 required 的浏览器有效性，不能只模拟 files 属性。
@@ -128,9 +128,10 @@ export const RejectsOversizedFileBeforeSubmitting: Story = {
     await userEvent.click(
       within(dialog).getByRole("button", { name: "Submit import" })
     )
-    await expect(
-      await within(dialog).findByText("The file exceeds 10 MB.")
-    ).toBeVisible()
+    // 错误节点可能在弹窗入场动画结束前挂载，断言需等待实际可见。
+    await waitFor(() =>
+      expect(within(dialog).getByText("The file exceeds 10 MB.")).toBeVisible()
+    )
     await expect(input).toHaveAttribute("aria-invalid", "true")
     expect(fixture.requests).toHaveLength(0)
   },

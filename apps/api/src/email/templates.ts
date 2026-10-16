@@ -1,5 +1,5 @@
-import type { EmailLocale, EmailTemplateKey } from '@workspace/i18n';
-import { emailCatalog, localeMeta } from '@workspace/i18n';
+import { localeMeta, type EmailLocale } from '@workspace/i18n';
+import { emailCatalog, type EmailTemplateKey } from '@workspace/i18n/email';
 
 export const EMAIL_TEMPLATE_VERSION = 1;
 

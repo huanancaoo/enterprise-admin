@@ -8,7 +8,7 @@ import {
   saveProjectContent,
   uploadOrganizationFile,
 } from "@workspace/api-client"
-import { SaveProjectContentSchema } from "@workspace/contracts"
+import { SaveProjectEditorContentSchema } from "@workspace/rich-text"
 import { downloadProtectedFile } from "../files/protected-file-download"
 import type {
   FileEntryResponse,
@@ -74,7 +74,7 @@ export function createProjectContentPorts(
           projectId,
           locale,
           // 递归 Schema 的 TS 输出宽化；运行时先完整校验同源正式 Schema，再进入其封闭 OpenAPI DTO。
-          SaveProjectContentSchema.parse(input) as Parameters<
+          SaveProjectEditorContentSchema.parse(input) as Parameters<
             typeof saveProjectContent
           >[3],
           options(signal)

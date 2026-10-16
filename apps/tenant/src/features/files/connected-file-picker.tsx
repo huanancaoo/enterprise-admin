@@ -5,7 +5,7 @@ import {
   FileListQuerySchema,
   type FileVersionReference,
   type FolderResponse,
-} from "@workspace/contracts"
+} from "@workspace/contracts/files"
 import { useUiLocale } from "@workspace/i18n/react"
 import type { FileBrowserProps } from "./file-browser"
 import { FilePickerDialog, FolderPickerDialog } from "./file-picker"

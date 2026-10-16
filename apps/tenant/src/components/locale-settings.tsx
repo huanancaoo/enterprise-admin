@@ -1,3 +1,4 @@
+import { useParams } from "@tanstack/react-router"
 import {
   PageHeader,
   PersonalAvatarSettings,
@@ -20,7 +21,7 @@ import {
   updateMyPreferences,
   updateOrganizationSettings,
 } from "@workspace/api-client"
-import { SupportedLocaleSchema } from "@workspace/contracts"
+import { SupportedLocaleSchema } from "@workspace/contracts/locale"
 import { localeMeta } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
 import { Button } from "@workspace/ui/components/button"
@@ -495,4 +496,11 @@ export function OrganizationLocaleSettingsRoute({
       </form.Subscribe>
     </section>
   )
+}
+
+export function OrganizationLocaleSettingsPage() {
+  const { organizationId } = useParams({
+    from: "/app/organizations/$organizationId/settings",
+  })
+  return <OrganizationLocaleSettingsRoute organizationId={organizationId} />
 }

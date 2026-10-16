@@ -45,7 +45,7 @@ const ProjectRichTextMarkSchema = z.discriminatedUnion("type", [
   }),
 ])
 
-// JSON 节点由当前编辑器的正式扩展限定；递归类型只描述该 Schema 的数据形状。
+// 协议只描述 JSON 形状与业务属性；编辑器语法由富文本能力包校验。
 export type ProjectRichTextNode = {
   type: string
   attrs?: Record<string, unknown>
@@ -59,9 +59,10 @@ const textNode = z.strictObject({
   marks: z.array(ProjectRichTextMarkSchema).optional(),
 })
 const children: z.ZodType<ProjectRichTextNode[]> = z.lazy(() =>
-  z.array(ProjectRichTextNodeSchema)
+  z.array(projectRichTextNodeShape)
 )
-export const ProjectRichTextNodeSchema: z.ZodType<ProjectRichTextNode> = z
+// 保留严格属性与结构化文件引用，避免将临时授权地址写入持久化文档。
+const projectRichTextNodeShape: z.ZodType<ProjectRichTextNode> = z
   .lazy(() =>
     z.discriminatedUnion("type", [
       textNode,
@@ -122,81 +123,12 @@ export const ProjectRichTextNodeSchema: z.ZodType<ProjectRichTextNode> = z
       }),
     ])
   )
-  .superRefine((node: ProjectRichTextNode, ctx) => {
-    const types = node.content?.map((child) => child.type) ?? []
-    const blocks = new Set([
-      "paragraph",
-      "heading",
-      "blockquote",
-      "bulletList",
-      "orderedList",
-      "codeBlock",
-      "table",
-      "fileImage",
-      "fileAttachment",
-    ])
-    let valid = true
-    switch (node.type) {
-      case "paragraph":
-      case "heading":
-        valid = types.every((type) => type === "text" || type === "hardBreak")
-        break
-      case "codeBlock":
-        valid =
-          types.every((type) => type === "text") &&
-          (node.content ?? []).every((child) => !child.marks?.length)
-        break
-      case "bulletList":
-      case "orderedList":
-        valid = types.length > 0 && types.every((type) => type === "listItem")
-        break
-      case "listItem":
-        valid =
-          types[0] === "paragraph" && types.every((type) => blocks.has(type))
-        break
-      case "table":
-        valid = types.length > 0 && types.every((type) => type === "tableRow")
-        break
-      case "tableRow":
-        valid =
-          types.length > 0 &&
-          types.every((type) => type === "tableCell" || type === "tableHeader")
-        break
-      case "blockquote":
-      case "tableCell":
-      case "tableHeader":
-        valid = types.length > 0 && types.every((type) => blocks.has(type))
-        break
-    }
-    if (!valid)
-      ctx.addIssue({
-        code: "custom",
-        path: ["content"],
-        message: "Invalid editor node children",
-      })
-  })
   .meta({ id: "ProjectRichTextNode" })
+
+export const ProjectRichTextNodeSchema = projectRichTextNodeShape
 
 export const ProjectRichTextDocumentSchema = z
   .strictObject({ type: z.literal("doc"), content: children })
-  .refine(
-    (document) =>
-      document.content.length > 0 &&
-      document.content.every((node) =>
-        [
-          "paragraph",
-          "heading",
-          "blockquote",
-          "bulletList",
-          "orderedList",
-          "codeBlock",
-          "table",
-          "fileImage",
-          "fileAttachment",
-        ].includes(node.type)
-      ),
-    { message: "Document requires block nodes" }
-  )
   .meta({ id: "ProjectRichTextDocument" })
 export type ProjectRichTextDocument = z.infer<
   typeof ProjectRichTextDocumentSchema

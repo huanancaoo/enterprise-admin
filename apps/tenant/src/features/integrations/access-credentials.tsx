@@ -15,8 +15,6 @@ import { useOrganizationAuthorization } from "@/hooks/use-organization-authoriza
 import type { AccessCredential } from "@workspace/contracts"
 import { permissionStatements } from "@workspace/permissions"
 import {
-  DataTable,
-  createDataTableColumnHelper,
   FormDialog,
   ConfirmDangerAction,
   PageHeader,
@@ -24,6 +22,10 @@ import {
   PermissionDeniedState,
   ErrorState,
 } from "@workspace/admin"
+import {
+  DataTable,
+  createDataTableColumnHelper,
+} from "@workspace/admin/data-table"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
 import { Checkbox } from "@workspace/ui/components/checkbox"

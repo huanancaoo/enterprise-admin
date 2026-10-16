@@ -6,7 +6,9 @@
   "exports": {
     ".": "./src/index.ts",
     "./auth": "./src/auth/index.ts",
-    "./workspace": "./src/components/workspace.tsx"
+    "./workspace": "./src/components/workspace.tsx",
+    "./rich-text-editor": "./src/components/rich-text-editor/index.ts",
+    "./data-table": "./src/data-table.ts"
   },
   "scripts": {
     "lint": "eslint",
@@ -25,11 +27,8 @@
     "@dnd-kit/sortable": "10.0.0",
     "@tanstack/react-table": "9.2.4",
     "@tiptap/extension-file-handler": "3.31.3",
-    "@tiptap/extension-image": "3.31.3",
-    "@tiptap/extension-table": "3.31.3",
     "@tiptap/pm": "3.31.3",
     "@tiptap/react": "3.31.3",
-    "@tiptap/starter-kit": "3.31.3",
     "@workspace/ui": "workspace:*",
     "cn": "0.3.0",
     "lucide-react": "1.46.0",
@@ -44,7 +43,8 @@
     "@workspace/permissions": "workspace:*",
     "@workspace/i18n": "workspace:*",
     "react-i18next": "17.0.14",
-    "@workspace/contracts": "workspace:*"
+    "@workspace/contracts": "workspace:*",
+    "@workspace/rich-text": "workspace:*"
   },
   "intent": {
     "skills": [

@@ -5,13 +5,15 @@ import { useTranslation } from "react-i18next"
 import { z } from "zod"
 import {
   ExecuteFileBatchSchema,
-  FileEntryImpactSchema,
   type ExecuteFileBatch,
   type FileBatchActionSchema,
+} from "@workspace/contracts/file-batches"
+import {
+  FileEntryImpactSchema,
   type FileEntryImpact,
   type FileEntryResponse,
   type FolderResponse,
-} from "@workspace/contracts"
+} from "@workspace/contracts/files"
 import { useUiLocale } from "@workspace/i18n/react"
 import { Button } from "@workspace/ui/components/button"
 import { Checkbox } from "@workspace/ui/components/checkbox"

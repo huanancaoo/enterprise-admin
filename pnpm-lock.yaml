@@ -258,6 +258,9 @@ importers:
       '@workspace/permissions':
         specifier: workspace:*
         version: link:../../packages/permissions
+      '@workspace/rich-text':
+        specifier: workspace:*
+        version: link:../../packages/rich-text
       better-auth:
         specifier: 1.7.5
         version: 1.7.5(@opentelemetry/api@1.9.1)(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(kysely@0.29.5)(pg@8.23.0))(pg@8.23.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -279,6 +282,9 @@ importers:
       nodemailer:
         specifier: 10.0.10
         version: 10.0.10
+      on-finished:
+        specifier: 2.4.1
+        version: 2.4.1
       pg:
         specifier: 8.23.0
         version: 8.23.0
@@ -319,6 +325,9 @@ importers:
       '@types/nodemailer':
         specifier: 8.0.2
         version: 8.0.2
+      '@types/on-finished':
+        specifier: 2.3.5
+        version: 2.3.5
       '@types/pg':
         specifier: 8.23.1
         version: 8.23.1
@@ -694,6 +703,9 @@ importers:
       '@workspace/permissions':
         specifier: workspace:*
         version: link:../../packages/permissions
+      '@workspace/rich-text':
+        specifier: workspace:*
+        version: link:../../packages/rich-text
       '@workspace/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -813,21 +825,12 @@ importers:
       '@tiptap/extension-file-handler':
         specifier: 3.31.3
         version: 3.31.3(@tiptap/core@3.31.3(@tiptap/pm@3.31.3))(@tiptap/extension-text-style@3.31.3(@tiptap/core@3.31.3(@tiptap/pm@3.31.3)))(@tiptap/pm@3.31.3)
-      '@tiptap/extension-image':
-        specifier: 3.31.3
-        version: 3.31.3(@tiptap/core@3.31.3(@tiptap/pm@3.31.3))
-      '@tiptap/extension-table':
-        specifier: 3.31.3
-        version: 3.31.3(@tiptap/core@3.31.3(@tiptap/pm@3.31.3))(@tiptap/pm@3.31.3)
       '@tiptap/pm':
         specifier: 3.31.3
         version: 3.31.3
       '@tiptap/react':
         specifier: 3.31.3
         version: 3.31.3(@floating-ui/dom@1.8.0)(@tiptap/core@3.31.3(@tiptap/pm@3.31.3))(@tiptap/pm@3.31.3)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      '@tiptap/starter-kit':
-        specifier: 3.31.3
-        version: 3.31.3
       '@workspace/api-client':
         specifier: workspace:*
         version: link:../api-client
@@ -840,6 +843,9 @@ importers:
       '@workspace/permissions':
         specifier: workspace:*
         version: link:../permissions
+      '@workspace/rich-text':
+        specifier: workspace:*
+        version: link:../rich-text
       '@workspace/ui':
         specifier: workspace:*
         version: link:../ui
@@ -1196,6 +1202,40 @@ importers:
         specifier: 6.0.3
         version: 6.0.3
 
+  packages/rich-text:
+    dependencies:
+      '@tiptap/core':
+        specifier: 3.31.3
+        version: 3.31.3(@tiptap/pm@3.31.3)
+      '@tiptap/extension-table':
+        specifier: 3.31.3
+        version: 3.31.3(@tiptap/core@3.31.3(@tiptap/pm@3.31.3))(@tiptap/pm@3.31.3)
+      '@tiptap/pm':
+        specifier: 3.31.3
+        version: 3.31.3
+      '@tiptap/starter-kit':
+        specifier: 3.31.3
+        version: 3.31.3
+      '@workspace/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      zod:
+        specifier: 4.6.5
+        version: 4.6.5
+    devDependencies:
+      '@workspace/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@workspace/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      eslint:
+        specifier: 10.10.0
+        version: 10.10.0(jiti@2.7.0)(supports-color@8.1.1)
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+
   packages/typescript-config: {}
 
   packages/ui:
@@ -1233,6 +1273,9 @@ importers:
       lucide-react:
         specifier: 1.46.0
         version: 1.46.0(react@19.3.0)
+      next-themes:
+        specifier: 0.4.6
+        version: 0.4.6(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       react:
         specifier: 19.3.0
         version: 19.3.0
@@ -1248,9 +1291,6 @@ importers:
       recharts:
         specifier: 3.10.1
         version: 3.10.1(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react-is@17.0.2)(react@19.3.0)(redux@5.0.1)
-      shadcn:
-        specifier: 4.21.0
-        version: 4.21.0(supports-color@8.1.1)(typescript@6.0.3)
       tw-animate-css:
         specifier: 1.4.0
         version: 1.4.0
@@ -1282,6 +1322,9 @@ importers:
       eslint:
         specifier: 10.10.0
         version: 10.10.0(jiti@2.7.0)(supports-color@8.1.1)
+      shadcn:
+        specifier: 4.21.0
+        version: 4.21.0(supports-color@8.1.1)(typescript@6.0.3)
       tailwindcss:
         specifier: 4.3.3
         version: 4.3.3
@@ -4925,11 +4968,6 @@ packages:
       '@tiptap/core': 3.31.3
       '@tiptap/pm': 3.31.3
 
-  '@tiptap/extension-image@3.31.3':
-    resolution: {integrity: sha512-wWNG9BOtx2Cg4vwxPVGDIJ5DGX+ETkldeoaFJLB1NXUL4OPUiVTf8cHZ+hdYgJWP704BEB7jQgjlpvdi6VigTg==}
-    peerDependencies:
-      '@tiptap/core': 3.31.3
-
   '@tiptap/extension-italic@3.31.3':
     resolution: {integrity: sha512-ibGvdvAPyfxBMUVNRI43eb9h2/Jka1MRG5GtnGqbcCX/2+Y/y0EOfFrPQPkuYphiWQYyu9+FzPKMB/pjuaLuKQ==}
     peerDependencies:
@@ -5268,6 +5306,9 @@ packages:
 
   '@types/nodemailer@8.0.2':
     resolution: {integrity: sha512-c7M5ox8p0nEOfbJ2E9Qcmt8/QCu/VzsiAhzBiZbvky2PhKZDHpKB3sQHBM5MEZNkCfBOaS6S9//AGPRTNB7IaA==}
+
+  '@types/on-finished@2.3.5':
+    resolution: {integrity: sha512-XUaCx9tVIC577KsOZxKbnvGlyPt2ogNXQEq/bOQpAfPwH9sH0FbzrRsK1961jpjKlK5V+Owmw55dVjukWhwH0w==}
 
   '@types/pg@8.23.1':
     resolution: {integrity: sha512-fKVHpikPdg4GKks3JuLEhvwSyvwzF23hnabPy6DD8ljVbC7+6J5dQzdv4arV6jqq57djnMgs1HKBxX4P8aBI3A==}
@@ -14222,10 +14263,6 @@ snapshots:
       '@tiptap/core': 3.31.3(@tiptap/pm@3.31.3)
       '@tiptap/pm': 3.31.3
 
-  '@tiptap/extension-image@3.31.3(@tiptap/core@3.31.3(@tiptap/pm@3.31.3))':
-    dependencies:
-      '@tiptap/core': 3.31.3(@tiptap/pm@3.31.3)
-
   '@tiptap/extension-italic@3.31.3(@tiptap/core@3.31.3(@tiptap/pm@3.31.3))':
     dependencies:
       '@tiptap/core': 3.31.3(@tiptap/pm@3.31.3)
@@ -14634,6 +14671,10 @@ snapshots:
       undici-types: 8.9.0
 
   '@types/nodemailer@8.0.2':
+    dependencies:
+      '@types/node': 26.5.1
+
+  '@types/on-finished@2.3.5':
     dependencies:
       '@types/node': 26.5.1
 

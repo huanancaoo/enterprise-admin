@@ -1,7 +1,6 @@
 import { FileHandler } from "@tiptap/extension-file-handler"
-import { TableKit } from "@tiptap/extension-table"
 import type { Extensions } from "@tiptap/react"
-import StarterKit from "@tiptap/starter-kit"
+import { createProjectRichTextExtensions } from "@workspace/rich-text/extensions"
 
 import { IMAGE_MIME_TYPES } from "./insert-image"
 import { FileAttachment, FileImage } from "./file-nodes"
@@ -9,18 +8,11 @@ import { FileAttachment, FileImage } from "./file-nodes"
 export function createRichTextExtensions(options: {
   onImages?: (files: File[], pos?: number) => void
 }): Extensions {
-  const extensions: Extensions = [
-    StarterKit.configure({
-      heading: { levels: [1, 2, 3] },
-      underline: false,
-      horizontalRule: false,
-      trailingNode: false,
-      link: { openOnClick: false },
-    }),
-    FileImage,
-    FileAttachment,
-    TableKit.configure({ table: { resizable: false } }),
-  ]
+  const extensions = createProjectRichTextExtensions().map((extension) => {
+    if (extension.name === FileImage.name) return FileImage
+    if (extension.name === FileAttachment.name) return FileAttachment
+    return extension
+  })
   if (options.onImages) {
     const onImages = options.onImages
     extensions.push(

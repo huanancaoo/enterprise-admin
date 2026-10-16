@@ -2,7 +2,7 @@ import { z } from "zod"
 import {
   FileOperationIdSchema,
   FileOperationPhaseSchema,
-} from "@workspace/contracts"
+} from "@workspace/contracts/files"
 
 const uploadRecordSchema = z.strictObject({
   id: FileOperationIdSchema,

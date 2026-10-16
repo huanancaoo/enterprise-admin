@@ -1,11 +1,8 @@
 import { Pool } from "pg"
 import { createTaskTenantRunner } from "@workspace/database/task-tenant"
-import {
-  readWorkerConfig,
-  startTaskWorker,
-  observeBusinessTasks,
-  startBusinessTaskDispatch,
-} from "@workspace/jobs"
+import { readWorkerConfig, startTaskWorker } from "@workspace/jobs"
+import { observeBusinessTasks } from "@workspace/jobs/business-task-observer"
+import { startBusinessTaskDispatch } from "@workspace/jobs/business-task-dispatch"
 import { taskRegistry } from "./registry.ts"
 import {
   initializeTelemetry,

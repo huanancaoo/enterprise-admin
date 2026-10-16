@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { beginHttpRequest, operationalLogger } from '@workspace/observability';
 import type { IRoute, NextFunction, Request, Response } from 'express';
+import onFinished from 'on-finished';
 
 export function requestLogging(
   req: Request,
@@ -13,19 +14,27 @@ export function requestLogging(
   const observation = beginHttpRequest(requestId, req.method);
   res.locals.requestId = requestId;
   res.setHeader('X-Request-Id', requestId);
-  res.once('finish', () => {
+  onFinished(res, (error) => {
+    // close 可在没有错误对象时发生；只有完整写出的响应才能算 completed。
+    const outcome = error
+      ? 'error'
+      : res.writableFinished
+        ? 'completed'
+        : 'aborted';
+    const statusCode = res.headersSent ? res.statusCode : undefined;
     // 不记录查询串、请求体和认证 Header，避免操作日志携带凭据。
     const route = req.route as IRoute | undefined;
     const identifiers = observation.finish(
-      res.statusCode,
+      statusCode,
       String(route?.path ?? 'unmatched'),
+      outcome,
     );
     operationalLogger.info({
-      event: 'http.request.completed',
+      event: `http.request.${outcome}`,
       requestId,
       method: req.method,
       path: req.path,
-      statusCode: res.statusCode,
+      statusCode,
       durationMs: Math.round(performance.now() - started),
       ...identifiers,
     });

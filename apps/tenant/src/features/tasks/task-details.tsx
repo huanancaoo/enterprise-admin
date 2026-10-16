@@ -11,11 +11,9 @@ import {
   getFileBatch,
   requestLanguageHeader,
 } from "@workspace/api-client"
-import {
-  BusinessTaskSchema,
-  FileOperationResponseSchema,
-  FileBatchResponseSchema,
-} from "@workspace/contracts"
+import { BusinessTaskSchema } from "@workspace/contracts/framework-capabilities"
+import { FileOperationResponseSchema } from "@workspace/contracts/files"
+import { FileBatchResponseSchema } from "@workspace/contracts/file-batches"
 import { useUiLocale } from "@workspace/i18n/react"
 import { parse as parseContentDisposition } from "content-disposition"
 import { Button } from "@workspace/ui/components/button"

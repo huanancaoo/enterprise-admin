@@ -7,7 +7,7 @@ import {
   createDataTableColumnHelper,
   createDataTableRowControlsColumn,
   createDataTableSelectColumn,
-} from "@workspace/admin"
+} from "@workspace/admin/data-table"
 import { Button } from "@workspace/ui/components/button"
 
 type RecordRow = { id: string; name: string; status: string }

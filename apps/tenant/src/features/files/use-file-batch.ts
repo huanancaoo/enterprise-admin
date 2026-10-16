@@ -11,8 +11,8 @@ import {
   FileBatchResponseSchema,
   type ExecuteFileBatch,
   type FileBatchResponse,
-  type SupportedLocale,
-} from "@workspace/contracts"
+} from "@workspace/contracts/file-batches"
+import { type SupportedLocale } from "@workspace/contracts/locale"
 import {
   readFileBatchRecords,
   saveFileBatchRecord,

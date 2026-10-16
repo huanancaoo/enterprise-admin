@@ -8288,7 +8288,11 @@
             "maximum": 9007199254740991
           },
           "document": {
-            "$ref": "#/components/schemas/ProjectRichTextDocument"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProjectRichTextDocument"
+              }
+            ]
           }
         },
         "required": [

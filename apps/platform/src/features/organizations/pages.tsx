@@ -35,7 +35,7 @@ import {
   type PlatformOrganizationDetail,
   type PlatformOrganizationQuery,
   type TransitionOrganization,
-} from "@workspace/contracts"
+} from "@workspace/contracts/platform"
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
 import { ArrowLeftIcon } from "lucide-react"

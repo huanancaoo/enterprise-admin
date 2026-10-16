@@ -4,6 +4,8 @@
 
 HTTP 在服务端产生 requestId，响应通过 `X-Request-Id` 返回；日志与 span 记录同一标识，不信任客户端任意关联头。BullMQ 官方 telemetry 接口把 trace context 保存在传输元数据中，业务任务 envelope、Job 身份和意图 fingerprint 不因此改变。
 
+HTTP 响应由 `on-finished` 汇总完成、断连与 socket 错误，每个请求只结束一次观测。完整写出记录 `http.request.completed`，提前断连记录 `http.request.aborted`，socket 错误记录 `http.request.error`；未发出响应头时不记录默认 200。断连和 socket 错误的 span 标记为 Error，`error.type` 分别使用固定值 `http.response.aborted` 和 `http.response.error`；完整写出的 5xx 使用状态码字符串。同样的分类进入耗时指标，避免中断请求丢失或被计为成功。
+
 日志只记录路径、动作、结果和耗时等操作事实，不记录认证 Header、Cookie、请求体或查询串。指标使用服务、固定路由、任务类型、队列和稳定错误分类，不把用户、组织、资源或 requestId 作为指标 label。
 
 OTLP 导出只保留关联标识、HTTP/任务分类和时序等明确字段，不发送自由文本 status message、原始 exception message/stacktrace、Job 输入/结果/选项或失败原因。任务错误分类和重试仍由原业务运行时处理，观测投影不改变队列或事务行为。

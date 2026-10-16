@@ -8,9 +8,9 @@ import { FormDialog } from "@workspace/admin"
 import { createProjectMutations } from "@workspace/api-client"
 import {
   ProjectAttachmentSchema,
-  SupportedLocaleSchema,
   type ProjectAttachment,
-} from "@workspace/contracts"
+} from "@workspace/contracts/project-files"
+import { SupportedLocaleSchema } from "@workspace/contracts/locale"
 import { ProjectAttachmentsField } from "./project-attachments"
 import { localeMeta } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"

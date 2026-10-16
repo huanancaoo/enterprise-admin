@@ -11,7 +11,7 @@ import {
   type ApiError,
   type ApiErrorCode,
 } from '@workspace/contracts';
-import { getTranslator } from '@workspace/i18n';
+import { getTranslator } from '@workspace/i18n/server';
 import { getRequestLanguage } from './request-language';
 import { ApiException } from './api-exception';
 

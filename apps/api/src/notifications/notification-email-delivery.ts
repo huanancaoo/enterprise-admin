@@ -9,11 +9,8 @@ import {
   TaskAuthorizationError,
 } from '@workspace/database/task-tenant';
 import { notificationRepository } from '@workspace/database/repositories/notifications';
-import {
-  taskEmailCatalog,
-  localeMeta,
-  type EmailLocale,
-} from '@workspace/i18n';
+import { localeMeta, type EmailLocale } from '@workspace/i18n';
+import { taskEmailCatalog } from '@workspace/i18n/email';
 import { AuthRuntime } from '../identity/auth-runtime';
 import { SmtpEmailProvider } from '../email/smtp-email.provider';
 import {

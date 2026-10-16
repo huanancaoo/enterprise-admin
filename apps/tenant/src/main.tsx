@@ -1,4 +1,4 @@
-import { createUiI18n } from "@workspace/i18n"
+import { createUiI18n } from "@workspace/i18n/ui"
 import { UiI18nProvider } from "@workspace/i18n/react"
 import { AdminDirectionProvider } from "@workspace/admin/workspace"
 import { bindWorkspaceRequestLocale } from "@workspace/admin/auth"

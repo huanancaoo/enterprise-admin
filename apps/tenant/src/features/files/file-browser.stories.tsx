@@ -8,7 +8,7 @@ import {
   FolderResponseSchema,
   type FileEntryResponse,
   type FileListQuery,
-} from "@workspace/contracts"
+} from "@workspace/contracts/files"
 import { Button } from "@workspace/ui/components/button"
 import { FileBrowser } from "./file-browser"
 import { FilePickerDialog, FolderPickerDialog } from "./file-picker"

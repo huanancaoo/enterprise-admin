@@ -1,12 +1,12 @@
 import {
-  ProjectRichTextDocumentSchema,
   FileVersionReferenceSchema,
   type ProjectRichTextNode,
 } from '@workspace/contracts';
+import { ProjectEditorDocumentSchema } from '@workspace/rich-text';
 import type { FileReferenceInput } from '@workspace/database/repositories/files';
 
 export function projectContentReferences(input: unknown) {
-  const document = ProjectRichTextDocumentSchema.parse(input);
+  const document = ProjectEditorDocumentSchema.parse(input);
   const references: (FileReferenceInput & { image: boolean })[] = [];
   const visit = (nodes: ProjectRichTextNode[], parent: string) => {
     for (const [index, node] of nodes.entries()) {

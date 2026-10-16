@@ -8,17 +8,17 @@ import {
   ProjectStatusSchema,
   type ProjectListQuery,
   type ProjectResponse,
-  type BusinessTask,
-} from "@workspace/contracts"
+} from "@workspace/contracts/projects"
+import { type BusinessTask } from "@workspace/contracts/framework-capabilities"
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
+import { ResourceList } from "@workspace/admin"
 import {
   DataTable,
   DataTableColumnHeader,
-  ResourceList,
   createDataTableColumnHelper,
   type DataTableStatus,
-} from "@workspace/admin"
+} from "@workspace/admin/data-table"
 import { Badge } from "@workspace/ui/components/badge"
 import {
   Empty,

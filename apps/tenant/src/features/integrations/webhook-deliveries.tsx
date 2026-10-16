@@ -6,7 +6,7 @@ import {
   organizationKeys,
   requestLanguageHeader,
 } from "@workspace/api-client"
-import { WebhookDeliveryPageSchema } from "@workspace/contracts"
+import { WebhookDeliveryPageSchema } from "@workspace/contracts/framework-capabilities"
 import {
   LoadingState,
   EmptyState,

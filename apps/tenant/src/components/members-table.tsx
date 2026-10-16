@@ -22,7 +22,7 @@ import {
   createDataTableColumnHelper,
   createDataTableRowControlsColumn,
   createDataTableSelectColumn,
-} from "@workspace/admin"
+} from "@workspace/admin/data-table"
 import { Label } from "@workspace/ui/components/label"
 import { Switch } from "@workspace/ui/components/switch"
 

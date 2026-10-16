@@ -5,7 +5,7 @@ import { NodeViewWrapper, type NodeViewProps } from "@tiptap/react"
 import {
   FileVersionReferenceSchema,
   type FileVersionReference,
-} from "@workspace/contracts"
+} from "@workspace/contracts/files"
 import { Button } from "@workspace/ui/components/button"
 import { useTranslation } from "react-i18next"
 

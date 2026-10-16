@@ -1,12 +1,12 @@
 import { useEffect, type ReactNode } from "react"
 import { I18nextProvider, useTranslation } from "react-i18next"
 import type { i18n } from "i18next"
-import { syncDocumentLanguage } from "./config"
+import { syncDocumentLanguage } from "./document.js"
 import {
   matchSupportedLocale,
   platformDefaultLocale,
   type SupportedLocale,
-} from "./locale"
+} from "./locale.js"
 
 export function UiI18nProvider({
   instance,

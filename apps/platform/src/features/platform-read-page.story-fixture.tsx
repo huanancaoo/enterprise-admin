@@ -12,7 +12,7 @@ import { AuthGate, AuthenticatedSessionProvider } from "@workspace/admin/auth"
 import {
   PlatformAuditQuerySchema,
   PlatformUsersQuerySchema,
-} from "@workspace/contracts"
+} from "@workspace/contracts/platform"
 import {
   platformOrganizationActor,
   platformUserFixture,

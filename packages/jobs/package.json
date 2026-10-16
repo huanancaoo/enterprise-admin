@@ -35,6 +35,18 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./project-exchange": {
+      "types": "./dist/project-exchange.d.ts",
+      "default": "./dist/project-exchange.js"
+    },
+    "./business-task-observer": {
+      "types": "./dist/business-task-observer.d.ts",
+      "default": "./dist/business-task-observer.js"
+    },
+    "./business-task-dispatch": {
+      "types": "./dist/business-task-dispatch.d.ts",
+      "default": "./dist/business-task-dispatch.js"
     }
   }
 }

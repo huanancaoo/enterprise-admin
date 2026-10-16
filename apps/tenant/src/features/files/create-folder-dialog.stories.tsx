@@ -8,7 +8,7 @@ import {
   FolderResponseSchema,
   type CreateFolder,
   type FileOperationResponse,
-} from "@workspace/contracts"
+} from "@workspace/contracts/files"
 import { Button } from "@workspace/ui/components/button"
 import { CreateFolderDialog } from "./create-folder-dialog"
 

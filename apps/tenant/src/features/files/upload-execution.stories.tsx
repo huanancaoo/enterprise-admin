@@ -22,7 +22,7 @@ import {
   type FileOperationResponse,
   type OverwriteFileFields,
   type UploadFileFields,
-} from "@workspace/contracts"
+} from "@workspace/contracts/files"
 import { Button } from "@workspace/ui/components/button"
 import { UploadQueue } from "./upload-queue"
 import { saveUploadRecords, uploadRecordKey } from "./upload-records"

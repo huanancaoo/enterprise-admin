@@ -15,7 +15,7 @@ import {
   PersonalAvatarResultSchema,
   type PersonalMediaUploadResult,
   type SetPersonalAvatar,
-} from "@workspace/contracts"
+} from "@workspace/contracts/personal-media"
 import type { TFunction } from "@workspace/i18n"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"

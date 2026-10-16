@@ -15,7 +15,7 @@ import {
   PlatformAuditEventSchema,
   type PlatformAuditQuery,
   type PlatformAuditEvent,
-} from "@workspace/contracts"
+} from "@workspace/contracts/platform"
 import {
   EmptyState,
   ErrorState,

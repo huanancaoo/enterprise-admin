@@ -10,10 +10,12 @@ import {
 } from "@workspace/api-client"
 import {
   ProjectAttachmentSchema,
+  type ProjectAttachment,
+} from "@workspace/contracts/project-files"
+import {
   type FileVersionReference,
   type FolderResponse,
-  type ProjectAttachment,
-} from "@workspace/contracts"
+} from "@workspace/contracts/files"
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
 import { Button } from "@workspace/ui/components/button"

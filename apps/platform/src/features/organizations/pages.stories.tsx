@@ -11,7 +11,7 @@ import {
   RouterProvider,
 } from "@tanstack/react-router"
 import { AuthGate, AuthenticatedSessionProvider } from "@workspace/admin/auth"
-import { PlatformOrganizationQuerySchema } from "@workspace/contracts"
+import { PlatformOrganizationQuerySchema } from "@workspace/contracts/platform"
 import {
   createPlatformOrganizationScenario,
   createWorkspaceSessionHandlers,

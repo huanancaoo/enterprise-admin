@@ -10,7 +10,7 @@ import {
   type FolderResponse,
   type OverwriteFileFields,
   type UploadFileFields,
-} from "@workspace/contracts"
+} from "@workspace/contracts/files"
 import { fileRequestErrorMessage } from "./file-queries"
 import {
   readUploadRecords,

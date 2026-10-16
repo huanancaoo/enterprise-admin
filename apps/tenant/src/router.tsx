@@ -1,20 +1,16 @@
-import { NotificationsRoute } from "./features/notifications/notifications-route"
-import { TasksRoute } from "./features/tasks/tasks-route"
 import { taskCenterSearchSchema } from "./features/tasks/task-center-search"
 import {
   createRootRouteWithContext,
   createRoute,
   createRouter,
+  lazyRouteComponent,
   Outlet,
   redirect,
-  useParams,
 } from "@tanstack/react-router"
-import {
-  AuditEventsQuerySchema,
-  CapabilityPageQuerySchema,
-  FileListQuerySchema,
-  ProjectListQuerySchema,
-} from "@workspace/contracts"
+import { AuditEventsQuerySchema } from "@workspace/contracts/audit"
+import { CapabilityPageQuerySchema } from "@workspace/contracts/framework-capabilities"
+import { FileListQuerySchema } from "@workspace/contracts/files"
+import { ProjectListQuerySchema } from "@workspace/contracts/project-query"
 import {
   LoadingState,
   NotFoundState,
@@ -31,22 +27,66 @@ import {
   TenantResetPasswordPage,
   TenantAuthTitlePage,
 } from "./App"
-import { ProjectsRoute } from "./components/projects-route"
-import { IntegrationsRoute } from "./features/integrations/integrations-route"
-import { FilesRoute } from "./features/files/files-route"
-import { FileDetailRoute } from "./features/files/file-detail-route"
 import { fileDetailSearchSchema } from "./features/files/file-detail-search"
-import { ProjectDetailRoute } from "./components/project-detail-route"
-import { AdminLayout } from "./components/admin-layout"
-import { MembersRoute } from "./components/members-route"
-import { RolesRoute } from "./components/roles-route"
-import { AuditEventsRoute } from "./components/audit-events-route"
 import { memberDirectorySearchSchema } from "./query/organization-directory"
-import { OrganizationGate } from "./components/organization-workspace"
-import {
-  OrganizationLocaleSettingsRoute,
-  PersonalLocaleSettingsRoute,
-} from "./components/locale-settings"
+
+// 参数校验和权限钩子随路由注册；业务页面由 Router 按导航或预加载意图加载。
+const NotificationsRoute = lazyRouteComponent(
+  () => import("./features/notifications/notifications-route"),
+  "NotificationsRoute"
+)
+const TasksRoute = lazyRouteComponent(
+  () => import("./features/tasks/tasks-route"),
+  "TasksRoute"
+)
+const ProjectsRoute = lazyRouteComponent(
+  () => import("./components/projects-route"),
+  "ProjectsRoute"
+)
+const IntegrationsRoute = lazyRouteComponent(
+  () => import("./features/integrations/integrations-route"),
+  "IntegrationsRoute"
+)
+const FilesRoute = lazyRouteComponent(
+  () => import("./features/files/files-route"),
+  "FilesRoute"
+)
+const FileDetailRoute = lazyRouteComponent(
+  () => import("./features/files/file-detail-route"),
+  "FileDetailRoute"
+)
+const ProjectDetailRoute = lazyRouteComponent(
+  () => import("./components/project-detail-route"),
+  "ProjectDetailRoute"
+)
+const AdminLayout = lazyRouteComponent(
+  () => import("./components/admin-layout"),
+  "AdminLayout"
+)
+const MembersRoute = lazyRouteComponent(
+  () => import("./components/members-route"),
+  "MembersRoute"
+)
+const RolesRoute = lazyRouteComponent(
+  () => import("./components/roles-route"),
+  "RolesRoute"
+)
+const AuditEventsRoute = lazyRouteComponent(
+  () => import("./components/audit-events-route"),
+  "AuditEventsRoute"
+)
+const OrganizationGate = lazyRouteComponent(
+  () => import("./components/organization-workspace"),
+  "OrganizationGate"
+)
+const PersonalLocaleSettingsRoute = lazyRouteComponent(
+  () => import("./components/locale-settings"),
+  "PersonalLocaleSettingsRoute"
+)
+const OrganizationLocaleSettingsPage = lazyRouteComponent(
+  () => import("./components/locale-settings"),
+  "OrganizationLocaleSettingsPage"
+)
 
 const rootRoute = createRootRouteWithContext<WorkspaceRouterContext>()({
   component: App,
@@ -245,12 +285,7 @@ const rolesRoute = createRoute({
 const organizationSettingsRoute = createRoute({
   getParentRoute: () => organizationSettingsLayoutRoute,
   path: "/$organizationId/settings",
-  component: function OrganizationSettingsPage() {
-    const { organizationId } = useParams({
-      from: "/app/organizations/$organizationId/settings",
-    })
-    return <OrganizationLocaleSettingsRoute organizationId={organizationId} />
-  },
+  component: OrganizationLocaleSettingsPage,
 })
 const personalSettingsLayoutRoute = createRoute({
   getParentRoute: () => appRoute,

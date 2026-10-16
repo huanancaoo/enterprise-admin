@@ -11,7 +11,7 @@ import {
   PlatformSettingsSchema,
   PlatformSettingsUpdateResultSchema,
 } from "../../packages/contracts/src/index.ts"
-import { emailCatalog } from "../../packages/i18n/src/index.ts"
+import { emailCatalog } from "../../packages/i18n/src/email.ts"
 import { startTestApplication } from "../setup/test-runtime.mjs"
 import { platformOperator } from "../setup/platform-operator.mjs"
 import { signUpVerified } from "../setup/complete-signup.mjs"

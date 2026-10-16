@@ -15,7 +15,7 @@ import {
   PlatformSettingsUpdateResultSchema,
   UpdatePlatformSettingsSchema,
   type PlatformSettings,
-} from "@workspace/contracts"
+} from "@workspace/contracts/platform"
 import { ErrorState, LoadingState } from "@workspace/admin"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import { localeMeta } from "@workspace/i18n"

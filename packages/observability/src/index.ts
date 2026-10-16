@@ -57,14 +57,28 @@ export function beginHttpRequest(requestId: string, method: string) {
     run<T>(work: () => T): T {
       return context.with(active, work)
     },
-    finish(statusCode: number, route: string) {
+    finish(
+      statusCode: number | undefined,
+      route: string,
+      outcome: "completed" | "aborted" | "error"
+    ) {
+      const errorType =
+        outcome !== "completed"
+          ? `http.response.${outcome}`
+          : statusCode !== undefined && statusCode >= 500
+            ? String(statusCode)
+            : undefined
       const attributes = {
         "http.request.method": method,
         "http.route": route,
-        "http.response.status_code": statusCode,
+        ...(statusCode === undefined
+          ? {}
+          : { "http.response.status_code": statusCode }),
+        ...(errorType === undefined ? {} : { "error.type": errorType }),
       }
       span.setAttributes(attributes)
-      if (statusCode >= 500) span.setStatus({ code: SpanStatusCode.ERROR })
+      if (errorType !== undefined)
+        span.setStatus({ code: SpanStatusCode.ERROR })
       metrics
         .getMeter("enterprise-admin.http")
         .createHistogram("http.server.request.duration", { unit: "s" })

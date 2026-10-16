@@ -6,12 +6,14 @@ import { ApiClientError } from "@workspace/api-client"
 import {
   ExecuteFileBatchSchema,
   FileBatchResponseSchema,
-  FileResponseSchema,
-  FolderResponseSchema,
   type ExecuteFileBatch,
   type FileBatchResponse,
+} from "@workspace/contracts/file-batches"
+import {
+  FileResponseSchema,
+  FolderResponseSchema,
   type FileEntryResponse,
-} from "@workspace/contracts"
+} from "@workspace/contracts/files"
 import { Button } from "@workspace/ui/components/button"
 import { FileBatchDialog } from "./file-batch-dialog"
 import { FileBatchResults } from "./file-batch-results"

@@ -4,9 +4,11 @@
 
 ## 运行时
 
-- 根入口供浏览器和服务端使用：Locale 协商、静态资源、`createUiI18n`、`createFormatter`。`resolveLocale` 是唯一 UI 协商；邮件按收件人偏好、组织默认和邮件平台默认解析，由 `resolveEmailLocale` 处理。认证错误码在 `errors` 词条里，由 `@workspace/i18n/catalog` 读出。邮件正文在 `emailCatalog`，支持 `zh-CN`、`en-US` 和 `ar`。
-- `getTranslator(locale)` 返回服务端固定语言 translator；不会调用服务器共享实例的 `changeLanguage`。
-- `@workspace/i18n/react` 提供 `UiI18nProvider` 和 `useUiLocale`。每个 SPA 创建一个 UI 实例，Provider 订阅语言变化并同步 `html.lang/dir`，卸载时解除监听。
+- 根入口只提供 Locale 协商、语言元数据和 `createFormatter`，不加载词条或初始化 i18next。`resolveLocale` 是唯一 UI 协商；邮件按收件人偏好、组织默认和邮件平台默认解析，由 `resolveEmailLocale` 处理。
+- `@workspace/i18n/ui` 提供 `createUiI18n`、完整 UI 资源和 `syncDocumentLanguage`。SPA 与 Storybook 在启动时显式创建 UI 实例。
+- `@workspace/i18n/server` 的 `getTranslator(locale)` 只加载三种语言的 `errors` 词条，返回固定语言 translator；不会调用服务器共享实例的 `changeLanguage`。认证错误码另由 `@workspace/i18n/catalog` 读出。
+- `@workspace/i18n/email` 提供 `emailCatalog` 和 `taskEmailCatalog`，邮件目录不会随通用 Locale 能力加载。
+- `@workspace/i18n/react` 提供 `UiI18nProvider` 和 `useUiLocale`。每个 SPA 创建一个 UI 实例，Provider 订阅语言变化并同步 `html.lang/dir`，卸载时解除监听。所有入口使用同一份构建产物，避免混用源码和产物重复加载模块。
 - UI locale 由 i18next 持有；用户偏好和组织默认语言由 API 持久化，重新加载后按已保存偏好解析。
 - `createFormatter(locale)` 支持数字、百分比、货币、日期和相对时间。`currency` 必须显式传币种，`dateTime` 必须显式传时区。语言不推导币种、时区或组织。
 

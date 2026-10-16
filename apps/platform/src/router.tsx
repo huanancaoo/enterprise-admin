@@ -2,6 +2,7 @@ import {
   createRootRouteWithContext,
   createRoute,
   createRouter,
+  lazyRouteComponent,
   redirect,
 } from "@tanstack/react-router"
 import {
@@ -18,15 +19,7 @@ import {
   PlatformUsersQuerySchema,
   PlatformAuditQuerySchema,
   type PlatformAccess,
-} from "@workspace/contracts"
-import {
-  PlatformOrganizationsPage,
-  PlatformOrganizationDetailPage,
-} from "./features/organizations/pages"
-import {
-  PlatformUsersPage,
-  PlatformUserDetailPage,
-} from "./features/users/pages"
+} from "@workspace/contracts/platform"
 import {
   App,
   PlatformAuthTitlePage,
@@ -41,9 +34,34 @@ import {
 import { authClient } from "./lib/auth-client"
 import { rejectPlatformAccess } from "./lib/platform-access-failure"
 
-import { PlatformSettingsPage } from "./features/settings-page"
-import { PlatformPersonalSettingsPage } from "./features/personal-settings-page"
-import { PlatformAuditPage } from "./features/audit/page"
+const PlatformSettingsPage = lazyRouteComponent(
+  () => import("./features/settings-page"),
+  "PlatformSettingsPage"
+)
+const PlatformPersonalSettingsPage = lazyRouteComponent(
+  () => import("./features/personal-settings-page"),
+  "PlatformPersonalSettingsPage"
+)
+const PlatformAuditPage = lazyRouteComponent(
+  () => import("./features/audit/page"),
+  "PlatformAuditPage"
+)
+const PlatformOrganizationsPage = lazyRouteComponent(
+  () => import("./features/organizations/pages"),
+  "PlatformOrganizationsPage"
+)
+const PlatformOrganizationDetailPage = lazyRouteComponent(
+  () => import("./features/organizations/pages"),
+  "PlatformOrganizationDetailPage"
+)
+const PlatformUsersPage = lazyRouteComponent(
+  () => import("./features/users/pages"),
+  "PlatformUsersPage"
+)
+const PlatformUserDetailPage = lazyRouteComponent(
+  () => import("./features/users/pages"),
+  "PlatformUserDetailPage"
+)
 
 const rootRoute = createRootRouteWithContext<WorkspaceRouterContext>()({
   component: App,

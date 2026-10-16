@@ -6,7 +6,7 @@ import { expect, userEvent, waitFor, within } from "storybook/test"
 import {
   FileOperationResponseSchema,
   type FileOperationResponse,
-} from "@workspace/contracts"
+} from "@workspace/contracts/files"
 import { Button } from "@workspace/ui/components/button"
 import { useFileOperationObserver } from "./use-file-operation-observer"
 

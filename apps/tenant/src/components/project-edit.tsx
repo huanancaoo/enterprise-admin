@@ -12,12 +12,16 @@ import {
 } from "@workspace/api-client"
 import {
   ProjectStatusSchema,
+  type ProjectResponse,
+} from "@workspace/contracts/projects"
+import {
   ProjectAttachmentSchema,
   type ProjectAttachmentsResponse,
+} from "@workspace/contracts/project-files"
+import {
   SupportedLocaleSchema,
-  type ProjectResponse,
   type SupportedLocale,
-} from "@workspace/contracts"
+} from "@workspace/contracts/locale"
 import { localeMeta } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
 import { FormDialog, LoadingState, LocaleSwitcher } from "@workspace/admin"

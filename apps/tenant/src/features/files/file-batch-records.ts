@@ -2,8 +2,8 @@ import { z } from "zod"
 import {
   FileBatchActionSchema,
   FileBatchIdSchema,
-  FileOperationIdSchema,
-} from "@workspace/contracts"
+} from "@workspace/contracts/file-batches"
+import { FileOperationIdSchema } from "@workspace/contracts/files"
 
 export const fileBatchRecordSchema = z.strictObject({
   batchId: FileBatchIdSchema,

@@ -8,14 +8,14 @@ import type {
   FileResponse,
   FolderResponse,
 } from "@workspace/contracts"
+import { PermissionDeniedState } from "@workspace/admin"
 import {
   DataTable,
   DataTableColumnHeader,
-  PermissionDeniedState,
   createDataTableColumnHelper,
   createDataTableSelectColumn,
   type DataTableStatus,
-} from "@workspace/admin"
+} from "@workspace/admin/data-table"
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
 import { Button } from "@workspace/ui/components/button"
@@ -327,7 +327,7 @@ export function FileBrowser({
         }
         className={
           workspace
-            ? "gap-0 [&_[data-slot=data-table-content]]:rounded-none [&_[data-slot=data-table-content]]:border-0 [&_[data-slot=data-table-toolbar]]:px-4 [&_[data-slot=data-table-toolbar]]:py-4 [&_td]:h-16 [&_td]:px-3 [&_td]:text-muted-foreground [&_th]:bg-background [&_th]:px-3 [&>div:last-child]:px-4 [&>div:last-child]:py-4"
+            ? "gap-0 [&_[data-slot=data-table-content]]:rounded-none [&_[data-slot=data-table-content]]:border-0 [&_[data-slot=data-table-toolbar]]:px-4 [&_[data-slot=data-table-toolbar]]:py-4 [&_td]:h-16 [&_td]:px-3 [&_td]:text-foreground/70 [&_th]:bg-background [&_th]:px-3 [&>div:last-child]:px-4 [&>div:last-child]:py-4"
             : undefined
         }
         columns={columns}

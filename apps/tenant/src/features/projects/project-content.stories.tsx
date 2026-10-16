@@ -11,13 +11,17 @@ import {
 } from "@workspace/api-client"
 import {
   ProjectContentResponseSchema,
-  ProjectRichTextDocumentSchema,
-  FileOperationResponseSchema,
   type ProjectContentResponse,
+} from "@workspace/contracts/projects"
+import {
+  ProjectRichTextDocumentSchema,
   type SaveProjectContent,
-  type SupportedLocale,
+} from "@workspace/contracts/project-files"
+import {
+  FileOperationResponseSchema,
   type UploadFileFields,
-} from "@workspace/contracts"
+} from "@workspace/contracts/files"
+import { type SupportedLocale } from "@workspace/contracts/locale"
 import {
   createFilePickerScenario,
   createProjectDeleteHandler,

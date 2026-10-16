@@ -11,6 +11,70 @@
     "./file-path": {
       "types": "./dist/file-path.d.ts",
       "default": "./dist/file-path.js"
+    },
+    "./locale": {
+      "types": "./dist/locale.d.ts",
+      "default": "./dist/locale.js"
+    },
+    "./identifiers": {
+      "types": "./dist/identifiers.d.ts",
+      "default": "./dist/identifiers.js"
+    },
+    "./projects": {
+      "types": "./dist/projects.d.ts",
+      "default": "./dist/projects.js"
+    },
+    "./organizations": {
+      "types": "./dist/organizations.d.ts",
+      "default": "./dist/organizations.js"
+    },
+    "./locale-settings": {
+      "types": "./dist/locale-settings.d.ts",
+      "default": "./dist/locale-settings.js"
+    },
+    "./audit": {
+      "types": "./dist/audit.d.ts",
+      "default": "./dist/audit.js"
+    },
+    "./platform": {
+      "types": "./dist/platform.d.ts",
+      "default": "./dist/platform.js"
+    },
+    "./api-error": {
+      "types": "./dist/api-error.d.ts",
+      "default": "./dist/api-error.js"
+    },
+    "./framework-capabilities": {
+      "types": "./dist/framework-capabilities.d.ts",
+      "default": "./dist/framework-capabilities.js"
+    },
+    "./access-credentials": {
+      "types": "./dist/access-credentials.d.ts",
+      "default": "./dist/access-credentials.js"
+    },
+    "./project-files": {
+      "types": "./dist/project-files.d.ts",
+      "default": "./dist/project-files.js"
+    },
+    "./files": {
+      "types": "./dist/files.d.ts",
+      "default": "./dist/files.js"
+    },
+    "./file-batches": {
+      "types": "./dist/file-batches.d.ts",
+      "default": "./dist/file-batches.js"
+    },
+    "./platform-storage": {
+      "types": "./dist/platform-storage.d.ts",
+      "default": "./dist/platform-storage.js"
+    },
+    "./personal-media": {
+      "types": "./dist/personal-media.d.ts",
+      "default": "./dist/personal-media.js"
+    },
+    "./project-query": {
+      "types": "./dist/project-query.d.ts",
+      "default": "./dist/project-query.js"
     }
   },
   "scripts": {

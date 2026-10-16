@@ -12,7 +12,7 @@ import {
 } from "@workspace/admin"
 import { listTaskCenter, requestLanguageHeader } from "@workspace/api-client"
 import { useOrganizationAuthorization } from "@/hooks/use-organization-authorization"
-import { TaskCenterPageSchema } from "@workspace/contracts"
+import { TaskCenterPageSchema } from "@workspace/contracts/framework-capabilities"
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
 import { Button } from "@workspace/ui/components/button"

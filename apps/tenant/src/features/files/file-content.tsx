@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react"
-import { useQueryClient } from "@tanstack/react-query"
+import { useEffect, useRef, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { ErrorState, LoadingState } from "@workspace/admin"
 import {
@@ -117,34 +117,78 @@ export function ProtectedFilePreview({
 
 function PreviewSession({ target }: { target: FileContentTarget }) {
   const { t } = useTranslation(["files", "common"])
-  const [offsets, setOffsets] = useState([0])
-  const [nextOffset, setNextOffset] = useState<number>()
-  const [attempt, setAttempt] = useState(0)
-  const [ready, setReady] = useState(false)
-  const offset = offsets.at(-1)!
   const locale = useUiLocale()
-  const onReady = useCallback((next?: number) => {
-    setNextOffset(next)
-    setReady(true)
-  }, [])
+  const client = useQueryClient()
+  // 私有内容只属于本次预览；重新打开或授权范围变化必须重新向服务端验证。
+  const [scope] = useState(() => ["file-preview", crypto.randomUUID()] as const)
+  const [offsets, setOffsets] = useState([0])
+  const [checkNativeFailure, setCheckNativeFailure] = useState(false)
+  const offset = offsets.at(-1)!
+  const { file, version } = target
+  const preview = useQuery({
+    queryKey: [...scope, offset, checkNativeFailure],
+    queryFn: ({ signal }) =>
+      readPreview(target, offset, checkNativeFailure, signal, locale),
+    enabled: version.previewKind !== "none",
+    gcTime: 0,
+    staleTime: Infinity,
+    retry: false,
+    networkMode: "always",
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+  })
+  useEffect(
+    () => () => {
+      void client.cancelQueries({ queryKey: scope })
+      client.removeQueries({ queryKey: scope })
+    },
+    [client, scope]
+  )
+  useEffect(() => {
+    if (fileRequestIsDenied(preview.error))
+      void client.invalidateQueries({
+        queryKey: organizationKeys.access(file.organizationId),
+      })
+  }, [client, file.organizationId, preview.error])
+
   if (target.version.previewKind === "none")
     return (
       <p className="text-sm text-muted-foreground">
         {t("files:previewUnavailable")}
       </p>
     )
+  const ready = preview.isSuccess && !preview.isFetching
+  const nextOffset =
+    preview.data?.kind === "text" ? preview.data.nextOffset : undefined
+  const retry = () => {
+    if (checkNativeFailure) setCheckNativeFailure(false)
+    else void preview.refetch()
+  }
   return (
     <div className="min-w-0 space-y-4">
-      <PreviewRequest
-        key={JSON.stringify([offset, attempt])}
-        target={target}
-        offset={offset}
-        onReady={onReady}
-        onRetry={() => {
-          setReady(false)
-          setAttempt((current) => current + 1)
-        }}
-      />
+      {preview.isError ? (
+        <ErrorState
+          message={fileRequestErrorMessage(
+            preview.error,
+            t("files:previewReadFailed")
+          )}
+          onRetry={retry}
+        />
+      ) : !ready ? (
+        <LoadingState />
+      ) : preview.data.kind === "unsupported" ? (
+        <ErrorState
+          message={t("files:previewBrowserUnsupported")}
+          onRetry={retry}
+        />
+      ) : (
+        <PreviewContent
+          data={preview.data}
+          target={target}
+          onNativeFailure={() => setCheckNativeFailure(true)}
+        />
+      )}
       {target.version.previewKind === "text" && (
         <nav
           aria-label={t("files:textPages")}
@@ -154,7 +198,6 @@ function PreviewSession({ target }: { target: FileContentTarget }) {
             variant="outline"
             disabled={!ready || offsets.length === 1}
             onClick={() => {
-              setReady(false)
               setOffsets((current) => current.slice(0, -1))
             }}
           >
@@ -169,7 +212,6 @@ function PreviewSession({ target }: { target: FileContentTarget }) {
             variant="outline"
             disabled={!ready || nextOffset === undefined}
             onClick={() => {
-              setReady(false)
               setOffsets((current) => [...current, nextOffset!])
             }}
           >
@@ -181,134 +223,86 @@ function PreviewSession({ target }: { target: FileContentTarget }) {
   )
 }
 
-type PreviewData = { text: string } | { url: string }
+type PreviewData =
+  | { kind: "text"; text: string; nextOffset?: number }
+  | { kind: "image"; blob: Blob }
+  | { kind: "native"; url: string }
+  | { kind: "unsupported" }
 
-function PreviewRequest({
-  target,
-  offset,
-  onReady,
-  onRetry,
-}: {
-  target: FileContentTarget
-  offset: number
-  onReady: (nextOffset?: number) => void
-  onRetry: () => void
-}) {
-  const { t } = useTranslation(["files", "common"])
-  const locale = useUiLocale()
-  const client = useQueryClient()
-  const controller = useRef<AbortController | null>(null)
-  const [data, setData] = useState<PreviewData>()
-  const [error, setError] = useState<string>()
+async function readPreview(
+  target: FileContentTarget,
+  offset: number,
+  checkNativeFailure: boolean,
+  signal: AbortSignal,
+  locale: string
+): Promise<PreviewData> {
   const { file, version } = target
-
-  useEffect(() => {
-    const request = new AbortController()
-    controller.current = request
-    let objectUrl: string | undefined
-    const read = async () => {
-      try {
-        const kind = version.previewKind
-        const ranged = kind === "text" && version.bytes > 0
-        const range = ranged
-          ? `bytes=${offset}-${Math.min(offset + textPageBytes, version.bytes) - 1}`
-          : kind === "audio" || kind === "video" || kind === "pdf"
-            ? "bytes=0-0"
-            : undefined
-        const response = await contentRequest(
-          { file, version },
-          "inline",
-          request.signal,
-          locale,
-          range
-        )
-        if (request.signal.aborted) return
-        if (kind === "text") {
-          const bytes = new Uint8Array(await response.data.arrayBuffer())
-          if (request.signal.aborted) return
-          const end =
-            offset + bytes.length >= version.bytes
-              ? bytes.length
-              : completeUtf8Prefix(bytes)
-          const text = new TextDecoder("utf-8", { fatal: true }).decode(
-            bytes.subarray(0, end)
-          )
-          setData({ text })
-          onReady(offset + end < version.bytes ? offset + end : undefined)
-        } else if (kind === "image") {
-          objectUrl = URL.createObjectURL(response.data)
-          setData({ url: objectUrl })
-          onReady()
-        } else {
-          // 原生媒体和 PDF 后续按需 Range；预检仅读一个字节，不能先下载整个私有文件。
-          setData({
-            url: getGetFileVersionContentUrl(
-              file.organizationId,
-              file.id,
-              version.id,
-              { disposition: "inline" }
-            ),
-          })
-          onReady()
-        }
-      } catch (failure) {
-        if (request.signal.aborted) return
-        setError(fileRequestErrorMessage(failure, t("files:previewReadFailed")))
-        if (fileRequestIsDenied(failure))
-          void client.invalidateQueries({
-            queryKey: organizationKeys.access(file.organizationId),
-          })
-      }
-    }
-    void read()
-    return () => {
-      request.abort()
-      if (objectUrl) URL.revokeObjectURL(objectUrl)
-    }
-  }, [file, version, offset, locale, client, onReady, t])
-
-  const nativeFailure = async () => {
-    const signal = controller.current!.signal
-    setData(undefined)
-    try {
-      await contentRequest(
-        target,
-        "inline",
-        signal,
-        locale,
-        version.bytes > 0 ? "bytes=0-0" : undefined
-      )
-      if (!signal.aborted) setError(t("files:previewBrowserUnsupported"))
-    } catch (failure) {
-      if (signal.aborted) return
-      setError(fileRequestErrorMessage(failure, t("files:previewReadFailed")))
-      if (fileRequestIsDenied(failure))
-        void client.invalidateQueries({
-          queryKey: organizationKeys.access(file.organizationId),
-        })
+  const kind = version.previewKind
+  // 原生媒体与 PDF 只读一字节预检；浏览器解码失败时同样只重新验证授权。
+  const range = checkNativeFailure
+    ? version.bytes > 0
+      ? "bytes=0-0"
+      : undefined
+    : kind === "text" && version.bytes > 0
+      ? `bytes=${offset}-${Math.min(offset + textPageBytes, version.bytes) - 1}`
+      : kind === "audio" || kind === "video" || kind === "pdf"
+        ? "bytes=0-0"
+        : undefined
+  const response = await contentRequest(target, "inline", signal, locale, range)
+  signal.throwIfAborted()
+  if (checkNativeFailure) return { kind: "unsupported" }
+  if (kind === "text") {
+    const bytes = new Uint8Array(await response.data.arrayBuffer())
+    signal.throwIfAborted()
+    const end =
+      offset + bytes.length >= version.bytes
+        ? bytes.length
+        : completeUtf8Prefix(bytes)
+    return {
+      kind: "text",
+      text: new TextDecoder("utf-8", { fatal: true }).decode(
+        bytes.subarray(0, end)
+      ),
+      nextOffset: offset + end < version.bytes ? offset + end : undefined,
     }
   }
+  if (kind === "image") return { kind: "image", blob: response.data }
+  return {
+    kind: "native",
+    url: getGetFileVersionContentUrl(file.organizationId, file.id, version.id, {
+      disposition: "inline",
+    }),
+  }
+}
 
-  if (error) return <ErrorState message={error} onRetry={onRetry} />
-  if (!data) return <LoadingState />
-  if ("text" in data)
+function PreviewContent({
+  data,
+  target,
+  onNativeFailure,
+}: {
+  data: Exclude<PreviewData, { kind: "unsupported" }>
+  target: FileContentTarget
+  onNativeFailure: () => void
+}) {
+  const { t } = useTranslation("files")
+  const { file, version } = target
+  if (data.kind === "text")
     return (
       <pre
         role="region"
         tabIndex={0}
-        aria-label={t("files:textContent")}
+        aria-label={t("textContent")}
         className="max-h-[60vh] overflow-auto rounded-md border bg-muted/40 p-4 text-sm [overflow-wrap:anywhere] whitespace-pre-wrap"
       >
-        {data.text || t("files:emptyText")}
+        {data.text || t("emptyText")}
       </pre>
     )
-  if (version.previewKind === "image")
+  if (data.kind === "image")
     return (
-      <img
-        src={data.url}
-        alt={file.name}
-        className="max-h-[70vh] max-w-full object-contain"
-        onError={() => void nativeFailure()}
+      <PreviewImage
+        blob={data.blob}
+        name={file.name}
+        onError={onNativeFailure}
       />
     )
   if (version.previewKind === "audio")
@@ -318,7 +312,7 @@ function PreviewRequest({
         controls
         aria-label={file.name}
         className="w-full"
-        onError={() => void nativeFailure()}
+        onError={onNativeFailure}
       />
     )
   if (version.previewKind === "video")
@@ -328,7 +322,7 @@ function PreviewRequest({
         controls
         aria-label={file.name}
         className="max-h-[70vh] w-full"
-        onError={() => void nativeFailure()}
+        onError={onNativeFailure}
       />
     )
   return (
@@ -336,7 +330,33 @@ function PreviewRequest({
       src={data.url}
       title={file.name}
       className="h-[70vh] w-full rounded-md border"
-      onError={() => void nativeFailure()}
+      onError={onNativeFailure}
+    />
+  )
+}
+
+function PreviewImage({
+  blob,
+  name,
+  onError,
+}: {
+  blob: Blob
+  name: string
+  onError: () => void
+}) {
+  const image = useRef<HTMLImageElement>(null)
+  // Blob URL 属于浏览器显示资源，不能放进 Query 数据或跨预览范围复用。
+  useEffect(() => {
+    const url = URL.createObjectURL(blob)
+    image.current!.src = url
+    return () => URL.revokeObjectURL(url)
+  }, [blob])
+  return (
+    <img
+      ref={image}
+      alt={name}
+      className="max-h-[70vh] max-w-full object-contain"
+      onError={onError}
     />
   )
 }

@@ -13,3 +13,7 @@
 - 检查 manifest 的四类依赖，以及静态 import/export、字符串动态 import/require 和类型导入。原有服务端依赖限制继续生效。
 
 新增 workspace 后，在 `check.mjs` 中声明它的依赖策略；确属不参与业务分层的工程，则显式登记豁免原因。不要把新包手动加入另一份识别清单。
+
+`contracts` 保持纯协议层，不得依赖 `@tiptap/*`、`prosemirror-*` 或 `rich-text`。富文本能力由 `rich-text → contracts` 组合协议与官方编辑器校验，仅 API、租户后台和 Admin 编辑器直接使用它；平台后台、API 客户端与任务 worker 的通用入口不加载编辑器运行时。平台后台的安装依赖仍经 Admin 包间接包含编辑器，生产包通过专用子路径隔离。
+
+`contracts` 同样不能依赖 React 及其 UI 运行时。`i18n/server`、`i18n/email` 仅用于服务端，前端通过包名、相对路径或 TypeScript 路径别名引用这些模块都会被拒绝；浏览器使用纯根入口、`i18n/ui` 与 `i18n/react`。

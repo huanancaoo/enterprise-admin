@@ -30,7 +30,7 @@ import {
   WebhookListSchema,
   WebhookEventTypeSchema,
   webhookEventTypes,
-} from "@workspace/contracts"
+} from "@workspace/contracts/framework-capabilities"
 import { useUiLocale } from "@workspace/i18n/react"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"

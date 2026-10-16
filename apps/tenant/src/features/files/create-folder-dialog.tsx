@@ -6,11 +6,11 @@ import { ApiClientError } from "@workspace/api-client"
 import {
   CreateFolderSchema,
   FolderNameSchema,
-  maxFolderNameBytes,
   type CreateFolder,
   type FileOperationResponse,
   type FolderResponse,
-} from "@workspace/contracts"
+} from "@workspace/contracts/files"
+import { maxFolderNameBytes } from "@workspace/contracts/file-path"
 import { Button } from "@workspace/ui/components/button"
 import {
   Dialog,

@@ -7,7 +7,7 @@ import {
   updateNotificationPreferences,
   organizationKeys,
 } from "@workspace/api-client"
-import { NotificationPreferencesSchema } from "@workspace/contracts"
+import { NotificationPreferencesSchema } from "@workspace/contracts/framework-capabilities"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import { ErrorState, LoadingState } from "@workspace/admin"
 import { useUiLocale } from "@workspace/i18n/react"
