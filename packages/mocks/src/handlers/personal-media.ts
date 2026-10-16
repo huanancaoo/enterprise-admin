@@ -39,6 +39,7 @@ export function createPersonalAvatarScenario(
   const contentUrl = (id: string) => `/api/v1/personal-media/${id}/content`
   let image: string | null = contentUrl(initialMediaId)
   let saveFailed = false
+  let uploadFailed = false
   let uploadedBytes = personalAvatarImage
   let uploadedContentType = "image/png"
   const saves: unknown[] = []
@@ -54,6 +55,7 @@ export function createPersonalAvatarScenario(
     reset() {
       image = contentUrl(initialMediaId)
       saveFailed = false
+      uploadFailed = false
       uploadedBytes = personalAvatarImage
       uploadedContentType = "image/png"
       saves.length = 0
@@ -100,8 +102,10 @@ export function createPersonalAvatarScenario(
       http.post("*/api/v1/personal-media", async ({ request }) => {
         if (scenario === "slow-upload") await delay("infinite")
         if (scenario === "unauthorized") return error(401, "UNAUTHENTICATED")
-        if (scenario === "upload-error")
+        if (scenario === "upload-error" && !uploadFailed) {
+          uploadFailed = true
           return error(503, "FILE_STORAGE_UNAVAILABLE")
+        }
         const key = PersonalMediaUploadKeySchema.safeParse(
           request.headers.get("Idempotency-Key")
         )

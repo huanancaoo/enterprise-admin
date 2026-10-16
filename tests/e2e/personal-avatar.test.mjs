@@ -57,35 +57,49 @@ async function attach(context, cookie, origin) {
     })
   )
 }
-async function choose(page, format = "png", body = images[format]) {
-  await page.getByLabel("选择头像图片").setInputFiles({
-    name: `头像.${format}`,
-    mimeType: format === "jpeg" ? "image/jpeg" : `image/${format}`,
-    buffer: body,
-  })
-  await expectUI(page.getByAltText("头像草稿预览")).toBeVisible()
+async function selectFile(page, name, mimeType, body) {
+  await page
+    .getByLabel("选择头像图片")
+    .setInputFiles({ name, mimeType, buffer: body })
 }
-async function uploaded(page, format = "png") {
+async function choose(page, format = "png", body = images[format]) {
+  await selectFile(
+    page,
+    `头像.${format}`,
+    format === "jpeg" ? "image/jpeg" : `image/${format}`,
+    body
+  )
+  await expectUI(page.getByAltText("新头像预览")).toBeVisible()
+}
+async function saveSelected(
+  page,
+  format = "png",
+  body = images[format],
+  beforeSave = async () => {}
+) {
   await choose(page, format)
-  await expectUI(
-    page.getByRole("button", { name: "保存头像", exact: true })
-  ).toBeDisabled()
-  const result = page.waitForResponse(
+  await beforeSave()
+  const uploadResponse = page.waitForResponse(
     (r) =>
       r.request().method() === "POST" &&
       new URL(r.url()).pathname === "/api/v1/personal-media"
   )
-  await page.getByRole("button", { name: "上传草稿", exact: true }).click()
-  const response = await result
-  expect(response.status(), await response.text()).toBe(201)
-  const receipt = await response.json()
-  expect(response.request().headers()["content-type"]).toBe(
+  const saveResponse = page.waitForResponse(
+    (r) =>
+      r.request().method() === "PUT" &&
+      new URL(r.url()).pathname === "/api/v1/personal-media/avatar"
+  )
+  await page.getByRole("button", { name: "保存头像", exact: true }).click()
+  const upload = await uploadResponse
+  const response = await saveResponse
+  expect(upload.status(), await upload.text()).toBe(201)
+  const candidate = await upload.json()
+  expect(upload.request().headers()["content-type"]).toBe(
     format === "jpeg" ? "image/jpeg" : `image/${format}`
   )
-  await expectUI(
-    page.getByRole("status").filter({ hasText: "草稿已上传" })
-  ).toBeVisible()
-  return receipt
+  expect(response.status(), await response.text()).toBe(200)
+  await expectUI(page.getByRole("status")).toHaveText("头像设置已保存。")
+  return { candidate, receipt: await response.json() }
 }
 async function save(page, remove = false) {
   const response = page.waitForResponse(
@@ -101,9 +115,7 @@ async function save(page, remove = false) {
     .click()
   const result = await response
   expect(result.status(), await result.text()).toBe(200)
-  await expectUI(
-    page.getByRole("status").filter({ hasText: "头像设置已保存" })
-  ).toBeVisible()
+  await expectUI(page.getByRole("status")).toHaveText("头像设置已保存。")
   return result.json()
 }
 async function decoded(locator) {
@@ -241,7 +253,7 @@ describe.each(["Local", "RustFS"])("个人头像正式产品 / %s", (backend) =>
     )
   }
 
-  it("上传与保存分离，四格式经两个后台更换、刷新、成员目录读取及显式移除", async () => {
+  it("四种格式一次保存后经两个后台更换、刷新、成员目录读取及显式移除", async () => {
     const owner = await platformOperator(
       environment,
       environment.platformOrigin
@@ -274,9 +286,13 @@ describe.each(["Local", "RustFS"])("个人头像正式产品 / %s", (backend) =>
     for (const [index, format] of ["png", "jpeg", "webp", "gif"].entries()) {
       const editor = index % 2 === 0 ? page : platform
       await editor.reload()
-      const candidate = await uploaded(editor, format)
       expect(await current(owner)).toBe(previous)
-      const receipt = await save(editor)
+      const { candidate, receipt } = await saveSelected(
+        editor,
+        format,
+        images[format],
+        async () => expect(await current(owner)).toBe(previous)
+      )
       expect(receipt.image).toBe(candidate.media.contentUrl)
       expect(await current(owner)).toBe(candidate.media.contentUrl)
       previous = candidate.media.contentUrl
@@ -347,23 +363,34 @@ describe.each(["Local", "RustFS"])("个人头像正式产品 / %s", (backend) =>
     ).toHaveCount(0)
   })
 
-  it("真实上传等待期间禁止重复提交，CAS 拒绝保留草稿和现头像，明确重试重新比较事实", async () => {
+  it("一次保存依次上传并 CAS，冲突保留选择和预览，明确重试重新比较事实", async () => {
     const actor = await account()
     const initial = await outsideUpload(actor)
     await outsideSave(actor, initial.media.id, null)
     await attach(context, actor.cookie, environment.tenantOrigin)
     await page.goto(environment.tenantOrigin + personalPath)
     await ownNav(page)
-    let release, entered
+    let release, entered, releaseSave, enteredSave
     const gate = new Promise((resolve) => {
         release = resolve
       }),
       waiting = new Promise((resolve) => {
         entered = resolve
       })
+    const saveGate = new Promise((resolve) => {
+        releaseSave = resolve
+      }),
+      saveWaiting = new Promise((resolve) => {
+        enteredSave = resolve
+      })
     await page.route("**/api/v1/personal-media", async (route) => {
       entered()
       await gate
+      await route.continue()
+    })
+    await page.route("**/api/v1/personal-media/avatar", async (route) => {
+      enteredSave()
+      await saveGate
       await route.continue()
     })
     await choose(page, "webp")
@@ -372,42 +399,122 @@ describe.each(["Local", "RustFS"])("个人头像正式产品 / %s", (backend) =>
         r.request().method() === "POST" &&
         new URL(r.url()).pathname === "/api/v1/personal-media"
     )
-    await page.getByRole("button", { name: "上传草稿", exact: true }).click()
+    const saveResponse = page.waitForResponse(
+      (r) =>
+        r.request().method() === "PUT" &&
+        new URL(r.url()).pathname === "/api/v1/personal-media/avatar"
+    )
+    await page.getByRole("button", { name: "保存头像", exact: true }).click()
     await waiting
     try {
       await expectUI(
-        page.getByRole("button", { name: "正在上传草稿…", exact: true })
+        page.getByRole("button", { name: "正在保存头像…", exact: true })
       ).toBeDisabled()
       await expectUI(page.getByLabel("选择头像图片")).toBeDisabled()
-      await expectUI(
-        page.getByRole("button", { name: "保存头像", exact: true })
-      ).toBeDisabled()
     } finally {
       release()
     }
     const upload = await uploadResponse
     expect(upload.status()).toBe(201)
     const candidate = await upload.json()
-    await expectUI(
-      page.getByRole("status").filter({ hasText: "草稿已上传" })
-    ).toBeVisible()
+    await saveWaiting
     const concurrent = await outsideUpload(actor, "jpeg")
     await outsideSave(actor, concurrent.media.id, initial.media.contentUrl)
-    const response = page.waitForResponse(
+    releaseSave()
+    const conflict = await saveResponse
+    expect(conflict.status()).toBe(409)
+    expect((await conflict.json()).code).toBe("VERSION_CONFLICT")
+    await expectUI(page.getByRole("alert")).toContainText("头像保存失败")
+    await expectUI(page.getByAltText("新头像预览")).toBeVisible()
+    expect(await current(actor)).toBe(concurrent.media.contentUrl)
+    const retry = page.waitForResponse(
       (r) =>
         r.request().method() === "PUT" &&
         new URL(r.url()).pathname === "/api/v1/personal-media/avatar"
     )
     await page.getByRole("button", { name: "保存头像", exact: true }).click()
-    const conflict = await response
-    expect(conflict.status()).toBe(409)
-    expect((await conflict.json()).code).toBe("VERSION_CONFLICT")
-    await expectUI(page.getByRole("alert")).toContainText("头像保存失败")
-    await expectUI(page.getByAltText("头像草稿预览")).toBeVisible()
-    expect(await current(actor)).toBe(concurrent.media.contentUrl)
-    const retried = await save(page)
-    expect(retried.image).toBe(candidate.media.contentUrl)
+    const retried = await retry
+    expect(retried.status()).toBe(200)
+    const receipt = await retried.json()
+    expect(receipt.image).toBe(candidate.media.contentUrl)
     expect(await current(actor)).toBe(candidate.media.contentUrl)
+  })
+
+  it("拒绝过大与不支持格式，上传失败后保留图片并可重试", async () => {
+    const actor = await account()
+    await attach(context, actor.cookie, environment.tenantOrigin)
+    await page.goto(environment.tenantOrigin + personalPath)
+    const postRequests = []
+    page.on("request", (request) => {
+      if (
+        request.method() === "POST" &&
+        new URL(request.url()).pathname === "/api/v1/personal-media"
+      )
+        postRequests.push(request)
+    })
+
+    await selectFile(page, "头像.svg", "image/svg+xml", Buffer.from("<svg/>"))
+    await expectUI(page.getByRole("alert")).toContainText(
+      "请选择可解码的 JPEG、PNG、WebP 或 GIF 图片。"
+    )
+    await selectFile(
+      page,
+      "头像.png",
+      "image/png",
+      Buffer.alloc(5 * 1024 * 1024 + 1)
+    )
+    await expectUI(page.getByRole("alert")).toContainText(
+      "头像图片不能超过 5 MiB。"
+    )
+    expect(postRequests).toHaveLength(0)
+
+    let failFirstUpload = true
+    await page.route("**/api/v1/personal-media", async (route) => {
+      if (failFirstUpload) {
+        failFirstUpload = false
+        await route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: JSON.stringify({
+            code: "INTERNAL_ERROR",
+            message: "上传暂时不可用",
+            requestId: randomUUID(),
+            locale: "zh-CN",
+          }),
+        })
+      } else await route.continue()
+    })
+    await choose(page, "png")
+    const failedUpload = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        new URL(response.url()).pathname === "/api/v1/personal-media"
+    )
+    await page.getByRole("button", { name: "保存头像", exact: true }).click()
+    expect((await failedUpload).status()).toBe(503)
+    await expectUI(page.getByRole("alert")).toContainText("头像保存失败")
+    await expectUI(page.getByAltText("新头像预览")).toBeVisible()
+
+    const uploadResponse = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        new URL(response.url()).pathname === "/api/v1/personal-media" &&
+        response.status() === 201
+    )
+    const saveResponse = page.waitForResponse(
+      (response) =>
+        response.request().method() === "PUT" &&
+        new URL(response.url()).pathname === "/api/v1/personal-media/avatar"
+    )
+    await page.getByRole("button", { name: "保存头像", exact: true }).click()
+    const upload = await uploadResponse
+    const candidate = await upload.json()
+    const saved = await saveResponse
+    expect(saved.status()).toBe(200)
+    expect((await saved.json()).image).toBe(candidate.media.contentUrl)
+    expect(await current(actor)).toBe(candidate.media.contentUrl)
+    const stored = await content(actor, candidate.media.id)
+    expect(sha(Buffer.from(await stored.arrayBuffer()))).toBe(sha(images.png))
   })
 
   it("成员头像实时撤权隐藏，暂停组织不限制本人设置，撤销 Session 不能上传成功", async () => {
@@ -500,8 +607,8 @@ describe.each(["Local", "RustFS"])("个人头像正式产品 / %s", (backend) =>
     await attach(ownerContext, owner.cookie, environment.tenantOrigin)
     const personal = await ownerContext.newPage()
     await personal.goto(environment.tenantOrigin + personalPath)
-    const candidate = await uploaded(personal, "gif")
-    expect((await save(personal)).image).toBe(candidate.media.contentUrl)
+    const { candidate, receipt } = await saveSelected(personal, "gif")
+    expect(receipt.image).toBe(candidate.media.contentUrl)
     expect((await content(viewer, candidate.media.id, org.id)).status).toBe(404)
     const sessionActor = await account("被撤销会话头像用户")
     const persisted = await outsideUpload(sessionActor)
@@ -545,7 +652,7 @@ describe.each(["Local", "RustFS"])("个人头像正式产品 / %s", (backend) =>
     )
     expect(revokedSession.status).toBe(200)
     await sessionPage
-      .getByRole("button", { name: "上传草稿", exact: true })
+      .getByRole("button", { name: "保存头像", exact: true })
       .click()
     expect((await response).status()).toBe(401)
     await expectUI(
@@ -569,16 +676,24 @@ describe.each(["Local", "RustFS"])("个人头像正式产品 / %s", (backend) =>
       .click()
     await expectUI(sessionPage).toHaveURL(new RegExp(personalPath + "$"))
     await ownNav(sessionPage)
-    const resumed = await uploaded(sessionPage, "webp")
-    expect((await save(sessionPage)).image).toBe(resumed.media.contentUrl)
+    const { candidate: resumed, receipt: resumedReceipt } = await saveSelected(
+      sessionPage,
+      "webp"
+    )
+    expect(resumedReceipt.image).toBe(resumed.media.contentUrl)
   })
 
   it("真实 CAS 已提交但响应丢失时不自动重试，明确重试复用完整请求和同一收据", async () => {
     const actor = await account("未知结果头像用户")
     await attach(context, actor.cookie, environment.tenantOrigin)
     await page.goto(environment.tenantOrigin + personalPath)
-    const candidate = await uploaded(page, "webp")
+    await choose(page, "webp")
     const requests = []
+    const uploadResponse = page.waitForResponse(
+      (r) =>
+        r.request().method() === "POST" &&
+        new URL(r.url()).pathname === "/api/v1/personal-media"
+    )
     let first = true,
       resolveCommitted
     const committed = new Promise((resolve) => {
@@ -599,9 +714,12 @@ describe.each(["Local", "RustFS"])("个人头像正式产品 / %s", (backend) =>
     })
     await page.getByRole("button", { name: "保存头像", exact: true }).click()
     const write = await committed
+    const upload = await uploadResponse
+    expect(upload.status()).toBe(201)
+    const candidate = await upload.json()
     expect(write.status).toBe(200)
     await expectUI(page.getByRole("alert")).toContainText("未收到头像保存结果")
-    await expectUI(page.getByAltText("头像草稿预览")).toBeVisible()
+    await expectUI(page.getByAltText("新头像预览")).toBeVisible()
     expect(requests).toHaveLength(1)
     expect(await current(actor)).toBe(candidate.media.contentUrl)
     const receipt = await save(page)
@@ -609,6 +727,33 @@ describe.each(["Local", "RustFS"])("个人头像正式产品 / %s", (backend) =>
     expect(requests).toHaveLength(2)
     expect(requests[1]).toEqual(requests[0])
     await ownNav(page)
+  })
+
+  it("中文选图按钮支持键盘打开文件选择器，预览后才允许保存", async () => {
+    const actor = await account("键盘头像用户")
+    await attach(context, actor.cookie, environment.tenantOrigin)
+    await page.goto(environment.tenantOrigin + personalPath)
+    const chooseImage = page.getByRole("button", {
+      name: "选择图片",
+      exact: true,
+    })
+    await chooseImage.focus()
+    await expectUI(chooseImage).toBeFocused()
+    const chooser = page.waitForEvent("filechooser")
+    await chooseImage.press("Enter")
+    await (
+      await chooser
+    ).setFiles({
+      name: "avatar.png",
+      mimeType: "image/png",
+      buffer: images.png,
+    })
+    await expectUI(page.getByAltText("新头像预览")).toBeVisible()
+    await expectUI(page.getByText("保存后生效")).toBeVisible()
+    await expectUI(
+      page.getByRole("button", { name: "保存头像", exact: true })
+    ).toBeEnabled()
+    expect(await current(actor)).toBeNull()
   })
 
   it("三语言与 RTL 保持真实控件语义、键盘入口和无障碍", async () => {
@@ -628,6 +773,29 @@ describe.each(["Local", "RustFS"])("个人头像正式产品 / %s", (backend) =>
       page.getByRole("heading", { name: "الصورة الشخصية", exact: true })
     ).toBeVisible()
     await expectUI(page.locator("html")).toHaveAttribute("dir", "rtl")
+    await page.setViewportSize({ width: 375, height: 844 })
+    await page.getByLabel("اختيار صورة شخصية").setInputFiles({
+      name: "avatar.png",
+      mimeType: "image/png",
+      buffer: images.png,
+    })
+    await expectUI(
+      page.getByAltText("معاينة الصورة الشخصية الجديدة")
+    ).toBeVisible()
+    await expectUI(
+      page.getByRole("button", { name: "حفظ الصورة الشخصية", exact: true })
+    ).toBeEnabled()
+    expect(
+      await page.evaluate(
+        () =>
+          document.documentElement.scrollWidth <=
+          document.documentElement.clientWidth
+      )
+    ).toBe(true)
+    await page.screenshot({
+      path: join(tmpdir(), `personal-avatar-${backend}-mobile-rtl.png`),
+      fullPage: true,
+    })
     await page.addScriptTag({
       path: a11yRequire.resolve("axe-core/axe.min.js"),
     })
@@ -642,6 +810,7 @@ describe.each(["Local", "RustFS"])("个人头像正式产品 / %s", (backend) =>
       }))
     )
     expect(violations).toEqual([])
+    await page.setViewportSize({ width: 1280, height: 900 })
     await selectLocale(page, actor.user.name, "简体中文", "اللغة")
     await expectUI(
       page.getByRole("heading", { name: "个人头像", exact: true })

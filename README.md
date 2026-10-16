@@ -137,6 +137,50 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 `start` / `dev` / `start:debug` 由 Nest CLI 加载 `apps/api/.env`，已有进程环境变量优先。生产 `start:prod` 使用部署环境注入的变量。
 
+头像和组织文件上传需要显式启用文件存储。使用本机 RustFS 时，复制 `infra/storage/.env.example` 为 `infra/storage/.env`，填写随机的 access key 和 secret key，再启动：
+
+```sh
+docker compose --env-file infra/postgres/.env -f compose.yaml -f compose.storage.yaml up -d rustfs
+```
+
+RustFS 只监听 `127.0.0.1:9000`，数据保存在 `rustfs_data` 持久卷。将 `apps/api/.env` 中的文件配置设为：
+
+```dotenv
+FILES_STORAGE_BACKEND=s3
+FILES_S3_ENDPOINT=http://127.0.0.1:9000
+FILES_S3_REGION=us-east-1
+FILES_S3_BUCKET=enterprise-admin
+FILES_S3_PREFIX=private
+FILES_S3_ACCESS_KEY_ID=<与 RUSTFS_ACCESS_KEY 相同>
+FILES_S3_SECRET_ACCESS_KEY=<与 RUSTFS_SECRET_KEY 相同>
+```
+
+等待 `http://127.0.0.1:9000/health/ready` 返回 200 后，首次创建私有 bucket；后续启动使用持久卷中的既有 bucket，无需重复创建：
+
+```sh
+node --env-file=apps/api/.env --input-type=module <<'NODE'
+import { createRequire } from 'node:module';
+const require = createRequire(`${process.cwd()}/apps/api/package.json`);
+const { S3Client, CreateBucketCommand } = require('@aws-sdk/client-s3');
+const client = new S3Client({
+  endpoint: process.env.FILES_S3_ENDPOINT,
+  region: process.env.FILES_S3_REGION,
+  forcePathStyle: true,
+  credentials: {
+    accessKeyId: process.env.FILES_S3_ACCESS_KEY_ID,
+    secretAccessKey: process.env.FILES_S3_SECRET_ACCESS_KEY,
+  },
+});
+try {
+  await client.send(new CreateBucketCommand({ Bucket: process.env.FILES_S3_BUCKET }));
+} finally {
+  client.destroy();
+}
+NODE
+```
+
+配置完成后启动或重启 API。未启用存储时，上传接口不可用；本机文件系统模式要求区分大小写的私有目录，默认 macOS 卷不满足此条件。
+
 ### 4. 配置 Worker 并启动应用
 
 复制 `apps/worker/.env.example` 为 `apps/worker/.env`，配置与 API 相同的 `DATABASE_URL`（app_runtime）和 `REDIS_URL`。数据库迁移完成后，根开发入口会同时启动独立 Worker。
