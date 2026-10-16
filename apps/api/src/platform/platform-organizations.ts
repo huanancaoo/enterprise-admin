@@ -127,7 +127,6 @@ export class PlatformOrganizations {
             NOT_FOUND: 404,
             VERSION_CONFLICT: 409,
             FORBIDDEN: 403,
-            PLATFORM_MFA_REQUIRED: 403,
             VALIDATION_ERROR: 400,
             AUDIT_UNAVAILABLE: 503,
             AUTHORIZATION_UNAVAILABLE: 503,

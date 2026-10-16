@@ -258,14 +258,3 @@ export const SaveSessionExpired: Story = {
     await expect(canvas.queryByText("production")).toBeNull()
   },
 }
-export const RecentMfaRequired: Story = {
-  ...scenario("mfaRequired"),
-  play: async ({ canvasElement }) => {
-    const { canvas, submit } = await draft(canvasElement)
-    await userEvent.click(submit)
-    await canvas.findByRole("heading", {
-      name: "Verify your platform identity",
-    })
-    await expect(canvas.queryByText("production")).toBeNull()
-  },
-}

@@ -205,7 +205,6 @@
   "platformUsersSearch": "Search name, user ID or masked email",
   "platformUsersSearchInvalid": "Search must be at most 200 characters.",
   "platformVerified": "Verified",
-  "platformVerifyRetry": "Verify and retry",
   "platformVersion": "Status version",
   "removeMember": "Remove member",
   "removeMemberDescription": "Remove {{name}} from the organization.",

@@ -157,7 +157,7 @@ describe("platform assignment access boundary", () => {
     expect(notGranted.rowCount).toBe(0)
   })
 
-  it("requires a TOTP assertion bound to the active session and rejects bad codes", async () => {
+  it("allows access without MFA and records voluntary TOTP verification on the active session", async () => {
     const member = await signup()
     await cli(
       "grant",
@@ -166,10 +166,42 @@ describe("platform assignment access boundary", () => {
       "verified platform operator"
     )
     const initiallyDenied = await platformAccess(member.cookie)
-    expect(initiallyDenied.status).toBe(403)
+    expect(initiallyDenied.status).toBe(200)
     expect(await json(initiallyDenied)).toMatchObject({
-      code: "PLATFORM_MFA_REQUIRED",
+      role: "platform_admin",
+      mfaVerifiedAt: null,
     })
+    for (const path of [
+      "platform/organizations",
+      "platform/users",
+      `platform/users/${member.user.id}/sensitive-profile?purpose=Optional%20MFA%20acceptance`,
+    ]) {
+      expect(
+        (
+          await fetch(`${baseURL}/api/v1/${path}`, {
+            headers: { cookie: member.cookie },
+          })
+        ).status
+      ).toBe(200)
+    }
+    const settings = await fetch(`${baseURL}/api/v1/platform/settings`, {
+      headers: { cookie: member.cookie },
+    }).then((response) => response.json())
+    const updated = await fetch(`${baseURL}/api/v1/platform/settings`, {
+      method: "PATCH",
+      headers: {
+        cookie: member.cookie,
+        origin,
+        "content-type": "application/json",
+        "idempotency-key": randomUUID(),
+      },
+      body: JSON.stringify({
+        platformDefaultLocale: settings.platformDefaultLocale,
+        expectedVersion: settings.version,
+        reason: "Password-only administrator acceptance",
+      }),
+    })
+    expect(updated.status).toBe(200)
 
     const previousSession = await getSession(member.cookie).then((response) =>
       response.json()
@@ -205,9 +237,8 @@ describe("platform assignment access boundary", () => {
       )
     ).toMatchObject({ rowCount: 0 })
     const stillDenied = await platformAccess(setupSessionCookie)
-    expect(await json(stillDenied)).toMatchObject({
-      code: "PLATFORM_MFA_REQUIRED",
-    })
+    expect(stillDenied.status).toBe(200)
+    expect(await json(stillDenied)).toMatchObject({ mfaVerifiedAt: null })
 
     const verified = await fetchJson(
       "two-factor/verify-totp",
@@ -351,8 +382,8 @@ describe("platform assignment access boundary", () => {
       ).rows
     ).toEqual([])
     const denied = await platformAccess(currentCookie)
-    expect(denied.status).toBe(403)
-    expect(await denied.json()).toMatchObject({ code: "PLATFORM_MFA_REQUIRED" })
+    expect(denied.status).toBe(200)
+    expect(await denied.json()).toMatchObject({ mfaVerifiedAt: null })
   })
 
   it("T21: a GitHub callback creates a real session without inheriting platform MFA assurance", async () => {
@@ -456,10 +487,8 @@ describe("platform assignment access boundary", () => {
         ).rows
       ).toEqual([])
       const denied = await platformAccess(currentCookie)
-      expect(denied.status).toBe(403)
-      expect(await denied.json()).toMatchObject({
-        code: "PLATFORM_MFA_REQUIRED",
-      })
+      expect(denied.status).toBe(200)
+      expect(await denied.json()).toMatchObject({ mfaVerifiedAt: null })
     } finally {
       provider.mockRestore()
     }

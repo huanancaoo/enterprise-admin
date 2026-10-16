@@ -21,7 +21,6 @@ export type PlatformSettingsScenario =
   | "saveLoading"
   | "saveForbidden"
   | "saveUnauthorized"
-  | "mfaRequired"
 
 export function createPlatformSettingsScenario(
   scenario: PlatformSettingsScenario = "success"
@@ -69,8 +68,6 @@ export function createPlatformSettingsScenario(
         if (scenario === "saveForbidden") return failure(403, "FORBIDDEN")
         if (scenario === "saveUnauthorized")
           return failure(401, "UNAUTHENTICATED")
-        if (scenario === "mfaRequired")
-          return failure(403, "PLATFORM_MFA_REQUIRED")
         if (
           !failedSave &&
           (scenario === "rateLimited" || scenario === "saveUnavailable")

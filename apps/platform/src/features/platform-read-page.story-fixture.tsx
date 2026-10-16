@@ -17,15 +17,20 @@ import {
   platformOrganizationActor,
   platformUserFixture,
 } from "@workspace/mocks"
-import {
-  PlatformAccessDeniedPage,
-  PlatformLoginPage,
-  PlatformMfaPage,
-} from "../App"
+import { PlatformAccessDeniedPage, PlatformLoginPage } from "../App"
 import { authClient } from "../lib/auth-client"
 import { PlatformUsersPage, PlatformUserDetailPage } from "./users/pages"
 import { PlatformAuditPage } from "./audit/page"
 import { PlatformSettingsPage } from "./settings-page"
+
+function StoryDenied() {
+  const { t } = useTranslation("auth")
+  return (
+    <AuthGate client={authClient} restoreTitle={t("platformTitle")}>
+      {() => <PlatformAccessDeniedPage />}
+    </AuthGate>
+  )
+}
 
 function StoryLogin() {
   const { t } = useTranslation("auth")
@@ -99,7 +104,7 @@ export function PlatformReadPageStory({
     const denied = createRoute({
       getParentRoute: () => platform,
       path: "access-denied",
-      component: PlatformAccessDeniedPage,
+      component: StoryDenied,
     })
     const login = createRoute({
       getParentRoute: () => root,
@@ -115,15 +120,9 @@ export function PlatformReadPageStory({
         </main>
       ),
     })
-    const mfa = createRoute({
-      getParentRoute: () => platform,
-      path: "mfa",
-      validateSearch: (search) => ({ challenge: search.challenge === true }),
-      component: PlatformMfaPage,
-    })
     return createRouter({
       routeTree: root.addChildren([
-        platform.addChildren([users, user, audit, settings, mfa, denied]),
+        platform.addChildren([users, user, audit, settings, denied]),
         login,
       ]),
       history: createMemoryHistory({

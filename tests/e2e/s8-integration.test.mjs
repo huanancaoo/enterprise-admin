@@ -15,7 +15,6 @@ import {
 } from "vitest"
 import { signUpVerified } from "../setup/complete-signup.mjs"
 import { firstHttpUrl, waitForMail } from "../setup/mailpit.mjs"
-import { platformTotp } from "../setup/platform-operator.mjs"
 import { startBrowserApplication } from "../setup/test-runtime.mjs"
 
 const runCLI = promisify(execFile)
@@ -548,7 +547,7 @@ describe("S8 cross-feature browser acceptance", () => {
     ).toBeVisible()
   })
 
-  it("enrolls platform MFA in the real page, suspends tenant access, restores it and exposes only the tenant event projection", async () => {
+  it("allows a password-only platform admin to suspend and restore tenant access and exposes only the tenant event projection", async () => {
     const owner = await signUpVerified(
       environment.baseURL,
       environment.tenantOrigin,
@@ -602,30 +601,6 @@ describe("S8 cross-feature browser acceptance", () => {
         .fill(admin.password)
       await platformPage
         .getByRole("button", { name: "登录", exact: true })
-        .click()
-      await expectUI(
-        platformPage.getByRole("heading", {
-          name: "设置平台双重验证",
-          exact: true,
-        })
-      ).toBeVisible()
-      await expectUI(
-        platformPage.getByRole("link", { name: "组织", exact: true })
-      ).toHaveCount(0)
-      await platformPage
-        .getByLabel("密码", { exact: true })
-        .fill(admin.password)
-      await platformPage
-        .getByRole("button", { name: "生成 TOTP 密钥", exact: true })
-        .click()
-      const uri = platformPage.getByLabel("身份验证器配置 URI", { exact: true })
-      await expectUI(uri).toBeVisible()
-      const secret = new URL(await uri.inputValue()).searchParams.get("secret")
-      await platformPage
-        .getByLabel("6 位验证码", { exact: true })
-        .fill(platformTotp(secret))
-      await platformPage
-        .getByRole("button", { name: "验证并继续", exact: true })
         .click()
       await expectUI(
         platformPage.getByText("平台管理员 · 全平台范围", { exact: true })

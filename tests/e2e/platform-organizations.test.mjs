@@ -5,7 +5,7 @@ import { join, resolve } from "node:path"
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest"
 import { expect as expectUI } from "playwright/test"
 import { startBrowserApplication } from "../setup/test-runtime.mjs"
-import { platformOperator, platformTotp } from "../setup/platform-operator.mjs"
+import { platformOperator } from "../setup/platform-operator.mjs"
 import { signUpVerified } from "../setup/complete-signup.mjs"
 
 describe("platform organizations browser flow", () => {
@@ -241,7 +241,7 @@ describe("platform organizations browser flow", () => {
     ).toBeVisible()
   })
 
-  it("performs recent session MFA in the confirmation dialog without clearing the operation draft", async () => {
+  it("allows organization changes without requiring recent session MFA", async () => {
     const target = await createOrganization()
     const page = await pageFor(admin)
     await page.goto(
@@ -263,18 +263,6 @@ describe("platform organizations browser flow", () => {
     )
     await dialog
       .getByRole("button", { name: "Confirm suspension", exact: true })
-      .click()
-    await expectUI(
-      dialog.getByLabel("Six-digit code", { exact: true })
-    ).toBeVisible()
-    await expectUI(dialog.getByLabel("Reason", { exact: true })).toHaveValue(
-      "Recent session MFA confirmation from the real page"
-    )
-    await dialog
-      .getByLabel("Six-digit code", { exact: true })
-      .fill(platformTotp(admin.secret))
-    await dialog
-      .getByRole("button", { name: "Verify and retry", exact: true })
       .click()
     await expectUI(dialog).not.toBeVisible()
     admin.cookie = (await page.context().cookies())
@@ -531,7 +519,7 @@ describe("platform organizations browser flow", () => {
       page.getByRole("button", { name: "Sign in", exact: true })
     ).toBeVisible()
   })
-  it("clears the protected view and requests MFA when session assurance is lost rather than only aged", async () => {
+  it("allows organization changes after optional session assurance is removed", async () => {
     const actor = await platformOperator(
       environment,
       environment.platformOrigin
@@ -558,13 +546,9 @@ describe("platform organizations browser flow", () => {
     await dialog
       .getByRole("button", { name: "Confirm suspension", exact: true })
       .click()
-    await expectUI(page).toHaveURL(/\/platform\/mfa/)
     await expectUI(dialog).not.toBeVisible()
-    await expectUI(
-      page.getByRole("heading", {
-        name: "Verify your platform identity",
-        exact: true,
-      })
-    ).toBeVisible()
+    await expectUI(page).toHaveURL(
+      new RegExp(`/platform/organizations/${target.id}$`)
+    )
   })
 })

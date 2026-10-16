@@ -2,9 +2,7 @@ import type { QueryClient } from "@tanstack/react-query"
 import { ApiClientError } from "@workspace/api-client"
 
 export type PlatformAccessDestination =
-  | { to: "/platform/access-denied" }
-  | { to: "/login" }
-  | { to: "/platform/mfa"; search: { challenge: false } }
+  { to: "/platform/access-denied" } | { to: "/login" }
 
 type PlatformAccessAdapter = {
   queryClient: QueryClient
@@ -26,8 +24,6 @@ export async function rejectPlatformAccess(
   if (error.status === 401) {
     await adapter.restoreSession()
     await adapter.exit({ to: "/login" })
-  } else if (error.body.code === "PLATFORM_MFA_REQUIRED") {
-    await adapter.exit({ to: "/platform/mfa", search: { challenge: false } })
   } else await adapter.exit({ to: "/platform/access-denied" })
   return true
 }

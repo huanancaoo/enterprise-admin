@@ -239,7 +239,7 @@ describe("platform MFA browser flow", () => {
     120_000
   )
 
-  it("enrolls TOTP before showing the platform shell and challenges subsequent sign-ins", async () => {
+  it("allows password-only access and challenges sign-ins after voluntarily enabling TOTP", async () => {
     const target = account("平台管理员")
     const registered = await signUpVerified(
       environment.baseURL,
@@ -249,27 +249,32 @@ describe("platform MFA browser flow", () => {
     )
     await grant(registered, "platform_admin")
 
+    await page.goto(`${platformOrigin}/platform/mfa`)
+    await expectUI(page).toHaveURL(/\/login$/)
     await page.goto(`${platformOrigin}/platform`)
     await signIn(target)
-    await expectUI(
-      page.getByRole("heading", { name: "设置平台双重验证", exact: true })
-    ).toBeVisible()
-    await expectUI(
-      page.getByRole("link", { name: "组织", exact: true }).last()
-    ).toHaveCount(0)
-
-    await page.getByLabel("密码", { exact: true }).fill(target.password)
-    await page
-      .getByRole("button", { name: "生成 TOTP 密钥", exact: true })
-      .click()
-    const uriInput = page.getByLabel("身份验证器配置 URI", { exact: true })
-    await expectUI(uriInput).toBeVisible()
-    const secret = new URL(await uriInput.inputValue()).searchParams.get(
+    await expectUI(page).toHaveURL(/\/platform\/organizations(?:\?|$)/)
+    await page.goto(`${platformOrigin}/platform/mfa?challenge=false`)
+    await expectUI(page).toHaveURL(/\/platform\/organizations(?:\?|$)/)
+    const enabled = await page.request.post(
+      `${platformOrigin}/api/auth/two-factor/enable`,
+      {
+        headers: { origin: platformOrigin },
+        data: { password: target.password, method: "totp" },
+      }
+    )
+    expect(enabled.status()).toBe(200)
+    const secret = new URL((await enabled.json()).totpURI).searchParams.get(
       "secret"
     )
-    expect(secret).toBeTruthy()
-    await page.getByLabel("6 位验证码", { exact: true }).fill(totp(secret))
-    await page.getByRole("button", { name: "验证并继续", exact: true }).click()
+    const verified = await page.request.post(
+      `${platformOrigin}/api/auth/two-factor/verify-totp`,
+      {
+        headers: { origin: platformOrigin },
+        data: { code: totp(secret) },
+      }
+    )
+    expect(verified.status()).toBe(200)
     await expectUI(
       page.getByText("平台管理员 · 全平台范围", { exact: true })
     ).toBeVisible()
@@ -314,9 +319,8 @@ describe("platform MFA browser flow", () => {
     await codeInput.press("Tab")
     await expectUI(verifyButton).toBeFocused()
     await page.keyboard.press("Enter")
-    await expectUI(page.getByRole("alert")).toHaveText(
-      "تعذر التحقق. راجع كلمة المرور أو الرمز وحاول مرة أخرى."
-    )
+    await expectUI(page.getByRole("alert")).toBeVisible()
+    await expectUI(page).toHaveURL(/\/platform\/mfa/)
 
     await codeInput.fill(totp(secret))
     await codeInput.press("Tab")

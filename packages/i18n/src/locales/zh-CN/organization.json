@@ -205,7 +205,6 @@
   "platformUsersSearch": "搜索姓名、用户 ID 或脱敏邮箱",
   "platformUsersSearchInvalid": "搜索内容不能超过 200 个字符。",
   "platformVerified": "已验证",
-  "platformVerifyRetry": "验证并重试",
   "platformVersion": "状态版本",
   "removeMember": "移除成员",
   "removeMemberDescription": "将 {{name}} 移出组织。",

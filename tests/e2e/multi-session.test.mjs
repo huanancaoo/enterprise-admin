@@ -1,5 +1,6 @@
 import { startBrowserApplication } from "../setup/test-runtime.mjs"
 import { signUpVerified } from "../setup/complete-signup.mjs"
+import { platformOperator } from "../setup/platform-operator.mjs"
 import { createHmac, randomBytes, randomUUID } from "node:crypto"
 import { execFile } from "node:child_process"
 import { mkdir } from "node:fs/promises"
@@ -101,21 +102,30 @@ async function grant(target) {
 }
 
 async function enrollMfa(target) {
-  await expectUI(
-    page.getByRole("heading", { name: "设置平台双重验证", exact: true })
-  ).toBeVisible()
-  await page.getByLabel("密码", { exact: true }).fill(target.password)
-  await page
-    .getByRole("button", { name: "生成 TOTP 密钥", exact: true })
-    .click()
-  const uri = page.getByLabel("身份验证器配置 URI", { exact: true })
-  await expectUI(uri).toBeVisible()
-  const secret = new URL(await uri.inputValue()).searchParams.get("secret")
-  await page.getByLabel("6 位验证码", { exact: true }).fill(totp(secret))
-  await page.getByRole("button", { name: "验证并继续", exact: true }).click()
+  const origin = environment.platformOrigin
   await expectUI(
     page.getByRole("button", { name: new RegExp(target.user.name) })
   ).toBeVisible()
+  const enabled = await page.request.post(
+    `${origin}/api/auth/two-factor/enable`,
+    {
+      headers: { origin },
+      data: { password: target.password, method: "totp" },
+    }
+  )
+  expect(enabled.status()).toBe(200)
+  const secret = new URL((await enabled.json()).totpURI).searchParams.get(
+    "secret"
+  )
+  const verified = await page.request.post(
+    `${origin}/api/auth/two-factor/verify-totp`,
+    {
+      headers: { origin },
+      data: { code: totp(secret) },
+    }
+  )
+  expect(verified.status()).toBe(200)
+  await page.reload()
   return secret
 }
 
@@ -213,6 +223,8 @@ it("租户后台添加、取消、切换和退出账号时隔离组织及会话"
     fullPage: true,
   })
   await page.keyboard.press("Escape")
+  await page.keyboard.press("Escape")
+  await expectUI(page.getByRole("menu")).toHaveCount(0)
   await switchAccount(second, first)
   expect((await session(origin)).user.id).toBe(first.user.id)
   await expectUI(
@@ -291,6 +303,8 @@ it("平台后台切换保留各自 MFA，租户添加已启用 MFA 的账号仍�
     fullPage: true,
   })
   await page.keyboard.press("Escape")
+  await page.keyboard.press("Escape")
+  await expectUI(page.getByRole("menu")).toHaveCount(0)
   await switchAccount(second, first)
   expect((await session(origin)).user.id).toBe(first.user.id)
   expect(
@@ -362,4 +376,30 @@ it("新增无平台任职的账号后能从拒绝页切回已授权账号", asyn
     page.getByRole("button", { name: new RegExp(admin.user.name) })
   ).toBeVisible()
   expect((await session(origin)).user.id).toBe(admin.user.id)
+}, 120_000)
+
+it("平台添加已启用双重验证的账号时保留原生登录挑战", async () => {
+  const origin = environment.platformOrigin
+  const first = await account("未开启双重验证的平台账号", origin)
+  const second = await platformOperator(environment, origin)
+  await grant(first)
+  await page.goto(`${origin}/login`)
+  await signIn(first)
+  await addAccount(first, second)
+  await expectUI(page).toHaveURL(/\/platform\/mfa\?challenge=true$/)
+  const sessions = await (
+    await page.request.get(
+      `${origin}/api/auth/multi-session/list-device-sessions`
+    )
+  ).json()
+  expect(sessions.map((entry) => entry.user.id)).toEqual([first.user.id])
+  await page.getByLabel("6 位验证码", { exact: true }).fill(totp(second.secret))
+  await page.getByRole("button", { name: "验证并继续", exact: true }).click()
+  await expectUI(
+    page.getByRole("button", { name: new RegExp(second.user.name) })
+  ).toBeVisible()
+  expect((await session(origin)).user.id).toBe(second.user.id)
+  expect(
+    (await page.request.get(`${origin}/api/v1/me/platform`)).status()
+  ).toBe(200)
 }, 120_000)

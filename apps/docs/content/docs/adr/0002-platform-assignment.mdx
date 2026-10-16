@@ -11,6 +11,7 @@ status: published
 
 - Status: Accepted
 - Date: 2026-09-18
+- Updated: 2026-10-16
 
 ## Context
 
@@ -20,7 +21,9 @@ The platform console has no registration. A platform admin must be able to log i
 
 Record the fact in a dedicated platform assignment table. The target user first registers and verifies their email through normal authentication. The deployment CLI accepts an exact user UUID, role, and non-empty reason to grant or revoke an assignment. A grant requires an existing user with a verified email. The CLI does not create accounts, change verification state, or expose HTTP assignment management. Assignment changes and internal audit records commit in one transaction.
 
-The CLI uses the dedicated deployment connection `PLATFORM_ASSIGNMENT_DATABASE_URL`; that credential is not injected into the online API. The API shares `DATABASE_URL` and checks the authoritative session, current assignment, and current-session MFA fact on every platform request. Revocation rejects the old session's next request.
+The CLI uses the dedicated deployment connection `PLATFORM_ASSIGNMENT_DATABASE_URL`; that credential is not injected into the online API. The API shares `DATABASE_URL` and checks the authoritative session and current assignment on every platform request. Revocation rejects the old session's next request.
+
+MFA is optional: users without it can sign in with a password, while users who enable it retain the native two-factor login challenge.
 
 ## Alternatives
 

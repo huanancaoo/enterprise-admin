@@ -204,10 +204,7 @@ describe("platform settings and persisted language inheritance", () => {
     )
     try {
       const staleMfa = await request(admin, body)
-      expect(staleMfa.status).toBe(403)
-      expect(await staleMfa.json()).toMatchObject({
-        code: "PLATFORM_MFA_REQUIRED",
-      })
+      expect(staleMfa.status).toBe(200)
       expect((await request()).status).toBe(200)
     } finally {
       await environment.migrator.query(
@@ -215,11 +212,11 @@ describe("platform settings and persisted language inheritance", () => {
         [admin.user.id]
       )
     }
-    expect((await current()).version).toBe(body.expectedVersion)
+    expect((await current()).version).toBe(body.expectedVersion + 1)
   })
 
   it("serializes competing expected versions without losing an update", async () => {
-    const body = await input("ar")
+    const body = await input("en-US")
     const results = await Promise.all([
       request(admin, body),
       request(admin, { ...body, platformDefaultLocale: "zh-CN" }),

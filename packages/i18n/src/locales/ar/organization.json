@@ -205,7 +205,6 @@
   "platformUsersSearch": "البحث بالاسم أو معرّف المستخدم أو البريد المخفي",
   "platformUsersSearchInvalid": "يجب ألا يتجاوز البحث 200 حرف.",
   "platformVerified": "تم التحقق",
-  "platformVerifyRetry": "التحقق وإعادة المحاولة",
   "platformVersion": "إصدار الحالة",
   "removeMember": "إزالة العضو",
   "removeMemberDescription": "إزالة {{name}} من المؤسسة.",

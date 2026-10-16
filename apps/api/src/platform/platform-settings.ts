@@ -65,7 +65,6 @@ export class PlatformSettings {
         const code = ApiErrorCodeSchema.safeParse(error.message);
         const statuses: Partial<Record<ApiErrorCode, number>> = {
           FORBIDDEN: 403,
-          PLATFORM_MFA_REQUIRED: 403,
           VALIDATION_ERROR: 400,
           VERSION_CONFLICT: 409,
           IDEMPOTENCY_KEY_REUSED: 409,

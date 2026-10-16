@@ -21,7 +21,6 @@ import {
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import {
   ApiClientError,
-  apiClient,
   dropOrganizationQueries,
   getPlatformOrganization,
   listPlatformOrganizations,
@@ -66,7 +65,6 @@ import {
   TableRow,
 } from "@workspace/ui/components/table"
 import { OrganizationStoragePolicy } from "../storage-policy/organization-storage-policy"
-import { authClient } from "../../lib/auth-client"
 import { usePlatformAccessFailure } from "../../lib/use-platform-access-failure"
 
 const filterSchema = z.strictObject({
@@ -369,17 +367,10 @@ export function PlatformOrganizationsPage() {
   )
 }
 
-function dangerSchema(
-  slug: string,
-  needsMfa: boolean,
-  copy: { reason: string; slug: string; code: string }
-) {
+function dangerSchema(slug: string, copy: { reason: string; slug: string }) {
   return z.strictObject({
     reason: z.string().trim().min(10, copy.reason).max(500, copy.reason),
     slug: z.string().refine((value) => value === slug, copy.slug),
-    code: z
-      .string()
-      .refine((value) => !needsMfa || /^\d{6}$/.test(value), copy.code),
   })
 }
 
@@ -403,7 +394,6 @@ function OrganizationAction({
   const [version, setVersion] = useState(organization.version)
   const [error, setError] = useState<string>()
   const [conflict, setConflict] = useState(false)
-  const [needsMfa, setNeedsMfa] = useState(false)
   const [uncertain, setUncertain] = useState(false)
   const attempt = useRef<Attempt | null>(null)
   const rejectAccess = usePlatformAccessFailure()
@@ -424,33 +414,16 @@ function OrganizationAction({
     },
   }
   const form = useForm({
-    defaultValues: { reason: "", slug: "", code: "" },
+    defaultValues: { reason: "", slug: "" },
     validators: {
-      onSubmit: dangerSchema(organization.slug, needsMfa, {
+      onSubmit: dangerSchema(organization.slug, {
         reason: t("organization:platformReasonInvalid"),
         slug: t("organization:platformSlugInvalid"),
-        code: t("auth:mfaCodeInvalid"),
       }),
     },
     onSubmit: async ({ value }) => {
       if (conflict) return
       setError(undefined)
-      if (needsMfa) {
-        try {
-          const verified = await authClient.twoFactor.verifyTotp({
-            code: value.code,
-            trustDevice: false,
-          })
-          if (verified.error) {
-            setError(t("auth:mfaFailed"))
-            return
-          }
-        } catch {
-          setError(t("auth:mfaFailed"))
-          return
-        }
-        setNeedsMfa(false)
-      }
       const input = { reason: value.reason, expectedVersion: version }
       // 网络结果未知时重试同一请求体与键；后台刷新不能替换已确认的版本。
       if (
@@ -481,30 +454,11 @@ function OrganizationAction({
         })
       } catch (failure) {
         const known = failure instanceof ApiClientError
-        if (known && failure.body.code === "PLATFORM_MFA_REQUIRED") {
-          // 同一错误码也表示 MFA 被关闭或当前 assurance 丢失；只有读取仍获准才允许原地补近期验证。
-          try {
-            await apiClient("/api/v1/me/platform")
-          } catch (accessFailure) {
-            if (await rejectAccess(accessFailure)) return
-            setError(
-              accessFailure instanceof Error
-                ? accessFailure.message
-                : t("common:operationFailed")
-            )
-            return
-          }
-          setError(failure.message)
-          setNeedsMfa(true)
-          setUncertain(false)
-          return
-        }
         if (await rejectAccess(failure)) return
         setError(
           known ? failure.message : t("organization:platformResultUnknown")
         )
         setUncertain(!known)
-        setNeedsMfa(false)
         setConflict(known && failure.body.code === "VERSION_CONFLICT")
         if (known && failure.body.code === "VERSION_CONFLICT") {
           void queryClient.invalidateQueries({
@@ -526,7 +480,6 @@ function OrganizationAction({
               setVersion(organization.version)
               setError(undefined)
               setConflict(false)
-              setNeedsMfa(false)
               setUncertain(false)
               attempt.current = null
             }
@@ -543,11 +496,7 @@ function OrganizationAction({
             slug: organization.slug,
           })}
           cancelLabel={t("common:cancel")}
-          confirmLabel={
-            needsMfa
-              ? t("organization:platformVerifyRetry")
-              : actions[action].confirm
-          }
+          confirmLabel={actions[action].confirm}
           pendingLabel={t("common:submitting")}
           error={error}
           onConfirm={() => void form.handleSubmit()}
@@ -617,38 +566,6 @@ function OrganizationAction({
                     )
                   }}
                 </form.Field>
-                {needsMfa && (
-                  <form.Field name="code">
-                    {(field) => {
-                      const invalid =
-                        field.state.meta.isTouched && !field.state.meta.isValid
-                      return (
-                        <Field data-invalid={invalid}>
-                          <FieldLabel htmlFor="organization-mfa">
-                            {t("auth:mfaCode")}
-                          </FieldLabel>
-                          <Input
-                            id="organization-mfa"
-                            required
-                            inputMode="numeric"
-                            autoComplete="one-time-code"
-                            pattern="[0-9]{6}"
-                            maxLength={6}
-                            value={field.state.value}
-                            onChange={(event) =>
-                              field.handleChange(event.target.value)
-                            }
-                            onBlur={field.handleBlur}
-                            aria-invalid={invalid}
-                          />
-                          {invalid && (
-                            <FieldError errors={field.state.meta.errors} />
-                          )}
-                        </Field>
-                      )
-                    }}
-                  </form.Field>
-                )}
               </FieldGroup>
             </fieldset>
           </form>

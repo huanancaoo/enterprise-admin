@@ -80,7 +80,9 @@ const platformMfaRoute = createRoute({
     challenge: search.challenge === true || search.challenge === "true",
   }),
   beforeLoad: ({ context, search }) => {
-    if (!context.user && !search.challenge) throw redirect({ to: "/login" })
+    // 添加账号时旧账号上下文会短暂保留；原生登录挑战通过显式标记进入验证页。
+    if (!search.challenge)
+      throw redirect({ to: context.user ? "/platform" : "/login" })
   },
   component: PlatformMfaPage,
 })

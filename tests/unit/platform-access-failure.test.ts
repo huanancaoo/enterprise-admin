@@ -100,31 +100,6 @@ describe("平台授权失效入口", () => {
     queryClient.clear()
   })
 
-  it("MFA assurance 丢失时路由重定向到验证，退出前已清除平台缓存", async () => {
-    const queryClient = new QueryClient()
-    const key = ["platform", "current-user", "settings"]
-    queryClient.setQueryData(key, "protected settings")
-    const result = await rejectPlatformAccess(
-      rejection(403, "PLATFORM_MFA_REQUIRED"),
-      {
-        queryClient,
-        userId: "current-user",
-        restoreSession: () => {
-          throw new Error("MFA does not revoke the user session")
-        },
-        exit: (destination) => {
-          throw redirect(destination)
-        },
-      }
-    ).catch((error) => error)
-    expect(result.options).toMatchObject({
-      to: "/platform/mfa",
-      search: { challenge: false },
-    })
-    expect(queryClient.getQueryData(key)).toBeUndefined()
-    queryClient.clear()
-  })
-
   it.each([
     ["读取失败", rejection(503, "AUDIT_UNAVAILABLE")],
     ["版本冲突", rejection(409, "VERSION_CONFLICT")],

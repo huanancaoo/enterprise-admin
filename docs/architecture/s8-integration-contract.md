@@ -22,13 +22,11 @@
 
 没有 Projects 访问、冒充用户、任意 SQL 或平台动态角色。平台人员访问租户 API 仍须有该组织 Membership，并通过普通租户动作和 Domain Policy。
 
-### 当前 Session 的第二因素事实
+### 自主启用的双重验证
 
-平台访问要求启用 2FA，且有服务端绑定当前 Session 的 platform_session_assurance(sessionId、verifiedAt、method)。twoFactorEnabled、可信设备 Cookie、客户端 mfaVerified 或通过其他登录方式都不构成第二因素成功事实。平台写操作要求 verifiedAt 在最近 15 分钟内。
+2026-10-16 用户确认平台 MFA 改为可选。未启用双重验证的用户通过密码登录后，以当前有效 Session 与平台任职进入平台；平台读写操作不再额外要求启用状态、session assurance 或 15 分钟内的 TOTP 验证。
 
-使用 Better Auth 第二因素验证能力，不自建验证码算法。只从成功验证入口建立事实，不能在普通登录、启用 2FA 或可信设备登录时自动授予。轮换产生的新 Session 不继承旧事实；删除/撤销/过期的 Session 不可通过孤立 assurance 放行。每个请求先验证 Session。不同登录方式尚未验证时不得开放平台访问。
-
-当前生产配置已启用 TOTP，成功验证只为 Better Auth 实际签发的 Session 登记 assurance。生产 HTTP 测试覆盖启用/错误码、成功验证、可信设备、GitHub callback、新旧 Session、过期和撤权；GitHub 提供者响应是专属 fixture，不属于外部服务登录验收。独立插件实验仍不能替代这些生产 Drizzle 集成证据。
+已主动启用两步验证的账号仍使用 Better Auth 原生登录挑战和可信设备规则。真实验证继续记录对应 Session 的 assurance，新会话不伪造或继承旧验证事实；这些事实用于记录验证行为，不构成独立的平台准入条件。过期会话、撤销任职和角色越权仍拒绝访问。
 
 ### 状态与版本的唯一来源
 
@@ -40,7 +38,7 @@
 
 ### 固定函数与数据库身份
 
-2026-09-28 用户确认删除独立平台数据库配置，API 统一使用 `DATABASE_URL` 与 `app_runtime` 连接池；此决定替换此前 Platform 模块独占 `platform_runtime` Pool 的要求。平台身份、MFA 和动作校验通过后，平台访问仍只执行参数化固定函数。
+2026-09-28 用户确认删除独立平台数据库配置，API 统一使用 `DATABASE_URL` 与 `app_runtime` 连接池；此决定替换此前 Platform 模块独占 `platform_runtime` Pool 的要求。平台身份和动作校验通过后，平台访问仍只执行参数化固定函数。
 
 | 身份              | 允许范围                                         | 禁止                                                |
 | ----------------- | ------------------------------------------------ | --------------------------------------------------- |
@@ -60,7 +58,7 @@ SECURITY DEFINER 函数由最小权限 NOLOGIN 角色持有，固定安全 searc
 
 0022 撤销历史 `platform_runtime` 直接列权限，0024 将平台固定函数执行权限转移到 `app_runtime`。发布前验证 PUBLIC、函数、视图、继承及租户 RLS；不能只检查 NOBYPASSRLS。任职表默认无授权。现存 organization.enabled 与语言字段的迁移保持唯一事实，不回写为默认 ACTIVE。
 
-MFA 事实传递、可信 actor/request、组织锁与审计原子性未通过真实故障注入前，相关平台管理能力阻塞。旧 API 不理解停用/撤权约束时不得直接回退上线。实施顺序和完整要求仍以 #8 为准，不能以本 ADR 缩减 S8。
+可信 actor/request、组织锁与审计原子性未通过真实故障注入前，相关平台管理能力阻塞。旧 API 不理解停用/撤权约束时不得直接回退上线。实施顺序和完整要求仍以 #8 为准，不能以本 ADR 缩减 S8。
 
 ## 组织集成
 

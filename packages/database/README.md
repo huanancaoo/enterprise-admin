@@ -74,7 +74,7 @@ PLATFORM_ASSIGNMENT_DATABASE_URL='postgresql://platform_deployer:...@db/enterpri
   --user-id '<verified-user-uuid>' --role platform_admin --reason 'assignment ended'
 ```
 
-API 的认证、租户与平台模块统一使用 `DATABASE_URL` 对应的 `app_runtime` 连接池。迁移 `0024_shared-runtime-platform-access.sql` 将 `read_platform_access(user_id, session_id)` 与 `record_platform_access_denial(actor_id, reason, request_id)` 的执行权限授予 `app_runtime`，并撤销 `platform_runtime` 的相应权限；`app_runtime` 仍不能直接读写 `platform_assignment`。平台认证插件仅在 Better Auth 报告成功的当前 Session TOTP 验证后登记 session assurance。平台身份每次请求都校验当前、未过期 Session、有效任职和 MFA assurance；写操作要求 assurance 时间在 15 分钟内。MFA 启用标记、Membership、账户 metadata 和浏览器状态都不能替代当前 Session 的 TOTP 事实。
+API 的认证、租户与平台模块统一使用 `DATABASE_URL` 对应的 `app_runtime` 连接池。迁移 `0024_shared-runtime-platform-access.sql` 将 `read_platform_access(user_id, session_id)` 与 `record_platform_access_denial(actor_id, reason, request_id)` 的执行权限授予 `app_runtime`，并撤销 `platform_runtime` 的相应权限；`app_runtime` 仍不能直接读写 `platform_assignment`。平台认证插件仅在 Better Auth 报告成功的当前 Session TOTP 验证后登记 session assurance。迁移 `0060_optional-platform-mfa.sql` 将平台 MFA 改为可选；平台每次请求校验当前未过期 Session 与有效任职，写入继续检查管理员角色。真实 TOTP 验证仍登记 assurance 作为验证事实，但不作为平台准入或操作的必要条件。自主启用两步验证后的登录由 Better Auth 执行。
 
 ### 已有数据库升级
 
@@ -107,21 +107,21 @@ MIGRATION_DATABASE_URL='postgresql://app_migrator:...@db/enterprise_admin' pnpm 
 
 迁移 `0031_platform-user-queries.sql` 提供只读用户目录、详情与显式敏感邮箱读取。目录按创建时间和用户 ID 稳定分页，只检索姓名、用户 ID 和脱敏邮箱；列表与详情对管理员、审计员一律返回脱敏邮箱。详情仅包含组织关联与邮箱验证、双重验证状态，不返回认证记录或业务数据。`platform_executor` 只获得必要的身份列权限，不能读取密码、Session token、2FA secret 或恢复码。
 
-完整邮箱由独立 `get_platform_sensitive_profile` 固定函数读取，要求当前有效平台管理员和已验证的 Session MFA，每次携带非空目的。固定函数先提交一次私有敏感读取审计，再返回邮箱；审计失败返回 `AUDIT_UNAVAILABLE`。访问审计只存操作者、目标用户 ID 和输入目的，不存完整邮箱快照。API 响应禁止缓存；前端完整邮箱只保存在本次展开的组件状态中，关闭后销毁，不进入目录 Query Cache。
+完整邮箱由独立 `get_platform_sensitive_profile` 固定函数读取，要求当前有效会话的平台管理员，每次携带非空目的。固定函数先提交一次私有敏感读取审计，再返回邮箱；审计失败返回 `AUDIT_UNAVAILABLE`。访问审计只存操作者、目标用户 ID 和输入目的，不存完整邮箱快照。API 响应禁止缓存；前端完整邮箱只保存在本次展开的组件状态中，关闭后销毁，不进入目录 Query Cache。
 
 ### 平台跨组织审计
 
-迁移 `0033`–`0035` 为获准运营审计增加全局时间索引、固定 list/get 函数和最小列权限。管理员、审计员均需当前有效任职与 Session MFA，每个请求携带目的；固定函数成功写入一次私有访问审计后才返回，审计故障不返回受限结果。
+迁移 `0033`–`0035` 为获准运营审计增加全局时间索引、固定 list/get 函数和最小列权限。管理员、审计员均需当前有效任职与 Session，每个请求携带目的；固定函数成功写入一次私有访问审计后才返回，审计故障不返回受限结果。
 
 查询范围固定为批准目录中的组织管理与平台运营事件，以及部署 CLI 原有任职审计。带来源的事件 ID 保留两类历史事实身份；响应不含完整邮箱、内部理由、部署操作者字符串或原始 metadata。`platform_audit_projection` 为受限 executor 的 security_invoker 视图，运行角色不能直接读取；新增策略不放宽 Projects 或租户运行角色 RLS。
 
 默认最近 30 天、最多 90 天及未来时间拒绝由数据库同一时钟决定；API 只传递筛选并签名冻结窗口的游标，不用主机时差改变业务窗口。验收记录见 [S8 平台审计验证](../../docs/architecture/s8-platform-audit-validation.md)。
 
-迁移 `0037_platform-audit-pagination.sql` 将列表改为各来源先按已有时间/UUID 索引选取至多一页候选，再合并分页、关联组织及用户、生成脱敏 JSON，避免先投影整个 90 天窗口。公开 ID、时间边界、筛选、游标次序和字段保持一致，仍先验证当前任职/MFA，并在返回前提交私有访问审计；角色权限与 RLS 不变。固定规模 HTTP 性能证据见 [S8 发布验收记录](../../docs/architecture/s8-release-validation.md)。
+迁移 `0037_platform-audit-pagination.sql` 将列表改为各来源先按已有时间/UUID 索引选取至多一页候选，再合并分页、关联组织及用户、生成脱敏 JSON，避免先投影整个 90 天窗口。公开 ID、时间边界、筛选、游标次序和字段保持一致，仍先验证当前任职与有效会话，并在返回前提交私有访问审计；角色权限与 RLS 不变。固定规模 HTTP 性能证据见 [S8 发布验收记录](../../docs/architecture/s8-release-validation.md)。
 
 ### 平台默认语言与部署摘要
 
-迁移 `0036_platform-settings.sql` 建立必有的 `platform_settings` 单例，初始默认语言为 `zh-CN`。`app_runtime` 仅能直接读取单例键与默认语言，不能直接读版本或写入设置；受限 executor 持有固定 get/update 函数。设置查询需有效平台任职和 Session MFA，并先追加私有读取审计；修改仅允许管理员，要求 15 分钟内 MFA、操作原因、预期版本和幂等键。默认语言、版本、私有审计与 24 小时收据在同一事务提交，锁等待后重新查权；相同输入重试返回原结果，版本冲突或同键不同输入拒绝，无实际变化时不增加版本。
+迁移 `0036_platform-settings.sql` 建立必有的 `platform_settings` 单例，初始默认语言为 `zh-CN`。`app_runtime` 仅能直接读取单例键与默认语言，不能直接读版本或写入设置；受限 executor 持有固定 get/update 函数。设置查询需有效平台任职和当前会话，并先追加私有读取审计；修改仅允许管理员，要求当前有效会话、操作原因、预期版本和幂等键。默认语言、版本、私有审计与 24 小时收据在同一事务提交，锁等待后重新查权；相同输入重试返回原结果，版本冲突或同键不同输入拒绝，无实际变化时不增加版本。
 
 语言解析从同一个持久化默认值读取：原生认证、业务 HTTP、Projects 创建基础语言及邮件收件人继承均使用它。修改不批量改写用户或组织偏好，也不强制改变当前 UI 语言。邮件不再使用独立的 `EMAIL_DEFAULT_LOCALE` 环境变量；已经渲染入队的邮件保留当时内容。API 只额外返回支持语言、环境、应用版本与 SMTP 是否配置，不能返回 SMTP 地址、口令或连接串。SMTP 配置状态不代表投递可用性。验收记录见 [S8 平台设置验证](../../docs/architecture/s8-platform-settings-validation.md)。
 
@@ -168,4 +168,4 @@ TenantTx 品牌阻止普通 db/Pool 作为 Repository 参数；`pnpm lint:bounda
 
 迁移 `0023_platform-access-denial-audit.sql` 允许无组织归属的审计事实，并新增固定函数 `record_platform_access_denial(uuid, text, text)`。迁移 0024 后只有 API 使用的 `app_runtime` 可调用；函数由受限 NOLOGIN `platform_executor` 执行，仅追加私有的 `platform.access_denied` 事件。`app_runtime` 不能通过该函数读取审计或写入任意事件；部署身份与历史 `platform_runtime` 无调用权限。
 
-`PlatformGuard` 在身份、任职或会话 MFA 校验拒绝时独立写入事件，保存可信 actor、稳定拒绝分类和服务端 requestId；匿名请求的 actorId 为空。事件不关联组织，租户 RLS 不可见，不保存 Cookie、令牌或认证秘密。审计写入失败返回 `503 AUDIT_UNAVAILABLE`，由现有错误日志记录 requestId。
+`PlatformGuard` 在身份或任职校验拒绝时独立写入事件，保存可信 actor、稳定拒绝分类和服务端 requestId；匿名请求的 actorId 为空。事件不关联组织，租户 RLS 不可见，不保存 Cookie、令牌或认证秘密。审计写入失败返回 `503 AUDIT_UNAVAILABLE`，由现有错误日志记录 requestId。

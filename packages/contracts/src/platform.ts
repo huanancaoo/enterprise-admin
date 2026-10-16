@@ -12,7 +12,7 @@ export const PlatformAccessSchema = z
     userId: z.uuid(),
     role: z.enum(["platform_admin", "platform_auditor"]),
     scope: z.literal("global"),
-    mfaVerifiedAt: z.iso.datetime({ offset: true }),
+    mfaVerifiedAt: z.iso.datetime({ offset: true }).nullable(),
   })
   .meta({ id: "PlatformAccess" })
 export type PlatformAccess = z.infer<typeof PlatformAccessSchema>

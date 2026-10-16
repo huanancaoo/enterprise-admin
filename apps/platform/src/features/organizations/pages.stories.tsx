@@ -26,6 +26,15 @@ import {
   PlatformOrganizationDetailPage,
 } from "./pages"
 
+function StoryDenied() {
+  const { t } = useTranslation("auth")
+  return (
+    <AuthGate client={authClient} restoreTitle={t("platformTitle")}>
+      {() => <PlatformAccessDeniedPage />}
+    </AuthGate>
+  )
+}
+
 function StoryLogin() {
   const { t } = useTranslation("auth")
   return (
@@ -79,7 +88,7 @@ function OrganizationsStory({
     const denied = createRoute({
       getParentRoute: () => platform,
       path: "access-denied",
-      component: PlatformAccessDeniedPage,
+      component: StoryDenied,
     })
     const login = createRoute({
       getParentRoute: () => root,
@@ -446,32 +455,6 @@ export const RateLimited: Story = {
     )
     await expect(confirm).toBeEnabled()
     await userEvent.click(confirm)
-    await waitFor(() =>
-      expect(
-        canvas.getByText("Organization suspended.", {
-          selector: '[role="status"]',
-        })
-      ).toBeVisible()
-    )
-    await expectClosed(screen)
-  },
-}
-export const RecentMfaRequired: Story = {
-  args: { detail: true },
-  globals: { locale: "en-US" },
-  ...scenario("mfaRequired"),
-  play: async ({ canvasElement }) => {
-    const { canvas, screen, dialog, reason, confirm } =
-      await fillConfirmation(canvasElement)
-    await userEvent.click(confirm)
-    const code = await dialog.findByRole("textbox", { name: "Six-digit code" })
-    await expect(reason).toHaveValue(
-      "Review workspace safety before changing status"
-    )
-    await userEvent.type(code, "123456")
-    await userEvent.click(
-      dialog.getByRole("button", { name: "Verify and retry" })
-    )
     await waitFor(() =>
       expect(
         canvas.getByText("Organization suspended.", {

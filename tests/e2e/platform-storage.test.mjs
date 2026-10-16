@@ -358,7 +358,7 @@ describe("organization storage policy browser workflow", () => {
     ).toHaveCount(0)
   })
 
-  it("redirects stale MFA to verification and removes the policy form", async () => {
+  it("allows storage policy changes without requiring recent MFA", async () => {
     await pageFor()
     await page.goto(address())
     await page
@@ -369,11 +369,17 @@ describe("organization storage policy browser workflow", () => {
       [admin.user.id]
     )
     try {
+      const saved = page.waitForResponse(
+        (response) =>
+          response.request().method() === "PATCH" &&
+          response.url().includes("storage-policy")
+      )
       await page.getByRole("button", { name: "Save", exact: true }).click()
-      await expectUI(page).toHaveURL(/platform\/mfa/)
+      expect((await saved).status()).toBe(200)
       await expectUI(
         page.getByLabel("Storage quota (GiB)", { exact: true })
-      ).toHaveCount(0)
+      ).toBeVisible()
+      await expectUI(page).not.toHaveURL(/platform\/mfa/)
     } finally {
       await environment.migrator.query(
         "UPDATE platform_session_assurance SET verified_at=clock_timestamp() WHERE user_id=$1",

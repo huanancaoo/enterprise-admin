@@ -149,7 +149,6 @@ export class PlatformAudit {
         const parsed = ApiErrorCodeSchema.safeParse(error.message);
         const statuses: Partial<Record<ApiErrorCode, number>> = {
           FORBIDDEN: 403,
-          PLATFORM_MFA_REQUIRED: 403,
           NOT_FOUND: 404,
           VALIDATION_ERROR: 400,
           AUDIT_UNAVAILABLE: 503,

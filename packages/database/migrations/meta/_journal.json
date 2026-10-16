@@ -414,6 +414,13 @@
       "when": 1791690818093,
       "tag": "0058_native-session-utc",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1792155222517,
+      "tag": "0060_optional-platform-mfa",
+      "breakpoints": true
     }
   ]
 }

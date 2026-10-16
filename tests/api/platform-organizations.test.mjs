@@ -299,7 +299,7 @@ describe("platform organization operations", () => {
     ).rejects.toMatchObject({ code: "42501" })
   })
 
-  it("rechecks role and recent MFA before replaying a receipt and expires the receipt after 24 hours", async () => {
+  it("rechecks role before replaying a receipt without fresh MFA and expires the receipt after 24 hours", async () => {
     const target = await createOrganization()
     const key = randomUUID(),
       body = { reason: "Recent MFA and receipt boundary", expectedVersion: 1 }
@@ -319,10 +319,8 @@ describe("platform organization operations", () => {
     )
     try {
       const replay = await transition("suspend", body, key, admin, target.id)
-      expect(replay.status).toBe(403)
-      expect(await replay.json()).toMatchObject({
-        code: "PLATFORM_MFA_REQUIRED",
-      })
+      expect(replay.status).toBe(200)
+      expect(await replay.json()).toEqual(original)
       expect((await request(`/${target.id}`)).status).toBe(200)
     } finally {
       await environment.migrator.query(

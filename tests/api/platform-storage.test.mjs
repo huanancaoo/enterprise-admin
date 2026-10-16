@@ -236,7 +236,7 @@ describe("platform storage policy HTTP authorization and atomic changes", () => 
     })
   })
 
-  it("validates exact byte/day/reason/key constraints and enforces MFA, role and trusted origin", async () => {
+  it("validates exact byte/day/reason/key constraints and enforces role and trusted origin without MFA", async () => {
     const body = await input(50)
     for (const invalid of [
       { ...body, quotaBytes: -1 },
@@ -281,10 +281,7 @@ describe("platform storage policy HTTP authorization and atomic changes", () => 
     )
     try {
       const response = await request(admin, body)
-      expect(response.status).toBe(403)
-      expect(await response.json()).toMatchObject({
-        code: "PLATFORM_MFA_REQUIRED",
-      })
+      expect(response.status).toBe(200)
       expect((await request()).status).toBe(200)
     } finally {
       await environment.migrator.query(
@@ -292,11 +289,11 @@ describe("platform storage policy HTTP authorization and atomic changes", () => 
         [admin.user.id]
       )
     }
-    expect((await current()).version).toBe(body.expectedVersion)
+    expect((await current()).version).toBe(body.expectedVersion + 1)
   })
 
   it("allows exactly one simultaneous update of the same version", async () => {
-    const body = await input(50)
+    const body = await input(75)
     const responses = await Promise.all([
       request(admin, body),
       request(admin, { ...body, quotaBytes: 100 }),

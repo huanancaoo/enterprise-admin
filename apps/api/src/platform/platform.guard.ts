@@ -36,7 +36,7 @@ export class PlatformGuard implements CanActivate {
     let actor: Identity | undefined;
     try {
       actor = await this.identity.requireIdentity(headers);
-      // Cookie 写请求必须来自配置的可信 Origin，MFA 不替代 CSRF 校验。
+      // Cookie 写请求必须来自配置的可信 Origin。
       if (
         !['GET', 'HEAD', 'OPTIONS'].includes(request.method) &&
         (!request.headers.origin ||
@@ -44,27 +44,14 @@ export class PlatformGuard implements CanActivate {
       ) {
         throw new ForbiddenException();
       }
-      request[trustedPlatform] = await this.access.requireAccess(
-        actor,
-        !['GET', 'HEAD', 'OPTIONS'].includes(request.method),
-      );
+      request[trustedPlatform] = await this.access.requireAccess(actor);
     } catch (error) {
       if (
         error instanceof HttpException &&
         [401, 403].includes(error.getStatus())
       ) {
-        const body = error.getResponse();
-        const requiresMfa =
-          typeof body === 'object' &&
-          body !== null &&
-          'code' in body &&
-          body.code === 'PLATFORM_MFA_REQUIRED';
         const reason =
-          error.getStatus() === 401
-            ? 'UNAUTHENTICATED'
-            : requiresMfa
-              ? 'PLATFORM_MFA_REQUIRED'
-              : 'FORBIDDEN';
+          error.getStatus() === 401 ? 'UNAUTHENTICATED' : 'FORBIDDEN';
         const response = execution.switchToHttp().getResponse<Response>();
         // 拒绝事件独立提交，否则异常回滚会同时抹去拒绝事实。
         await this.access.recordDenial(

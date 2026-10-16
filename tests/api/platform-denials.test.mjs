@@ -107,24 +107,20 @@ describe("platform access denial audit", () => {
     ).rejects.toMatchObject({ code: "22023" })
   })
 
-  it("records a missing session MFA assertion as a separate denial reason", async () => {
+  it("allows a platform assignment without MFA and creates no denial audit", async () => {
     const user = await signup()
     await managePlatformAssignment(environment.deployerPool, "grant", {
       userId: user.user.id,
       role: "platform_admin",
-      reason: "denial audit fixture",
+      reason: "optional MFA access",
     })
     const response = await access(user.cookie)
-    expect(response.status).toBe(403)
-    const body = await response.json()
-    expect(body.code).toBe("PLATFORM_MFA_REQUIRED")
-    expect(await readAudit(body.requestId)).toEqual([
-      expect.objectContaining({
-        actor_id: user.user.id,
-        reason: "PLATFORM_MFA_REQUIRED",
-        result: "denied",
-      }),
-    ])
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({
+      role: "platform_admin",
+      mfaVerifiedAt: null,
+    })
+    expect(await readAudit(response.headers.get("x-request-id"))).toEqual([])
   })
 
   it("returns AUDIT_UNAVAILABLE when the denial cannot be persisted", async () => {

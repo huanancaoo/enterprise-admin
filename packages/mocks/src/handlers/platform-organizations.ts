@@ -62,7 +62,6 @@ export type PlatformOrganizationsScenario =
   | "suspended"
   | "stale"
   | "rateLimited"
-  | "mfaRequired"
 
 // 每个场景持有独立组织状态；页面写入后仍通过同一目录和详情读回事实。
 export function createPlatformOrganizationScenario(
@@ -126,7 +125,6 @@ export function createPlatformOrganizationScenario(
   let organizations = structuredClone(initialOrganizations)
   let conflictInjected = false
   let rateLimitReturned = false
-  let mfaConfirmed = false
   const failure = (status: number, code: string) =>
     HttpResponse.json(
       {
@@ -183,8 +181,6 @@ export function createPlatformOrganizationScenario(
           rateLimitReturned = true
           return failure(429, "INTERNAL_ERROR")
         }
-        if (scenario === "mfaRequired" && !mfaConfirmed)
-          return failure(403, "PLATFORM_MFA_REQUIRED")
         if (scenario === "stale" && !conflictInjected) {
           conflictInjected = true
           recordStatus(
@@ -215,7 +211,6 @@ export function createPlatformOrganizationScenario(
       organizations = structuredClone(initialOrganizations)
       conflictInjected = false
       rateLimitReturned = false
-      mfaConfirmed = false
     },
     handlers: [
       http.get("*/api/v1/platform/organizations", async ({ request }) => {
@@ -283,10 +278,6 @@ export function createPlatformOrganizationScenario(
           mfaVerifiedAt: "2026-10-02T00:00:00.000Z",
         })
       ),
-      http.post("*/api/auth/two-factor/verify-totp", () => {
-        mfaConfirmed = true
-        return HttpResponse.json({ status: true })
-      }),
       transition("suspend"),
       transition("resume"),
     ],

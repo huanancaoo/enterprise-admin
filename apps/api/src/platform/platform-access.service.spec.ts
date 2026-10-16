@@ -1,6 +1,5 @@
 import type { ExecutionContext } from '@nestjs/common';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ApiException } from '../http/api-exception';
+import { describe, expect, it, vi } from 'vitest';
 import type { Identity } from '../identity/identity.service';
 import type { IdentityService } from '../identity/identity.service';
 import type { AuthRuntime } from '../identity/auth-runtime';
@@ -13,9 +12,8 @@ const identity: Identity = {
 };
 
 const now = new Date('2026-09-28T04:00:00.000Z');
-const fifteenMinutes = 15 * 60 * 1000;
 
-function makeAccessService(mfaVerifiedAt: Date) {
+function makeAccessService(mfaVerifiedAt: Date | null) {
   const pool = {
     query: vi.fn().mockResolvedValue({
       rows: [
@@ -31,55 +29,36 @@ function makeAccessService(mfaVerifiedAt: Date) {
   return { service: new PlatformAccessService(runtime), pool };
 }
 
-afterEach(() => {
-  vi.useRealTimers();
-});
-
-describe('PlatformAccessService recent MFA boundary', () => {
-  it('accepts an assertion exactly 15 minutes old', async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(now);
-    const { service } = makeAccessService(
-      new Date(now.getTime() - fifteenMinutes),
-    );
-
-    await expect(service.requireAccess(identity, true)).resolves.toMatchObject({
+describe('PlatformAccessService optional MFA', () => {
+  it('accepts a platform assignment without an MFA assertion', async () => {
+    const { service } = makeAccessService(null);
+    await expect(service.requireAccess(identity)).resolves.toMatchObject({
       userId: identity.userId,
       role: 'platform_admin',
-      mfaVerifiedAt: new Date(now.getTime() - fifteenMinutes).toISOString(),
+      mfaVerifiedAt: null,
     });
   });
 
-  it('requires a new assertion once it is more than 15 minutes old', async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(now);
-    const { service } = makeAccessService(
-      new Date(now.getTime() - fifteenMinutes - 1),
-    );
-
-    const error = await service.requireAccess(identity, true).then(
-      () => undefined,
-      (reason: unknown) => reason,
-    );
-    expect(error).toBeInstanceOf(ApiException);
-    if (!(error instanceof ApiException)) return;
-    expect(error.getStatus()).toBe(403);
-    expect(error.getResponse()).toEqual({ code: 'PLATFORM_MFA_REQUIRED' });
+  it('returns voluntary MFA metadata without imposing an age limit', async () => {
+    const { service } = makeAccessService(now);
+    await expect(service.requireAccess(identity)).resolves.toMatchObject({
+      mfaVerifiedAt: now.toISOString(),
+    });
   });
 });
 
-describe('PlatformGuard recent MFA policy', () => {
+describe('PlatformGuard session and assignment policy', () => {
   it.each([
-    { method: 'GET', required: false },
-    { method: 'HEAD', required: false },
-    { method: 'OPTIONS', required: false },
-    { method: 'POST', required: true },
-    { method: 'PUT', required: true },
-    { method: 'PATCH', required: true },
-    { method: 'DELETE', required: true },
+    { method: 'GET' },
+    { method: 'HEAD' },
+    { method: 'OPTIONS' },
+    { method: 'POST' },
+    { method: 'PUT' },
+    { method: 'PATCH' },
+    { method: 'DELETE' },
   ])(
-    'sets recent MFA requirement for $method to $required',
-    async ({ method, required }) => {
+    'checks the platform assignment for $method without a separate MFA gate',
+    async ({ method }) => {
       const access = {
         requireAccess: vi.fn().mockResolvedValue({
           ...identity,
@@ -106,7 +85,7 @@ describe('PlatformGuard recent MFA policy', () => {
       } as unknown as ExecutionContext;
 
       await expect(guard.canActivate(execution)).resolves.toBe(true);
-      expect(access.requireAccess).toHaveBeenCalledWith(identity, required);
+      expect(access.requireAccess).toHaveBeenCalledWith(identity);
     },
   );
 });
