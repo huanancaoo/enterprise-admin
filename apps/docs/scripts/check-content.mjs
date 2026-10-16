@@ -1,6 +1,12 @@
 import { readdirSync, readFileSync, statSync } from "node:fs"
 import { dirname, extname, join, relative, resolve } from "node:path"
-import { fileURLToPath } from "node:url"
+import { fileURLToPath, pathToFileURL } from "node:url"
+import { frontmatter } from "fumadocs-core/content/md/frontmatter"
+import { remark } from "remark"
+import remarkGfm from "remark-gfm"
+import remarkMdx from "remark-mdx"
+import { visit } from "unist-util-visit"
+import { z } from "zod"
 
 const required = [
   "title",
@@ -11,6 +17,9 @@ const required = [
   "status",
 ]
 const localeByFile = (file) => (file.endsWith(".zh-CN.mdx") ? "zh-CN" : "en-US")
+const metadataSchema = z.record(z.string(), z.unknown())
+// 正文构建使用 MDX；表达式和 JSX 属性中的字符串不属于 Markdown 链接。
+const markdown = remark().use(remarkGfm).use(remarkMdx)
 
 function walk(dir) {
   const out = []
@@ -22,26 +31,13 @@ function walk(dir) {
   return out
 }
 
-function parseFrontmatter(source) {
-  if (!source.startsWith("---\n")) return null
-  const end = source.indexOf("\n---\n", 4)
-  if (end === -1) return null
-  const body = source.slice(4, end)
-  const data = {}
-  let key
-  for (const line of body.split("\n")) {
-    if (line.startsWith("  - ")) {
-      if (!Array.isArray(data[key])) data[key] = []
-      data[key].push(line.slice(4).replace(/^["']|["']$/g, ""))
-      continue
-    }
-    const match = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/)
-    if (!match) continue
-    key = match[1]
-    const raw = match[2]
-    data[key] = raw === "" ? [] : raw.replace(/^["']|["']$/g, "")
-  }
-  return { data, markdown: source.slice(end + 5) }
+function isMissingMetadata(value) {
+  return (
+    value === undefined ||
+    value === null ||
+    value === "" ||
+    (Array.isArray(value) && value.length === 0)
+  )
 }
 
 function pageKey(root, file) {
@@ -68,40 +64,68 @@ export function checkContent(root) {
 
   for (const file of files) {
     const rel = relative(root, file)
-    const parsed = parseFrontmatter(readFileSync(file, "utf8"))
-    if (!parsed) {
+    const source = readFileSync(file, "utf8")
+    let parsed
+    try {
+      parsed = frontmatter(source)
+    } catch {
+      errors.push(`${rel}: invalid frontmatter`)
+      continue
+    }
+    if (!parsed.matter) {
       errors.push(`${rel}: missing frontmatter`)
       continue
     }
+    const metadata = metadataSchema.safeParse(parsed.data)
+    if (!metadata.success) {
+      errors.push(`${rel}: invalid frontmatter`)
+      continue
+    }
+    const data = metadata.data
     const locale = localeByFile(file)
     for (const field of required) {
-      if (
-        parsed.data[field] === undefined ||
-        parsed.data[field] === "" ||
-        (Array.isArray(parsed.data[field]) && parsed.data[field].length === 0)
-      ) {
+      if (isMissingMetadata(data[field])) {
         errors.push(`${rel}: missing ${field}`)
       }
     }
-    if (parsed.data.locale && parsed.data.locale !== locale) {
-      errors.push(`${rel}: locale ${parsed.data.locale} does not match file`)
+    if (!isMissingMetadata(data.locale) && data.locale !== locale) {
+      errors.push(`${rel}: locale ${data.locale} does not match file`)
     }
-    if (parsed.data.status && parsed.data.status !== "published") {
+    if (!isMissingMetadata(data.status) && data.status !== "published") {
       errors.push(`${rel}: status must be published`)
     }
-    const linkPattern = /\[[^\]]*]\(([^)]+)\)/g
-    let match
-    while ((match = linkPattern.exec(parsed.markdown))) {
-      const href = match[1].split("#")[0].split(" ")[0]
-      if (!href || /^(https?:|mailto:|\/)/.test(href)) continue
-      const target = resolve(dirname(file), href)
-      try {
-        if (!statSync(target).isFile())
-          errors.push(`${rel}: broken link ${href}`)
-      } catch {
-        errors.push(`${rel}: broken link ${href}`)
-      }
+    let tree
+    try {
+      tree = markdown.parse(parsed.content)
+    } catch {
+      errors.push(`${rel}: invalid MDX`)
+      continue
     }
+    const definitions = new Map()
+    // 同名定义采用首个；只有被实际引用的定义才参与链接检查。
+    visit(tree, "definition", (node) => {
+      if (!definitions.has(node.identifier))
+        definitions.set(node.identifier, node.url)
+    })
+    visit(
+      tree,
+      ["link", "image", "linkReference", "imageReference"],
+      (node) => {
+        const href =
+          node.type === "link" || node.type === "image"
+            ? node.url
+            : definitions.get(node.identifier)
+        if (!href || href.startsWith("#") || /^(https?:|mailto:|\/)/.test(href))
+          return
+        try {
+          const target = fileURLToPath(new URL(href, pathToFileURL(file)))
+          if (!statSync(target).isFile())
+            errors.push(`${rel}: broken link ${href}`)
+        } catch {
+          errors.push(`${rel}: broken link ${href}`)
+        }
+      }
+    )
   }
 
   return { files, errors }
