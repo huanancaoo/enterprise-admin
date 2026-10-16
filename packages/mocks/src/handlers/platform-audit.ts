@@ -1,6 +1,5 @@
 import { delay, http, HttpResponse } from "msw"
 import {
-  PlatformAuditPurposeSchema,
   PlatformAuditQuerySchema,
   type PlatformAuditEvent,
 } from "@workspace/contracts"
@@ -126,23 +125,22 @@ export function createPlatformAuditScenario(
             (!query.eventCode || event.eventCode === query.eventCode) &&
             (!query.result || event.result === query.result)
         )
-        const before = query.cursor
-          ? matching.findIndex((event) => event.id === query.cursor)
-          : undefined
-        if (before === -1) return failure(400, "VALIDATION_ERROR")
-        const offset = before === undefined ? 0 : before + 1
-        const limit = query.limit ?? 20
-        const page = matching.slice(offset, offset + limit)
-        // UI 只消费不透明游标；签名与筛选绑定由真实 HTTP 套件验收。
+        const offset = (query.page - 1) * query.pageSize
         return HttpResponse.json({
-          items: page,
-          nextCursor: offset + limit < matching.length ? page.at(-1)!.id : null,
+          items: matching.slice(offset, offset + query.pageSize),
+          page: query.page,
+          pageSize: query.pageSize,
+          total: matching.length,
+          window: {
+            from: new Date(lower).toISOString(),
+            to: new Date(upper).toISOString(),
+          },
         })
       }),
       http.get(
         "*/api/v1/platform/audit-events/:eventId",
         async ({ request, params }) => {
-          PlatformAuditPurposeSchema.parse(
+          PlatformAuditQuerySchema.pick({}).parse(
             Object.fromEntries(new URL(request.url).searchParams)
           )
           if (scenario === "detailLoading") await delay("infinite")

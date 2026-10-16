@@ -18,19 +18,32 @@ import type {
   AuditResult,
 } from '@workspace/contracts';
 import { AuthRuntime } from '../identity/auth-runtime';
-import {
-  auditEventCursorSchema,
-  createAuditEventCursor,
-  parseAuditEventCursor,
-} from './audit-cursor';
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+const DAY_MICROSECONDS = 24 * 60 * 60 * 1_000_000;
 const MAX_RANGE_DAYS = 90;
 
 type EffectiveFilters = Omit<AuditEventFilter, 'result'> & {
   result?: AuditResult;
-  limit: number;
+  page: number;
+  pageSize: number;
 };
+
+function instantMicroseconds(value: string): number {
+  const milliseconds = Date.parse(value);
+  const fraction = /\.(\d+)Z$/.exec(value)?.[1] ?? '';
+  // Date.parse keeps milliseconds only, while PostgreSQL audit boundaries use microseconds.
+  const remainingMicroseconds = Number((fraction + '000000').slice(3, 6));
+  return milliseconds * 1000 + remainingMicroseconds;
+}
+
+function isoMicroseconds(value: number): string {
+  const milliseconds = Math.floor(value / 1000);
+  const fractionalMicroseconds = value - milliseconds * 1000;
+  const date = new Date(milliseconds).toISOString();
+  return `${date.slice(0, 19)}.${String(
+    Math.floor(milliseconds % 1000) * 1000 + fractionalMicroseconds,
+  ).padStart(6, '0')}Z`;
+}
 
 function filterMetadata(eventCode: string, fields: Record<string, unknown>) {
   const keys =
@@ -77,27 +90,20 @@ export class OrganizationAuditEvents {
     context: TenantContext,
     query: AuditEventsQuery,
   ): Promise<AuditEventsPage> {
-    const now = new Date();
-    const cursor = query.cursor ? this.readCursor(query.cursor) : undefined;
-    const filters = this.normalizeFilters(query, cursor, now);
+    const filters = this.normalizeFilters(query, new Date());
     const page = await createTenantRunner(this.runtime.pool)(context, (tx) =>
       auditRepository.listPage(tx, {
         filter: filters,
-        limit: filters.limit,
-        cursor: cursor?.before,
+        page: filters.page,
+        pageSize: filters.pageSize,
       }),
     );
     return {
       items: page.items.map(projectEvent),
-      nextCursor: page.nextCursor
-        ? createAuditEventCursor(
-            {
-              filters: this.cursorFilters(filters),
-              before: page.nextCursor,
-            },
-            this.runtime.auditCursorKey,
-          )
-        : null,
+      page: page.page,
+      pageSize: page.pageSize,
+      total: page.total,
+      window: { from: filters.from, to: filters.to },
     };
   }
 
@@ -110,39 +116,18 @@ export class OrganizationAuditEvents {
 
   private normalizeFilters(
     query: AuditEventsQuery,
-    cursor: ReturnType<typeof auditEventCursorSchema.parse> | undefined,
     now: Date,
   ): EffectiveFilters {
-    if (cursor) {
-      for (const key of [
-        'from',
-        'to',
-        'actorId',
-        'eventCode',
-        'resourceType',
-        'resourceId',
-        'result',
-      ] as const) {
-        if (query[key] !== undefined && query[key] !== cursor.filters[key]) {
-          throw new BadRequestException('Audit cursor does not match filters');
-        }
-      }
-    }
-
-    const upperBound = cursor
-      ? new Date(cursor.filters.to)
-      : query.to
-        ? new Date(query.to)
-        : now;
-    const from = cursor
-      ? new Date(cursor.filters.from)
-      : query.from
-        ? new Date(query.from)
-        : new Date(upperBound.getTime() - 30 * DAY_MS);
+    const upperBound = query.to ?? now.toISOString();
+    const upperBoundMicros = instantMicroseconds(upperBound);
+    const from =
+      query.from ?? isoMicroseconds(upperBoundMicros - 30 * DAY_MICROSECONDS);
+    const fromMicros = instantMicroseconds(from);
+    const nowMicros = now.getTime() * 1000;
     if (
-      from > upperBound ||
-      upperBound > now ||
-      upperBound.getTime() - from.getTime() > MAX_RANGE_DAYS * DAY_MS
+      fromMicros > upperBoundMicros ||
+      upperBoundMicros > nowMicros ||
+      upperBoundMicros - fromMicros > MAX_RANGE_DAYS * DAY_MICROSECONDS
     ) {
       throw new BadRequestException('Audit range must be at most 90 days');
     }
@@ -150,33 +135,13 @@ export class OrganizationAuditEvents {
     return {
       from,
       to: upperBound,
-      actorId: cursor?.filters.actorId ?? query.actorId,
-      eventCode: cursor?.filters.eventCode ?? query.eventCode,
-      resourceType: cursor?.filters.resourceType ?? query.resourceType,
-      resourceId: cursor?.filters.resourceId ?? query.resourceId,
-      result: cursor?.filters.result ?? query.result,
-      limit: cursor?.filters.limit ?? query.limit,
+      actorId: query.actorId,
+      eventCode: query.eventCode,
+      resourceType: query.resourceType,
+      resourceId: query.resourceId,
+      result: query.result,
+      page: query.page,
+      pageSize: query.pageSize,
     };
-  }
-
-  private cursorFilters(filters: EffectiveFilters) {
-    return {
-      from: filters.from.toISOString(),
-      to: filters.to.toISOString(),
-      actorId: filters.actorId,
-      eventCode: filters.eventCode,
-      resourceType: filters.resourceType,
-      resourceId: filters.resourceId,
-      result: filters.result,
-      limit: filters.limit,
-    };
-  }
-
-  private readCursor(encoded: string) {
-    try {
-      return parseAuditEventCursor(encoded, this.runtime.auditCursorKey);
-    } catch {
-      throw new BadRequestException('Invalid audit cursor');
-    }
   }
 }

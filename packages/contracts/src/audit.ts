@@ -18,28 +18,11 @@ export const AuditEventsQuerySchema = z
     resourceType: z.string().trim().min(1).max(80).optional(),
     resourceId: z.uuid().optional(),
     result: AuditResultSchema.optional(),
-    cursor: z.string().max(2048).optional(),
-    limit: z.coerce.number().int().min(1).max(100).default(20),
+    page: z.coerce.number().int().min(1).max(2147483647).default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).default(20),
   })
   .meta({ id: "AuditEventsQuery" })
 export type AuditEventsQuery = z.infer<typeof AuditEventsQuerySchema>
-export const AuditEventCursorSchema = z.strictObject({
-  filters: z.strictObject({
-    from: z.iso.datetime(),
-    to: z.iso.datetime(),
-    actorId: z.uuid().optional(),
-    eventCode: z.string().trim().min(1).max(120).optional(),
-    resourceType: z.string().trim().min(1).max(80).optional(),
-    resourceId: z.uuid().optional(),
-    result: AuditResultSchema.optional(),
-    limit: z.number().int().min(1).max(100),
-  }),
-  before: z.strictObject({
-    occurredAt: z.iso.datetime(),
-    id: z.uuid(),
-  }),
-})
-export type AuditEventCursor = z.infer<typeof AuditEventCursorSchema>
 export const AuditEventSchema = z
   .strictObject({
     id: z.uuid(),
@@ -59,7 +42,10 @@ export type AuditEvent = z.infer<typeof AuditEventSchema>
 export const AuditEventsPageSchema = z
   .strictObject({
     items: z.array(AuditEventSchema),
-    nextCursor: z.string().nullable(),
+    page: z.number().int().min(1),
+    pageSize: z.number().int().min(1).max(100),
+    total: z.number().int().min(0),
+    window: z.strictObject({ from: z.iso.datetime(), to: z.iso.datetime() }),
   })
   .meta({ id: "AuditEventsPage" })
 export type AuditEventsPage = z.infer<typeof AuditEventsPageSchema>

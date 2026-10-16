@@ -38,7 +38,7 @@ const detailPlay: Story["play"] = async ({ canvasElement }) => {
 }
 const loadingPlay: Story["play"] = async ({ canvasElement }) => {
   await expect(
-    await within(canvasElement).findByRole("status")
+    (await within(canvasElement).findByRole("status")).closest("[aria-busy]")
   ).toHaveAttribute("aria-busy", "true")
 }
 const errorPlay: Story["play"] = async ({ canvasElement }) => {
@@ -74,7 +74,7 @@ export const Empty: Story = {
   ...scenario("empty"),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await canvas.findByRole("heading", { name: "No results" })
+    await canvas.findByText("No data yet")
     await expect(canvas.queryByRole("table")).toBeNull()
   },
 }
@@ -129,10 +129,9 @@ export const SlowNetwork: Story = {
   ...scenario("slow"),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await expect(await canvas.findByRole("status")).toHaveAttribute(
-      "aria-busy",
-      "true"
-    )
+    await expect(
+      (await within(canvasElement).findByRole("status")).closest("[aria-busy]")
+    ).toHaveAttribute("aria-busy", "true")
     await canvas.findByRole("link", { name: platformUserFixture.name })
   },
 }
@@ -346,7 +345,7 @@ export const FilterAndPagination: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await canvas.findByRole("table")
-    await expect(canvas.getAllByRole("row")).toHaveLength(21)
+    await waitFor(() => expect(canvas.getAllByRole("row")).toHaveLength(21))
     await userEvent.click(canvas.getByRole("button", { name: "Next page" }))
     await waitFor(() => expect(canvas.getAllByRole("row")).toHaveLength(6))
     await canvas.findByRole("link", { name: "Directory member 25" })
@@ -356,7 +355,7 @@ export const FilterAndPagination: Story = {
       }),
       "Mina"
     )
-    await userEvent.click(canvas.getByRole("button", { name: "Apply filters" }))
+    await userEvent.click(canvas.getByRole("button", { name: "Search" }))
     await canvas.findByRole("link", { name: platformUserFixture.name })
     await expect(canvas.getAllByRole("row")).toHaveLength(2)
     await expect(

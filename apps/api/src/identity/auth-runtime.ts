@@ -7,7 +7,6 @@ import {
   getAuthRequestContext,
   type AuthEmailHooks,
 } from '@workspace/database/auth';
-import { createHmac } from 'node:crypto';
 import { isIP } from 'node:net';
 import { z } from 'zod';
 import { parseEnvironment } from '../config/environment';
@@ -113,7 +112,6 @@ export class AuthRuntime implements OnApplicationShutdown {
   readonly trustedOrigins: readonly string[];
   readonly pool: ReturnType<typeof createDatabase>['pool'];
   readonly auth: ReturnType<typeof createAuth>;
-  readonly auditCursorKey: Buffer;
   private readonly redis: Redis;
 
   constructor(
@@ -124,9 +122,6 @@ export class AuthRuntime implements OnApplicationShutdown {
       new URL(config.baseURL).origin,
       ...config.trustedOrigins,
     ];
-    this.auditCursorKey = createHmac('sha256', config.secret)
-      .update('enterprise-admin:audit-event-cursor:v1')
-      .digest();
     this.pool = createDatabase(config.databaseURL).pool;
     // pg 已移除失效空闲连接；处理事件避免进程退出及原始连接对象泄露。
     this.pool.on('error', (error) => {

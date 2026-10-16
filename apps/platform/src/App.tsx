@@ -108,7 +108,7 @@ export function PlatformLayout() {
     : location.pathname.startsWith("/platform/users")
       ? { title: t("organization:platformUsers"), kind: "users" }
       : location.pathname.startsWith("/platform/audit-events")
-        ? { title: t("organization:audit"), kind: "audit" }
+        ? { title: t("organization:platformOperationsLog"), kind: "audit" }
         : location.pathname.startsWith("/platform/settings")
           ? { title: t("organization:platformSettings"), kind: "settings" }
           : location.pathname.startsWith("/platform/personal-settings")
@@ -227,10 +227,15 @@ export function PlatformLayout() {
               ),
             },
             {
-              title: t("organization:audit"),
+              title: t("organization:platformOperationsLog"),
               icon: <ClipboardListIcon />,
               isActive: location.pathname.startsWith("/platform/audit-events"),
-              render: <Link to="/platform/audit-events" search={{}} />,
+              render: (
+                <Link
+                  to="/platform/audit-events"
+                  search={{ page: 1, pageSize: 20 }}
+                />
+              ),
             },
             {
               title: t("organization:platformSettings"),

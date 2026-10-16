@@ -89,7 +89,8 @@ describe("platform audit browser investigation", () => {
   }
   async function axe(page, selector = "main") {
     await page.locator(selector).evaluate(async (element) => {
-      await Promise.all(
+      // 筛选提交会卸载 Popover，取消它的退出动画也属于正常完成。
+      await Promise.allSettled(
         element
           .getAnimations({ subtree: true })
           .map((animation) => animation.finished)
@@ -108,10 +109,21 @@ describe("platform audit browser investigation", () => {
     )
     expect(violations).toEqual([])
   }
+  async function openFilters(page, locale = "en-US") {
+    const label = {
+      "en-US": "Advanced filters",
+      "zh-CN": "高级筛选",
+      ar: "عوامل تصفية متقدمة",
+    }[locale]
+    await page.getByRole("button", { name: new RegExp(`^${label}`) }).click()
+    await expectUI(
+      page.getByRole("dialog", { name: label, exact: true })
+    ).toBeVisible()
+  }
   const url = () =>
     `${environment.platformOrigin}/platform/audit-events?eventCode=member.role_changed`
 
-  it("requires purpose before reading, paginates, opens an audited detail with keyboard and restores URL filters", async () => {
+  it("loads immediately without a purpose, paginates, opens an audited detail with keyboard and restores URL filters", async () => {
     const page = await pageFor(admin)
     const requests = [],
       responses = []
@@ -128,26 +140,19 @@ describe("platform audit browser investigation", () => {
     })
     await page.goto(url())
     await expectUI(
-      page.getByRole("heading", { name: "Audit", exact: true })
+      page.getByRole("heading", { name: "Operation logs", exact: true })
     ).toBeVisible()
-    expect(requests).toEqual([])
-    await page
-      .getByLabel("Purpose of access", { exact: true })
-      .fill("Browser issue 22 purpose")
-    await page
-      .getByRole("button", { name: "Apply filters", exact: true })
-      .click()
     await expectUI(page.locator("tbody tr")).toHaveCount(20)
     expect(page.url()).not.toContain("purpose")
     expect(await page.locator("main").innerText()).not.toContain(tenant.email)
-    await page.getByRole("button", { name: "Next page", exact: true }).click()
+    await page.getByRole("button", { name: "2", exact: true }).click()
     await expectUI(page.locator("tbody tr")).toHaveCount(3)
     await page
       .getByRole("button", { name: "Previous page", exact: true })
       .click()
     await expectUI(page.locator("tbody tr")).toHaveCount(20)
     const trigger = page
-      .getByRole("button", { name: "Audit details", exact: true })
+      .getByRole("button", { name: "Operation log details", exact: true })
       .first()
     await trigger.focus()
     await page.keyboard.press("Enter")
@@ -160,25 +165,41 @@ describe("platform audit browser investigation", () => {
     await dialog.getByRole("button", { name: "Close", exact: true }).click()
     await expectUI(dialog).toHaveCount(0)
     await expectUI(trigger).toBeFocused()
-    await page.getByLabel("Event", { exact: true }).fill("role.deleted")
-    await page
-      .getByRole("button", { name: "Apply filters", exact: true })
-      .click()
+    await openFilters(page)
+    await expectUI(page.getByLabel(/Purpose of access/)).toHaveCount(0)
+    await page.keyboard.press("Escape")
+    const search = page.getByRole("textbox", {
+      name: "Event code (exact match)",
+    })
+    await search.fill("role.deleted")
+    await page.getByRole("button", { name: "Search", exact: true }).click()
+    await expectUI(page.getByText("No results", { exact: true })).toBeVisible()
+    await expectUI(
+      page.getByRole("button", { name: /^Advanced filters/ })
+    ).toBeEnabled()
+    await search.fill("member.role_changed")
+    await page.getByRole("button", { name: "Search", exact: true }).click()
+    await expectUI(page.locator("tbody tr")).toHaveCount(20)
+    await page.goBack()
     await expectUI(page.getByText("No results", { exact: true })).toBeVisible()
     await page.goBack()
     await expectUI(page.locator("tbody tr")).toHaveCount(20)
-    await expectUI(page.getByLabel("Event", { exact: true })).toHaveValue(
-      "member.role_changed"
-    )
-    await expectUI(
-      page.getByRole("button", { name: "Apply filters", exact: true })
-    ).toBeEnabled()
+    await expectUI(search).toHaveValue("member.role_changed")
     await page.reload()
-    await expectUI(
-      page.getByLabel("Purpose of access", { exact: true })
-    ).toHaveValue("")
-    await expectUI(page.locator("tbody tr")).toHaveCount(0)
+    await expectUI(page.locator("tbody tr")).toHaveCount(20)
+    await expectUI(page.getByLabel(/Purpose of access/)).toHaveCount(0)
     expect(responses.length).toBeGreaterThanOrEqual(5)
+    const pages = responses
+      .map((text) => JSON.parse(text))
+      .filter((body) => Array.isArray(body.items))
+    expect(pages.slice(0, 3).map((body) => body.page)).toEqual([1, 2, 1])
+    expect(
+      pages
+        .slice(0, 3)
+        .every((body) => body.pageSize === 20 && body.total === 23)
+    ).toBe(true)
+    expect(pages[1].window).toEqual(pages[0].window)
+    expect(pages[2].window).toEqual(pages[0].window)
     for (const text of responses) {
       for (const value of [
         tenant.email,
@@ -188,17 +209,57 @@ describe("platform audit browser investigation", () => {
         expect(text).not.toContain(value)
     }
     expect(
-      requests.every(
-        (value) =>
-          new URL(value).searchParams.get("purpose") ===
-          "Browser issue 22 purpose"
-      )
+      requests.every((value) => !new URL(value).searchParams.has("purpose"))
     ).toBe(true)
+  })
+
+  it("changes page size and jumps directly to a numbered page", async () => {
+    const page = await pageFor(admin)
+    await page.goto(url())
+    await expectUI(page.locator("tbody tr")).toHaveCount(20)
+    await page
+      .getByRole("combobox", { name: "Rows per page", exact: true })
+      .click()
+    await page.getByRole("option", { name: "10", exact: true }).click()
+    await expectUI(page).toHaveURL(/page=1&pageSize=10/)
+    await expectUI(page.locator("tbody tr")).toHaveCount(10)
+    await page.getByRole("button", { name: "3", exact: true }).click()
+    await expectUI(page).toHaveURL(/page=3&pageSize=10/)
+    await expectUI(page.locator("tbody tr")).toHaveCount(3)
+    await expectUI(page.getByText("23 rows", { exact: true })).toBeVisible()
+    await expectUI(
+      page.getByRole("button", { name: "Next page", exact: true })
+    ).toBeDisabled()
+    await openFilters(page)
+    const fixedWindow = new URL(page.url()).searchParams
+    await page.getByLabel("Actor ID", { exact: true }).fill(tenant.user.id)
+    await page
+      .getByRole("button", { name: "Apply filters", exact: true })
+      .click()
+    await expectUI(page).toHaveURL(/page=1&pageSize=10/)
+    await expectUI(page.locator("tbody tr")).toHaveCount(10)
+    expect(new URL(page.url()).searchParams.get("from")).toBe(
+      fixedWindow.get("from")
+    )
+    expect(new URL(page.url()).searchParams.get("to")).toBe(
+      fixedWindow.get("to")
+    )
+    await page.getByRole("button", { name: "Result", exact: true }).click()
+    await page.getByRole("option", { name: "Succeeded", exact: true }).click()
+    await page.keyboard.press("Escape")
+    await expectUI(page).toHaveURL(/result=succeeded/)
+    await expectUI(page.locator("tbody tr")).toHaveCount(10)
+    expect(new URL(page.url()).searchParams.get("actorId")).toBe(tenant.user.id)
+    await axe(page)
+    await page.screenshot({
+      path: join(tmpdir(), "enterprise-admin-platform-audit-datatable.png"),
+      fullPage: true,
+    })
   })
 
   for (const [
     locale,
-    purposeLabel,
+    organizationLabel,
     applyLabel,
     detailsLabel,
     closeLabel,
@@ -206,19 +267,19 @@ describe("platform audit browser investigation", () => {
   ] of [
     [
       "zh-CN",
-      "读取目的",
+      "组织 ID",
       "应用筛选",
-      "审计详情",
+      "操作日志详情",
       "关闭",
-      "读取目的不能为空，且不能超过 500 个字符。",
+      "请填写有效值；日期范围最多 90 天，结束时间不能晚于当前时间。",
     ],
     [
       "ar",
-      "غرض الوصول",
+      "معرّف المنظمة",
       "تطبيق عوامل التصفية",
-      "تفاصيل التدقيق",
+      "تفاصيل سجل العمليات",
       "إغلاق",
-      "أدخل غرضًا من حرف واحد إلى 500 حرف.",
+      "أدخل قيمة صحيحة وفترة لا تتجاوز 90 يومًا ولا تنتهي بعد الوقت الحالي.",
     ],
   ])
     it(`provides ${locale} validation, RTL, keyboard and accessible list/detail`, async () => {
@@ -229,7 +290,9 @@ describe("platform audit browser investigation", () => {
         "dir",
         locale === "ar" ? "rtl" : "ltr"
       )
-      await page.getByLabel(purposeLabel, { exact: true }).fill(" ")
+      await expectUI(page.locator("tbody tr")).toHaveCount(20)
+      await openFilters(page, locale)
+      await page.getByLabel(organizationLabel, { exact: true }).fill("bad-uuid")
       const apply = page.getByRole("button", { name: applyLabel, exact: true })
       await apply.focus()
       await page.keyboard.press("Enter")
@@ -238,8 +301,8 @@ describe("platform audit browser investigation", () => {
         errorLabel
       )
       await page
-        .getByLabel(purposeLabel, { exact: true })
-        .fill("排查平台权限 / غرض التحقيق")
+        .getByLabel(organizationLabel, { exact: true })
+        .fill(organization.id)
       await apply.focus()
       await page.keyboard.press("Enter")
       await expectUI(page.locator("tbody tr")).toHaveCount(20)
@@ -264,12 +327,11 @@ describe("platform audit browser investigation", () => {
       await expectUI(dialog).toHaveCount(0)
     })
 
-  it("keeps purpose and filter drafts on audit failure, exposes loading, retries and rejects invalid IDs and ranges", async () => {
+  it("keeps filter values on audit failure, exposes loading, retries and rejects invalid IDs and ranges", async () => {
     const page = await pageFor(admin)
     await page.goto(url())
-    await page
-      .getByLabel("Purpose of access", { exact: true })
-      .fill("Failure retains this purpose")
+    await expectUI(page.locator("tbody tr")).toHaveCount(20)
+    await openFilters(page)
     await page.getByLabel("Organization ID", { exact: true }).fill("bad-uuid")
     await page
       .getByRole("button", { name: "Apply filters", exact: true })
@@ -295,18 +357,16 @@ describe("platform audit browser investigation", () => {
         .getByRole("button", { name: "Apply filters", exact: true })
         .click()
       await expectUI(
-        page.locator('[role="status"][aria-busy="true"]')
+        page.locator('[data-slot="data-table"][aria-busy="true"]')
       ).toBeVisible()
       await expectUI(
-        page.getByRole("button", { name: "Apply filters", exact: true })
+        page.getByRole("button", { name: /^Advanced filters/ })
       ).toBeDisabled()
     } finally {
       release()
     }
     await expectUI(page.getByRole("alert")).toBeVisible()
-    await expectUI(
-      page.getByLabel("Purpose of access", { exact: true })
-    ).toHaveValue("Failure retains this purpose")
+    await openFilters(page)
     await expectUI(
       page.getByLabel("Organization ID", { exact: true })
     ).toHaveValue(organization.id)
@@ -314,8 +374,10 @@ describe("platform audit browser investigation", () => {
     await environment.migrator.query(
       "DROP TRIGGER issue22_browser_fail ON public.audit_events; DROP FUNCTION public.issue22_browser_fail()"
     )
+    await page.keyboard.press("Escape")
     await page.getByRole("button", { name: "Retry", exact: true }).click()
     await expectUI(page.locator("tbody tr")).toHaveCount(20)
+    await openFilters(page)
     await page
       .getByLabel("From (UTC)", { exact: true })
       .fill("2020-01-01T00:00")
@@ -323,20 +385,11 @@ describe("platform audit browser investigation", () => {
       .getByRole("button", { name: "Apply filters", exact: true })
       .click()
     await expectUI(page.locator('[data-invalid="true"]')).toHaveCount(1)
-    await expectUI(
-      page.getByLabel("Purpose of access", { exact: true })
-    ).toHaveValue("Failure retains this purpose")
   })
 
   it("removes restricted audit results after CLI revocation and rejects an ordinary organization owner", async () => {
     const page = await pageFor(auditor)
     await page.goto(url())
-    await page
-      .getByLabel("Purpose of access", { exact: true })
-      .fill("Before assignment revocation")
-    await page
-      .getByRole("button", { name: "Apply filters", exact: true })
-      .click()
     await expectUI(page.locator("tbody tr")).toHaveCount(20)
     await promisify(execFile)(
       process.execPath,

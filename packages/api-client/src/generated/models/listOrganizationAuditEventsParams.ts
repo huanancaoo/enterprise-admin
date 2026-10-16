@@ -7,8 +7,8 @@
 import type { ListOrganizationAuditEventsResult } from "./listOrganizationAuditEventsResult"
 
 export type ListOrganizationAuditEventsParams = {
-  limit?: number
-  cursor?: string
+  pageSize?: number
+  page?: number
   result?: ListOrganizationAuditEventsResult
   resourceId?: string
   resourceType?: string

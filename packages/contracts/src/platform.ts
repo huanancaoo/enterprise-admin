@@ -57,37 +57,17 @@ export const PlatformAuditEventIdSchema = z
     /^(event|assignment):[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
   )
 export const PlatformAuditQuerySchema = z.strictObject({
-  purpose: z.string().trim().min(1).max(500),
   organizationId: OrganizationIdSchema.optional(),
   actorId: UserIdSchema.optional(),
   eventCode: z.string().trim().min(1).max(120).optional(),
   from: z.iso.datetime({ offset: true }).optional(),
   to: z.iso.datetime({ offset: true }).optional(),
   result: AuditResultSchema.optional(),
-  cursor: z.string().min(1).max(2048).optional(),
-  limit: z.coerce.number().int().min(1).max(100).optional(),
+  page: z.coerce.number().int().min(1).max(2_147_483_647).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
 })
 export type PlatformAuditQuery = z.infer<typeof PlatformAuditQuerySchema>
-export const PlatformAuditCursorSchema = z.strictObject({
-  audience: z.literal("platform-audit"),
-  filters: PlatformAuditQuerySchema.omit({
-    purpose: true,
-    cursor: true,
-  }).extend({
-    from: z.iso.datetime({ offset: true }),
-    to: z.iso.datetime({ offset: true }),
-    limit: z.number().int().min(1).max(100),
-  }),
-  before: z.strictObject({
-    occurredAt: z.iso.datetime({ offset: true }),
-    id: PlatformAuditEventIdSchema,
-  }),
-})
-export type PlatformAuditCursor = z.infer<typeof PlatformAuditCursorSchema>
 
-export const PlatformAuditPurposeSchema = PlatformAuditQuerySchema.pick({
-  purpose: true,
-})
 export const PlatformAuditEventSchema = z
   .strictObject({
     id: PlatformAuditEventIdSchema,
@@ -122,7 +102,13 @@ export type PlatformAuditEvent = z.infer<typeof PlatformAuditEventSchema>
 export const PlatformAuditPageSchema = z
   .strictObject({
     items: z.array(PlatformAuditEventSchema),
-    nextCursor: z.string().nullable(),
+    page: z.number().int().min(1),
+    pageSize: z.number().int().min(1).max(100),
+    total: z.number().int().min(0),
+    window: z.strictObject({
+      from: z.iso.datetime({ offset: true }),
+      to: z.iso.datetime({ offset: true }),
+    }),
   })
   .meta({ id: "PlatformAuditPage" })
 export type PlatformAuditPage = z.infer<typeof PlatformAuditPageSchema>

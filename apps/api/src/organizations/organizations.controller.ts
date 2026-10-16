@@ -151,8 +151,8 @@ export class OrganizationsController {
     required: false,
     enum: AuditResultSchema.options,
   })
-  @ApiQuery({ name: 'cursor', required: false, type: String })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'pageSize', required: false, type: Number })
   @ApiResponse({ status: 200, standardSchema: AuditEventsPageSchema })
   @ApiResponse({ status: 400, standardSchema: ApiErrorSchema })
   @ApiResponse({ status: 401, standardSchema: ApiErrorSchema })

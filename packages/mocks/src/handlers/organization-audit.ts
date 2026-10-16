@@ -36,11 +36,12 @@ export type OrganizationAuditScenario =
   | "detailNotFound"
   | "detailForbidden"
   | "detailUnauthorized"
+  | "detailRevoked"
 
 export function createOrganizationAuditScenario(
   scenario: OrganizationAuditScenario = "success"
 ) {
-  // 保持默认时间窗口真实有效，筛选和游标作用于同一批租户可见事实。
+  // 保持默认时间窗口真实有效，筛选和页码作用于同一批租户可见事实。
   const at = Date.now() - 60_000
   const records: AuditEvent[] = Array.from(
     { length: scenario === "paginated" ? 25 : 2 },
@@ -53,8 +54,9 @@ export function createOrganizationAuditScenario(
   Object.assign(records.at(-1)!, {
     scope: "platform",
     eventCode: "platform.organization_suspended",
-    resourceType: "organization",
-    resourceId: organizations[0].id,
+    actorId: null,
+    resourceType: null,
+    resourceId: null,
     publicSummary: organizationAuditSummary,
     metadata: {},
   })
@@ -65,6 +67,7 @@ export function createOrganizationAuditScenario(
   if (scenario === "systemActor")
     Object.assign(records[0], { actorType: "system", actorId: null })
   let failed = false
+  let detailReads = 0
   const failure = (status: number, code: string) =>
     HttpResponse.json(
       {
@@ -78,6 +81,7 @@ export function createOrganizationAuditScenario(
   return {
     reset: () => {
       failed = false
+      detailReads = 0
     },
     handlers: [
       http.get(
@@ -115,17 +119,16 @@ export function createOrganizationAuditScenario(
               (!query.resourceId || query.resourceId === record.resourceId) &&
               (!query.result || query.result === record.result)
           )
-          const before = query.cursor
-            ? matching.findIndex((record) => record.id === query.cursor)
-            : undefined
-          if (before === -1) return failure(400, "VALIDATION_ERROR")
-          const offset = before === undefined ? 0 : before + 1
-          const page = matching.slice(offset, offset + query.limit)
-          // 这里仅模拟 UI 对不透明游标的消费；真实游标签名和租户隔离由 HTTP 套件证明。
+          const offset = (query.page - 1) * query.pageSize
           return HttpResponse.json({
-            items: page,
-            nextCursor:
-              offset + query.limit < matching.length ? page.at(-1)!.id : null,
+            items: matching.slice(offset, offset + query.pageSize),
+            page: query.page,
+            pageSize: query.pageSize,
+            total: matching.length,
+            window: {
+              from: query.from ?? new Date(lower).toISOString(),
+              to: query.to ?? new Date(upper).toISOString(),
+            },
           })
         }
       ),
@@ -141,6 +144,8 @@ export function createOrganizationAuditScenario(
           if (scenario === "detailForbidden") return failure(403, "FORBIDDEN")
           if (scenario === "detailUnauthorized")
             return failure(401, "UNAUTHENTICATED")
+          if (scenario === "detailRevoked" && detailReads++ > 0)
+            return failure(403, "FORBIDDEN")
           const record = records.find((item) => item.id === params.eventId)
           return record ? HttpResponse.json(record) : failure(404, "NOT_FOUND")
         }

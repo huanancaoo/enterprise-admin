@@ -291,11 +291,14 @@ describe("S8 published HTTP performance with production authorization and auditi
   })
 
   it("90 day audit lists have P95 below 1000 ms at concurrency 20", async () => {
-    const tenantQuery = new URLSearchParams({ ...window, limit: "20" })
+    const tenantQuery = new URLSearchParams({
+      ...window,
+      page: "1",
+      pageSize: "20",
+    })
     const platformQuery = new URLSearchParams({
       ...window,
-      limit: "20",
-      purpose: "S8 performance acceptance",
+      pageSize: "20",
     })
     for (const endpoint of [
       {

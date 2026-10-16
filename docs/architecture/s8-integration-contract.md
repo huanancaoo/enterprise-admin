@@ -10,15 +10,15 @@
 
 平台角色只由受控部署 CLI 管理。`platform admin create` 使用独立部署凭据，原子创建邮箱已验证的新管理员、密码凭据、任职及审计。已有用户的 grant/revoke 仍输入精确 userId、role、reason；grant 检查用户存在且邮箱已验证，任职变更与审计在同一事务提交。拒绝在线运行凭据；无授予/撤销 HTTP 接口、首位注册者或邮箱域名自动授权。每次平台请求重新检查权威 Session 和有效任职，撤销后旧 Session 的下一请求被拒绝。
 
-| 动作                                   | platform_admin           | platform_auditor   |
-| -------------------------------------- | ------------------------ | ------------------ |
-| platform.organization:read             | 允许                     | 允许               |
-| platform.organization:suspend / resume | 允许                     | 禁止               |
-| platform.user:read                     | 脱敏                     | 脱敏               |
-| platform.user:readSensitive            | 明示 purpose，审计后返回 | 禁止               |
-| platform.audit:read                    | purpose + 范围审计       | purpose + 范围审计 |
-| platform.settings:read                 | 安全摘要                 | 安全摘要           |
-| platform.settings:update               | 仅平台默认语言           | 禁止               |
+| 动作                                   | platform_admin           | platform_auditor |
+| -------------------------------------- | ------------------------ | ---------------- |
+| platform.organization:read             | 允许                     | 允许             |
+| platform.organization:suspend / resume | 允许                     | 禁止             |
+| platform.user:read                     | 脱敏                     | 脱敏             |
+| platform.user:readSensitive            | 明示 purpose，审计后返回 | 禁止             |
+| platform.audit:read                    | 范围审计                 | 范围审计         |
+| platform.settings:read                 | 安全摘要                 | 安全摘要         |
+| platform.settings:update               | 仅平台默认语言           | 禁止             |
 
 没有 Projects 访问、冒充用户、任意 SQL 或平台动态角色。平台人员访问租户 API 仍须有该组织 Membership，并通过普通租户动作和 Domain Policy。
 

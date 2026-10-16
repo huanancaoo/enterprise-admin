@@ -111,7 +111,7 @@ export function AdminLayout() {
   const onAudit =
     pathname.startsWith("/app/organizations/") && pathname.endsWith("/audit")
   const onManagement =
-    onMembers || onRoles || onIntegrations || onAudit || onOrganizationSettings
+    onMembers || onRoles || onIntegrations || onOrganizationSettings
   useDropStaleOrganizationQueries(currentOrganizationId ?? undefined)
   const access = useQuery({
     ...getOrganizationAccessOptions(currentOrganizationId ?? ""),
@@ -240,11 +240,11 @@ export function AdminLayout() {
       params={{ organizationId: currentOrganizationId }}
     />
   ) : undefined
-  const auditLink = organizationId ? (
+  const auditLink = currentOrganizationId ? (
     <Link
       to="/app/organizations/$organizationId/audit"
-      params={{ organizationId }}
-      search={{ limit: 20 }}
+      params={{ organizationId: currentOrganizationId }}
+      search={{ page: 1, pageSize: 20 }}
     />
   ) : undefined
   const suspended =
@@ -270,12 +270,6 @@ export function AdminLayout() {
       icon: <PlugIcon />,
       active: onIntegrations,
       render: integrationsLink,
-    },
-    {
-      title: t("organization:audit"),
-      icon: <ClipboardListIcon />,
-      active: onAudit,
-      render: auditLink,
     },
     ...(settingsPermissions.data?.canRead
       ? [
@@ -362,7 +356,7 @@ export function AdminLayout() {
       await navigate({
         to: "/app/organizations/$organizationId/audit",
         params: { organizationId: nextOrganizationId },
-        search: { limit: 20 },
+        search: { page: 1, pageSize: 20 },
       })
       return
     }
@@ -476,6 +470,13 @@ export function AdminLayout() {
               isActive: onFiles,
               disabled: !currentOrganizationId || suspended,
               render: filesLink,
+            },
+            {
+              title: t("organization:audit"),
+              icon: <ClipboardListIcon />,
+              isActive: onAudit,
+              disabled: !currentOrganizationId || suspended,
+              render: auditLink,
             },
             {
               title: t("organization:management"),

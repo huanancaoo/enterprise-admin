@@ -70,7 +70,7 @@ describe("页面组织结构：真实 API 导航与授权", () => {
     )
   }
 
-  it("租户保留三个主入口，管理分区深链刷新和切组织保留分区，文件工具绑定当前组织", async () => {
+  it("租户保留四个主入口，操作日志独立于组织管理且切组织时重置筛选，文件工具绑定当前组织", async () => {
     const owner = await account("导航组织所有者")
     const north = await organization(owner, "导航北组织")
     const south = await organization(owner, "导航南组织")
@@ -97,8 +97,12 @@ describe("页面组织结构：真实 API 导航与授权", () => {
     expect(await main(page).getByRole("link").allTextContents()).toEqual([
       "项目",
       "文件",
+      "操作日志",
       "组织管理",
     ])
+    await expectUI(
+      management(page).getByRole("link", { name: "操作日志", exact: true })
+    ).toHaveCount(0)
     await expectUI(
       page.getByText("navigation-north", { exact: true })
     ).toBeVisible()
@@ -156,6 +160,52 @@ describe("页面组织结构：真实 API 导航与授权", () => {
         page.getByRole("heading", { name: label, exact: true })
       ).toBeVisible()
     }
+
+    await page.goto(
+      `${environment.tenantOrigin}/app/organizations/${north.id}/roles`
+    )
+    await main(page)
+      .getByRole("link", { name: "操作日志", exact: true })
+      .click()
+    await expectUI(page).toHaveURL(
+      (url) => url.pathname === `/app/organizations/${north.id}/audit`
+    )
+    await expectUI(
+      page.getByRole("heading", { name: "操作日志", exact: true })
+    ).toBeVisible()
+
+    const windowTo = new Date().toISOString()
+    const windowFrom = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+    await page.goto(
+      `${environment.tenantOrigin}/app/organizations/${north.id}/audit?eventCode=project.deleted&page=2&pageSize=20&from=${encodeURIComponent(windowFrom)}&to=${encodeURIComponent(windowTo)}`
+    )
+    await expectUI(
+      page.getByPlaceholder("按事件代码搜索", { exact: true })
+    ).toHaveValue("project.deleted")
+    await switchOrganization(page, north, south)
+    await expectUI(page).toHaveURL(
+      (url) => url.pathname === `/app/organizations/${south.id}/audit`
+    )
+    const switchedSearch = new URL(page.url()).searchParams
+    expect(switchedSearch.get("eventCode")).toBeNull()
+    expect(switchedSearch.get("page") ?? "1").toBe("1")
+    for (const filter of [
+      "from",
+      "to",
+      "actorId",
+      "eventCode",
+      "resourceType",
+      "resourceId",
+      "result",
+    ]) {
+      expect(switchedSearch.get(filter)).toBeNull()
+    }
+    await expectUI(
+      page.getByRole("heading", { name: "操作日志", exact: true })
+    ).toBeVisible()
+    await expectUI(
+      page.getByPlaceholder("按事件代码搜索", { exact: true })
+    ).toHaveValue("")
   })
 
   it("成员可读成员与角色目录，但角色写入、常规设置和其他组织仍由真实权限拒绝", async () => {
@@ -259,13 +309,13 @@ describe("页面组织结构：真实 API 导航与授权", () => {
       expect(await main(page).getByRole("link").allTextContents()).toEqual([
         "组织",
         "用户",
-        "审计",
+        "操作日志",
         "平台设置",
       ])
       await page.screenshot({
         path: join(tmpdir(), `enterprise-navigation-${role}.png`),
       })
-      for (const label of ["用户", "审计", "平台设置"]) {
+      for (const label of ["用户", "操作日志", "平台设置"]) {
         await main(page).getByRole("link", { name: label, exact: true }).click()
         await expectUI(
           page.getByRole("heading", { name: label, exact: true })

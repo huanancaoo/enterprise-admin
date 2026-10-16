@@ -517,7 +517,7 @@ describe("S8 acceptance: native organization authorization", () => {
       "me/platform",
       "platform/organizations",
       "platform/users",
-      "platform/audit-events?purpose=Identity%20boundary%20verification",
+      "platform/audit-events",
       "platform/settings",
     ]) {
       const denied = await fetch(`${environment.baseURL}/api/v1/${path}`, {

@@ -659,12 +659,11 @@ describe("S8 cross-feature browser acceptance", () => {
       ).toBeVisible()
       await page
         .getByRole("navigation", { name: "主导航", exact: true })
-        .getByRole("link", { name: "组织管理", exact: true })
+        .getByRole("link", { name: "操作日志", exact: true })
         .click()
-      await page
-        .getByRole("navigation", { name: "组织管理", exact: true })
-        .getByRole("link", { name: "审计", exact: true })
-        .click()
+      await expectUI(
+        page.getByRole("heading", { name: "操作日志", exact: true })
+      ).toBeVisible()
       await expectUI(
         page.getByRole("button", { name: "平台停用组织", exact: true })
       ).toBeVisible()
@@ -672,10 +671,15 @@ describe("S8 cross-feature browser acceptance", () => {
         page.getByRole("button", { name: "平台恢复组织", exact: true })
       ).toBeVisible()
       const response = await page.request.get(
-        `${environment.tenantOrigin}/api/v1/organizations/${org.id}/audit-events`
+        `${environment.tenantOrigin}/api/v1/organizations/${org.id}/audit-events?page=1&pageSize=100`
       )
       expect(response.status()).toBe(200)
       const audit = await response.json()
+      expect(audit).toMatchObject({ page: 1, pageSize: 100 })
+      expect(audit.window).toEqual({
+        from: expect.any(String),
+        to: expect.any(String),
+      })
       expect(
         audit.items
           .filter((event) =>

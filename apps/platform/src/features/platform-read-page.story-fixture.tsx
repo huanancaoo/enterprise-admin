@@ -91,10 +91,7 @@ export function PlatformReadPageStory({
     const audit = createRoute({
       getParentRoute: () => platform,
       path: "audit-events",
-      validateSearch: (search) =>
-        PlatformAuditQuerySchema.omit({ purpose: true, cursor: true }).parse(
-          search
-        ),
+      validateSearch: (search) => PlatformAuditQuerySchema.parse(search),
       component: () => (
         <main className="mx-auto max-w-6xl p-6">
           <PlatformAuditPage />

@@ -7,7 +7,6 @@ import {
   PlatformAuditEventSchema,
   PlatformAuditPageSchema,
   PlatformAuditQuerySchema,
-  PlatformAuditPurposeSchema,
   type PlatformAuditQuery,
 } from '@workspace/contracts';
 import { CurrentPlatform, RequirePlatform } from './platform.guard';
@@ -43,15 +42,11 @@ export class PlatformAuditController {
   get(
     @CurrentPlatform() actor: PlatformPrincipal,
     @Param('eventId', { schema: PlatformAuditEventIdSchema }) eventId: string,
-    @Query({ schema: PlatformAuditPurposeSchema }) query: { purpose: string },
+    @Query({ schema: PlatformAuditQuerySchema.pick({}) })
+    _query: Record<string, never>,
     @Res({ passthrough: true }) response: Response,
   ) {
     response.setHeader('Cache-Control', 'private, no-store');
-    return this.audit.get(
-      actor,
-      eventId,
-      query.purpose,
-      response.locals.requestId as string,
-    );
+    return this.audit.get(actor, eventId, response.locals.requestId as string);
   }
 }

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useForm } from "@tanstack/react-form"
 import {
@@ -21,14 +21,13 @@ import {
   PlatformUserDetailSchema,
   PlatformSensitiveProfileSchema,
   SensitiveProfileQuerySchema,
-  PlatformUsersQuerySchema,
+  type PlatformUsersPage,
 } from "@workspace/contracts/platform"
 import {
   EmptyState,
   ErrorState,
   LoadingState,
   NotFoundContent,
-  Pagination,
 } from "@workspace/admin"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import { createFormatter } from "@workspace/i18n"
@@ -37,7 +36,6 @@ import { ArrowLeftIcon } from "lucide-react"
 import { Badge } from "@workspace/ui/components/badge"
 import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
 import { Button } from "@workspace/ui/components/button"
-import { Input } from "@workspace/ui/components/input"
 import { Textarea } from "@workspace/ui/components/textarea"
 import {
   Field,
@@ -45,6 +43,11 @@ import {
   FieldError,
   FieldGroup,
 } from "@workspace/ui/components/field"
+import {
+  DataTable,
+  createDataTableColumnHelper,
+  type DataTableStatus,
+} from "@workspace/admin/data-table"
 import {
   Table,
   TableBody,
@@ -64,70 +67,16 @@ import {
 } from "@workspace/ui/components/dialog"
 import { usePlatformAccessFailure } from "../../lib/use-platform-access-failure"
 
-function UserSearch({
-  search,
-  onApply,
-}: {
-  search: { q?: string; page: number; pageSize: number }
-  onApply: (q: string) => void
-}) {
-  const { t } = useTranslation("organization")
-  const form = useForm({
-    defaultValues: { q: search.q ?? "" },
-    validators: {
-      onSubmit: ({ value }) =>
-        PlatformUsersQuerySchema.pick({ q: true }).required().safeParse(value)
-          .success
-          ? undefined
-          : { fields: { q: { message: t("platformUsersSearchInvalid") } } },
-    },
-    onSubmit: ({ value }) => onApply(value.q),
-  })
-  return (
-    <form
-      className="rounded-2xl bg-muted/30 p-4 ring-1 ring-foreground/10 sm:p-5"
-      onSubmit={(event) => {
-        event.preventDefault()
-        void form.handleSubmit()
-      }}
-    >
-      <FieldGroup className="flex flex-col gap-3 sm:flex-row sm:items-end">
-        <form.Field name="q">
-          {(field) => {
-            const invalid =
-              field.state.meta.isTouched && !field.state.meta.isValid
-            return (
-              <Field data-invalid={invalid}>
-                <FieldLabel htmlFor="users-search">
-                  {t("platformUsersSearch")}
-                </FieldLabel>
-                <Input
-                  id="users-search"
-                  value={field.state.value}
-                  maxLength={200}
-                  aria-invalid={invalid}
-                  onChange={(event) => field.handleChange(event.target.value)}
-                  onBlur={field.handleBlur}
-                />
-                {invalid && <FieldError errors={field.state.meta.errors} />}
-              </Field>
-            )
-          }}
-        </form.Field>
-        <Button type="submit" className="shrink-0">
-          {t("platformApplyFilters")}
-        </Button>
-      </FieldGroup>
-    </form>
-  )
-}
+type UserRow = PlatformUsersPage["items"][number]
+const userColumns = createDataTableColumnHelper<UserRow>()
+const EMPTY_USERS: UserRow[] = []
 
 export function PlatformUsersPage() {
   const { t } = useTranslation("organization")
   const session = useAuthenticatedSession()!
   const search = useSearch({ from: "/platform/users" })
   const navigate = useNavigate({ from: "/platform/users" })
-  const format = createFormatter(useUiLocale())
+  const locale = useUiLocale()
   const query = useQuery({
     queryKey: ["platform", session.user.id, "users", search],
     queryFn: async ({ signal }) =>
@@ -137,97 +86,114 @@ export function PlatformUsersPage() {
     retry: false,
   })
   usePlatformAccessFailure(query.error)
+  const columns = useMemo(() => {
+    const format = createFormatter(locale)
+    return userColumns.columns([
+      userColumns.accessor("userId", {
+        header: t("platformUserId"),
+        cell: ({ getValue }) => (
+          <bdi className="font-mono text-xs">{getValue()}</bdi>
+        ),
+        meta: { label: t("platformUserId") },
+        size: 290,
+      }),
+      userColumns.accessor("name", {
+        header: t("platformName"),
+        cell: ({ row, getValue }) => (
+          <Link
+            to="/platform/users/$userId"
+            params={{ userId: row.original.userId }}
+            className="font-medium wrap-anywhere underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          >
+            {getValue()}
+          </Link>
+        ),
+        meta: { label: t("platformName") },
+        size: 220,
+      }),
+      userColumns.accessor("maskedEmail", {
+        header: t("platformMaskedEmail"),
+        cell: ({ getValue }) => <bdi>{getValue()}</bdi>,
+        meta: { label: t("platformMaskedEmail") },
+        size: 230,
+      }),
+      userColumns.accessor("emailVerified", {
+        header: t("platformEmailVerified"),
+        cell: ({ getValue }) => (
+          <Badge variant={getValue() ? "secondary" : "outline"}>
+            {getValue() ? t("platformVerified") : t("platformUnverified")}
+          </Badge>
+        ),
+        meta: { label: t("platformEmailVerified") },
+      }),
+      userColumns.accessor("createdAt", {
+        header: t("platformCreatedAt"),
+        cell: ({ getValue }) =>
+          format.dateTime(new Date(getValue()), "UTC", {
+            dateStyle: "medium",
+            timeStyle: "short",
+          }),
+        meta: { label: t("platformCreatedAt") },
+        size: 210,
+      }),
+      userColumns.accessor("organizationCount", {
+        header: t("platformOrganizationCount"),
+        cell: ({ getValue }) => format.number(getValue()),
+        meta: { label: t("platformOrganizationCount") },
+      }),
+    ])
+  }, [locale, t])
+  const pagination = { pageIndex: search.page - 1, pageSize: search.pageSize }
+  const status: DataTableStatus = query.isError
+    ? query.error instanceof ApiClientError && query.error.status === 403
+      ? "forbidden"
+      : "error"
+    : query.isPending
+      ? "loading"
+      : query.isFetching
+        ? "refreshing"
+        : "ready"
   return (
     <section className="min-w-0 space-y-6">
       <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
         {t("platformUsers")}
       </h1>
-      <UserSearch
-        key={search.q ?? ""}
-        search={search}
-        onApply={(q) => void navigate({ search: { ...search, q, page: 1 } })}
+      <DataTable
+        columns={columns}
+        data={query.data?.items ?? EMPTY_USERS}
+        getRowId={(row) => row.userId}
+        rowCount={query.data?.total ?? 0}
+        status={status}
+        error={query.error instanceof Error ? query.error.message : undefined}
+        onRetry={() => void query.refetch()}
+        manualPagination
+        manualFiltering
+        manualSorting
+        enableSorting={false}
+        enableRowSelection={false}
+        searchPlaceholder={t("platformUsersSearch")}
+        searchMaxLength={200}
+        state={{ globalFilter: search.q ?? "", pagination }}
+        onResetFilters={() =>
+          void navigate({ search: { ...search, page: 1, q: undefined } })
+        }
+        onGlobalFilterChange={(updater) => {
+          const q =
+            typeof updater === "function" ? updater(search.q ?? "") : updater
+          void navigate({ search: { ...search, page: 1, q: q || undefined } })
+        }}
+        onPaginationChange={(updater) => {
+          const next =
+            typeof updater === "function" ? updater(pagination) : updater
+          void navigate({
+            search: {
+              ...search,
+              page: next.pageSize === search.pageSize ? next.pageIndex + 1 : 1,
+              pageSize: next.pageSize,
+            },
+          })
+        }}
       />
-      {query.isPending ? (
-        <LoadingState />
-      ) : query.isError ? (
-        <ErrorState onRetry={() => void query.refetch()} />
-      ) : (
-        <>
-          {query.data.items.length === 0 ? (
-            <EmptyState />
-          ) : (
-            <div
-              className="overflow-x-auto rounded-2xl bg-card ring-1 ring-foreground/10"
-              aria-busy={query.isFetching}
-            >
-              <Table className="min-w-[880px]">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t("platformUserId")}</TableHead>
-                    <TableHead>{t("platformName")}</TableHead>
-                    <TableHead>{t("platformMaskedEmail")}</TableHead>
-                    <TableHead>{t("platformEmailVerified")}</TableHead>
-                    <TableHead>{t("platformCreatedAt")}</TableHead>
-                    <TableHead>{t("platformOrganizationCount")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {query.data.items.map((user) => (
-                    <TableRow key={user.userId}>
-                      <TableCell>
-                        <bdi className="font-mono text-xs">{user.userId}</bdi>
-                      </TableCell>
-                      <TableCell className="max-w-56 break-words whitespace-normal">
-                        <Link
-                          className="font-medium underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                          to="/platform/users/$userId"
-                          params={{ userId: user.userId }}
-                        >
-                          {user.name}
-                        </Link>
-                      </TableCell>
-                      <TableCell>
-                        <bdi>{user.maskedEmail}</bdi>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={user.emailVerified ? "secondary" : "outline"}
-                        >
-                          {user.emailVerified
-                            ? t("platformVerified")
-                            : t("platformUnverified")}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {format.dateTime(new Date(user.createdAt), "UTC", {
-                          dateStyle: "medium",
-                          timeStyle: "short",
-                        })}
-                      </TableCell>
-                      <TableCell>
-                        {format.number(user.organizationCount)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-          <Pagination
-            pageIndex={search.page - 1}
-            pageSize={search.pageSize}
-            rowCount={query.data.total}
-            pageCount={Math.ceil(query.data.total / search.pageSize)}
-            disabled={query.isFetching}
-            onPageChange={(page) =>
-              void navigate({ search: { ...search, page: page + 1 } })
-            }
-            onPageSizeChange={(pageSize) =>
-              void navigate({ search: { ...search, page: 1, pageSize } })
-            }
-          />
-        </>
-      )}
     </section>
   )
 }

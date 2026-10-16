@@ -181,10 +181,7 @@ const platformUserDetailRoute = createRoute({
 const platformAuditRoute = createRoute({
   getParentRoute: () => platformRoute,
   path: "audit-events",
-  validateSearch: (search) =>
-    PlatformAuditQuerySchema.omit({ purpose: true, cursor: true }).parse(
-      search
-    ),
+  validateSearch: (search) => PlatformAuditQuerySchema.parse(search),
   component: PlatformAuditPage,
 })
 const personalSettingsRoute = createRoute({

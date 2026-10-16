@@ -26,11 +26,14 @@ export interface AuditEventsQuery {
   /** @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$ */
   resourceId?: string
   result?: AuditResult
-  /** @maxLength 2048 */
-  cursor?: string
+  /**
+   * @minimum 1
+   * @maximum 2147483647
+   */
+  page?: number
   /**
    * @minimum 1
    * @maximum 100
    */
-  limit?: number
+  pageSize?: number
 }

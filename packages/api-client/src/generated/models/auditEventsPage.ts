@@ -5,9 +5,24 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AuditEvent } from "./auditEvent"
+import type { AuditEventsPageWindow } from "./auditEventsPageWindow"
 
 export interface AuditEventsPage {
   items: AuditEvent[]
-  /** @nullable */
-  nextCursor: string | null
+  /**
+   * @minimum 1
+   * @maximum 9007199254740991
+   */
+  page: number
+  /**
+   * @minimum 1
+   * @maximum 100
+   */
+  pageSize: number
+  /**
+   * @minimum 0
+   * @maximum 9007199254740991
+   */
+  total: number
+  window: AuditEventsPageWindow
 }

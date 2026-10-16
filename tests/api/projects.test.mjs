@@ -878,11 +878,19 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
 
     const first = await queryAuditEvents(
       orgA.id,
-      "?eventCode=member.role_changed&limit=2"
+      "?eventCode=member.role_changed&pageSize=2"
     )
     expect(first.status).toBe(200)
     expect(first.headers.get("cache-control")).toBe("private, no-store")
     const firstPage = await first.json()
+    expect(firstPage).toMatchObject({ page: 1, pageSize: 2, total: 5 })
+    expect(firstPage.window).toEqual({
+      from: expect.any(String),
+      to: expect.any(String),
+    })
+    expect(
+      Date.parse(firstPage.window.to) - Date.parse(firstPage.window.from)
+    ).toBe(30 * 24 * 60 * 60 * 1000)
     expect(firstPage.items).toHaveLength(2)
     expect(firstPage.items.map((event) => event.id)).toEqual(
       [...roleEvents]
@@ -908,16 +916,16 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
         .then(([event]) => event)
     )
     const pageIds = [...firstPage.items.map((event) => event.id)]
-    let cursor = firstPage.nextCursor
-    while (cursor) {
+    for (const page of [2, 3]) {
       const next = await queryAuditEvents(
         orgA.id,
-        `?eventCode=member.role_changed&cursor=${encodeURIComponent(cursor)}`
+        `?eventCode=member.role_changed&page=${page}&pageSize=2&from=${encodeURIComponent(firstPage.window.from)}&to=${encodeURIComponent(firstPage.window.to)}`
       )
       expect(next.status).toBe(200)
       const body = await next.json()
+      expect(body).toMatchObject({ page, pageSize: 2, total: 5 })
+      expect(body.window).toEqual(firstPage.window)
       pageIds.push(...body.items.map((event) => event.id))
-      cursor = body.nextCursor
     }
     expect(pageIds).toEqual(
       [...roleEvents]
@@ -926,6 +934,39 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
     )
     expect(pageIds).not.toContain(lateEvent.id)
     expect(pageIds).not.toContain(oldEvent.id)
+
+    const beyondLastPage = await queryAuditEvents(
+      orgA.id,
+      "?eventCode=member.role_changed&page=2147483647&pageSize=100"
+    ).then((response) => response.json())
+    expect(beyondLastPage).toMatchObject({
+      items: [],
+      page: 2147483647,
+      pageSize: 100,
+      total: 5,
+    })
+
+    const exactEventTime = roleEvents[0].occurredAt.toISOString()
+    const afterEventByOneMicrosecond = exactEventTime.replace(
+      /(\.\d{3})Z$/,
+      (_, milliseconds) => `${milliseconds}001Z`
+    )
+    const withinTheSameMillisecond = exactEventTime.replace(
+      /(\.\d{3})Z$/,
+      (_, milliseconds) => `${milliseconds}999Z`
+    )
+    const microsecondBoundary = await queryAuditEvents(
+      orgA.id,
+      `?eventCode=member.role_changed&resourceId=${roleEvents[0].resourceId}&from=${encodeURIComponent(afterEventByOneMicrosecond)}&to=${encodeURIComponent(withinTheSameMillisecond)}`
+    ).then((response) => response.json())
+    expect(microsecondBoundary).toMatchObject({
+      items: [],
+      total: 0,
+      window: {
+        from: afterEventByOneMicrosecond,
+        to: withinTheSameMillisecond,
+      },
+    })
 
     const filtered = await queryAuditEvents(
       orgA.id,
@@ -974,48 +1015,39 @@ describe("Projects: generated SDK → authorized HTTP → runtime PostgreSQL", (
       "?tenantVisible=false&scope=platform"
     )
     expect(forgedVisibility.status).toBe(400)
-    const changedCursor = await queryAuditEvents(
-      orgA.id,
-      `?eventCode=project.created&cursor=${encodeURIComponent(firstPage.nextCursor)}`
-    )
-    expect(changedCursor.status).toBe(400)
-    const [cursorPayload, cursorSignature] = firstPage.nextCursor.split(".")
-    const forgeCursor = (mutate) => {
-      const payload = JSON.parse(
-        Buffer.from(cursorPayload, "base64url").toString()
-      )
-      mutate(payload)
-      return `${Buffer.from(JSON.stringify(payload)).toString("base64url")}.${cursorSignature}`
-    }
-    for (const mutate of [
-      (payload) => {
-        payload.snapshotAt = new Date(
-          Date.now() + 10 * 365 * 24 * 60 * 60 * 1000
-        ).toISOString()
-      },
-      (payload) => {
-        payload.before.occurredAt = new Date(
-          Date.now() + 10 * 365 * 24 * 60 * 60 * 1000
-        ).toISOString()
-      },
-      (payload) => {
-        payload.before.id = randomUUID()
-      },
-      (payload) => {
-        payload.filters.to = new Date(
-          Date.now() + 10 * 365 * 24 * 60 * 60 * 1000
-        ).toISOString()
-      },
-      (payload) => {
-        payload.filters.eventCode = "project.created"
-      },
-    ]) {
-      const forged = await queryAuditEvents(
-        orgA.id,
-        `?eventCode=member.role_changed&cursor=${encodeURIComponent(forgeCursor(mutate))}`
-      )
-      expect(forged.status).toBe(400)
-    }
+    expect(
+      (await queryAuditEvents(orgA.id, "?cursor=removed&limit=2")).status
+    ).toBe(400)
+    expect((await queryAuditEvents(orgA.id, "?page=0")).status).toBe(400)
+    expect((await queryAuditEvents(orgA.id, "?pageSize=101")).status).toBe(400)
+    const validUpperBound = new Date().toISOString()
+    const beyondMaximumRange = new Date(
+      Date.now() - 91 * 24 * 60 * 60 * 1000
+    ).toISOString()
+    expect(
+      (
+        await queryAuditEvents(
+          orgA.id,
+          `?from=${encodeURIComponent(beyondMaximumRange)}&to=${encodeURIComponent(validUpperBound)}`
+        )
+      ).status
+    ).toBe(400)
+    expect(
+      (
+        await queryAuditEvents(
+          orgA.id,
+          `?to=${encodeURIComponent(new Date(Date.now() + 60_000).toISOString())}`
+        )
+      ).status
+    ).toBe(400)
+    expect(
+      (
+        await queryAuditEvents(
+          orgA.id,
+          `?from=${encodeURIComponent(validUpperBound)}&to=${encodeURIComponent(new Date(Date.now() - 60_000).toISOString())}`
+        )
+      ).status
+    ).toBe(400)
 
     const noAuditAccess = await signUpVerified(baseURL, origin, migrator, {
       email: "audit-no-permission@example.test",

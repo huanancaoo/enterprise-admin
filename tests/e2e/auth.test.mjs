@@ -951,7 +951,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
 
     await page.goto(`${tenantOrigin}/app/organizations/${organizationId}/audit`)
     await expectUI(
-      page.getByRole("heading", { name: "审计", exact: true })
+      page.getByRole("heading", { name: "操作日志", exact: true })
     ).toBeVisible()
     const deletionEvent = page.getByRole("row").filter({ hasText: "删除项目" })
     await expectUI(deletionEvent).toBeVisible()
@@ -959,12 +959,18 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
       .getByRole("button", { name: "删除项目", exact: true })
       .click()
     const auditDetails = page.getByRole("dialog")
+    await expectUI(auditDetails).toHaveAccessibleName("删除项目")
     await expectUI(auditDetails.getByText(String(projectId))).toBeVisible()
     await page.keyboard.press("Escape")
-    const eventCodeFilter = page.getByLabel("事件", { exact: true })
+    const eventCodeFilter = page.getByPlaceholder("按事件代码搜索", {
+      exact: true,
+    })
     await eventCodeFilter.fill("project.deleted")
-    await page.getByRole("button", { name: "应用筛选", exact: true }).click()
-    await expectUI(page).toHaveURL(/eventCode=project\.deleted/)
+    const filteredURL = page.waitForURL(
+      (url) => url.searchParams.get("eventCode") === "project.deleted"
+    )
+    await page.getByRole("button", { name: "搜索", exact: true }).click()
+    await filteredURL
     await expectUI(eventCodeFilter).toHaveValue("project.deleted")
     await page.getByRole("button", { name: "清除筛选", exact: true }).click()
     await expectUI(eventCodeFilter).toHaveValue("")
@@ -1016,7 +1022,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     ])
   })
 
-  it("审计列表筛选分页、错误恢复、键盘详情和 RTL 状态可访问", async () => {
+  it("操作日志筛选分页、错误恢复、键盘详情和 RTL 状态可访问", async () => {
     const userName = "审计界面用户"
     await page.goto(`${tenantOrigin}/app/`)
     await registerAccount(page, {
@@ -1071,6 +1077,15 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     const auditPagePath = `${tenantOrigin}/app/organizations/${organizationId}/audit`
     const auditEventsPath = `/api/v1/organizations/${organizationId}/audit-events`
     const auditRequestPattern = "**/api/v1/organizations/*/audit-events**"
+    const waitForAuditList = (matches) =>
+      page.waitForResponse((response) => {
+        const url = new URL(response.url())
+        return (
+          url.pathname === auditEventsPath &&
+          response.status() === 200 &&
+          matches(url.searchParams)
+        )
+      })
     let listFailureInjected = false
     let allowListRecovery = false
     await page.route(auditRequestPattern, async (route) => {
@@ -1093,7 +1108,9 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     })
 
     await page.goto(auditPagePath)
-    await expectUI(page.getByRole("alert")).toContainText("无法加载审计记录")
+    await expectUI(page.getByRole("alert")).toContainText(
+      "无法加载操作日志。请检查访问权限或稍后重试。"
+    )
     await expectUI(
       page.getByRole("button", { name: "重试", exact: true })
     ).toBeVisible()
@@ -1101,7 +1118,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     allowListRecovery = true
     await page.getByRole("button", { name: "重试", exact: true }).click()
     await expectUI(
-      page.getByRole("heading", { name: "审计", exact: true })
+      page.getByRole("heading", { name: "操作日志", exact: true })
     ).toBeVisible()
     await page.unroute(auditRequestPattern)
 
@@ -1109,6 +1126,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     const tooOld = new Date(Date.now() - 91 * 24 * 60 * 60 * 1_000)
       .toISOString()
       .slice(0, 10)
+    await page.getByRole("button", { name: "高级筛选", exact: true }).click()
     const fromFilter = page.getByLabel("开始日期", { exact: true })
     const toFilter = page.getByLabel("结束日期", { exact: true })
     await fromFilter.fill(tooOld)
@@ -1123,15 +1141,34 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await fromFilter.fill(today)
     await toFilter.fill(today)
     await page.getByLabel("操作者 ID", { exact: true }).fill(tenant.userId)
-    await page.getByLabel("事件", { exact: true }).fill("audit.browser.page")
     await page.getByLabel("资源类型", { exact: true }).fill("project")
     await page.getByLabel("资源 ID", { exact: true }).fill(resourceId)
-    await page.getByLabel("结果", { exact: true }).selectOption("succeeded")
-    const filteredPage = page.waitForURL(
-      (url) => url.searchParams.get("eventCode") === "audit.browser.page"
+    const filteredByAdvancedURL = page.waitForURL(
+      (url) => url.searchParams.get("actorId") === tenant.userId
     )
     await page.getByRole("button", { name: "应用筛选", exact: true }).click()
-    await filteredPage
+    await filteredByAdvancedURL
+
+    const eventCodeFilter = page.getByPlaceholder("按事件代码搜索", {
+      exact: true,
+    })
+    await eventCodeFilter.fill("audit.browser.page")
+    const filteredByEventCode = waitForAuditList(
+      (params) => params.get("eventCode") === "audit.browser.page"
+    )
+    await page.getByRole("button", { name: "搜索", exact: true }).click()
+    const filteredByEventCodeResponse = await filteredByEventCode
+    expect(
+      new URL(filteredByEventCodeResponse.url()).searchParams.get("eventCode")
+    ).toBe("audit.browser.page")
+    await page.getByRole("button", { name: "结果", exact: true }).click()
+    const filteredByResult = waitForAuditList(
+      (params) => params.get("result") === "succeeded"
+    )
+    await page.getByRole("option", { name: "成功", exact: true }).click()
+    const firstPageResponse = await filteredByResult
+    const firstPageData = await firstPageResponse.json()
+    await expectUI(page).toHaveURL(/result=succeeded/)
 
     const filterParams = new URL(page.url()).searchParams
     expect(filterParams.get("from")).toBe(`${today}T00:00:00.000Z`)
@@ -1144,6 +1181,40 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     expect(filterParams.get("resourceType")).toBe("project")
     expect(filterParams.get("resourceId")).toBe(resourceId)
     expect(filterParams.get("result")).toBe("succeeded")
+    expect(filterParams.get("pageSize")).toBe("20")
+    expect(filterParams.get("page") ?? "1").toBe("1")
+    const firstPageWindow = firstPageData.window
+    expect(firstPageData).toMatchObject({
+      page: 1,
+      pageSize: 20,
+      total: 21,
+      window: { from: expect.any(String), to: expect.any(String) },
+    })
+    expect(firstPageWindow).toEqual({
+      from: filterParams.get("from"),
+      to: filterParams.get("to"),
+    })
+    await expectUI(page.getByRole("table").getByRole("row")).toHaveCount(21)
+    const filteredListURL = page.url()
+    const clearedListResponsePromise = waitForAuditList(
+      (params) => !params.has("eventCode") && !params.has("actorId")
+    )
+    await page.getByRole("button", { name: "清除筛选", exact: true }).click()
+    const clearedListResponse = await clearedListResponsePromise
+    const clearedListData = await clearedListResponse.json()
+    expect(clearedListData.items.length).toBeGreaterThan(0)
+    await expectUI(page.getByRole("table").getByRole("row")).toHaveCount(21)
+    const restoredFilteredResponsePromise = waitForAuditList(
+      (params) => params.get("eventCode") === "audit.browser.page"
+    )
+    await page.goto(filteredListURL)
+    const restoredFilteredResponse = await restoredFilteredResponsePromise
+    expect(await restoredFilteredResponse.json()).toMatchObject({
+      page: 1,
+      pageSize: 20,
+      total: 21,
+      window: firstPageWindow,
+    })
     await expectUI(page.getByRole("table").getByRole("row")).toHaveCount(21)
 
     const detailErrorEvent = seededAuditEvents.find(
@@ -1151,6 +1222,14 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     )
     expect(detailErrorEvent).toBeDefined()
     let detailFailureInjected = false
+    let releaseDetailFailure
+    let markDetailRequestStarted
+    const detailResponseGate = new Promise((resolve) => {
+      releaseDetailFailure = resolve
+    })
+    const detailRequestStarted = new Promise((resolve) => {
+      markDetailRequestStarted = resolve
+    })
     await page.route(auditRequestPattern, async (route) => {
       const requestURL = new URL(route.request().url())
       if (
@@ -1158,6 +1237,8 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
         !detailFailureInjected
       ) {
         detailFailureInjected = true
+        markDetailRequestStarted()
+        await detailResponseGate
         await route.fulfill({
           status: 503,
           contentType: "application/json",
@@ -1180,9 +1261,14 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await detailErrorTrigger.focus()
     await page.keyboard.press("Enter")
     const detailErrorDialog = page.getByRole("dialog")
-    await expectUI(detailErrorDialog).toHaveAccessibleName("审计详情")
-    await expectUI(detailErrorDialog.getByRole("alert")).toContainText(
-      "无法加载审计记录"
+    await detailRequestStarted
+    await expectUI(detailErrorDialog).toHaveAccessibleName("操作日志详情")
+    await expectUI(
+      detailErrorDialog.getByText("正在加载操作日志…", { exact: true })
+    ).toBeVisible()
+    releaseDetailFailure()
+    await expectUI(detailErrorDialog.getByRole("alert")).toHaveText(
+      "无法加载操作日志。请检查访问权限或稍后重试。"
     )
     expect(detailFailureInjected).toBe(true)
     await page.keyboard.press("Escape")
@@ -1193,11 +1279,23 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
       name: "下一页",
       exact: true,
     })
-    const secondPageURL = page.waitForURL((url) =>
-      url.searchParams.has("cursor")
+    const secondPageResponsePromise = waitForAuditList(
+      (params) => params.get("page") === "2"
     )
     await nextPage.click()
-    await secondPageURL
+    const secondPageResponse = await secondPageResponsePromise
+    const secondPageData = await secondPageResponse.json()
+    await expectUI(page).toHaveURL(/page=2/)
+    const secondPageParams = new URL(page.url()).searchParams
+    expect(secondPageParams.get("pageSize")).toBe("20")
+    expect(secondPageParams.get("from")).toBe(firstPageWindow.from)
+    expect(secondPageParams.get("to")).toBe(firstPageWindow.to)
+    expect(secondPageData).toMatchObject({
+      page: 2,
+      pageSize: 20,
+      total: 21,
+      window: firstPageWindow,
+    })
     const pageTwoTable = page.getByRole("table")
     await expectUI(pageTwoTable.getByRole("row")).toHaveCount(2)
     const pageTwoTrigger = pageTwoTable
@@ -1220,27 +1318,41 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await page.keyboard.press("Escape")
     await expectUI(details).toHaveCount(0)
     await expectUI(pageTwoTrigger).toBeFocused()
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await expectUI(page.locator('[data-slot="popover-content"]')).toHaveCount(0)
+    await page.getByRole("heading", { name: "操作日志", exact: true }).click()
+    await page.screenshot({
+      path: "/private/tmp/tenant-operation-log-acceptance.png",
+      fullPage: true,
+    })
+    await page.setViewportSize({ width: 1280, height: 800 })
 
     const emptyURL = new URL(auditPagePath)
     emptyURL.searchParams.set("eventCode", "audit.browser.missing")
+    emptyURL.searchParams.set("page", "1")
+    emptyURL.searchParams.set("pageSize", "20")
+    emptyURL.searchParams.set("from", firstPageWindow.from)
+    emptyURL.searchParams.set("to", firstPageWindow.to)
     await page.goto(emptyURL.toString())
     await expectUI(page.getByRole("status")).toContainText(
-      "此时间范围内没有审计记录。"
+      "没有符合当前筛选条件的数据。"
     )
 
     await selectAdminLocale(page, userName, "语言", "العربية")
     await expectUI(page.locator("html")).toHaveAttribute("lang", "ar")
     await expectUI(page.locator("html")).toHaveAttribute("dir", "rtl")
     await expectUI(
-      page.getByRole("heading", { name: "سجل التدقيق", exact: true })
+      page.getByRole("heading", { name: "سجل العمليات", exact: true })
     ).toBeVisible()
-    await expectUI(page.getByLabel("الحدث", { exact: true })).toBeVisible()
+    await expectUI(
+      page.getByPlaceholder("البحث حسب رمز الحدث", { exact: true })
+    ).toBeVisible()
     await expectUI(page.locator("form").first()).toHaveCSS("direction", "rtl")
     await expectUI(page.getByRole("status")).toContainText(
-      "لا توجد سجلات تدقيق في هذا النطاق الزمني."
+      "لا توجد بيانات تطابق عوامل التصفية الحالية."
     )
     await page
-      .getByRole("heading", { name: "سجل التدقيق", exact: true })
+      .getByRole("heading", { name: "سجل العمليات", exact: true })
       .click()
     await expectUI(page.getByRole("menu")).toHaveCount(0)
     await page.screenshot({

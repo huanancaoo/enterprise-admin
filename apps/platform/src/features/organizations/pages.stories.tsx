@@ -143,7 +143,7 @@ type Story = StoryObj<typeof meta>
 
 const loadingPlay: Story["play"] = async ({ canvasElement }) => {
   await expect(
-    await within(canvasElement).findByRole("status")
+    (await within(canvasElement).findByRole("status")).closest("[aria-busy]")
   ).toHaveAttribute("aria-busy", "true")
 }
 const errorPlay: Story["play"] = async ({ canvasElement }) => {
@@ -181,7 +181,7 @@ export const Empty: Story = {
   ...scenario("empty"),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await canvas.findByRole("heading", { name: "暂无数据" })
+    await canvas.findByText("暂无数据")
     await expect(canvas.queryByRole("table")).toBeNull()
   },
 }
@@ -473,17 +473,8 @@ export const FilterAndPagination: Story = {
     const canvas = within(canvasElement)
     const screen = within(canvasElement.ownerDocument.body)
     await canvas.findByRole("table")
-    await userEvent.click(canvas.getByRole("combobox", { name: "Sort by" }))
-    await userEvent.click(
-      await screen.findByRole("option", { name: "Members" })
-    )
-    await userEvent.click(
-      canvas.getByRole("combobox", { name: "Sort direction" })
-    )
-    await userEvent.click(
-      await screen.findByRole("option", { name: "Ascending" })
-    )
-    await userEvent.click(canvas.getByRole("button", { name: "Apply filters" }))
+    await userEvent.click(canvas.getByRole("button", { name: "Members" }))
+    await userEvent.click(canvas.getByRole("button", { name: "Members" }))
     await canvas.findByRole("link", { name: "South workspace" })
     await expect(canvas.getAllByRole("row")).toHaveLength(21)
     await userEvent.click(canvas.getByRole("button", { name: "Next page" }))
@@ -496,7 +487,7 @@ export const FilterAndPagination: Story = {
       canvas.getByRole("textbox", { name: "Search name or slug" }),
       "operations-workspace-25"
     )
-    await userEvent.click(canvas.getByRole("button", { name: "Apply filters" }))
+    await userEvent.click(canvas.getByRole("button", { name: "Search" }))
     await canvas.findByRole("link", { name: "Operations workspace 25" })
     await expect(canvas.getAllByRole("row")).toHaveLength(2)
     await expect(
@@ -506,11 +497,18 @@ export const FilterAndPagination: Story = {
     await userEvent.clear(
       canvas.getByRole("textbox", { name: "Search name or slug" })
     )
+    await userEvent.click(canvas.getByRole("button", { name: "Search" }))
+    await canvas.findByRole("link", { name: "South workspace" })
     await userEvent.click(
-      canvas.getByRole("combobox", { name: "Organization status" })
+      canvas.getByRole("button", { name: "Organization status" })
     )
     await userEvent.click(await screen.findByRole("option", { name: "Active" }))
-    await userEvent.click(canvas.getByRole("button", { name: "Apply filters" }))
+    await userEvent.keyboard("{Escape}")
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { hidden: true })
+      ).not.toBeInTheDocument()
+    )
     await canvas.findByRole("link", { name: "North workspace" })
     await expect(canvas.getAllByRole("row")).toHaveLength(2)
     await expect(

@@ -28,7 +28,6 @@ describe("platform audit: approved cross-organization projections", () => {
     projectB,
     detailId
   const origin = "http://localhost:3201"
-  const purpose = "Issue 22 operating investigation"
   const request = (params = {}, actor = admin, eventId) => {
     const query = new URLSearchParams(params)
     return fetch(
@@ -164,7 +163,7 @@ describe("platform audit: approved cross-organization projections", () => {
   })
 
   it("queries with the generated SDK after real MFA and CLI assignment changes without leaking internal identity or metadata", async () => {
-    const response = await listPlatformAuditEvents({ purpose, limit: 100 })
+    const response = await listPlatformAuditEvents({ pageSize: 100 })
     expect(response.headers.get("cache-control")).toBe("private, no-store")
     const page = PlatformAuditPageSchema.parse(response.data)
     expect(
@@ -202,12 +201,10 @@ describe("platform audit: approved cross-organization projections", () => {
     expect(page.items.some((e) => e.eventCode.startsWith("project."))).toBe(
       false
     )
-    const auditorPage = await (
-      await request({ purpose, limit: 100 }, auditor)
-    ).json()
+    const auditorPage = await (await request({ pageSize: 100 }, auditor)).json()
     expect(PlatformAuditPageSchema.safeParse(auditorPage).success).toBe(true)
     expect(JSON.stringify(auditorPage)).not.toContain(tenantA.email)
-    const detail = await getPlatformAuditEvent(detailId, { purpose })
+    const detail = await getPlatformAuditEvent(detailId)
     expect(PlatformAuditEventSchema.parse(detail.data)).toMatchObject({
       id: detailId,
       scope: "tenant",
@@ -217,16 +214,51 @@ describe("platform audit: approved cross-organization projections", () => {
     })
   })
 
+  it("records exactly one private access fact with a null reason without accepting a purpose field", async () => {
+    for (const eventId of [undefined, detailId]) {
+      const response = await request({}, auditor, eventId)
+      expect(response.status).toBe(200)
+      const body = await response.json()
+      const facts = await environment.migrator.query(
+        "SELECT fact FROM public.issue22_audit_facts WHERE fact->>'request_id'=$1 AND fact->>'event_code'=$2",
+        [
+          response.headers.get("x-request-id"),
+          eventId ? "platform.audit_viewed" : "platform.audit_queried",
+        ]
+      )
+      expect(facts.rows).toHaveLength(1)
+      expect(facts.rows[0].fact).toMatchObject({
+        actor_id: auditor.user.id,
+        scope: "platform",
+        result: "succeeded",
+        tenant_visible: false,
+        reason: null,
+      })
+      expect(facts.rows[0].fact.fields).toMatchObject(
+        eventId
+          ? { eventId }
+          : {
+              page: 1,
+              pageSize: 20,
+              from: body.window.from,
+              to: body.window.to,
+            }
+      )
+      expect(
+        (await request({ purpose: "removed field" }, auditor, eventId)).status
+      ).toBe(400)
+    }
+  })
+
   it("applies organization, actor, event, result and bounded time filters and records exactly one access fact per query", async () => {
     const query = {
-      purpose,
       organizationId: orgA.id,
       actorId: tenantA.user.id,
       eventCode: "member.role_changed",
       result: "succeeded",
       from: new Date(Date.now() - 2 * 86400000).toISOString(),
       to: new Date().toISOString(),
-      limit: 20,
+      pageSize: 20,
     }
     const before = await environment.migrator.query(
       "SELECT count(*)::integer AS n FROM public.issue22_audit_facts WHERE fact->>'event_code'='platform.audit_queried'"
@@ -241,7 +273,7 @@ describe("platform audit: approved cross-organization projections", () => {
     expect(after.rows.at(-1).fact).toMatchObject({
       scope: "platform",
       actor_id: auditor.user.id,
-      reason: purpose,
+      reason: null,
       result: "succeeded",
       tenant_visible: false,
       fields: {
@@ -249,7 +281,7 @@ describe("platform audit: approved cross-organization projections", () => {
         actorId: tenantA.user.id,
         eventCode: "member.role_changed",
         result: "succeeded",
-        limit: 20,
+        pageSize: 20,
       },
     })
     expect(
@@ -257,46 +289,87 @@ describe("platform audit: approved cross-organization projections", () => {
     ).toEqual([])
   })
 
-  it("keeps tied timestamps stable, freezes the upper bound and rejects tampered or differently scoped cursors", async () => {
+  it("supports numbered pages and exact totals within the database-resolved window", async () => {
     const at = new Date(Date.now() - 3600000).toISOString()
     const expected = []
     for (let n = 0; n < 3; n++)
       expected.push(await seedEvent(orgA, tenantA, "member.removed", at))
     const params = {
-      purpose,
       organizationId: orgA.id,
       eventCode: "member.removed",
-      limit: 1,
+      pageSize: 1,
+    }
+    const first = PlatformAuditPageSchema.parse(
+      await (await request(params)).json()
+    )
+    expect(first).toMatchObject({ page: 1, pageSize: 1, total: 3 })
+    await seedEvent(orgA, tenantA, "member.removed", new Date().toISOString())
+    const seen = []
+    for (let page = 1; page <= 3; page++) {
+      const result = await (
+        await request({ ...params, ...first.window, page })
+      ).json()
+      expect(result).toMatchObject({
+        page,
+        pageSize: 1,
+        total: 3,
+        window: first.window,
+      })
+      seen.push(...result.items.map((event) => event.id))
+    }
+    expect(seen).toEqual(expected.sort().reverse())
+    const beyond = await (
+      await request({ ...params, ...first.window, page: 2_147_483_647 })
+    ).json()
+    expect(beyond).toMatchObject({ items: [], total: 3, page: 2_147_483_647 })
+    expect(
+      (
+        await (
+          await request({ ...params, ...first.window, page: 2, pageSize: 2 })
+        ).json()
+      ).items
+    ).toHaveLength(1)
+  })
+
+  it("keeps its own read audit outside the resolved window when paging all operations", async () => {
+    const params = {
+      actorId: admin.user.id,
+      eventCode: "platform.audit_queried",
+      pageSize: 1,
     }
     const first = await (await request(params)).json()
-    expect(first.nextCursor).toEqual(expect.any(String))
-    await seedEvent(orgA, tenantA, "member.removed", new Date().toISOString())
-    let page = first
-    const seen = []
-    do {
-      seen.push(...page.items.map((e) => e.id))
-      page = page.nextCursor
-        ? await (await request({ ...params, cursor: page.nextCursor })).json()
-        : null
-    } while (page)
-    expect(seen).toEqual(expected.sort().reverse())
-    for (const altered of [
-      { ...params, cursor: first.nextCursor + "x" },
-      { ...params, cursor: first.nextCursor, organizationId: orgB.id },
-      { ...params, cursor: first.nextCursor, limit: 2 },
-      { ...params, cursor: first.nextCursor, eventCode: "role.created" },
-    ])
-      expect((await request(altered)).status).toBe(400)
-    const tenantPage = await (
-      await fetch(
-        `${environment.baseURL}/api/v1/organizations/${orgA.id}/audit-events?limit=1`,
-        { headers: { cookie: tenantA.cookie } }
-      )
+    const repeated = await (
+      await request({ ...params, ...first.window })
     ).json()
-    expect(tenantPage.nextCursor).toEqual(expect.any(String))
-    expect(
-      (await request({ ...params, cursor: tenantPage.nextCursor })).status
-    ).toBe(400)
+    const second = await (
+      await request({ ...params, ...first.window, page: 2 })
+    ).json()
+    expect(repeated.total).toBe(first.total)
+    expect(repeated.items).toEqual(first.items)
+    expect(second.total).toBe(first.total)
+  })
+
+  it("preserves microsecond boundaries and ordering without a Date round trip", async () => {
+    const day = new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10)
+    const from = `${day}T00:00:00.000001Z`
+    const to = `${day}T00:00:00.000002Z`
+    const older = await seedEvent(orgA, tenantA, "role.created", from)
+    const newer = await seedEvent(orgA, tenantA, "role.created", to)
+    const params = {
+      organizationId: orgA.id,
+      eventCode: "role.created",
+      from,
+      to,
+      pageSize: 1,
+    }
+    const first = await (await request(params)).json()
+    const second = await (
+      await request({ ...params, ...first.window, page: 2 })
+    ).json()
+    expect(first).toMatchObject({ total: 2, items: [{ id: newer }] })
+    expect(second).toMatchObject({ total: 2, items: [{ id: older }] })
+    expect(first.window.from).toContain(".000001")
+    expect(first.window.to).toContain(".000002")
   })
 
   it("pages tied timestamps across both audit sources without losing events or changing detail projections", async () => {
@@ -345,24 +418,28 @@ describe("platform audit: approved cross-organization projections", () => {
       )
       expectedIds.push(`assignment:${id}`)
     }
-    const query = { purpose, from: at, to: at, limit: 2 }
+    const query = { from: at, to: at, pageSize: 2 }
     const events = []
-    let cursor
-    do {
-      const response = await request({
-        ...query,
-        ...(cursor ? { cursor } : {}),
-      })
+    for (
+      let page = 1;
+      page <= Math.ceil(expectedIds.length / query.pageSize);
+      page++
+    ) {
+      const response = await request({ ...query, page })
       expect(response.status).toBe(200)
-      const page = PlatformAuditPageSchema.parse(await response.json())
-      events.push(...page.items)
-      cursor = page.nextCursor
-    } while (cursor)
+      const result = PlatformAuditPageSchema.parse(await response.json())
+      expect(result).toMatchObject({
+        page,
+        pageSize: query.pageSize,
+        total: expectedIds.length,
+      })
+      events.push(...result.items)
+    }
     expect(events.map((event) => event.id)).toEqual(
       expectedIds.sort().reverse()
     )
     for (const event of events) {
-      const response = await request({ purpose }, admin, event.id)
+      const response = await request({}, admin, event.id)
       expect(response.status).toBe(200)
       expect(PlatformAuditEventSchema.parse(await response.json())).toEqual(
         event
@@ -377,7 +454,7 @@ describe("platform audit: approved cross-organization projections", () => {
       { actorId: tenantA.user.id },
     ]) {
       const page = await (
-        await request({ ...query, ...filter, limit: 100 })
+        await request({ ...query, ...filter, pageSize: 100 })
       ).json()
       expect(page.items).toHaveLength(4)
       expect(page.items.every((event) => event.id.startsWith("event:"))).toBe(
@@ -385,7 +462,7 @@ describe("platform audit: approved cross-organization projections", () => {
       )
     }
     const noChange = await (
-      await request({ ...query, result: "no_change", limit: 100 })
+      await request({ ...query, result: "no_change", pageSize: 100 })
     ).json()
     expect(noChange.items).toHaveLength(1)
     expect(noChange.items[0]).toMatchObject({
@@ -397,43 +474,40 @@ describe("platform audit: approved cross-organization projections", () => {
     })
   })
 
-  it("requires purpose, rejects query expansion and invalid windows, and never expands into project or unknown audit data", async () => {
+  it("rejects query expansion and invalid windows, and never expands into project or unknown audit data", async () => {
     for (const params of [
-      {},
-      { purpose: " " },
       { purpose: "a".repeat(501) },
-      { purpose, table: "projects" },
-      { purpose, include: "reason" },
-      { purpose, organizationId: "bad" },
-      { purpose, limit: 101 },
-      { purpose, from: new Date(Date.now() - 91 * 86400000).toISOString() },
-      { purpose, to: new Date(Date.now() + 86400000).toISOString() },
+      { table: "projects" },
+      { include: "reason" },
+      { organizationId: "bad" },
+      { pageSize: 101 },
+      { pageSize: 0 },
+      { page: 0 },
+      { page: 1.5 },
+      { page: 2_147_483_648 },
+      { cursor: "removed" },
+      { limit: 20 },
+      { from: new Date(Date.now() - 91 * 86400000).toISOString() },
+      { to: new Date(Date.now() + 86400000).toISOString() },
       {
-        purpose,
         from: new Date().toISOString(),
         to: new Date(Date.now() - 86400000).toISOString(),
       },
     ])
       expect((await request(params)).status, JSON.stringify(params)).toBe(400)
-    expect((await request({}, admin, detailId)).status).toBe(400)
-    expect(
-      (await request({ purpose }, admin, `event:${randomUUID()}`)).status
-    ).toBe(404)
+    expect((await request({}, admin, `event:${randomUUID()}`)).status).toBe(404)
     const excluded = await seedEvent(
       orgA,
       tenantA,
       "project.created",
       new Date().toISOString()
     )
+    expect((await request({ eventCode: "project.created" })).status).toBe(200)
     expect(
-      (await request({ purpose, eventCode: "project.created" })).status
-    ).toBe(200)
-    expect(
-      (await (await request({ purpose, eventCode: "project.created" })).json())
-        .items
+      (await (await request({ eventCode: "project.created" })).json()).items
     ).toEqual([])
-    expect((await request({ purpose }, admin, excluded)).status).toBe(404)
-    expect((await request({ purpose }, tenantA)).status).toBe(403)
+    expect((await request({}, admin, excluded)).status).toBe(404)
+    expect((await request({}, tenantA)).status).toBe(403)
   })
 
   it("returns no restricted result when list or detail access auditing fails", async () => {
@@ -443,7 +517,7 @@ describe("platform audit: approved cross-organization projections", () => {
       CREATE TRIGGER issue22_fail BEFORE INSERT ON public.audit_events FOR EACH ROW EXECUTE FUNCTION public.issue22_fail();`)
     try {
       for (const id of [undefined, detailId]) {
-        const response = await request({ purpose }, auditor, id)
+        const response = await request({}, auditor, id)
         expect(response.status).toBe(503)
         const error = await response.json()
         expect(error.code).toBe("AUDIT_UNAVAILABLE")
@@ -462,16 +536,15 @@ describe("platform audit: approved cross-organization projections", () => {
     vi.useFakeTimers({ toFake: ["Date"] })
     vi.setSystemTime(actual + 60000)
     try {
-      const response = await request({ purpose, limit: 1 })
+      const response = await request({ pageSize: 1 })
       expect(response.status).toBe(200)
       const page = await response.json()
       expect(page.items).toHaveLength(1)
       expect(
-        (await request({ purpose, limit: 1, cursor: page.nextCursor })).status
+        (await request({ pageSize: 1, page: 2, ...page.window })).status
       ).toBe(200)
       expect(
-        (await request({ purpose, to: new Date(actual + 30000).toISOString() }))
-          .status
+        (await request({ to: new Date(actual + 30000).toISOString() })).status
       ).toBe(400)
     } finally {
       vi.useRealTimers()
@@ -480,7 +553,7 @@ describe("platform audit: approved cross-organization projections", () => {
 
   it("preserves A/B tenant isolation after platform queries, refuses direct view/helper access and retains executor ownership", async () => {
     for (let n = 0; n < 8; n++) {
-      await request({ purpose })
+      await request({})
       const pages = await Promise.all(
         [
           [tenantA, orgA],
@@ -526,8 +599,26 @@ describe("platform audit: approved cross-organization projections", () => {
         legacy: false,
         runtime: true,
       })
+    await expect(
+      environment.runtime.pool.query(
+        "SELECT public.platform_audit_event_codes('platform')"
+      )
+    ).rejects.toMatchObject({ code: "42501" })
+    const privateFunctions = await environment.migrator
+      .query(`SELECT p.proname, p.proconfig,
+      pg_get_userbyid(p.proowner) AS owner,
+      has_function_privilege('app_runtime',p.oid,'EXECUTE') AS runtime
+      FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+      WHERE n.nspname='public' AND p.proname IN ('platform_audit_event_codes','is_platform_audit_event')`)
+    expect(privateFunctions.rows).toHaveLength(2)
+    for (const row of privateFunctions.rows)
+      expect(row).toMatchObject({
+        owner: "platform_executor",
+        runtime: false,
+        proconfig: ["search_path=pg_catalog"],
+      })
     await cli("revoke", auditor.user.id)
-    expect((await request({ purpose }, auditor)).status).toBe(403)
+    expect((await request({}, auditor)).status).toBe(403)
   })
 
   it("T24: platform audit and suspension reuse the same connection as concurrent A/B tenant reads without retaining platform context", async () => {
@@ -567,7 +658,7 @@ describe("platform audit: approved cross-organization projections", () => {
         changed: true,
       })
       for (let n = 0; n < 8; n++) {
-        const audit = await request({ purpose })
+        const audit = await request({})
         expect(audit.status).toBe(200)
         await audit.json()
         const pages = await Promise.all(

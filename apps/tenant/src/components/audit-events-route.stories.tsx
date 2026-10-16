@@ -19,7 +19,7 @@ import {
 } from "@workspace/mocks"
 import { AuditEventsRoute } from "./audit-events-route"
 
-function AuditStory() {
+function AuditStory({ initialSearch = "" }: { initialSearch?: string }) {
   const [router] = useState(() => {
     const root = createRootRoute({
       component: () => (
@@ -38,7 +38,10 @@ function AuditStory() {
       routeTree: root.addChildren([audit]),
       history: createMemoryHistory({
         initialEntries: [
-          "/app/organizations/" + organizations[0].id + "/audit",
+          "/app/organizations/" +
+            organizations[0].id +
+            "/audit" +
+            initialSearch,
         ],
       }),
     })
@@ -54,7 +57,7 @@ const scenario = (name: OrganizationAuditScenario = "success") => {
   }
 }
 const meta = {
-  title: "Admin/Organization audit",
+  title: "Admin/Organization operation logs",
   component: AuditStory,
   globals: { locale: "en-US" },
   ...scenario(),
@@ -66,12 +69,13 @@ const error: Story["play"] = async ({ canvasElement }) => {
   const canvas = within(canvasElement)
   await canvas.findByRole("alert")
   await expect(canvas.getByRole("button", { name: "Retry" })).toBeVisible()
-  await expect(canvas.queryByRole("table")).toBeNull()
+  await expect(
+    canvas.queryByRole("button", { name: "Project updated" })
+  ).toBeNull()
 }
 async function detail(canvasElement: HTMLElement, name = "Project updated") {
   const canvas = within(canvasElement)
-  await canvas.findByRole("table")
-  const trigger = canvas.getAllByRole("button", { name })[0]
+  const trigger = (await canvas.findAllByRole("button", { name }))[0]
   await userEvent.click(trigger)
   const screen = within(canvasElement.ownerDocument.body)
   const popup = await screen.findByRole("dialog")
@@ -81,10 +85,11 @@ async function detail(canvasElement: HTMLElement, name = "Project updated") {
 export const Default: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await canvas.findByRole("table")
-    const trigger = canvas.getAllByRole("button", {
-      name: "Project updated",
-    })[0]
+    const trigger = (
+      await canvas.findAllByRole("button", {
+        name: "Project updated",
+      })
+    )[0]
     trigger.focus()
     await userEvent.keyboard("{Enter}")
     const screen = within(canvasElement.ownerDocument.body)
@@ -108,21 +113,34 @@ export const Default: Story = {
 export const Loading: Story = {
   ...scenario("loading"),
   play: async ({ canvasElement }) => {
-    await expect(
-      await within(canvasElement).findByRole("status")
-    ).toHaveTextContent("Loading audit records…")
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-slot="data-table"]')
+      ).toHaveAttribute("aria-busy", "true")
+    )
   },
 }
 export const Empty: Story = {
   ...scenario("empty"),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await canvas.findByText("No audit records found for this date range.")
-    await expect(canvas.queryByRole("table")).toBeNull()
+    await canvas.findByText("No data yet")
+    await expect(
+      canvas.getByRole("button", { name: "Advanced filters" })
+    ).toBeVisible()
   },
 }
 export const Error: Story = { ...scenario("unavailable"), play: error }
-export const PermissionDenied: Story = { ...scenario("forbidden"), play: error }
+export const PermissionDenied: Story = {
+  ...scenario("forbidden"),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await canvas.findByText("Access denied")
+    await expect(
+      canvas.queryByRole("button", { name: "Project updated" })
+    ).toBeNull()
+  },
+}
 export const SessionExpired: Story = {
   ...scenario("unauthorized"),
   play: error,
@@ -151,7 +169,7 @@ export const RTL: Story = {
     const canvas = within(canvasElement)
     await canvas.findByRole("table")
     await expect(
-      canvas.getByRole("heading", { name: "سجل التدقيق" })
+      canvas.getByRole("heading", { name: "سجل العمليات" })
     ).toBeVisible()
     await expect(canvasElement.ownerDocument.documentElement).toHaveAttribute(
       "dir",
@@ -164,15 +182,21 @@ export const Chinese: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await canvas.findByRole("table")
-    await expect(canvas.getByRole("heading", { name: "审计" })).toBeVisible()
+    await expect(
+      canvas.getByRole("heading", { name: "操作日志" })
+    ).toBeVisible()
   },
 }
 export const SlowNetwork: Story = {
   ...scenario("slow"),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await canvas.findByRole("status")
-    await canvas.findByRole("table")
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-slot="data-table"]')
+      ).toHaveAttribute("aria-busy", "true")
+    )
+    await canvas.findAllByRole("button", { name: "Project updated" })
   },
 }
 export const Detail: Story = {
@@ -187,7 +211,7 @@ export const DetailLoading: Story = {
   play: async ({ canvasElement }) => {
     await expect(
       await (await detail(canvasElement)).dialog.findByRole("status")
-    ).toHaveTextContent("Loading audit records…")
+    ).toHaveTextContent("Loading operation logs…")
   },
 }
 const detailError: Story["play"] = async ({ canvasElement }) => {
@@ -258,42 +282,76 @@ export const FilterAndPagination: Story = {
   ...scenario("paginated"),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await canvas.findByRole("table")
+    const screen = within(canvasElement.ownerDocument.body)
+    await canvas.findAllByRole("button", { name: "Project updated" })
     await expect(canvas.getAllByRole("row")).toHaveLength(21)
+    await userEvent.click(canvas.getByRole("button", { name: "View" }))
+    await userEvent.click(
+      await screen.findByRole("checkbox", { name: "Show Resource type" })
+    )
+    await userEvent.keyboard("{Escape}")
     await userEvent.click(canvas.getByRole("button", { name: "Next page" }))
     await waitFor(() => expect(canvas.getAllByRole("row")).toHaveLength(6))
+    await expect(
+      canvas.queryByRole("columnheader", { name: "Resource type" })
+    ).toBeNull()
     await userEvent.type(
-      canvas.getByRole("textbox", { name: "Resource type" }),
-      "organization"
+      canvas.getByRole("textbox", { name: "Search by event code" }),
+      "platform.organization_suspended"
     )
-    await userEvent.selectOptions(
-      canvas.getByRole("combobox", { name: "Result" }),
-      "succeeded"
-    )
-    await userEvent.click(canvas.getByRole("button", { name: "Apply filters" }))
+    await userEvent.click(canvas.getByRole("button", { name: "Search" }))
     await canvas.findByRole("button", {
       name: "Organization suspended by platform",
     })
     await expect(canvas.getAllByRole("row")).toHaveLength(2)
-    await expect(canvas.queryByRole("button", { name: "Next page" })).toBeNull()
-    await userEvent.click(canvas.getByRole("button", { name: "Clear filters" }))
-    await waitFor(() => expect(canvas.getAllByRole("row")).toHaveLength(21))
     await expect(
-      canvas.getByRole("textbox", { name: "Resource type" })
-    ).toHaveValue("")
+      canvas.getByRole("button", { name: "Next page" })
+    ).toHaveAttribute("aria-disabled", "true")
+    await userEvent.click(canvas.getByRole("button", { name: "Clear filters" }))
+    await canvas.findAllByRole("button", { name: "Project updated" })
+    await expect(canvas.getAllByRole("row")).toHaveLength(21)
+    await userEvent.click(canvas.getByRole("button", { name: "Result" }))
+    await userEvent.click(
+      await screen.findByRole("option", { name: "Succeeded" })
+    )
+    await userEvent.keyboard("{Escape}")
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Advanced filters" })
+    )
+    await userEvent.type(
+      await screen.findByRole("textbox", { name: "Resource type" }),
+      "project"
+    )
+    await userEvent.click(screen.getByRole("button", { name: "Apply filters" }))
+    await canvas.findAllByRole("button", { name: "Project updated" })
+    await expect(
+      canvas.queryByRole("button", {
+        name: "Organization suspended by platform",
+      })
+    ).toBeNull()
+    await expect(canvas.getByText("24 rows")).toBeVisible()
+    await expect(
+      canvas.queryByRole("columnheader", { name: "Resource type" })
+    ).toBeNull()
+    await userEvent.click(canvas.getByRole("button", { name: "Clear filters" }))
+    await waitFor(() => expect(canvas.getByText("25 rows")).toBeVisible())
   },
 }
 export const InvalidActor: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await canvas.findByRole("table")
+    await canvas.findAllByRole("button", { name: "Project updated" })
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Advanced filters" })
+    )
+    const screen = within(canvasElement.ownerDocument.body)
     await userEvent.type(
-      canvas.getByRole("textbox", { name: "Actor ID" }),
+      screen.getByRole("textbox", { name: "Actor ID" }),
       "invalid-id"
     )
-    await userEvent.click(canvas.getByRole("button", { name: "Apply filters" }))
-    await canvas.findByText("Enter a valid UUID.")
-    await expect(canvas.getByRole("textbox", { name: "Actor ID" })).toHaveValue(
+    await userEvent.click(screen.getByRole("button", { name: "Apply filters" }))
+    await screen.findByText("Enter a valid UUID.")
+    await expect(screen.getByRole("textbox", { name: "Actor ID" })).toHaveValue(
       "invalid-id"
     )
     await expect(canvas.getAllByRole("row")).toHaveLength(3)
@@ -302,30 +360,86 @@ export const InvalidActor: Story = {
 export const ReversedDateRange: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await canvas.findByRole("table")
-    fireEvent.change(canvas.getByLabelText("From date"), {
+    await canvas.findAllByRole("button", { name: "Project updated" })
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Advanced filters" })
+    )
+    const screen = within(canvasElement.ownerDocument.body)
+    fireEvent.change(screen.getByLabelText("From date"), {
       target: { value: "2026-10-02" },
     })
-    fireEvent.change(canvas.getByLabelText("To date"), {
+    fireEvent.change(screen.getByLabelText("To date"), {
       target: { value: "2026-10-01" },
     })
-    await userEvent.click(canvas.getByRole("button", { name: "Apply filters" }))
-    await canvas.findByText("The start date must not be after the end date.")
+    await userEvent.click(screen.getByRole("button", { name: "Apply filters" }))
+    await screen.findByText("The start date must not be after the end date.")
     await expect(canvas.getAllByRole("row")).toHaveLength(3)
   },
 }
 export const RangeTooLong: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await canvas.findByRole("table")
-    fireEvent.change(canvas.getByLabelText("From date"), {
+    await canvas.findAllByRole("button", { name: "Project updated" })
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Advanced filters" })
+    )
+    const screen = within(canvasElement.ownerDocument.body)
+    fireEvent.change(screen.getByLabelText("From date"), {
       target: { value: "2026-01-01" },
     })
-    fireEvent.change(canvas.getByLabelText("To date"), {
+    fireEvent.change(screen.getByLabelText("To date"), {
       target: { value: "2026-10-01" },
     })
-    await userEvent.click(canvas.getByRole("button", { name: "Apply filters" }))
-    await canvas.findByText("The date range cannot exceed 90 days.")
+    await userEvent.click(screen.getByRole("button", { name: "Apply filters" }))
+    await screen.findByText("The date range cannot exceed 90 days.")
     await expect(canvas.getAllByRole("row")).toHaveLength(3)
+  },
+}
+
+export const RevokedDetailClearsCachedContent: Story = {
+  ...scenario("detailRevoked"),
+  play: async ({ canvasElement }) => {
+    const { dialog, screen, trigger } = await detail(canvasElement)
+    await dialog.findByText(organizationAuditFixture.resourceId!)
+    await userEvent.keyboard("{Escape}")
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { hidden: true })
+      ).not.toBeInTheDocument()
+    )
+    await userEvent.click(trigger)
+    const revoked = within(await screen.findByRole("dialog"))
+    await revoked.findByRole("alert")
+    await expect(
+      revoked.queryByText(organizationAuditFixture.resourceId!)
+    ).toBeNull()
+    await expect(revoked.queryByText("changedFields")).toBeNull()
+  },
+}
+
+const preciseTo = new Date().toISOString().replace("Z", "123Z")
+const preciseFrom = new Date(Date.parse(preciseTo) - 90 * 86400000)
+  .toISOString()
+  .replace("Z", "123Z")
+export const PreserveExactWindowWhenApplyingFilters: Story = {
+  args: {
+    initialSearch: `?from=${encodeURIComponent(preciseFrom)}&to=${encodeURIComponent(preciseTo)}`,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const screen = within(canvasElement.ownerDocument.body)
+    await canvas.findAllByRole("button", { name: "Project updated" })
+    await userEvent.click(
+      canvas.getByRole("button", { name: /^Advanced filters/ })
+    )
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Apply filters" })
+    )
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Apply filters" })).toBeNull()
+    )
+    await expect(
+      canvas.getByRole("button", { name: "Project updated" })
+    ).toBeVisible()
   },
 }

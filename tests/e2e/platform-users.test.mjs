@@ -84,9 +84,7 @@ describe("platform user directory browser flow", () => {
     await page
       .getByLabel("Search name, user ID or masked email")
       .fill("Browser directory target")
-    await page
-      .getByRole("button", { name: "Apply filters", exact: true })
-      .click()
+    await page.getByRole("button", { name: "Search", exact: true }).click()
     await expectUI(page.locator("tbody tr")).toHaveCount(1)
     expect(await page.locator("main").innerText()).not.toContain(target.email)
     await page
@@ -315,7 +313,7 @@ describe("platform user directory browser flow", () => {
     try {
       await page.goto(`${environment.platformOrigin}/platform/users?q=Browser`)
       await expectUI(
-        page.locator('[role="status"][aria-busy="true"]')
+        page.locator('[data-slot="data-table"][aria-busy="true"]')
       ).toBeVisible()
       expect(await page.locator("main").innerText()).not.toContain(target.email)
     } finally {
@@ -328,9 +326,7 @@ describe("platform user directory browser flow", () => {
     await page
       .getByLabel("Search name, user ID or masked email")
       .fill("no-such-directory-user")
-    await page
-      .getByRole("button", { name: "Apply filters", exact: true })
-      .click()
+    await page.getByRole("button", { name: "Search", exact: true }).click()
     await expectUI(page.getByText("No results", { exact: true })).toBeVisible()
   })
 })

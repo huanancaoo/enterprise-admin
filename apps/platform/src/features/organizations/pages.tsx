@@ -1,4 +1,4 @@
-import { useRef, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import { useForm } from "@tanstack/react-form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import {
@@ -12,10 +12,8 @@ import { useTranslation } from "react-i18next"
 import { z } from "zod"
 import {
   ConfirmDangerAction,
-  EmptyState,
   ErrorState,
   LoadingState,
-  Pagination,
   PermissionDeniedState,
 } from "@workspace/admin"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
@@ -32,7 +30,7 @@ import {
   PlatformOrganizationPageSchema,
   PlatformOrganizationQuerySchema,
   type PlatformOrganizationDetail,
-  type PlatformOrganizationQuery,
+  type PlatformOrganizationPage,
   type TransitionOrganization,
 } from "@workspace/contracts/platform"
 import { createFormatter } from "@workspace/i18n"
@@ -50,197 +48,17 @@ import {
   FieldLabel,
 } from "@workspace/ui/components/field"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@workspace/ui/components/select"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@workspace/ui/components/table"
+  DataTable,
+  DataTableColumnHeader,
+  createDataTableColumnHelper,
+  type DataTableStatus,
+} from "@workspace/admin/data-table"
 import { OrganizationStoragePolicy } from "../storage-policy/organization-storage-policy"
 import { usePlatformAccessFailure } from "../../lib/use-platform-access-failure"
 
-const filterSchema = z.strictObject({
-  q: z.string().trim().max(200),
-  status: z.enum(["all", "ACTIVE", "SUSPENDED"]),
-  sortBy: PlatformOrganizationQuerySchema.shape.sortBy.unwrap(),
-  sortOrder: PlatformOrganizationQuerySchema.shape.sortOrder.unwrap(),
-})
-
-function FilterSelect({
-  id,
-  label,
-  value,
-  items,
-  onChange,
-  onBlur,
-  invalid,
-  errors,
-}: {
-  id: string
-  label: string
-  value: string
-  items: Record<string, string>
-  onChange: (value: string) => void
-  onBlur: () => void
-  invalid: boolean
-  errors: Parameters<typeof FieldError>[0]["errors"]
-}) {
-  return (
-    <Field data-invalid={invalid}>
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      <Select
-        items={items}
-        value={value}
-        onValueChange={(next) => {
-          if (next !== null) onChange(next)
-        }}
-      >
-        <SelectTrigger id={id} onBlur={onBlur} aria-invalid={invalid}>
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {Object.entries(items).map(([key, title]) => (
-            <SelectItem key={key} value={key}>
-              {title}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      {invalid && <FieldError errors={errors} />}
-    </Field>
-  )
-}
-
-function OrganizationFilters({
-  search,
-  onApply,
-}: {
-  search: PlatformOrganizationQuery
-  onApply: (search: PlatformOrganizationQuery) => void
-}) {
-  const { t } = useTranslation(["organization", "common"])
-  const form = useForm({
-    defaultValues: {
-      q: search.q ?? "",
-      status: search.status ?? ("all" as "all" | "ACTIVE" | "SUSPENDED"),
-      sortBy: search.sortBy,
-      sortOrder: search.sortOrder,
-    },
-    validators: { onSubmit: filterSchema },
-    onSubmit: ({ value }) =>
-      onApply({
-        ...search,
-        ...value,
-        status: value.status === "all" ? undefined : value.status,
-        page: 1,
-      }),
-  })
-  return (
-    <form
-      className="rounded-2xl bg-muted/30 p-4 ring-1 ring-foreground/10 sm:p-5"
-      onSubmit={(event) => {
-        event.preventDefault()
-        void form.handleSubmit()
-      }}
-    >
-      <FieldGroup className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <form.Field name="q">
-          {(field) => {
-            const invalid =
-              field.state.meta.isTouched && !field.state.meta.isValid
-            return (
-              <Field data-invalid={invalid}>
-                <FieldLabel htmlFor="organizations-search">
-                  {t("organization:platformSearch")}
-                </FieldLabel>
-                <Input
-                  id="organizations-search"
-                  value={field.state.value}
-                  maxLength={200}
-                  onChange={(event) => field.handleChange(event.target.value)}
-                  onBlur={field.handleBlur}
-                  aria-invalid={invalid}
-                />
-                {invalid && <FieldError errors={field.state.meta.errors} />}
-              </Field>
-            )
-          }}
-        </form.Field>
-        <form.Field name="status">
-          {(field) => (
-            <FilterSelect
-              id="organizations-status"
-              label={t("organization:platformStatus")}
-              value={field.state.value}
-              onBlur={field.handleBlur}
-              invalid={field.state.meta.isTouched && !field.state.meta.isValid}
-              errors={field.state.meta.errors}
-              items={{
-                all: t("organization:platformAllStatuses"),
-                ACTIVE: t("organization:platformActive"),
-                SUSPENDED: t("organization:platformSuspended"),
-              }}
-              onChange={(value) =>
-                field.handleChange(value as typeof field.state.value)
-              }
-            />
-          )}
-        </form.Field>
-        <form.Field name="sortBy">
-          {(field) => (
-            <FilterSelect
-              id="organizations-sort"
-              label={t("organization:platformSortBy")}
-              value={field.state.value}
-              onBlur={field.handleBlur}
-              invalid={field.state.meta.isTouched && !field.state.meta.isValid}
-              errors={field.state.meta.errors}
-              items={{
-                name: t("organization:platformName"),
-                slug: t("organization:platformSlug"),
-                createdAt: t("organization:platformCreatedAt"),
-                memberCount: t("organization:platformMemberCount"),
-              }}
-              onChange={(value) =>
-                field.handleChange(value as typeof field.state.value)
-              }
-            />
-          )}
-        </form.Field>
-        <form.Field name="sortOrder">
-          {(field) => (
-            <FilterSelect
-              id="organizations-order"
-              label={t("organization:platformSortOrder")}
-              value={field.state.value}
-              onBlur={field.handleBlur}
-              invalid={field.state.meta.isTouched && !field.state.meta.isValid}
-              errors={field.state.meta.errors}
-              items={{
-                asc: t("organization:platformAscending"),
-                desc: t("organization:platformDescending"),
-              }}
-              onChange={(value) =>
-                field.handleChange(value as typeof field.state.value)
-              }
-            />
-          )}
-        </form.Field>
-        <Button type="submit" className="self-end">
-          {t("organization:platformApplyFilters")}
-        </Button>
-      </FieldGroup>
-    </form>
-  )
-}
+type OrganizationRow = PlatformOrganizationPage["items"][number]
+const organizationColumns = createDataTableColumnHelper<OrganizationRow>()
+const EMPTY_ORGANIZATIONS: OrganizationRow[] = []
 
 export function PlatformOrganizationsPage() {
   const { t } = useTranslation(["organization", "common"])
@@ -248,7 +66,6 @@ export function PlatformOrganizationsPage() {
   const navigate = useNavigate({ from: "/platform/organizations" })
   const session = useAuthenticatedSession()!
   const locale = useUiLocale()
-  const format = createFormatter(locale)
   const query = useQuery({
     queryKey: ["platform", session.user.id, "organizations", search],
     queryFn: async ({ signal }) =>
@@ -258,111 +75,172 @@ export function PlatformOrganizationsPage() {
     retry: false,
   })
   usePlatformAccessFailure(query.error)
+  const columns = useMemo(() => {
+    const format = createFormatter(locale)
+    return organizationColumns.columns([
+      organizationColumns.accessor("name", {
+        header: ({ header }) => (
+          <DataTableColumnHeader
+            header={header}
+            title={t("organization:platformName")}
+          />
+        ),
+        cell: ({ row, getValue }) => (
+          <Link
+            to="/platform/organizations/$organizationId"
+            params={{ organizationId: row.original.id }}
+            className="font-medium wrap-anywhere underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          >
+            {getValue()}
+          </Link>
+        ),
+        meta: { label: t("organization:platformName") },
+        size: 280,
+      }),
+      organizationColumns.accessor("slug", {
+        header: ({ header }) => (
+          <DataTableColumnHeader
+            header={header}
+            title={t("organization:platformSlug")}
+          />
+        ),
+        cell: ({ getValue }) => (
+          <bdi className="text-sm text-muted-foreground">{getValue()}</bdi>
+        ),
+        meta: { label: t("organization:platformSlug") },
+        size: 220,
+      }),
+      organizationColumns.accessor("status", {
+        header: t("organization:platformStatus"),
+        cell: ({ getValue }) => (
+          <Badge variant={getValue() === "ACTIVE" ? "secondary" : "outline"}>
+            {getValue() === "ACTIVE"
+              ? t("organization:platformActive")
+              : t("organization:platformSuspended")}
+          </Badge>
+        ),
+        enableSorting: false,
+        meta: {
+          label: t("organization:platformStatus"),
+          facetMode: "single",
+          facetOptions: [
+            { value: "ACTIVE", label: t("organization:platformActive") },
+            { value: "SUSPENDED", label: t("organization:platformSuspended") },
+          ],
+        },
+      }),
+      organizationColumns.accessor("createdAt", {
+        header: ({ header }) => (
+          <DataTableColumnHeader
+            header={header}
+            title={t("organization:platformCreatedAt")}
+          />
+        ),
+        cell: ({ getValue }) =>
+          format.dateTime(new Date(getValue()), "UTC", {
+            dateStyle: "medium",
+            timeStyle: "short",
+          }),
+        meta: { label: t("organization:platformCreatedAt") },
+        size: 210,
+      }),
+      organizationColumns.accessor("memberCount", {
+        header: ({ header }) => (
+          <DataTableColumnHeader
+            header={header}
+            title={t("organization:platformMemberCount")}
+          />
+        ),
+        cell: ({ getValue }) => format.number(getValue()),
+        meta: { label: t("organization:platformMemberCount") },
+      }),
+    ])
+  }, [locale, t])
+  const sorting = [{ id: search.sortBy, desc: search.sortOrder === "desc" }]
+  const columnFilters = search.status
+    ? [{ id: "status", value: search.status }]
+    : []
+  const pagination = { pageIndex: search.page - 1, pageSize: search.pageSize }
+  const status: DataTableStatus = query.isError
+    ? query.error instanceof ApiClientError && query.error.status === 403
+      ? "forbidden"
+      : "error"
+    : query.isPending
+      ? "loading"
+      : query.isFetching
+        ? "refreshing"
+        : "ready"
   return (
     <section className="min-w-0 space-y-6">
       <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
         {t("organization:platformOrganizations")}
       </h1>
-      <OrganizationFilters
-        key={JSON.stringify([
-          search.q,
-          search.status,
-          search.sortBy,
-          search.sortOrder,
-        ])}
-        search={search}
-        onApply={(next) => void navigate({ search: next })}
+      <DataTable
+        columns={columns}
+        data={query.data?.items ?? EMPTY_ORGANIZATIONS}
+        getRowId={(row) => row.id}
+        rowCount={query.data?.total ?? 0}
+        status={status}
+        error={query.error instanceof Error ? query.error.message : undefined}
+        onRetry={() => void query.refetch()}
+        manualPagination
+        manualFiltering
+        manualSorting
+        enableRowSelection={false}
+        enableMultiSort={false}
+        searchPlaceholder={t("organization:platformSearch")}
+        searchMaxLength={200}
+        state={{
+          globalFilter: search.q ?? "",
+          columnFilters,
+          sorting,
+          pagination,
+        }}
+        onResetFilters={() =>
+          void navigate({
+            search: { ...search, page: 1, q: undefined, status: undefined },
+          })
+        }
+        onGlobalFilterChange={(updater) => {
+          const q =
+            typeof updater === "function" ? updater(search.q ?? "") : updater
+          void navigate({ search: { ...search, page: 1, q: q || undefined } })
+        }}
+        onColumnFiltersChange={(updater) => {
+          const next =
+            typeof updater === "function" ? updater(columnFilters) : updater
+          const value = next.find((filter) => filter.id === "status")?.value
+          const status =
+            PlatformOrganizationQuerySchema.shape.status.parse(value)
+          void navigate({ search: { ...search, page: 1, status } })
+        }}
+        onSortingChange={(updater) => {
+          const next =
+            typeof updater === "function" ? updater(sorting) : updater
+          const sort = next[0]
+          void navigate({
+            search: {
+              ...search,
+              page: 1,
+              sortBy: PlatformOrganizationQuerySchema.shape.sortBy.parse(
+                sort?.id
+              ),
+              sortOrder: sort ? (sort.desc ? "desc" : "asc") : "desc",
+            },
+          })
+        }}
+        onPaginationChange={(updater) => {
+          const next =
+            typeof updater === "function" ? updater(pagination) : updater
+          void navigate({
+            search: {
+              ...search,
+              page: next.pageSize === search.pageSize ? next.pageIndex + 1 : 1,
+              pageSize: next.pageSize,
+            },
+          })
+        }}
       />
-      {query.isPending ? (
-        <LoadingState />
-      ) : query.isError ? (
-        query.error instanceof ApiClientError && query.error.status === 403 ? (
-          <PermissionDeniedState />
-        ) : (
-          <ErrorState
-            message={
-              query.error instanceof Error ? query.error.message : undefined
-            }
-            onRetry={() => void query.refetch()}
-          />
-        )
-      ) : (
-        <>
-          <div
-            className="overflow-x-auto rounded-2xl bg-card ring-1 ring-foreground/10"
-            aria-busy={query.isFetching}
-          >
-            {query.data.items.length === 0 ? (
-              <EmptyState />
-            ) : (
-              <Table className="min-w-[640px]">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t("organization:platformName")}</TableHead>
-                    <TableHead>{t("organization:platformSlug")}</TableHead>
-                    <TableHead>{t("organization:platformStatus")}</TableHead>
-                    <TableHead>{t("organization:platformCreatedAt")}</TableHead>
-                    <TableHead>
-                      {t("organization:platformMemberCount")}
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {query.data.items.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="max-w-64 break-words whitespace-normal">
-                        <Link
-                          to="/platform/organizations/$organizationId"
-                          params={{ organizationId: item.id }}
-                          className="font-medium underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                        >
-                          {item.name}
-                        </Link>
-                      </TableCell>
-                      <TableCell>
-                        <bdi className="text-sm text-muted-foreground">
-                          {item.slug}
-                        </bdi>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            item.status === "ACTIVE" ? "secondary" : "outline"
-                          }
-                        >
-                          {item.status === "ACTIVE"
-                            ? t("organization:platformActive")
-                            : t("organization:platformSuspended")}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {format.dateTime(new Date(item.createdAt), "UTC", {
-                          dateStyle: "medium",
-                          timeStyle: "short",
-                        })}
-                      </TableCell>
-                      <TableCell>{format.number(item.memberCount)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </div>
-          <Pagination
-            pageIndex={search.page - 1}
-            pageSize={search.pageSize}
-            rowCount={query.data.total}
-            pageCount={Math.ceil(query.data.total / search.pageSize)}
-            disabled={query.isFetching}
-            onPageChange={(page) =>
-              void navigate({ search: { ...search, page: page + 1 } })
-            }
-            onPageSizeChange={(pageSize) =>
-              void navigate({ search: { ...search, pageSize, page: 1 } })
-            }
-          />
-        </>
-      )}
     </section>
   )
 }

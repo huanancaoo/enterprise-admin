@@ -1,10 +1,14 @@
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { useForm } from "@tanstack/react-form"
 import { useTranslation } from "react-i18next"
-import { XIcon } from "lucide-react"
-import type { AuditEvent } from "@workspace/contracts"
+import { FilterIcon, XIcon } from "lucide-react"
+import {
+  AuditEventsQuerySchema,
+  type AuditEvent,
+  type AuditEventsQuery,
+} from "@workspace/contracts"
 import { PageHeader } from "@workspace/admin"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -23,13 +27,19 @@ import {
 } from "@workspace/ui/components/field"
 import { Input } from "@workspace/ui/components/input"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@workspace/ui/components/table"
+  DataTable,
+  createDataTableColumnHelper,
+  type DataTableStatus,
+} from "@workspace/admin/data-table"
+import { ApiClientError } from "@workspace/api-client"
+import { Badge } from "@workspace/ui/components/badge"
+import {
+  Popover,
+  PopoverContent,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from "@workspace/ui/components/popover"
 import {
   getOrganizationAuditEventOptions,
   getOrganizationAuditEventsOptions,
@@ -39,22 +49,15 @@ import { z } from "zod"
 
 const auditPath = "/app/organizations/$organizationId/audit"
 
-type FilterValues = {
-  from: string
-  to: string
-  actorId: string
-  eventCode: string
-  resourceType: string
-  resourceId: string
-  result: "" | "succeeded" | "denied" | "failed" | "no_change"
-}
-
-function createFilterSchema(messages: {
-  invalidDate: string
-  invalidId: string
-  invalidDateRange: string
-  rangeTooLong: string
-}) {
+function createFilterSchema(
+  messages: {
+    invalidDate: string
+    invalidId: string
+    invalidDateRange: string
+    rangeTooLong: string
+  },
+  window: Pick<AuditEventsQuery, "from" | "to">
+) {
   const dateValue = z
     .string()
     .refine(
@@ -72,10 +75,8 @@ function createFilterSchema(messages: {
       from: dateValue,
       to: dateValue,
       actorId: uuidValue,
-      eventCode: z.string().max(120),
       resourceType: z.string().max(80),
       resourceId: uuidValue,
-      result: z.enum(["", "succeeded", "denied", "failed", "no_change"]),
     })
     .superRefine((value, context) => {
       if (value.from && value.to && value.from > value.to)
@@ -84,12 +85,18 @@ function createFilterSchema(messages: {
           path: ["to"],
           message: messages.invalidDateRange,
         })
+      const from =
+        value.from === window.from?.slice(0, 10)
+          ? window.from
+          : value.from && `${value.from}T00:00:00.000Z`
+      const to =
+        value.to === window.to?.slice(0, 10)
+          ? window.to
+          : value.to && dateEnd(value.to)
       if (
-        value.from &&
-        value.to &&
-        Date.parse(`${value.to}T00:00:00Z`) -
-          Date.parse(`${value.from}T00:00:00Z`) >
-          90 * 24 * 60 * 60 * 1000
+        from &&
+        to &&
+        Date.parse(to) - Date.parse(from) > 90 * 24 * 60 * 60 * 1000
       )
         context.addIssue({
           code: "custom",
@@ -132,64 +139,224 @@ function EventMetadata({ event }: { event: AuditEvent }) {
   )
 }
 
-export function AuditEventsRoute() {
-  const { organizationId } = useParams({ from: auditPath })
-  const search = useSearch({ from: auditPath })
+const auditColumns = createDataTableColumnHelper<AuditEvent>()
+const EMPTY_EVENTS: AuditEvent[] = []
+const advancedNames = [
+  "from",
+  "to",
+  "actorId",
+  "resourceType",
+  "resourceId",
+] as const
+const advancedLabels = {
+  from: "auditFrom",
+  to: "auditTo",
+  actorId: "auditActor",
+  resourceType: "auditResourceType",
+  resourceId: "auditResourceId",
+} as const
+
+function AuditFilters({
+  search,
+  loading,
+  onApply,
+}: {
+  search: AuditEventsQuery
+  loading: boolean
+  onApply: (search: AuditEventsQuery) => Promise<void>
+}) {
+  const { t } = useTranslation(["organization", "common"])
+  const [open, setOpen] = useState(false)
+  const initialFrom = search.from?.slice(0, 10) ?? ""
+  const initialTo = search.to?.slice(0, 10) ?? ""
+  const schema = useMemo(
+    () =>
+      createFilterSchema(
+        {
+          invalidDate: t("organization:auditInvalidDate"),
+          invalidId: t("organization:auditInvalidId"),
+          invalidDateRange: t("organization:auditInvalidDateRange"),
+          rangeTooLong: t("organization:auditRangeTooLong"),
+        },
+        search
+      ),
+    [search, t]
+  )
+  const filters = useForm({
+    defaultValues: {
+      from: initialFrom,
+      to: initialTo,
+      actorId: search.actorId ?? "",
+      resourceType: search.resourceType ?? "",
+      resourceId: search.resourceId ?? "",
+    },
+    validators: { onSubmit: schema },
+    onSubmit: async ({ value }) => {
+      await onApply({
+        ...search,
+        // 日期控件只编辑到天；未改动的窗口继续保留服务端返回的微秒边界。
+        from: value.from === initialFrom ? search.from : dateStart(value.from),
+        to: value.to === initialTo ? search.to : dateEnd(value.to),
+        actorId: value.actorId.trim() || undefined,
+        resourceType: value.resourceType.trim() || undefined,
+        resourceId: value.resourceId.trim() || undefined,
+        page: 1,
+      })
+      setOpen(false)
+    },
+  })
+  const filterCount = [
+    search.from || search.to,
+    search.actorId,
+    search.resourceType,
+    search.resourceId,
+  ].filter(Boolean).length
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        render={<Button variant="outline" size="sm" disabled={loading} />}
+      >
+        <FilterIcon data-icon="inline-start" />
+        {t("organization:auditAdvancedFilters")}
+        {filterCount > 0 && <Badge variant="secondary">{filterCount}</Badge>}
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        className="max-h-[min(40rem,calc(100dvh-4rem))] w-[min(36rem,calc(100vw-2rem))] overflow-y-auto"
+      >
+        <PopoverHeader>
+          <PopoverTitle>{t("organization:auditAdvancedFilters")}</PopoverTitle>
+        </PopoverHeader>
+        <filters.Subscribe selector={(state) => state.isSubmitting}>
+          {(busy) => (
+            <form
+              noValidate
+              aria-busy={busy || loading}
+              onSubmit={(event) => {
+                event.preventDefault()
+                void filters.handleSubmit()
+              }}
+            >
+              <fieldset disabled={busy || loading} className="space-y-4">
+                <FieldGroup className="grid gap-4 sm:grid-cols-2">
+                  {advancedNames.map((name) => (
+                    <filters.Field key={name} name={name}>
+                      {(field) => {
+                        const invalid =
+                          field.state.meta.isTouched &&
+                          !field.state.meta.isValid
+                        return (
+                          <Field data-invalid={invalid}>
+                            <FieldLabel htmlFor={`tenant-audit-${name}`}>
+                              {t(`organization:${advancedLabels[name]}`)}
+                            </FieldLabel>
+                            <Input
+                              id={`tenant-audit-${name}`}
+                              type={
+                                name === "from" || name === "to"
+                                  ? "date"
+                                  : "text"
+                              }
+                              autoComplete="off"
+                              aria-invalid={invalid}
+                              value={field.state.value}
+                              maxLength={name === "resourceType" ? 80 : 36}
+                              onBlur={field.handleBlur}
+                              onChange={(event) =>
+                                field.handleChange(event.target.value)
+                              }
+                            />
+                            {invalid && (
+                              <FieldError errors={field.state.meta.errors} />
+                            )}
+                          </Field>
+                        )
+                      }}
+                    </filters.Field>
+                  ))}
+                </FieldGroup>
+                <div className="flex justify-end gap-2 border-t pt-4">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setOpen(false)}
+                  >
+                    {t("common:close")}
+                  </Button>
+                  <Button type="submit">
+                    {t("organization:applyAuditFilters")}
+                  </Button>
+                </div>
+              </fieldset>
+            </form>
+          )}
+        </filters.Subscribe>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function AuditWorkspace({
+  organizationId,
+  search,
+}: {
+  organizationId: string
+  search: AuditEventsQuery
+}) {
   const navigate = useNavigate({ from: auditPath })
   const { t } = useTranslation(["organization", "common"])
   const locale = useUiLocale()
-  const eventLabels = {
-    "invitation.delivery_smtp_accepted": t(
-      "organization:delivery_smtp_accepted"
-    ),
-    "invitation.delivery_failed": t("organization:delivery_failed"),
-    "invitation.delivery_unknown": t("organization:delivery_unknown"),
-    "invitation.accepted": t("organization:audit_event_invitation_accepted"),
-    "invitation.canceled": t("organization:audit_event_invitation_canceled"),
-    "invitation.rejected": t("organization:audit_event_invitation_rejected"),
-    "invitation.resent": t("organization:audit_event_invitation_resent"),
-    "member.invited": t("organization:audit_event_member_invited"),
-    "member.left": t("organization:audit_event_member_left"),
-    "member.removed": t("organization:audit_event_member_removed"),
-    "member.role_changed": t("organization:audit_event_member_role_changed"),
-    "organization.settings_updated": t(
-      "organization:audit_event_organization_settings_updated"
-    ),
-    "role.created": t("organization:audit_event_role_created"),
-    "role.updated": t("organization:audit_event_role_updated"),
-    "role.deleted": t("organization:audit_event_role_deleted"),
-    "platform.organization_resumed": t(
-      "organization:audit_event_platform_organization_resumed"
-    ),
-    "platform.organization_suspended": t(
-      "organization:audit_event_platform_organization_suspended"
-    ),
-    "project.created": t("organization:audit_event_project_created"),
-    "project.deleted": t("organization:audit_event_project_deleted"),
-    "project.translation.updated": t(
-      "organization:audit_event_project_translation_updated"
-    ),
-    "project.updated": t("organization:audit_event_project_updated"),
-  }
-  const actorLabels = {
-    deployment_operator: t("organization:auditActor_deployment_operator"),
-    system: t("organization:auditActor_system"),
-    user: t("organization:auditActor_user"),
-  }
-  const resultLabels = {
-    denied: t("organization:audit_result_denied"),
-    failed: t("organization:audit_result_failed"),
-    no_change: t("organization:audit_result_no_change"),
-    succeeded: t("organization:audit_result_succeeded"),
-  }
-  const filterSchema = useMemo(
-    () =>
-      createFilterSchema({
-        invalidDate: t("organization:auditInvalidDate"),
-        invalidId: t("organization:auditInvalidId"),
-        invalidDateRange: t("organization:auditInvalidDateRange"),
-        rangeTooLong: t("organization:auditRangeTooLong"),
-      }),
+  const eventLabels = useMemo(
+    () => ({
+      "invitation.delivery_smtp_accepted": t(
+        "organization:delivery_smtp_accepted"
+      ),
+      "invitation.delivery_failed": t("organization:delivery_failed"),
+      "invitation.delivery_unknown": t("organization:delivery_unknown"),
+      "invitation.accepted": t("organization:audit_event_invitation_accepted"),
+      "invitation.canceled": t("organization:audit_event_invitation_canceled"),
+      "invitation.rejected": t("organization:audit_event_invitation_rejected"),
+      "invitation.resent": t("organization:audit_event_invitation_resent"),
+      "member.invited": t("organization:audit_event_member_invited"),
+      "member.left": t("organization:audit_event_member_left"),
+      "member.removed": t("organization:audit_event_member_removed"),
+      "member.role_changed": t("organization:audit_event_member_role_changed"),
+      "organization.settings_updated": t(
+        "organization:audit_event_organization_settings_updated"
+      ),
+      "role.created": t("organization:audit_event_role_created"),
+      "role.updated": t("organization:audit_event_role_updated"),
+      "role.deleted": t("organization:audit_event_role_deleted"),
+      "platform.organization_resumed": t(
+        "organization:audit_event_platform_organization_resumed"
+      ),
+      "platform.organization_suspended": t(
+        "organization:audit_event_platform_organization_suspended"
+      ),
+      "project.created": t("organization:audit_event_project_created"),
+      "project.deleted": t("organization:audit_event_project_deleted"),
+      "project.translation.updated": t(
+        "organization:audit_event_project_translation_updated"
+      ),
+      "project.updated": t("organization:audit_event_project_updated"),
+    }),
+    [t]
+  )
+  const actorLabels = useMemo(
+    () => ({
+      deployment_operator: t("organization:auditActor_deployment_operator"),
+      system: t("organization:auditActor_system"),
+      user: t("organization:auditActor_user"),
+    }),
+    [t]
+  )
+  const resultLabels = useMemo(
+    () => ({
+      denied: t("organization:audit_result_denied"),
+      failed: t("organization:audit_result_failed"),
+      no_change: t("organization:audit_result_no_change"),
+      succeeded: t("organization:audit_result_succeeded"),
+    }),
     [t]
   )
   const [selectedEventId, setSelectedEventId] = useState("")
@@ -199,56 +366,108 @@ export function AuditEventsRoute() {
   const details = useQuery(
     getOrganizationAuditEventOptions(organizationId, selectedEventId)
   )
-  const filters = useForm({
-    defaultValues: {
-      from: search.from?.slice(0, 10) ?? "",
-      to: search.to?.slice(0, 10) ?? "",
-      actorId: search.actorId ?? "",
-      eventCode: search.eventCode ?? "",
-      resourceType: search.resourceType ?? "",
-      resourceId: search.resourceId ?? "",
-      result: search.result ?? "",
-    },
-    validators: { onSubmit: filterSchema },
-    onSubmit: ({ value }) => applyFilters(value as FilterValues),
-  })
-
-  useEffect(() => {
-    filters.setFieldValue("from", search.from?.slice(0, 10) ?? "")
-    filters.setFieldValue("to", search.to?.slice(0, 10) ?? "")
-    filters.setFieldValue("actorId", search.actorId ?? "")
-    filters.setFieldValue("eventCode", search.eventCode ?? "")
-    filters.setFieldValue("resourceType", search.resourceType ?? "")
-    filters.setFieldValue("resourceId", search.resourceId ?? "")
-    filters.setFieldValue("result", search.result ?? "")
-  }, [
-    filters,
-    organizationId,
-    search.actorId,
-    search.eventCode,
-    search.from,
-    search.resourceId,
-    search.resourceType,
-    search.result,
-    search.to,
-  ])
-
-  function applyFilters(value: FilterValues) {
-    void navigate({
-      search: {
-        from: dateStart(value.from),
-        to: dateEnd(value.to),
-        actorId: value.actorId.trim() || undefined,
-        eventCode: value.eventCode.trim() || undefined,
-        resourceType: value.resourceType.trim() || undefined,
-        resourceId: value.resourceId.trim() || undefined,
-        result: value.result || undefined,
-        cursor: undefined,
-        limit: 20,
-      },
-    })
-  }
-
+  const columns = useMemo(
+    () =>
+      auditColumns.columns([
+        auditColumns.accessor("occurredAt", {
+          header: t("organization:auditOccurredAt"),
+          cell: ({ getValue }) =>
+            new Intl.DateTimeFormat(locale, {
+              dateStyle: "medium",
+              timeStyle: "short",
+              timeZone: "UTC",
+            }).format(new Date(getValue())),
+          meta: { label: t("organization:auditOccurredAt") },
+          size: 210,
+        }),
+        auditColumns.accessor("eventCode", {
+          header: t("organization:auditEventCode"),
+          cell: ({ row }) => (
+            <div>
+              <Button
+                variant="link"
+                className="h-auto justify-start p-0 text-start leading-relaxed wrap-anywhere whitespace-normal"
+                onClick={() => setSelectedEventId(row.original.id)}
+              >
+                {eventLabel(row.original, eventLabels)}
+              </Button>
+              {row.original.scope === "platform" && (
+                <span className="ms-2 text-xs text-muted-foreground">
+                  {t("organization:auditPlatform")}
+                </span>
+              )}
+            </div>
+          ),
+          meta: { label: t("organization:auditEventCode") },
+          size: 270,
+        }),
+        auditColumns.accessor("actorId", {
+          header: t("organization:auditActor"),
+          cell: ({ row }) => (
+            <bdi className="text-xs wrap-anywhere text-muted-foreground">
+              {row.original.actorId ?? actorLabels[row.original.actorType]}
+            </bdi>
+          ),
+          meta: { label: t("organization:auditActor") },
+          size: 260,
+        }),
+        auditColumns.accessor("resourceType", {
+          header: t("organization:auditResourceType"),
+          cell: ({ getValue }) => (
+            <bdi className="wrap-anywhere">{getValue() ?? "—"}</bdi>
+          ),
+          meta: { label: t("organization:auditResourceType") },
+          size: 180,
+        }),
+        auditColumns.accessor("result", {
+          header: t("organization:auditResult"),
+          cell: ({ getValue }) => (
+            <Badge
+              variant={getValue() === "succeeded" ? "secondary" : "outline"}
+            >
+              {resultLabels[getValue()]}
+            </Badge>
+          ),
+          meta: {
+            label: t("organization:auditResult"),
+            facetMode: "single",
+            facetOptions: (
+              ["succeeded", "denied", "failed", "no_change"] as const
+            ).map((value) => ({ value, label: resultLabels[value] })),
+          },
+        }),
+      ]),
+    [actorLabels, eventLabels, locale, resultLabels, t]
+  )
+  const pagination = { pageIndex: search.page - 1, pageSize: search.pageSize }
+  const columnFilters = [
+    ...(search.result ? [{ id: "result", value: search.result }] : []),
+    ...(search.actorId ? [{ id: "actorId", value: search.actorId }] : []),
+    ...(search.resourceType || search.resourceId
+      ? [
+          {
+            id: "resourceType",
+            value: { type: search.resourceType, id: search.resourceId },
+          },
+        ]
+      : []),
+    ...(search.from || search.to
+      ? [{ id: "occurredAt", value: { from: search.from, to: search.to } }]
+      : []),
+  ]
+  const accessDenied =
+    page.isError &&
+    page.error instanceof ApiClientError &&
+    (page.error.status === 401 || page.error.status === 403)
+  const status: DataTableStatus = page.isError
+    ? page.error instanceof ApiClientError && page.error.status === 403
+      ? "forbidden"
+      : "error"
+    : page.isPending
+      ? "loading"
+      : page.isFetching
+        ? "refreshing"
+        : "ready"
   function resultLabel(result: string) {
     return resultLabels[result as keyof typeof resultLabels] ?? result
   }
@@ -260,266 +479,71 @@ export function AuditEventsRoute() {
         description={t("organization:auditDescription")}
       />
 
-      <form
-        className="rounded-xl border bg-card p-4 shadow-sm sm:p-5"
-        onSubmit={(event) => {
-          event.preventDefault()
-          void filters.handleSubmit()
+      <DataTable
+        columns={columns}
+        data={accessDenied ? EMPTY_EVENTS : (page.data?.items ?? EMPTY_EVENTS)}
+        getRowId={(row) => row.id}
+        rowCount={accessDenied ? 0 : (page.data?.total ?? 0)}
+        status={status}
+        error={page.isError ? t("organization:auditError") : undefined}
+        onRetry={() => void page.refetch()}
+        manualPagination
+        manualFiltering
+        manualSorting
+        enableSorting={false}
+        enableRowSelection={false}
+        searchPlaceholder={t("organization:auditSearchPlaceholder")}
+        searchMaxLength={120}
+        state={{
+          pagination,
+          globalFilter: search.eventCode ?? "",
+          columnFilters,
         }}
-      >
-        <FieldGroup className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <filters.Field name="from">
-            {(field) => (
-              <Field>
-                <FieldLabel htmlFor={field.name}>
-                  {t("organization:auditFrom")}
-                </FieldLabel>
-                <Input
-                  id={field.name}
-                  type="date"
-                  aria-invalid={
-                    field.state.meta.isTouched && !field.state.meta.isValid
-                  }
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(event) => field.handleChange(event.target.value)}
-                />
-                {field.state.meta.errors.length > 0 && (
-                  <FieldError errors={field.state.meta.errors} />
-                )}
-              </Field>
-            )}
-          </filters.Field>
-          <filters.Field name="to">
-            {(field) => (
-              <Field>
-                <FieldLabel htmlFor={field.name}>
-                  {t("organization:auditTo")}
-                </FieldLabel>
-                <Input
-                  id={field.name}
-                  type="date"
-                  aria-invalid={
-                    field.state.meta.isTouched && !field.state.meta.isValid
-                  }
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(event) => field.handleChange(event.target.value)}
-                />
-                {field.state.meta.errors.length > 0 && (
-                  <FieldError errors={field.state.meta.errors} />
-                )}
-              </Field>
-            )}
-          </filters.Field>
-          <filters.Field name="actorId">
-            {(field) => (
-              <Field>
-                <FieldLabel htmlFor={field.name}>
-                  {t("organization:auditActor")}
-                </FieldLabel>
-                <Input
-                  id={field.name}
-                  autoComplete="off"
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(event) => field.handleChange(event.target.value)}
-                />
-                {field.state.meta.errors.length > 0 && (
-                  <FieldError errors={field.state.meta.errors} />
-                )}
-              </Field>
-            )}
-          </filters.Field>
-          <filters.Field name="eventCode">
-            {(field) => (
-              <Field>
-                <FieldLabel htmlFor={field.name}>
-                  {t("organization:auditEventCode")}
-                </FieldLabel>
-                <Input
-                  id={field.name}
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(event) => field.handleChange(event.target.value)}
-                />
-              </Field>
-            )}
-          </filters.Field>
-          <filters.Field name="resourceType">
-            {(field) => (
-              <Field>
-                <FieldLabel htmlFor={field.name}>
-                  {t("organization:auditResourceType")}
-                </FieldLabel>
-                <Input
-                  id={field.name}
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(event) => field.handleChange(event.target.value)}
-                />
-              </Field>
-            )}
-          </filters.Field>
-          <filters.Field name="resourceId">
-            {(field) => (
-              <Field>
-                <FieldLabel htmlFor={field.name}>
-                  {t("organization:auditResourceId")}
-                </FieldLabel>
-                <Input
-                  id={field.name}
-                  autoComplete="off"
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(event) => field.handleChange(event.target.value)}
-                />
-                {field.state.meta.errors.length > 0 && (
-                  <FieldError errors={field.state.meta.errors} />
-                )}
-              </Field>
-            )}
-          </filters.Field>
-          <filters.Field name="result">
-            {(field) => (
-              <Field>
-                <FieldLabel htmlFor={field.name}>
-                  {t("organization:auditResult")}
-                </FieldLabel>
-                <select
-                  id={field.name}
-                  className="h-9 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm shadow-xs focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(event) => field.handleChange(event.target.value)}
-                >
-                  <option value="">{t("organization:auditAnyResult")}</option>
-                  <option value="succeeded">{resultLabel("succeeded")}</option>
-                  <option value="denied">{resultLabel("denied")}</option>
-                  <option value="failed">{resultLabel("failed")}</option>
-                  <option value="no_change">{resultLabel("no_change")}</option>
-                </select>
-              </Field>
-            )}
-          </filters.Field>
-        </FieldGroup>
-        <div className="mt-5 flex flex-wrap gap-2 border-t pt-4">
-          <Button type="submit">{t("organization:applyAuditFilters")}</Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() =>
-              void applyFilters({
-                from: "",
-                to: "",
-                actorId: "",
-                eventCode: "",
-                resourceType: "",
-                resourceId: "",
-                result: "",
-              })
-            }
-          >
-            {t("organization:clearAuditFilters")}
-          </Button>
-        </div>
-      </form>
-
-      {page.isPending && (
-        <p role="status" className="text-sm text-muted-foreground">
-          {t("organization:auditLoading")}
-        </p>
-      )}
-      {page.isError && (
-        <div className="space-y-3 rounded-xl border bg-card p-5 text-sm">
-          <p role="alert" className="text-sm text-destructive">
-            {t("organization:auditError")}
-          </p>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => void page.refetch()}
-          >
-            {t("common:retry")}
-          </Button>
-        </div>
-      )}
-      {page.isSuccess && page.data.items.length === 0 && (
-        <p
-          role="status"
-          className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground"
-        >
-          {t("organization:auditEmpty")}
-        </p>
-      )}
-      {page.isSuccess && page.data.items.length > 0 && (
-        <div className="min-w-0 overflow-x-auto rounded-xl border bg-card shadow-sm">
-          <Table className="min-w-[48rem]">
-            <TableHeader className="bg-muted/40">
-              <TableRow>
-                <TableHead>{t("organization:auditOccurredAt")}</TableHead>
-                <TableHead>{t("organization:auditEventCode")}</TableHead>
-                <TableHead>{t("organization:auditActor")}</TableHead>
-                <TableHead>{t("organization:auditResourceType")}</TableHead>
-                <TableHead>{t("organization:auditResult")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {page.data.items.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="text-sm whitespace-nowrap text-muted-foreground">
-                    {new Intl.DateTimeFormat(locale, {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                      timeZone: "UTC",
-                    }).format(new Date(item.occurredAt))}
-                  </TableCell>
-                  <TableCell dir="auto">
-                    <Button
-                      variant="link"
-                      className="h-auto max-w-72 justify-start p-0 text-start leading-relaxed wrap-anywhere whitespace-normal"
-                      onClick={() => setSelectedEventId(item.id)}
-                    >
-                      {eventLabel(item, eventLabels)}
-                    </Button>
-                    {item.scope === "platform" && (
-                      <span className="ms-2 text-xs text-muted-foreground">
-                        {t("organization:auditPlatform")}
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell
-                    dir="auto"
-                    className="max-w-56 text-xs wrap-anywhere whitespace-normal text-muted-foreground"
-                  >
-                    {item.actorId ?? actorLabels[item.actorType]}
-                  </TableCell>
-                  <TableCell dir="auto">{item.resourceType ?? "—"}</TableCell>
-                  <TableCell>{resultLabel(item.result)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
-      {page.data?.nextCursor && (
-        <Button
-          variant="outline"
-          disabled={page.isFetching}
-          onClick={() =>
-            void navigate({
-              search: { ...search, cursor: page.data.nextCursor ?? undefined },
-            })
-          }
-        >
-          {page.isFetching
-            ? t("organization:auditLoading")
-            : t("organization:auditNextPage")}
-        </Button>
-      )}
+        toolbarContent={
+          <AuditFilters
+            key={JSON.stringify(search)}
+            search={search}
+            loading={page.isFetching}
+            onApply={(next) => navigate({ search: next })}
+          />
+        }
+        onGlobalFilterChange={(updater) => {
+          const value =
+            typeof updater === "function"
+              ? updater(search.eventCode ?? "")
+              : updater
+          void navigate({
+            search: { ...search, page: 1, eventCode: value || undefined },
+          })
+        }}
+        onColumnFiltersChange={(updater) => {
+          const next =
+            typeof updater === "function" ? updater(columnFilters) : updater
+          const result = AuditEventsQuerySchema.shape.result.parse(
+            next.find((filter) => filter.id === "result")?.value
+          )
+          void navigate({ search: { ...search, page: 1, result } })
+        }}
+        onResetFilters={() =>
+          void navigate({ search: { page: 1, pageSize: search.pageSize } })
+        }
+        onPaginationChange={(updater) => {
+          const next =
+            typeof updater === "function" ? updater(pagination) : updater
+          // 翻页沿用服务端确定的时间窗口，查询条件变化时则回到第一页。
+          void navigate({
+            search: {
+              ...search,
+              ...page.data!.window,
+              page: next.pageSize === search.pageSize ? next.pageIndex + 1 : 1,
+              pageSize: next.pageSize,
+            },
+          })
+        }}
+      />
 
       <Dialog
-        open={Boolean(selectedEventId)}
+        open={Boolean(selectedEventId) && !accessDenied}
         onOpenChange={(open) => !open && setSelectedEventId("")}
       >
         {/* 详情没有固定内容长度；在弹层内滚动，避免长事实被视口截断。 */}
@@ -541,7 +565,7 @@ export function AuditEventsRoute() {
           </DialogClose>
           <DialogHeader>
             <DialogTitle>
-              {details.data
+              {details.isSuccess
                 ? eventLabel(details.data, eventLabels)
                 : t("organization:auditDetails")}
             </DialogTitle>
@@ -559,7 +583,7 @@ export function AuditEventsRoute() {
               {t("organization:auditError")}
             </p>
           )}
-          {details.data && (
+          {details.isSuccess && (
             <div className="space-y-4">
               {details.data.publicSummary && (
                 <p dir="auto">{details.data.publicSummary}</p>
@@ -604,5 +628,17 @@ export function AuditEventsRoute() {
         </DialogContent>
       </Dialog>
     </section>
+  )
+}
+
+export function AuditEventsRoute() {
+  const { organizationId } = useParams({ from: auditPath })
+  const search = useSearch({ from: auditPath })
+  return (
+    <AuditWorkspace
+      key={organizationId}
+      organizationId={organizationId}
+      search={search}
+    />
   )
 }

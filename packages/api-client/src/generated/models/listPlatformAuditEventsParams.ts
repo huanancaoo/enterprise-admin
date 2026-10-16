@@ -8,11 +8,6 @@ import type { AuditResult } from "./auditResult"
 
 export type ListPlatformAuditEventsParams = {
   /**
-   * @minLength 1
-   * @maxLength 500
-   */
-  purpose: string
-  /**
    * @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$
    */
   organizationId?: string
@@ -35,13 +30,13 @@ export type ListPlatformAuditEventsParams = {
   to?: string
   result?: AuditResult
   /**
-   * @minLength 1
-   * @maxLength 2048
+   * @minimum 1
+   * @maximum 2147483647
    */
-  cursor?: string
+  page?: number
   /**
    * @minimum 1
    * @maximum 100
    */
-  limit?: number
+  pageSize?: number
 }

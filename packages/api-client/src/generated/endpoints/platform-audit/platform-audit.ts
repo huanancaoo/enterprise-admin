@@ -19,7 +19,6 @@ import type {
 
 import type {
   ApiError,
-  GetPlatformAuditEventParams,
   ListPlatformAuditEventsParams,
   PlatformAuditEvent,
   PlatformAuditPage,
@@ -87,7 +86,7 @@ export type listPlatformAuditEventsResponseError = (
 }
 
 export const getListPlatformAuditEventsUrl = (
-  params: ListPlatformAuditEventsParams
+  params?: ListPlatformAuditEventsParams
 ) => {
   const normalizedParams = new URLSearchParams()
 
@@ -105,7 +104,7 @@ export const getListPlatformAuditEventsUrl = (
 }
 
 export const listPlatformAuditEvents = async (
-  params: ListPlatformAuditEventsParams,
+  params?: ListPlatformAuditEventsParams,
   options?: Parameters<typeof apiClient>[1]
 ): Promise<listPlatformAuditEventsResponseSuccess> => {
   return apiClient<listPlatformAuditEventsResponseSuccess>(
@@ -127,7 +126,7 @@ export const getListPlatformAuditEventsQueryOptions = <
   TData = Awaited<ReturnType<typeof listPlatformAuditEvents>>,
   TError = ErrorType<ApiError>,
 >(
-  params: ListPlatformAuditEventsParams,
+  params?: ListPlatformAuditEventsParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -165,7 +164,7 @@ export function useListPlatformAuditEvents<
   TData = Awaited<ReturnType<typeof listPlatformAuditEvents>>,
   TError = ErrorType<ApiError>,
 >(
-  params: ListPlatformAuditEventsParams,
+  params: undefined | ListPlatformAuditEventsParams,
   options: {
     query: Partial<
       UseQueryOptions<
@@ -192,7 +191,7 @@ export function useListPlatformAuditEvents<
   TData = Awaited<ReturnType<typeof listPlatformAuditEvents>>,
   TError = ErrorType<ApiError>,
 >(
-  params: ListPlatformAuditEventsParams,
+  params?: ListPlatformAuditEventsParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -219,7 +218,7 @@ export function useListPlatformAuditEvents<
   TData = Awaited<ReturnType<typeof listPlatformAuditEvents>>,
   TError = ErrorType<ApiError>,
 >(
-  params: ListPlatformAuditEventsParams,
+  params?: ListPlatformAuditEventsParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -239,7 +238,7 @@ export function useListPlatformAuditEvents<
   TData = Awaited<ReturnType<typeof listPlatformAuditEvents>>,
   TError = ErrorType<ApiError>,
 >(
-  params: ListPlatformAuditEventsParams,
+  params?: ListPlatformAuditEventsParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -308,32 +307,16 @@ export type getPlatformAuditEventResponseError = (
   headers: Headers
 }
 
-export const getGetPlatformAuditEventUrl = (
-  eventId: string,
-  params: GetPlatformAuditEventParams
-) => {
-  const normalizedParams = new URLSearchParams()
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : String(value))
-    }
-  })
-
-  const stringifiedParams = normalizedParams.toString()
-
-  return stringifiedParams.length > 0
-    ? `/api/v1/platform/audit-events/${eventId}?${stringifiedParams}`
-    : `/api/v1/platform/audit-events/${eventId}`
+export const getGetPlatformAuditEventUrl = (eventId: string) => {
+  return `/api/v1/platform/audit-events/${eventId}`
 }
 
 export const getPlatformAuditEvent = async (
   eventId: string,
-  params: GetPlatformAuditEventParams,
   options?: Parameters<typeof apiClient>[1]
 ): Promise<getPlatformAuditEventResponseSuccess> => {
   return apiClient<getPlatformAuditEventResponseSuccess>(
-    getGetPlatformAuditEventUrl(eventId, params),
+    getGetPlatformAuditEventUrl(eventId),
     {
       ...options,
       method: "GET",
@@ -341,14 +324,8 @@ export const getPlatformAuditEvent = async (
   )
 }
 
-export const getGetPlatformAuditEventQueryKey = (
-  eventId: string,
-  params?: GetPlatformAuditEventParams
-) => {
-  return [
-    `/api/v1/platform/audit-events/${eventId}`,
-    ...(params ? [params] : []),
-  ] as const
+export const getGetPlatformAuditEventQueryKey = (eventId: string) => {
+  return [`/api/v1/platform/audit-events/${eventId}`] as const
 }
 
 export const getGetPlatformAuditEventQueryOptions = <
@@ -356,7 +333,6 @@ export const getGetPlatformAuditEventQueryOptions = <
   TError = ErrorType<ApiError>,
 >(
   eventId: string,
-  params: GetPlatformAuditEventParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -371,12 +347,12 @@ export const getGetPlatformAuditEventQueryOptions = <
   const { query: queryOptions, request: requestOptions } = options ?? {}
 
   const queryKey =
-    queryOptions?.queryKey ?? getGetPlatformAuditEventQueryKey(eventId, params)
+    queryOptions?.queryKey ?? getGetPlatformAuditEventQueryKey(eventId)
 
   const queryFn: QueryFunction<
     Awaited<ReturnType<typeof getPlatformAuditEvent>>
   > = ({ signal }) =>
-    getPlatformAuditEvent(eventId, params, { signal, ...requestOptions })
+    getPlatformAuditEvent(eventId, { signal, ...requestOptions })
 
   return {
     queryKey,
@@ -400,7 +376,6 @@ export function useGetPlatformAuditEvent<
   TError = ErrorType<ApiError>,
 >(
   eventId: string,
-  params: GetPlatformAuditEventParams,
   options: {
     query: Partial<
       UseQueryOptions<
@@ -428,7 +403,6 @@ export function useGetPlatformAuditEvent<
   TError = ErrorType<ApiError>,
 >(
   eventId: string,
-  params: GetPlatformAuditEventParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -456,7 +430,6 @@ export function useGetPlatformAuditEvent<
   TError = ErrorType<ApiError>,
 >(
   eventId: string,
-  params: GetPlatformAuditEventParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -477,7 +450,6 @@ export function useGetPlatformAuditEvent<
   TError = ErrorType<ApiError>,
 >(
   eventId: string,
-  params: GetPlatformAuditEventParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -492,11 +464,7 @@ export function useGetPlatformAuditEvent<
 ): UseQueryResult<TData, TError> & {
   queryKey: DataTag<QueryKey, TData, TError>
 } {
-  const queryOptions = getGetPlatformAuditEventQueryOptions(
-    eventId,
-    params,
-    options
-  )
+  const queryOptions = getGetPlatformAuditEventQueryOptions(eventId, options)
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<
     TData,
