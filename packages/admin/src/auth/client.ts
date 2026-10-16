@@ -1,4 +1,5 @@
 import { createAuthClient } from "better-auth/react"
+import { getGlobalBroadcastChannel } from "better-auth/client"
 import {
   lastLoginMethodClient,
   organizationClient,
@@ -25,6 +26,22 @@ export function createWorkspaceAuthClient() {
       }),
       lastLoginMethodClient(),
       twoFactorClient(),
+      {
+        id: "workspace-session-revocation",
+        atomListeners: [
+          {
+            matcher: (path) => path === "/multi-session/revoke",
+            signal: "$sessionSignal",
+            // 撤销当前会话后，同源标签必须重新读取会话，清除旧账号的页面与查询缓存。
+            callback: () =>
+              getGlobalBroadcastChannel().post({
+                event: "session",
+                data: { trigger: "signout" },
+                clientId: crypto.randomUUID(),
+              }),
+          },
+        ],
+      },
     ],
     fetchOptions: {
       onRequest(context) {
