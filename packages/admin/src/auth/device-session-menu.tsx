@@ -11,8 +11,12 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu"
+import { PersonalAvatar } from "../components/personal-avatar"
 import { useWorkspaceAuthClient } from "./auth-client-context"
 import { useAuthAction } from "./use-auth-action"
 
@@ -25,6 +29,14 @@ type DeviceSessionMenuProps = {
 function reloadWorkspace() {
   // 账号变更后从入口重建路由、权限和组织状态，不让旧页面继续持有前一个账号的事实。
   window.location.assign("/")
+}
+
+async function changeSession(
+  action: DeviceSessionMenuProps["action"],
+  operation: Parameters<DeviceSessionMenuProps["action"]["run"]>[0],
+  onSessionChanged = reloadWorkspace
+) {
+  if (await action.run(operation)) onSessionChanged()
 }
 
 function useDeviceSessions() {
@@ -42,12 +54,42 @@ function useDeviceSessions() {
 
 export function DeviceSessionMenu(props: DeviceSessionMenuProps) {
   const sessions = useDeviceSessions()
-  return <DeviceSessionMenuContent {...props} sessions={sessions} />
+  const { t } = useTranslation("auth")
+  return (
+    <DropdownMenuSub
+      onOpenChange={(open) => {
+        // 快速重开时查询仍可能挂载；每次进入账号列表都重新读取其他页面新增的会话。
+        if (open && sessions.isSuccess) void sessions.refetch()
+      }}
+    >
+      <DropdownMenuSubTrigger
+        disabled={props.action.pending}
+        className="min-h-16 gap-3 text-base"
+      >
+        <UsersIcon className="size-5" />
+        <div className="grid min-w-0 flex-1 gap-0.5 text-start">
+          <span className="font-medium">{t("switchAccount")}</span>
+          {sessions.data && (
+            <span className="text-xs text-foreground/70">
+              {t("accountCount", { total: sessions.data.length })}
+            </span>
+          )}
+        </div>
+      </DropdownMenuSubTrigger>
+      <DropdownMenuSubContent
+        className="w-80 max-w-[calc(100vw-2rem)] rounded-xl shadow-lg"
+        sideOffset={8}
+        alignOffset={-80}
+      >
+        <DeviceSessionList {...props} sessions={sessions} />
+      </DropdownMenuSubContent>
+    </DropdownMenuSub>
+  )
 }
 
-function DeviceSessionMenuContent({
+function DeviceSessionList({
   onAddAccount,
-  onSessionChanged = reloadWorkspace,
+  onSessionChanged,
   action,
   sessions,
 }: DeviceSessionMenuProps & {
@@ -57,95 +99,124 @@ function DeviceSessionMenuContent({
   const { t } = useTranslation(["auth", "common"])
   const current = client.useSession().data
 
-  async function changeSession(operation: Parameters<typeof action.run>[0]) {
-    if (await action.run(operation)) onSessionChanged()
-  }
-
   return (
-    <>
-      <DropdownMenuGroup>
-        <DropdownMenuLabel>{t("auth:accountsOnDevice")}</DropdownMenuLabel>
-        {sessions.isPending && (
-          <DropdownMenuItem disabled>
-            <span role="status">{t("common:loading")}</span>
-          </DropdownMenuItem>
-        )}
-        {sessions.isError && (
-          <>
-            <DropdownMenuItem disabled className="max-w-72 text-destructive">
-              <span role="alert">{t("auth:accountListFailed")}</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              closeOnClick={false}
-              onClick={() => void sessions.refetch()}
-            >
-              {t("common:retry")}
-            </DropdownMenuItem>
-          </>
-        )}
-        <DropdownMenuRadioGroup value={current?.user.id ?? ""}>
-          {sessions.data?.map(({ session, user }) => (
-            <DropdownMenuRadioItem
-              key={user.id}
-              value={user.id}
-              disabled={action.pending}
-              closeOnClick={false}
-              onClick={() => {
-                if (user.id === current?.user.id) return
-                void changeSession(() =>
-                  client.multiSession.setActive({ sessionToken: session.token })
-                )
-              }}
-            >
-              <div className="grid min-w-0 text-start">
-                <span className="truncate font-medium">{user.name}</span>
-                <span className="truncate text-xs text-muted-foreground">
-                  {user.email}
-                </span>
-              </div>
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
-        <DropdownMenuItem disabled={action.pending} onClick={onAddAccount}>
-          <PlusIcon />
-          {t("auth:addAccount")}
+    <DropdownMenuGroup>
+      <DropdownMenuLabel className="px-3 py-3 text-sm">
+        {t("auth:accountsOnDevice")}
+      </DropdownMenuLabel>
+      {sessions.isPending && (
+        <DropdownMenuItem disabled>
+          <span role="status">{t("common:loading")}</span>
         </DropdownMenuItem>
-      </DropdownMenuGroup>
-      <DropdownMenuSeparator />
-      <DropdownMenuGroup>
-        {current && (
+      )}
+      {sessions.isError && (
+        <>
+          <DropdownMenuItem disabled className="max-w-72 text-destructive">
+            <span role="alert">{t("auth:accountListFailed")}</span>
+          </DropdownMenuItem>
           <DropdownMenuItem
+            closeOnClick={false}
+            onClick={() => void sessions.refetch()}
+          >
+            {t("common:retry")}
+          </DropdownMenuItem>
+        </>
+      )}
+      <DropdownMenuRadioGroup value={current?.user.id ?? ""}>
+        {sessions.data?.map(({ session, user }) => (
+          <DropdownMenuRadioItem
+            key={user.id}
+            value={user.id}
+            className="min-h-18 gap-3 py-3 text-base aria-checked:bg-primary/5 [&_[data-slot=dropdown-menu-radio-item-indicator]]:text-primary"
             disabled={action.pending}
             closeOnClick={false}
-            onClick={() =>
-              void changeSession(() =>
-                client.multiSession.revoke({
-                  sessionToken: current.session.token,
-                })
+            onClick={() => {
+              if (user.id === current?.user.id) return
+              void changeSession(
+                action,
+                () =>
+                  client.multiSession.setActive({
+                    sessionToken: session.token,
+                  }),
+                onSessionChanged
               )
-            }
+            }}
           >
-            <LogOutIcon />
-            {t("auth:signOut")}
-          </DropdownMenuItem>
-        )}
+            <span aria-hidden="true" className="shrink-0">
+              <PersonalAvatar name={user.name} className="size-10" />
+            </span>
+            <div className="grid min-w-0 flex-1 gap-0.5 text-start">
+              <span className="truncate font-medium">{user.name}</span>
+              <span
+                className="truncate text-sm text-muted-foreground"
+                title={user.email}
+              >
+                {user.email}
+              </span>
+            </div>
+          </DropdownMenuRadioItem>
+        ))}
+      </DropdownMenuRadioGroup>
+      <DropdownMenuSeparator className="mx-2 my-1.5" />
+      <DropdownMenuItem
+        className="min-h-12 text-base"
+        disabled={action.pending}
+        onClick={onAddAccount}
+      >
+        <PlusIcon className="size-5" />
+        {t("auth:addAccount")}
+      </DropdownMenuItem>
+    </DropdownMenuGroup>
+  )
+}
+
+export function DeviceSessionActions({
+  onSessionChanged,
+  action,
+}: Pick<DeviceSessionMenuProps, "onSessionChanged" | "action">) {
+  const client = useWorkspaceAuthClient()
+  const { t } = useTranslation("auth")
+  const current = client.useSession().data
+  return (
+    <DropdownMenuGroup>
+      {current && (
         <DropdownMenuItem
+          className="min-h-12 text-base"
           disabled={action.pending}
           closeOnClick={false}
-          onClick={() => void changeSession(() => client.signOut())}
+          onClick={() =>
+            void changeSession(
+              action,
+              () =>
+                client.multiSession.revoke({
+                  sessionToken: current.session.token,
+                }),
+              onSessionChanged
+            )
+          }
         >
-          <LogOutIcon />
-          {t("auth:signOutAllAccounts")}
+          <LogOutIcon className="size-5" />
+          {t("signOutCurrentAccount")}
         </DropdownMenuItem>
-      </DropdownMenuGroup>
-      {action.error && (
-        <DropdownMenuGroup>
-          <DropdownMenuItem disabled className="max-w-72 text-destructive">
-            <span role="alert">{action.error}</span>
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
       )}
-    </>
+      <DropdownMenuItem
+        className="min-h-12 text-base"
+        variant="destructive"
+        disabled={action.pending}
+        closeOnClick={false}
+        onClick={() =>
+          void changeSession(action, () => client.signOut(), onSessionChanged)
+        }
+      >
+        <LogOutIcon className="size-5" />
+        {t("signOutAllAccounts")}
+      </DropdownMenuItem>
+      {action.error && (
+        <DropdownMenuItem disabled className="max-w-72 text-destructive">
+          <span role="alert">{action.error}</span>
+        </DropdownMenuItem>
+      )}
+    </DropdownMenuGroup>
   )
 }
 
@@ -181,8 +252,16 @@ export function DeviceAccountSwitcher({
         <UsersIcon />
         {t("switchAccount")}
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-72" align="center">
-        <DeviceSessionMenuContent {...props} sessions={sessions} />
+      <DropdownMenuContent
+        className="w-72 max-w-[calc(100vw-2rem)] rounded-xl shadow-lg"
+        align="center"
+      >
+        <DeviceSessionList {...props} sessions={sessions} />
+        <DropdownMenuSeparator />
+        <DeviceSessionActions
+          action={props.action}
+          onSessionChanged={props.onSessionChanged}
+        />
       </DropdownMenuContent>
     </DropdownMenu>
   )

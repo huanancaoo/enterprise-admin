@@ -42,20 +42,26 @@ async function signIn(target) {
 
 async function openMenu(target) {
   await page.getByRole("button", { name: new RegExp(target.user.name) }).click()
+  await expectUI(page.getByRole("menuitem", { name: /切换账号/ })).toBeVisible()
+}
+
+async function openAccountMenu(target) {
+  await openMenu(target)
+  await page.getByRole("menuitem", { name: /切换账号/ }).click()
   await expectUI(
     page.getByRole("menuitemradio", { name: new RegExp(target.email) })
   ).toBeVisible()
 }
 
 async function addAccount(current, next) {
-  await openMenu(current)
+  await openAccountMenu(current)
   await page.getByRole("menuitem", { name: "添加账号", exact: true }).click()
   await expectUI(page).toHaveURL(/\/add-account$/)
   await signIn(next)
 }
 
 async function switchAccount(current, next) {
-  await openMenu(current)
+  await openAccountMenu(current)
   await page
     .getByRole("menuitemradio", { name: new RegExp(next.email) })
     .click()
@@ -180,7 +186,7 @@ it("租户后台添加、取消、切换和退出账号时隔离组织及会话"
   }
   await page.goto(`${origin}/login`)
   await signIn(first)
-  await openMenu(first)
+  await openAccountMenu(first)
   await page.getByRole("menuitem", { name: "添加账号", exact: true }).click()
   await page.getByRole("link", { name: "取消添加账号", exact: true }).click()
   await expectUI(
@@ -201,7 +207,7 @@ it("租户后台添加、取消、切换和退出账号时隔离组织及会话"
   )
   expect(forbidden.status()).toBe(403)
 
-  await openMenu(second)
+  await openAccountMenu(second)
   await page.screenshot({
     path: "test-results/multi-session/tenant-accounts.png",
     fullPage: true,
@@ -228,7 +234,9 @@ it("租户后台添加、取消、切换和退出账号时隔离组织及会话"
   expect(untrusted.status()).toBe(403)
 
   await openMenu(first)
-  await page.getByRole("menuitem", { name: "退出登录", exact: true }).click()
+  await page
+    .getByRole("menuitem", { name: "退出当前账号", exact: true })
+    .click()
   await expectUI(
     page.getByRole("button", { name: new RegExp(second.user.name) })
   ).toBeVisible()
@@ -252,7 +260,7 @@ it("租户后台添加、取消、切换和退出账号时隔离组织及会话"
   expect(list).toHaveLength(2)
   await openMenu(first)
   await page
-    .getByRole("menuitem", { name: "退出全部账号", exact: true })
+    .getByRole("menuitem", { name: "退出所有账号", exact: true })
     .click()
   await expectUI(page).toHaveURL(/\/login$/)
   expect(await session(origin)).toBeNull()
@@ -277,7 +285,7 @@ it("平台后台切换保留各自 MFA，租户添加已启用 MFA 的账号仍�
   await enrollMfa(first)
   await addAccount(first, second)
   const secondSecret = await enrollMfa(second)
-  await openMenu(second)
+  await openAccountMenu(second)
   await page.screenshot({
     path: "test-results/multi-session/platform-accounts.png",
     fullPage: true,
@@ -294,7 +302,9 @@ it("平台后台切换保留各自 MFA，租户添加已启用 MFA 的账号仍�
     (await page.request.get(`${origin}/api/v1/me/platform`)).status()
   ).toBe(200)
   await openMenu(second)
-  await page.getByRole("menuitem", { name: "退出登录", exact: true }).click()
+  await page
+    .getByRole("menuitem", { name: "退出当前账号", exact: true })
+    .click()
   await expectUI(
     page.getByRole("button", { name: new RegExp(first.user.name) })
   ).toBeVisible()
@@ -323,7 +333,7 @@ it("平台后台切换保留各自 MFA，租户添加已启用 MFA 的账号仍�
   ).toBeVisible()
   await openMenu(second)
   await page
-    .getByRole("menuitem", { name: "退出全部账号", exact: true })
+    .getByRole("menuitem", { name: "退出所有账号", exact: true })
     .click()
   await expectUI(page).toHaveURL(/\/login$/)
   expect(await session(origin)).toBeNull()

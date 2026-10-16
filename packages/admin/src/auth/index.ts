@@ -1,6 +1,10 @@
 export { createWorkspaceAuthClient } from "./client"
 export type { WorkspaceAuthClient } from "./client"
-export { DeviceSessionMenu, DeviceAccountSwitcher } from "./device-session-menu"
+export {
+  DeviceSessionMenu,
+  DeviceSessionActions,
+  DeviceAccountSwitcher,
+} from "./device-session-menu"
 export { TotpChallengePage } from "./totp-challenge-page"
 export {
   AuthGate,

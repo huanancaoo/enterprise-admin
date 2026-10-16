@@ -482,7 +482,7 @@ describe("S8 cross-feature browser acceptance", () => {
       .getByRole("button", { name: new RegExp(actor.user.name) })
       .click()
     await otherPage
-      .getByRole("menuitem", { name: "退出登录", exact: true })
+      .getByRole("menuitem", { name: "退出当前账号", exact: true })
       .click()
     await expectUI(otherPage).toHaveURL(/\/login(?:\?|$)/)
     await otherPage.goBack()

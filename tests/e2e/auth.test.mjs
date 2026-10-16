@@ -71,7 +71,9 @@ async function selectAdminLocale(page, userName, currentLanguage, locale) {
 
 async function signOutFromAppShell(page, userName) {
   await openAdminUserMenu(page, userName)
-  await page.getByRole("menuitem", { name: "退出登录", exact: true }).click()
+  await page
+    .getByRole("menuitem", { name: "退出当前账号", exact: true })
+    .click()
 }
 
 async function signOutFromGate(page) {

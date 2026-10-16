@@ -21,6 +21,7 @@ import {
 } from "@workspace/ui/components/breadcrumb"
 import {
   DeviceSessionMenu,
+  DeviceSessionActions,
   useAuthenticatedSession,
 } from "@workspace/admin/auth"
 import { useUiLocale } from "@workspace/i18n/react"
@@ -490,7 +491,6 @@ export function AdminLayout() {
             name: session.user.name,
             email: session.user.email,
             avatar: session.user.image ?? undefined,
-            lastLoginMethod: session.user.lastLoginMethod,
           },
           accountMenu: (action) => (
             <DeviceSessionMenu
@@ -498,6 +498,7 @@ export function AdminLayout() {
               onAddAccount={() => void navigate({ to: "/add-account" })}
             />
           ),
+          signOutMenu: (action) => <DeviceSessionActions action={action} />,
           onPersonalSettings: () =>
             void navigate({ to: "/app/settings/preferences" }),
           onLocaleSelect: () =>

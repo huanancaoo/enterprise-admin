@@ -21,6 +21,7 @@ import {
   ResetPasswordPage,
   useAuthenticatedSession,
   DeviceSessionMenu,
+  DeviceSessionActions,
   DeviceAccountSwitcher,
   useAuthAction,
 } from "@workspace/admin/auth"
@@ -253,7 +254,6 @@ export function PlatformLayout() {
             name: session.user.name,
             email: session.user.email,
             avatar: session.user.image ?? undefined,
-            lastLoginMethod: session.user.lastLoginMethod,
           },
           accountMenu: (action) => (
             <DeviceSessionMenu
@@ -261,6 +261,7 @@ export function PlatformLayout() {
               onAddAccount={() => void navigate({ to: "/add-account" })}
             />
           ),
+          signOutMenu: (action) => <DeviceSessionActions action={action} />,
           onPersonalSettings: () =>
             void navigate({ to: "/platform/personal-settings" }),
         },
