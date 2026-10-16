@@ -297,7 +297,7 @@ describe("通用能力正式浏览器、Worker和外部接收端", () => {
         .click()
       await page
         .getByRole("navigation", { name: "组织管理", exact: true })
-        .getByRole("link", { name: "外部集成", exact: true })
+        .getByRole("link", { name: "API Key 与 Webhook", exact: true })
         .click()
       await page
         .getByRole("button", { name: "创建 Webhook", exact: true })

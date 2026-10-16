@@ -3,7 +3,7 @@ import { useState } from "react"
 import { AuthenticatedSessionProvider } from "@workspace/admin/auth"
 import { authClient } from "../../lib/auth-client"
 import type { Meta, StoryObj } from "@storybook/react-vite"
-import { expect, userEvent, within, waitFor } from "storybook/test"
+import { expect, spyOn, userEvent, within, waitFor } from "storybook/test"
 import {
   createAccessCredentialsScenario,
   accessCredentialOrganizationId,
@@ -38,7 +38,7 @@ export const CreatesOneTimeKey: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await userEvent.click(
-      await canvas.findByRole("button", { name: "Create credential" })
+      await canvas.findByRole("button", { name: "Create API key" })
     )
     const body = within(canvasElement.ownerDocument.body)
     const dialog = await body.findByRole("dialog")
@@ -52,10 +52,30 @@ export const CreatesOneTimeKey: Story = {
       within(dialog).getByRole("checkbox", { name: "Projects: Read" })
     )
     await userEvent.click(
-      within(dialog).getByRole("button", { name: "Create credential" })
+      within(dialog).getByRole("button", { name: "Create API key" })
     )
     const secret = await body.findByRole("textbox", { name: "Key" })
     await expect(secret).toHaveValue("ea_story_fixture_not_a_real_key")
+    const writeText = spyOn(navigator.clipboard, "writeText")
+      .mockRejectedValueOnce(new Error("Clipboard access denied"))
+      .mockResolvedValueOnce(undefined)
+    try {
+      await userEvent.click(body.getByRole("button", { name: "Copy key" }))
+      await expect(await body.findByRole("alert")).toHaveTextContent(
+        "The key could not be copied. Try again or copy it manually."
+      )
+      await expect(secret).toHaveValue("ea_story_fixture_not_a_real_key")
+      await userEvent.click(body.getByRole("button", { name: "Copy key" }))
+      await expect(await body.findByRole("status")).toHaveTextContent(
+        "Key copied."
+      )
+      await expect(writeText).toHaveBeenLastCalledWith(
+        "ea_story_fixture_not_a_real_key"
+      )
+      await expect(body.queryByRole("alert")).toBeNull()
+    } finally {
+      writeText.mockRestore()
+    }
     await userEvent.click(body.getByRole("button", { name: "Close" }))
     await waitFor(() =>
       expect(body.queryByRole("textbox", { name: "Key" })).toBeNull()
@@ -64,6 +84,12 @@ export const CreatesOneTimeKey: Story = {
 }
 
 const populated = createAccessCredentialsScenario("populated")
+export const Overview: Story = {
+  globals: { locale: "zh-CN" },
+  beforeEach: populated.reset,
+  parameters: { msw: { handlers: populated.handlers } },
+}
+
 export const RevokesCredential: Story = {
   beforeEach: populated.reset,
   parameters: { msw: { handlers: populated.handlers } },
@@ -92,7 +118,7 @@ export const KeepsFailedDraft: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await userEvent.click(
-      await canvas.findByRole("button", { name: "Create credential" })
+      await canvas.findByRole("button", { name: "Create API key" })
     )
     const body = within(canvasElement.ownerDocument.body)
     const dialog = await body.findByRole("dialog")
@@ -105,11 +131,9 @@ export const KeepsFailedDraft: Story = {
     await userEvent.click(
       form.getByRole("checkbox", { name: "Projects: Read" })
     )
-    await userEvent.click(
-      form.getByRole("button", { name: "Create credential" })
-    )
+    await userEvent.click(form.getByRole("button", { name: "Create API key" }))
     await expect(await form.findByRole("alert")).toHaveTextContent(
-      "The credential could not be created. Your input has been kept."
+      "The API key could not be created. Your input has been kept."
     )
     await expect(form.getByRole("textbox", { name: "Name" })).toHaveValue(
       "Accounting bridge"
@@ -131,11 +155,11 @@ export const ReadOnlyCredentials: Story = {
     await expect(await canvas.findByText("Accounting bridge")).toBeVisible()
     await expect(
       canvas.getByText(
-        "You can view credentials, but cannot create or revoke them."
+        "You can view API keys, but cannot create or revoke them."
       )
     ).toBeVisible()
     await expect(
-      canvas.queryByRole("button", { name: "Create credential" })
+      canvas.queryByRole("button", { name: "Create API key" })
     ).toBeNull()
     await expect(canvas.queryByRole("button", { name: "Revoke" })).toBeNull()
   },
@@ -150,7 +174,7 @@ export const DeniedCredentials: Story = {
     await expect(await canvas.findByText("Access denied")).toBeVisible()
     await expect(canvas.queryByText("Accounting bridge")).toBeNull()
     await expect(
-      canvas.queryByRole("button", { name: "Create credential" })
+      canvas.queryByRole("button", { name: "Create API key" })
     ).toBeNull()
   },
 }
@@ -162,7 +186,7 @@ export const FailedListing: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await expect(await canvas.findByRole("alert")).toHaveTextContent(
-      "API credentials could not be loaded."
+      "API keys could not be loaded."
     )
     await expect(canvas.getByRole("button", { name: "Retry" })).toBeVisible()
     await expect(canvas.queryByText("Accounting bridge")).toBeNull()
@@ -181,7 +205,7 @@ export const ArabicCredentials: Story = {
       "rtl"
     )
     await expect(
-      canvas.getByRole("heading", { name: "بيانات اعتماد واجهة API" })
+      canvas.getByRole("heading", { name: "مفاتيح API" })
     ).toBeVisible()
   },
 }
@@ -249,7 +273,7 @@ export const LostAccessDestroysKey: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await userEvent.click(
-      await canvas.findByRole("button", { name: "Create credential" })
+      await canvas.findByRole("button", { name: "Create API key" })
     )
     const body = within(canvasElement.ownerDocument.body)
     const dialog = within(await body.findByRole("dialog"))
@@ -265,7 +289,7 @@ export const LostAccessDestroysKey: Story = {
       dialog.getByRole("checkbox", { name: "Projects: Read" })
     )
     await userEvent.click(
-      dialog.getByRole("button", { name: "Create credential" })
+      dialog.getByRole("button", { name: "Create API key" })
     )
     await waitFor(() =>
       expect(body.getByRole("textbox", { name: "Key" })).toBeVisible()

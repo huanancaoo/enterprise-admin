@@ -33,11 +33,23 @@ describe("组织调用凭据浏览器流程", () => {
       await page.getByLabel("密码", { exact: true }).fill(owner.password)
       await page.getByRole("button", { name: "登录", exact: true }).click()
       await expectUI(page).toHaveURL(/\/app(?:\/|$)/)
-      await page.goto(`${environment.tenantOrigin}/app/integrations/${org.id}`)
+      await page
+        .getByRole("navigation", { name: "主导航", exact: true })
+        .getByRole("link", { name: "组织管理", exact: true })
+        .click()
+      await page
+        .getByRole("navigation", { name: "组织管理", exact: true })
+        .getByRole("link", { name: "API Key 与 Webhook", exact: true })
+        .click()
+      await expectUI(page).toHaveURL(
+        `${environment.tenantOrigin}/app/integrations/${org.id}`
+      )
       await expectUI(
-        page.getByRole("heading", { name: "调用凭据", exact: true })
+        page.getByRole("heading", { name: "API Key", exact: true })
       ).toBeVisible()
-      await page.getByRole("button", { name: "创建凭据", exact: true }).click()
+      await page
+        .getByRole("button", { name: "创建 API Key", exact: true })
+        .click()
       const form = page.getByRole("dialog")
       await form.getByLabel("名称", { exact: true }).fill("财务系统")
       const expiry = new Date(Date.now() + 86_400_000)
@@ -55,7 +67,9 @@ describe("组织调用凭据浏览器流程", () => {
             .endsWith(`/organizations/${org.id}/access-credentials`) &&
           response.request().method() === "POST"
       )
-      await form.getByRole("button", { name: "创建凭据", exact: true }).click()
+      await form
+        .getByRole("button", { name: "创建 API Key", exact: true })
+        .click()
       expect((await issuedResponse).status()).toBe(201)
       const keyInput = page.getByRole("textbox", { name: "密钥", exact: true })
       await expectUI(keyInput).toBeVisible()

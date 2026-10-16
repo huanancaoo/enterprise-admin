@@ -3,6 +3,7 @@ import { useForm } from "@tanstack/react-form"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
+import { KeyRoundIcon, PlusIcon } from "lucide-react"
 import {
   ApiClientError,
   createAccessCredential,
@@ -29,12 +30,15 @@ import {
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
 import { Checkbox } from "@workspace/ui/components/checkbox"
+import { Badge } from "@workspace/ui/components/badge"
 import {
   Field,
   FieldLabel,
   FieldGroup,
   FieldError,
   FieldDescription,
+  FieldSet,
+  FieldLegend,
 } from "@workspace/ui/components/field"
 import {
   Dialog,
@@ -170,7 +174,7 @@ function CredentialManager({
   const id = useId()
   const [createOpen, setCreateOpen] = useState(false)
   const [secret, setSecret] = useState<string>()
-  const [copied, setCopied] = useState(false)
+  const [copy, setCopy] = useState<"copied" | "failed">()
   const [revokeId, setRevokeId] = useState<string>()
   const canManage =
     access.data?.data.grantablePermissions.some(
@@ -187,6 +191,10 @@ function CredentialManager({
             actions.some((action) => action === permission.action)
         )
     ) ?? []
+  const permissionGroups: Record<string, typeof choices> = {}
+  for (const permission of choices) {
+    ;(permissionGroups[permission.resource] ??= []).push(permission)
+  }
   const create = useMutation({
     retry: false,
     gcTime: 0,
@@ -301,13 +309,17 @@ function CredentialManager({
     columnHelper.display({
       id: "status",
       header: t("status"),
-      cell: (cell) =>
-        !cell.row.original.enabled
-          ? t("revoked")
-          : listing.data &&
-              Date.parse(cell.row.original.expiresAt) <= listing.data.observedAt
-            ? t("expired")
-            : t("active"),
+      cell: (cell) => (
+        <Badge variant={cell.row.original.enabled ? "secondary" : "outline"}>
+          {!cell.row.original.enabled
+            ? t("revoked")
+            : listing.data &&
+                Date.parse(cell.row.original.expiresAt) <=
+                  listing.data.observedAt
+              ? t("expired")
+              : t("active")}
+        </Badge>
+      ),
     }),
     columnHelper.display({
       id: "actions",
@@ -347,15 +359,34 @@ function CredentialManager({
               onClick={() => {
                 create.reset()
                 form.reset()
-                setCopied(false)
+                setCopy(undefined)
                 setCreateOpen(true)
               }}
             >
+              <PlusIcon aria-hidden="true" />
               {t("create")}
             </Button>
           ) : undefined
         }
       />
+      <div className="flex gap-3 rounded-xl border bg-muted/30 p-4">
+        <KeyRoundIcon
+          className="mt-0.5 size-5 shrink-0 text-muted-foreground"
+          aria-hidden="true"
+        />
+        <div className="min-w-0 space-y-2">
+          <p className="text-sm font-medium">{t("usageTitle")}</p>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            {t("usageDescription")}
+          </p>
+          <code
+            dir="ltr"
+            className="block w-fit max-w-full rounded-md border bg-background px-2.5 py-1.5 text-xs wrap-anywhere"
+          >
+            {t("headerExample")}
+          </code>
+        </div>
+      </div>
       {!access.isPending && !access.error && !canManage && (
         <p className="text-sm text-muted-foreground">{t("readOnly")}</p>
       )}
@@ -475,31 +506,47 @@ function CredentialManager({
                       <FieldDescription>
                         {t("permissionsHint")}
                       </FieldDescription>
-                      <FieldGroup data-slot="checkbox-group">
-                        {choices.map(({ resource, action }) => {
-                          const value = `${resource}:${action}`
-                          return (
-                            <Field key={value} orientation="horizontal">
-                              <Checkbox
-                                id={`${id}-${value}`}
-                                checked={field.state.value.includes(value)}
-                                onCheckedChange={(checked) => {
-                                  if (checked) field.pushValue(value)
-                                  else
-                                    field.removeValue(
-                                      field.state.value.indexOf(value)
-                                    )
-                                }}
-                                onBlur={field.handleBlur}
-                                aria-invalid={invalid}
-                              />
-                              <FieldLabel htmlFor={`${id}-${value}`}>
-                                {permissionLabel(resource, action)}
-                              </FieldLabel>
-                            </Field>
+                      <div className="space-y-4">
+                        {Object.entries(permissionGroups).map(
+                          ([resource, permissions]) => (
+                            <FieldSet
+                              key={resource}
+                              className="rounded-lg border p-3"
+                            >
+                              <FieldLegend variant="label" className="px-1">
+                                {resourceLabels[resource]}
+                              </FieldLegend>
+                              <FieldGroup data-slot="checkbox-group">
+                                {permissions.map(({ action }) => {
+                                  const value = `${resource}:${action}`
+                                  return (
+                                    <Field key={value} orientation="horizontal">
+                                      <Checkbox
+                                        id={`${id}-${value}`}
+                                        checked={field.state.value.includes(
+                                          value
+                                        )}
+                                        onCheckedChange={(checked) => {
+                                          if (checked) field.pushValue(value)
+                                          else
+                                            field.removeValue(
+                                              field.state.value.indexOf(value)
+                                            )
+                                        }}
+                                        onBlur={field.handleBlur}
+                                        aria-invalid={invalid}
+                                      />
+                                      <FieldLabel htmlFor={`${id}-${value}`}>
+                                        {permissionLabel(resource, action)}
+                                      </FieldLabel>
+                                    </Field>
+                                  )
+                                })}
+                              </FieldGroup>
+                            </FieldSet>
                           )
-                        })}
-                      </FieldGroup>
+                        )}
+                      </div>
                       {invalid && (
                         <FieldError errors={field.state.meta.errors} />
                       )}
@@ -516,7 +563,7 @@ function CredentialManager({
         onOpenChange={(open) => {
           if (!open) {
             setSecret(undefined)
-            setCopied(false)
+            setCopy(undefined)
             create.reset()
           }
         }}
@@ -533,18 +580,26 @@ function CredentialManager({
               value={secret ?? ""}
               readOnly
               autoComplete="off"
+              dir="ltr"
               className="font-mono"
             />
           </Field>
-          {copied && <p role="status">{t("copied")}</p>}
+          {copy === "copied" && <p role="status">{t("copied")}</p>}
+          {copy === "failed" && (
+            <p role="alert" className="text-sm text-destructive">
+              {t("copyFailed")}
+            </p>
+          )}
           <DialogFooter>
             <Button
               variant="outline"
               onClick={() => {
+                setCopy(undefined)
                 if (secret)
                   void navigator.clipboard
                     .writeText(secret)
-                    .then(() => setCopied(true))
+                    .then(() => setCopy("copied"))
+                    .catch(() => setCopy("failed"))
               }}
             >
               {t("copyKey")}
@@ -552,7 +607,7 @@ function CredentialManager({
             <Button
               onClick={() => {
                 setSecret(undefined)
-                setCopied(false)
+                setCopy(undefined)
                 create.reset()
               }}
             >

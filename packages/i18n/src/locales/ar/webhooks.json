@@ -21,7 +21,7 @@
   "failed": "فشل",
   "history": "سجل الإرسال",
   "httpStatus": "حالة HTTP",
-  "integrations": "التكاملات الخارجية",
+  "integrations": "مفاتيح API وWebhooks",
   "name": "الاسم",
   "nameRequired": "أدخل اسمًا.",
   "nextAttempt": "المحاولة التالية",

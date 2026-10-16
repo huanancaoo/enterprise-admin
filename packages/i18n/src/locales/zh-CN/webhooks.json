@@ -21,7 +21,7 @@
   "failed": "投递失败",
   "history": "投递记录",
   "httpStatus": "HTTP 状态",
-  "integrations": "外部集成",
+  "integrations": "API Key 与 Webhook",
   "name": "名称",
   "nameRequired": "请输入名称。",
   "nextAttempt": "下次尝试时间",

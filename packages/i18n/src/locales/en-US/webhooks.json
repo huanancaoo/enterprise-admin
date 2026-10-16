@@ -21,7 +21,7 @@
   "failed": "Failed",
   "history": "Delivery history",
   "httpStatus": "HTTP status",
-  "integrations": "External integrations",
+  "integrations": "API keys & Webhooks",
   "name": "Name",
   "nameRequired": "Enter a name.",
   "nextAttempt": "Next attempt",
