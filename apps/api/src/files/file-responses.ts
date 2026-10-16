@@ -1,4 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
+import { contentTypeEssence } from '../http/content-type';
 import {
   FileOperationErrorCodeSchema,
   FileOperationResponseSchema,
@@ -18,13 +19,17 @@ import type {
 export function filePreviewKind(
   contentType: string,
 ): FileVersionResponse['previewKind'] {
-  const mime = contentType.split(';', 1)[0].trim().toLowerCase();
-  if (['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(mime))
+  const mime = contentTypeEssence(contentType);
+  if (
+    ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].some(
+      (type) => type === mime,
+    )
+  )
     return 'image';
   if (mime === 'application/pdf') return 'pdf';
   if (mime === 'text/plain' || mime === 'application/json') return 'text';
-  if (mime.startsWith('audio/')) return 'audio';
-  if (mime.startsWith('video/')) return 'video';
+  if (mime?.startsWith('audio/')) return 'audio';
+  if (mime?.startsWith('video/')) return 'video';
   return 'none';
 }
 

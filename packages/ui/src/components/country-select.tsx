@@ -1,19 +1,22 @@
 "use client"
 
 import * as React from "react"
+import { Combobox as ComboboxPrimitive } from "@base-ui/react/combobox"
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@workspace/ui/components/popover"
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@workspace/ui/components/command"
+  Combobox,
+  ComboboxClear,
+  ComboboxCollection,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxGroup,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxLabel,
+  ComboboxList,
+  ComboboxTrigger,
+  ComboboxValue,
+} from "@workspace/ui/components/combobox"
+import { InputGroupAddon } from "@workspace/ui/components/input-group"
 import { Button } from "@workspace/ui/components/button"
 import { cn } from "@workspace/ui/lib/utils"
 import {
@@ -23,7 +26,7 @@ import {
   getCountryName,
   matchCountry,
 } from "@workspace/ui/lib/countries"
-import { ChevronsUpDownIcon, XIcon } from "lucide-react"
+import { ChevronsUpDownIcon, SearchIcon } from "lucide-react"
 
 export interface CountrySelectProps {
   /** 当前选中的国家 ISO 3166-1 alpha-2 代码（受控） */
@@ -32,7 +35,7 @@ export interface CountrySelectProps {
   defaultValue?: string
   /** 值发生改变时的回调 */
   onValueChange?: (value: string | undefined) => void
-  /** 失焦回调（浮层关闭或 Trigger 失焦时触发） */
+  /** 失焦回调（浮层关闭时触发） */
   onBlur?: () => void
   /** 表单字段名 */
   name?: string
@@ -93,47 +96,42 @@ export interface CountrySelectProps {
   sideOffset?: number
 }
 
-export function CountrySelect({
-  value,
-  defaultValue,
-  onValueChange,
-  onBlur,
-  name,
-  id,
-  disabled = false,
-  invalid = false,
+export function CountrySelect(props: CountrySelectProps) {
+  const {
+    value,
+    defaultValue,
+    onValueChange,
+    onBlur,
+    name,
+    id,
+    disabled = false,
+    invalid = false,
 
-  locale,
-  placeholder = "Select a country",
-  searchPlaceholder = "Search countries...",
-  emptyText = "No country found.",
-  preferredHeading = "Frequently used",
-  allHeading = "All countries",
+    locale,
+    placeholder = "Select a country",
+    searchPlaceholder = "Search countries...",
+    emptyText = "No country found.",
+    preferredHeading = "Frequently used",
+    allHeading = "All countries",
 
-  showFlag = false,
-  clearable = false,
+    showFlag = false,
+    clearable = false,
 
-  preferredCountries,
-  include,
-  exclude,
-  isCountryDisabled,
+    preferredCountries,
+    include,
+    exclude,
+    isCountryDisabled,
 
-  countries,
-  filterCountry,
+    countries,
+    filterCountry,
 
-  className,
-  triggerClassName,
-  contentClassName,
-  align = "start",
-  side = "bottom",
-  sideOffset = 4,
-}: CountrySelectProps) {
-  const [open, setOpen] = React.useState(false)
-  const isControlled = value !== undefined
-  const [internalValue, setInternalValue] = React.useState(defaultValue)
-  const currentValue = isControlled ? value : internalValue
-
-  // 计算运行时生效的 Locale
+    className,
+    triggerClassName,
+    contentClassName,
+    align = "start",
+    side = "bottom",
+    sideOffset = 4,
+  } = props
   const activeLocale =
     locale ||
     (typeof document !== "undefined"
@@ -141,7 +139,6 @@ export function CountrySelect({
       : undefined) ||
     "en"
 
-  // 基础国家数据集清洗（include / exclude）
   const baseCountries = React.useMemo(() => {
     let list = countries ?? COUNTRIES
     if (include && include.length > 0) {
@@ -155,7 +152,6 @@ export function CountrySelect({
     return list
   }, [countries, include, exclude])
 
-  // 映射字典与本地化名称缓存
   const { countryMap, localizedMap } = React.useMemo(() => {
     const cMap = new Map<string, Country>()
     const lMap = new Map<string, string>()
@@ -182,185 +178,166 @@ export function CountrySelect({
     return { preferredList: preferred, otherList: other }
   }, [baseCountries, preferredCountries, countryMap])
 
-  // 当前选中对象及其展示文案
-  const selectedCountry = currentValue
-    ? countryMap.get(currentValue.toUpperCase())
-    : undefined
-  const selectedLabel = selectedCountry
-    ? localizedMap.get(selectedCountry.code) || selectedCountry.name
-    : undefined
-
-  const handleSelect = React.useCallback(
-    (code: string | undefined) => {
-      if (!isControlled) {
-        setInternalValue(code)
-      }
-      onValueChange?.(code)
-    },
-    [isControlled, onValueChange]
+  const items = React.useMemo(
+    () =>
+      ComboboxPrimitive.createItems(
+        [
+          { id: "preferred", heading: preferredHeading, items: preferredList },
+          { id: "all", heading: allHeading, items: otherList },
+        ].filter((group) => group.items.length > 0),
+        {
+          getValue: (country: Country) => country.code,
+          getLabel: (country: Country) =>
+            localizedMap.get(country.code) || country.name,
+        }
+      ),
+    [preferredHeading, preferredList, allHeading, otherList, localizedMap]
   )
 
-  const handleOpenChange = React.useCallback(
-    (nextOpen: boolean) => {
-      setOpen(nextOpen)
-      if (!nextOpen) {
-        onBlur?.()
-      }
+  // 国家搜索还支持区号与别名，不能用仅比较显示名称的默认过滤替代。
+  const filter = React.useCallback(
+    (country: Country, search: string) => {
+      if (!search.trim()) return true
+      const localizedName = localizedMap.get(country.code) || ""
+      return filterCountry
+        ? filterCountry(country, search, localizedName)
+        : matchCountry(country, search, localizedName)
     },
-    [onBlur]
+    [localizedMap, filterCountry]
   )
 
-  // 自定义 cmdk 过滤算法，精确支持非拉丁字符（中文、阿拉伯文等）与别名/区号
-  const cmdkFilter = React.useCallback(
-    (itemValue: string, search: string) => {
-      const query = search.trim().toLowerCase()
-      if (!query) return 1
-      const country = countryMap.get(itemValue)
-      if (!country) return 0
-      const locName = localizedMap.get(itemValue) || ""
-      if (filterCountry) {
-        return filterCountry(country, search, locName) ? 1 : 0
-      }
-      return matchCountry(country, search, locName) ? 1 : 0
-    },
-    [countryMap, localizedMap, filterCountry]
-  )
-
-  const renderItem = (country: Country) => {
-    const isSelected = selectedCountry?.code === country.code
-    const isDisabled = isCountryDisabled ? isCountryDisabled(country) : false
-    const locName = localizedMap.get(country.code) || country.name
-
-    return (
-      <CommandItem
-        key={country.code}
-        value={country.code}
-        disabled={isDisabled}
-        data-checked={isSelected}
-        onSelect={() => {
-          handleSelect(country.code)
-          setOpen(false)
-        }}
-        className="cursor-pointer"
-      >
-        {showFlag && (
-          <span
-            className="me-2 shrink-0 text-base leading-none"
-            aria-hidden="true"
-          >
-            {getCountryFlag(country.code)}
-          </span>
-        )}
-        <span className="flex-1 truncate">{locName}</span>
-        <span className="ms-2 font-mono text-xs text-muted-foreground uppercase">
-          {country.code}
-        </span>
-      </CommandItem>
-    )
-  }
-
-  const listId = React.useId()
-  const triggerText = selectedCountry ? selectedLabel : placeholder
+  // 表单会显式传入 undefined 清空值，此时仍必须保持受控模式。
+  const isControlled = Object.hasOwn(props, "value")
 
   return (
     <div className={cn("relative inline-block w-full", className)}>
-      <Popover open={open} onOpenChange={handleOpenChange}>
-        <PopoverTrigger
-          render={
-            <Button
-              type="button"
-              variant="outline"
-              role="combobox"
-              aria-label={triggerText}
-              aria-expanded={open}
-              aria-controls={open ? listId : undefined}
-              aria-haspopup="listbox"
-              aria-invalid={invalid}
-              disabled={disabled}
-              id={id}
-              name={name}
-              className={cn(
-                "w-full justify-between text-start font-normal",
-                !selectedCountry && "text-muted-foreground",
-                invalid &&
-                  "border-destructive focus-visible:ring-destructive/20",
-                triggerClassName
-              )}
-            />
+      <Combobox
+        items={items}
+        value={isControlled ? value?.toUpperCase() || null : undefined}
+        defaultValue={defaultValue?.toUpperCase()}
+        onValueChange={(code, eventDetails) => {
+          const country = code ? countryMap.get(code) : undefined
+          // 关闭态的键入匹配也会提交值，禁用约束必须覆盖所有选择入口。
+          if (country && isCountryDisabled?.(country)) {
+            eventDetails.cancel()
+            return
           }
-        >
-          <span className="flex min-w-0 flex-1 items-center">
-            {selectedCountry && showFlag && (
-              <span
-                className="me-2 shrink-0 text-base leading-none"
-                aria-hidden="true"
-              >
-                {getCountryFlag(selectedCountry.code)}
-              </span>
-            )}
-            <span className="truncate">{triggerText}</span>
-          </span>
+          onValueChange?.(code ?? undefined)
+        }}
+        onOpenChange={(open) => {
+          if (!open) onBlur?.()
+        }}
+        name={name}
+        disabled={disabled}
+        filter={filter}
+        autoHighlight
+      >
+        <ComboboxValue>
+          {(selectedValue: string | null) => {
+            const selectedCountry = selectedValue
+              ? countryMap.get(selectedValue)
+              : undefined
+            const triggerText = selectedCountry
+              ? localizedMap.get(selectedCountry.code) || selectedCountry.name
+              : placeholder
+            const showClear = clearable && selectedCountry && !disabled
 
-          <span className="ms-2 flex shrink-0 items-center gap-1">
-            {clearable && selectedCountry && !disabled && (
-              <span
-                role="button"
-                tabIndex={0}
-                aria-label="Clear selection"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleSelect(undefined)
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.stopPropagation()
-                    e.preventDefault()
-                    handleSelect(undefined)
-                  }
-                }}
-                className="cursor-pointer rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground"
-              >
-                <XIcon className="size-3.5" />
-              </span>
-            )}
-            <ChevronsUpDownIcon
-              className="size-4 shrink-0 opacity-50"
-              aria-hidden="true"
-            />
-          </span>
-        </PopoverTrigger>
-
-        <PopoverContent
-          className={cn(
-            "w-[--anchor-width] min-w-[260px] p-0",
-            contentClassName
-          )}
+            return (
+              <>
+                <ComboboxTrigger
+                  render={<Button type="button" variant="outline" />}
+                  showIcon={false}
+                  id={id}
+                  aria-label={triggerText}
+                  aria-invalid={invalid}
+                  className={cn(
+                    "w-full justify-between text-start font-normal",
+                    !selectedCountry && "text-muted-foreground",
+                    invalid &&
+                      "border-destructive focus-visible:ring-destructive/20",
+                    triggerClassName
+                  )}
+                >
+                  <span className="flex min-w-0 flex-1 items-center">
+                    {selectedCountry && showFlag && (
+                      <span
+                        className="me-2 shrink-0 text-base leading-none"
+                        aria-hidden="true"
+                      >
+                        {getCountryFlag(selectedCountry.code)}
+                      </span>
+                    )}
+                    <span className="truncate">{triggerText}</span>
+                  </span>
+                  <span className={cn("ms-2 shrink-0", showClear && "ps-6")}>
+                    <ChevronsUpDownIcon
+                      className="size-4 opacity-50"
+                      aria-hidden="true"
+                    />
+                  </span>
+                </ComboboxTrigger>
+                {showClear && (
+                  <ComboboxClear
+                    tabIndex={0}
+                    aria-label="Clear selection"
+                    className="absolute end-9 top-1/2 size-5 -translate-y-1/2 rounded text-muted-foreground hover:text-foreground [&_svg]:size-3.5"
+                  />
+                )}
+              </>
+            )
+          }}
+        </ComboboxValue>
+        <ComboboxContent
+          className={cn("min-w-[260px] p-0", contentClassName)}
           align={align}
           side={side}
           sideOffset={sideOffset}
           aria-label={searchPlaceholder || placeholder}
         >
-          <Command filter={cmdkFilter}>
-            <CommandInput
-              placeholder={searchPlaceholder}
-              aria-label={searchPlaceholder}
-            />
-            <CommandList id={listId} className="max-h-72">
-              <CommandEmpty>{emptyText}</CommandEmpty>
-              {preferredList.length > 0 && (
-                <CommandGroup heading={preferredHeading}>
-                  {preferredList.map(renderItem)}
-                </CommandGroup>
-              )}
-              {otherList.length > 0 && (
-                <CommandGroup heading={allHeading}>
-                  {otherList.map(renderItem)}
-                </CommandGroup>
-              )}
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
+          <ComboboxInput
+            showTrigger={false}
+            placeholder={searchPlaceholder}
+            aria-label={searchPlaceholder}
+          >
+            <InputGroupAddon>
+              <SearchIcon className="size-4 shrink-0 opacity-50" />
+            </InputGroupAddon>
+          </ComboboxInput>
+          <ComboboxEmpty className="py-6">{emptyText}</ComboboxEmpty>
+          <ComboboxList className="max-h-72" aria-label={allHeading}>
+            {(group: { id: string; heading: string; items: Country[] }) => (
+              <ComboboxGroup key={group.id} items={group.items}>
+                <ComboboxLabel>{group.heading}</ComboboxLabel>
+                <ComboboxCollection>
+                  {(country: Country) => (
+                    <ComboboxItem
+                      key={country.code}
+                      value={country.code}
+                      disabled={isCountryDisabled?.(country)}
+                      className="cursor-pointer rounded-lg"
+                    >
+                      {showFlag && (
+                        <span
+                          className="me-2 shrink-0 text-base leading-none"
+                          aria-hidden="true"
+                        >
+                          {getCountryFlag(country.code)}
+                        </span>
+                      )}
+                      <span className="flex-1 truncate">
+                        {localizedMap.get(country.code) || country.name}
+                      </span>
+                      <span className="ms-2 font-mono text-xs text-muted-foreground uppercase">
+                        {country.code}
+                      </span>
+                    </ComboboxItem>
+                  )}
+                </ComboboxCollection>
+              </ComboboxGroup>
+            )}
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
     </div>
   )
 }

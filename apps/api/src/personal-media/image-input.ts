@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import type { Request } from 'express';
 import sharp from 'sharp';
 import { ApiException } from '../http/api-exception';
+import { contentTypeEssence } from '../http/content-type';
 
 const imageTypes = {
   jpeg: 'image/jpeg',
@@ -13,7 +14,7 @@ const imageTypes = {
 } as const;
 
 export async function readImage(request: Request, signal: AbortSignal) {
-  const type = request.get('content-type')?.split(';', 1)[0].toLowerCase();
+  const type = contentTypeEssence(request.get('content-type'));
   if (!Object.values(imageTypes).some((value) => value === type))
     throw new BadRequestException();
   const chunks: Buffer[] = [];

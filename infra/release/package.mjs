@@ -11,6 +11,7 @@ import {
   unlink,
 } from "node:fs/promises"
 import { join, resolve, sep } from "node:path"
+import { parse, stringify } from "yaml"
 import { sha256 } from "./release-runtime.mjs"
 
 const [version, acceptanceFile, destination] = process.argv.slice(2)
@@ -62,46 +63,44 @@ const selected = {
   ...accepted.candidateImages,
   migrator: accepted.migrationImage,
 }
-const configuration = JSON.parse(
-  execFileSync(
-    "docker",
-    [
-      "compose",
-      "-f",
-      join(source, "compose.release.yaml"),
-      "config",
-      "--format",
-      "json",
-    ],
-    {
-      encoding: "utf8",
-      env: {
-        ...process.env,
-        POSTGRES_PASSWORD: "package-not-running",
-        APP_MIGRATOR_PASSWORD: "package-not-running",
-        APP_RUNTIME_PASSWORD: "package-not-running",
-        PLATFORM_RUNTIME_PASSWORD: "package-not-running",
-        PLATFORM_DEPLOYER_PASSWORD: "package-not-running",
-        MIGRATION_DATABASE_URL:
-          "postgresql://not-running:not-running@postgres/enterprise_admin",
-        BETTER_AUTH_SECRET: "package-not-running",
-        EMAIL_PAYLOAD_ENCRYPTION_KEY: "package-not-running",
-        GITHUB_CLIENT_ID: "package-not-running",
-        GITHUB_CLIENT_SECRET: "package-not-running",
-        RELEASE_TENANT_ORIGIN: "http://127.0.0.1:1",
-        RELEASE_PLATFORM_ORIGIN: "http://127.0.0.1:2",
-        RELEASE_TENANT_PORT: "1",
-        RELEASE_PLATFORM_PORT: "2",
-        RELEASE_MAIL_PORT: "3",
-        ...Object.fromEntries(
-          Object.entries(selected).map(([service, image]) => [
-            `RELEASE_${service.toUpperCase()}_IMAGE`,
-            image,
-          ])
-        ),
-      },
-    }
-  )
+execFileSync(
+  "docker",
+  [
+    "compose",
+    "-f",
+    join(source, "compose.release.yaml"),
+    "config",
+    "--format",
+    "json",
+  ],
+  {
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      POSTGRES_PASSWORD: "package-not-running",
+      APP_MIGRATOR_PASSWORD: "package-not-running",
+      APP_RUNTIME_PASSWORD: "package-not-running",
+      PLATFORM_RUNTIME_PASSWORD: "package-not-running",
+      PLATFORM_DEPLOYER_PASSWORD: "package-not-running",
+      MIGRATION_DATABASE_URL:
+        "postgresql://not-running:not-running@postgres/enterprise_admin",
+      BETTER_AUTH_SECRET: "package-not-running",
+      EMAIL_PAYLOAD_ENCRYPTION_KEY: "package-not-running",
+      GITHUB_CLIENT_ID: "package-not-running",
+      GITHUB_CLIENT_SECRET: "package-not-running",
+      RELEASE_TENANT_ORIGIN: "http://127.0.0.1:1",
+      RELEASE_PLATFORM_ORIGIN: "http://127.0.0.1:2",
+      RELEASE_TENANT_PORT: "1",
+      RELEASE_PLATFORM_PORT: "2",
+      RELEASE_MAIL_PORT: "3",
+      ...Object.fromEntries(
+        Object.entries(selected).map(([service, image]) => [
+          `RELEASE_${service.toUpperCase()}_IMAGE`,
+          image,
+        ])
+      ),
+    },
+  }
 )
 for (const service of [
   "postgres",
@@ -199,7 +198,10 @@ if (!security.passed)
   )
 // Docker archive 加载的是实际 image ID；发行包把已验收基础镜像映射到相同 ID 并绑定文件哈希。
 // 源码 Compose 使用固定官方 FROM/source/checksum 配方，不允许任意基础镜像替换。
-let composeSource = await readFile(join(source, "compose.release.yaml"), "utf8")
+const composeSource = parse(
+  await readFile(join(source, "compose.release.yaml"), "utf8"),
+  { merge: true }
+)
 for (const service of [
   "postgres",
   "redis",
@@ -208,11 +210,12 @@ for (const service of [
   "prometheus",
   "tracing",
 ])
-  composeSource = composeSource.replace(
-    `image: ${configuration.services[service].image}`,
-    `image: ${images[service].id}`
-  )
-await writeFile(join(source, "compose.release.yaml"), composeSource)
+  // 合并锚点后只替换目标服务对象，避免共享别名把镜像变更带到其他服务。
+  composeSource.services[service] = {
+    ...composeSource.services[service],
+    image: images[service].id,
+  }
+await writeFile(join(source, "compose.release.yaml"), stringify(composeSource))
 let example = await readFile(join(source, "infra/release/.env.example"), "utf8")
 for (const service of ["api", "worker", "tenant", "platform", "migrator"])
   example = example.replace(

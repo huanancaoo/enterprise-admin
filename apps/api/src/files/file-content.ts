@@ -55,9 +55,8 @@ export function contentDisposition(
   contentType: string,
   requested: 'inline' | 'attachment',
 ): string {
-  const mime = contentType.split(';', 1)[0].trim().toLowerCase();
   // 只有明确支持的被动媒体可预览；HTML、SVG 和 Office 的显式 inline 请求必须拒绝。
-  if (requested === 'inline' && filePreviewKind(mime) === 'none')
+  if (requested === 'inline' && filePreviewKind(contentType) === 'none')
     throw new BadRequestException();
   return createContentDisposition(name, {
     type: requested,

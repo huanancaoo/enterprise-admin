@@ -1,25 +1,16 @@
-import { remark } from "remark"
 import remarkGfm from "remark-gfm"
-import remarkRehype from "remark-rehype"
-import { toJsxRuntime } from "hast-util-to-jsx-runtime"
+import { createMarkdownRenderer } from "fumadocs-core/content/md"
 import {
   Children,
   type ComponentProps,
   type ReactElement,
-  type ReactNode,
   Suspense,
-  use,
   useDeferredValue,
 } from "react"
-import { Fragment, jsx, jsxs } from "react/jsx-runtime"
 import { DynamicCodeBlock } from "fumadocs-ui/components/dynamic-codeblock"
 import defaultMdxComponents from "fumadocs-ui/mdx"
 import { visit } from "unist-util-visit"
 import type { ElementContent, Root, RootContent } from "hast"
-
-export interface Processor {
-  process: (content: string) => Promise<ReactNode>
-}
 
 export function rehypeWrapWords() {
   return (tree: Root) => {
@@ -54,32 +45,6 @@ export function rehypeWrapWords() {
   }
 }
 
-function createProcessor(): Processor {
-  const processor = remark()
-    .use(remarkGfm)
-    .use(remarkRehype)
-    .use(rehypeWrapWords)
-
-  return {
-    async process(content) {
-      const nodes = processor.parse({ value: content })
-      const hast = await processor.run(nodes)
-
-      return toJsxRuntime(hast, {
-        development: false,
-        jsx,
-        jsxs,
-        Fragment,
-        components: {
-          ...defaultMdxComponents,
-          pre: Pre,
-          img: undefined, // use JSX
-        },
-      })
-    },
-  }
-}
-
 function Pre(props: ComponentProps<"pre">) {
   const code = Children.only(props.children) as ReactElement
   const codeProps = code.props as ComponentProps<"code">
@@ -97,23 +62,23 @@ function Pre(props: ComponentProps<"pre">) {
   return <DynamicCodeBlock lang={lang} code={content.trimEnd()} />
 }
 
-const processor = createProcessor()
+// 当前插件均为同步处理；异步模式会缓存流式回答的每个中间文本。
+const { Markdown: Renderer } = createMarkdownRenderer({
+  remarkPlugins: [remarkGfm],
+  rehypePlugins: [rehypeWrapWords],
+})
+const components = {
+  ...defaultMdxComponents,
+  pre: Pre,
+  img: "img",
+}
 
 export function Markdown({ text }: { text: string }) {
   const deferredText = useDeferredValue(text)
 
   return (
     <Suspense fallback={<p className="invisible">{text}</p>}>
-      <Renderer text={deferredText} />
+      <Renderer components={components}>{deferredText}</Renderer>
     </Suspense>
   )
-}
-
-const cache = new Map<string, Promise<ReactNode>>()
-
-function Renderer({ text }: { text: string }) {
-  const result = cache.get(text) ?? processor.process(text)
-  cache.set(text, result)
-
-  return use(result)
 }

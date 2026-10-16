@@ -9,6 +9,7 @@ import { AppModule } from './app.module';
 import type { ApplicationConfig } from './config/application-config';
 import { EmailRuntime } from './email/email-runtime';
 import { configureApp } from './http/configure-app';
+import { contentTypeEssence } from './http/content-type';
 import { AuthRuntime } from './identity/auth-runtime';
 import { setupSwagger } from './openapi/setup-swagger';
 import { createFilesRuntime, FilesRuntime } from './files/files-runtime';
@@ -63,10 +64,8 @@ export async function createApplication(
         /^\/api\/v1\/organizations\/[^/]+\/projects\/imports\/?(?:\?|$)/.test(
           request.url ?? '',
         ) &&
-        request.headers['content-type']
-          ?.split(';', 1)[0]
-          ?.trim()
-          .toLowerCase() === 'application/json',
+        contentTypeEssence(request.headers['content-type']) ===
+          'application/json',
     });
     app.useBodyParser('json');
     app.useBodyParser('urlencoded', { extended: true });

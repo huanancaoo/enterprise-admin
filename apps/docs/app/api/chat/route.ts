@@ -29,7 +29,7 @@ async function createSearchServer() {
     },
   })
 
-  const docs = await chunkedAll(
+  const docs = await Promise.all(
     source.getPages().map(async (page) => {
       if (!("getText" in page.data)) return null
 
@@ -47,15 +47,6 @@ async function createSearchServer() {
   }
 
   return search
-}
-
-async function chunkedAll<O>(promises: Promise<O>[]): Promise<O[]> {
-  const SIZE = 50
-  const out: O[] = []
-  for (let i = 0; i < promises.length; i += SIZE) {
-    out.push(...(await Promise.all(promises.slice(i, i + SIZE))))
-  }
-  return out
 }
 
 const openrouter = createOpenRouter({

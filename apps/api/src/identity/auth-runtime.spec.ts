@@ -39,13 +39,13 @@ describe('readAuthConfig trustedProxies', () => {
         ...required,
         BETTER_AUTH_TRUSTED_PROXIES: '192.0.2.1, not-an-ip',
       }),
-    ).toThrow(/not-an-ip/);
+    ).toThrow(/BETTER_AUTH_TRUSTED_PROXIES/);
     expect(() =>
       readAuthConfig({
         ...required,
         BETTER_AUTH_TRUSTED_PROXIES: '192.0.2.1/33',
       }),
-    ).toThrow(/192\.0\.2\.1\/33/);
+    ).toThrow(/BETTER_AUTH_TRUSTED_PROXIES/);
     expect(() =>
       readAuthConfig({
         ...required,
@@ -67,5 +67,68 @@ describe('readAuthConfig github', () => {
     expect(() =>
       readAuthConfig({ ...required, GITHUB_CLIENT_SECRET: undefined }),
     ).toThrow(/GITHUB_CLIENT_SECRET/);
+  });
+});
+
+describe('readAuthConfig environment schema', () => {
+  it('preserves invitation limit defaults and explicit overrides', () => {
+    expect(readAuthConfig(required).invitationLimits).toEqual({
+      organization: 100,
+      actor: 50,
+      ip: 100,
+    });
+    expect(
+      readAuthConfig({ ...required, INVITATION_ORGANIZATION_HOURLY_LIMIT: '5' })
+        .invitationLimits,
+    ).toEqual({ organization: 5, actor: 50, ip: 100 });
+  });
+
+  it.each(['0', '-1', '1.5', '9007199254740993', ''])(
+    'rejects invalid invitation limit %s',
+    (limit) =>
+      expect(() =>
+        readAuthConfig({ ...required, INVITATION_ACTOR_HOURLY_LIMIT: limit }),
+      ).toThrow(/INVITATION_ACTOR_HOURLY_LIMIT/),
+  );
+
+  it('accepts IPv4 and IPv6 CIDR boundaries', () => {
+    expect(
+      readAuthConfig({
+        ...required,
+        BETTER_AUTH_TRUSTED_PROXIES:
+          '0.0.0.0/0, 192.0.2.1/32, ::/0, 2001:db8::1/128',
+      }).trustedProxies,
+    ).toEqual(['0.0.0.0/0', '192.0.2.1/32', '::/0', '2001:db8::1/128']);
+    expect(() =>
+      readAuthConfig({
+        ...required,
+        BETTER_AUTH_TRUSTED_PROXIES: '2001:db8::1/129',
+      }),
+    ).toThrow(/BETTER_AUTH_TRUSTED_PROXIES/);
+  });
+
+  it('preserves Node IP syntax and the existing CIDR prefix representation', () => {
+    const entries = [
+      '::ffff:192.0.2.1',
+      'fe80::1%eth0',
+      'fe80::1%eth0/64',
+      '192.0.2.1/032',
+      '2001:db8::1/0128',
+    ];
+    expect(
+      readAuthConfig({
+        ...required,
+        BETTER_AUTH_TRUSTED_PROXIES: entries.join(','),
+      }).trustedProxies,
+    ).toEqual(entries);
+  });
+
+  it('does not include secrets or connection strings in validation errors', () => {
+    expect(() =>
+      readAuthConfig({
+        ...required,
+        BETTER_AUTH_SECRET: 'private-short-secret',
+      }),
+    ).toThrow('Invalid application configuration: BETTER_AUTH_SECRET');
   });
 });

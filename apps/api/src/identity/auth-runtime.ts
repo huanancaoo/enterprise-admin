@@ -9,6 +9,8 @@ import {
 } from '@workspace/database/auth';
 import { createHmac } from 'node:crypto';
 import { isIP } from 'node:net';
+import { z } from 'zod';
+import { parseEnvironment } from '../config/environment';
 import Redis from 'ioredis';
 
 export interface AuthConfig {
@@ -37,53 +39,54 @@ function isTrustedProxyEntry(entry: string): boolean {
   return prefix <= (version === 4 ? 32 : 128);
 }
 
-function parseTrustedProxies(value: string | undefined): string[] {
-  if (value === undefined || value.trim() === '') return [];
-  const entries = value.split(',').map((entry) => entry.trim());
-  const invalid = entries.filter((entry) => !isTrustedProxyEntry(entry));
-  if (invalid.length > 0) {
-    throw new Error(
-      `BETTER_AUTH_TRUSTED_PROXIES entries must be IP addresses or CIDR ranges: ${invalid.join(', ')}`,
-    );
-  }
-  return entries;
-}
+// 可信代理沿用 Node 的 IP 语法（含 scoped IPv6）；Zod 的 CIDR 格式会缩窄现有接受范围。
+const trustedProxySchema = z.string().refine(isTrustedProxyEntry);
+const authEnvironmentSchema = z.object({
+  BETTER_AUTH_SECRET: z.string().min(32),
+  DATABASE_URL: z.string().min(1),
+  REDIS_URL: z.string().min(1),
+  BETTER_AUTH_URL: z.string().min(1),
+  BETTER_AUTH_TRUSTED_ORIGINS: z
+    .string()
+    .min(1)
+    .transform((value) => value.split(',').map((origin) => origin.trim())),
+  BETTER_AUTH_TRUSTED_PROXIES: z
+    .string()
+    .optional()
+    .transform((value) =>
+      value === undefined || value.trim() === ''
+        ? []
+        : value.split(',').map((entry) => entry.trim()),
+    )
+    .pipe(z.array(trustedProxySchema)),
+  GITHUB_CLIENT_ID: z.string().min(1),
+  GITHUB_CLIENT_SECRET: z.string().min(1),
+  INVITATION_ORGANIZATION_HOURLY_LIMIT: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(100),
+  INVITATION_ACTOR_HOURLY_LIMIT: z.coerce.number().int().positive().default(50),
+  INVITATION_IP_HOURLY_LIMIT: z.coerce.number().int().positive().default(100),
+});
 
 export function readAuthConfig(env: NodeJS.ProcessEnv): AuthConfig {
-  function required(name: string): string {
-    const value = env[name];
-    if (!value) throw new Error(`${name} is required`);
-    return value;
-  }
-  const secret = required('BETTER_AUTH_SECRET');
-  if (secret.length < 32)
-    throw new Error('BETTER_AUTH_SECRET must contain at least 32 characters');
-  function invitationLimit(name: string, defaultValue: number): number {
-    const value = Number(env[name] ?? defaultValue);
-    if (!Number.isSafeInteger(value) || value <= 0)
-      throw new Error(`${name} must be a positive integer`);
-    return value;
-  }
+  const value = parseEnvironment(authEnvironmentSchema, env);
   return {
     invitationLimits: {
-      organization: invitationLimit(
-        'INVITATION_ORGANIZATION_HOURLY_LIMIT',
-        100,
-      ),
-      actor: invitationLimit('INVITATION_ACTOR_HOURLY_LIMIT', 50),
-      ip: invitationLimit('INVITATION_IP_HOURLY_LIMIT', 100),
+      organization: value.INVITATION_ORGANIZATION_HOURLY_LIMIT,
+      actor: value.INVITATION_ACTOR_HOURLY_LIMIT,
+      ip: value.INVITATION_IP_HOURLY_LIMIT,
     },
-    databaseURL: required('DATABASE_URL'),
-    redisURL: required('REDIS_URL'),
-    baseURL: required('BETTER_AUTH_URL'),
-    secret,
-    trustedOrigins: required('BETTER_AUTH_TRUSTED_ORIGINS')
-      .split(',')
-      .map((origin) => origin.trim()),
-    trustedProxies: parseTrustedProxies(env.BETTER_AUTH_TRUSTED_PROXIES),
+    databaseURL: value.DATABASE_URL,
+    redisURL: value.REDIS_URL,
+    baseURL: value.BETTER_AUTH_URL,
+    secret: value.BETTER_AUTH_SECRET,
+    trustedOrigins: value.BETTER_AUTH_TRUSTED_ORIGINS,
+    trustedProxies: value.BETTER_AUTH_TRUSTED_PROXIES,
     github: {
-      clientId: required('GITHUB_CLIENT_ID'),
-      clientSecret: required('GITHUB_CLIENT_SECRET'),
+      clientId: value.GITHUB_CLIENT_ID,
+      clientSecret: value.GITHUB_CLIENT_SECRET,
     },
   };
 }

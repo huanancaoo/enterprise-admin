@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
 import { contentDisposition } from './file-content';
+import { filePreviewKind } from './file-responses';
 
 describe('文件内容 HTTP 策略', () => {
   it('Unicode 文件名只发送标准 UTF-8 参数，不产生 ASCII 替代名', () => {
@@ -20,6 +21,7 @@ describe('文件内容 HTTP 策略', () => {
 
   it.each([
     'image/png',
+    'image/png ; charset=utf-8',
     'application/pdf',
     ' Text/Plain; charset=utf-8',
     'application/json',
@@ -44,4 +46,19 @@ describe('文件内容 HTTP 策略', () => {
       'attachment; filename=file',
     );
   });
+});
+
+describe('file preview MIME admission', () => {
+  it.each(['audio/', 'video/', 'not-a-type', ''])(
+    'does not enable preview for invalid type %s',
+    (mime) => {
+      expect(filePreviewKind(mime)).toBe('none');
+      expect(() => contentDisposition('file', mime, 'inline')).toThrow(
+        BadRequestException,
+      );
+      expect(contentDisposition('file', mime, 'attachment')).toBe(
+        'attachment; filename=file',
+      );
+    },
+  );
 });
