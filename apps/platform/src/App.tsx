@@ -20,6 +20,9 @@ import {
   ForgotPasswordPage,
   ResetPasswordPage,
   useAuthenticatedSession,
+  DeviceSessionMenu,
+  DeviceAccountSwitcher,
+  useAuthAction,
 } from "@workspace/admin/auth"
 import {
   Breadcrumb,
@@ -90,9 +93,11 @@ function PlatformLocale() {
 export function PlatformLoginPage() {
   const { t } = useTranslation("auth")
   const navigate = useNavigate()
+  const addingAccount = useLocation().pathname === "/add-account"
   return (
     <CredentialsPage
       title={t("platformTitle")}
+      addingAccount={addingAccount}
       onMfaRequired={() =>
         void navigate({ to: "/platform/mfa", search: { challenge: true } })
       }
@@ -250,9 +255,12 @@ export function PlatformLayout() {
             avatar: session.user.image ?? undefined,
             lastLoginMethod: session.user.lastLoginMethod,
           },
-          signingOut: session.signingOut,
-          error: session.signOutError,
-          onSignOut: session.signOut,
+          accountMenu: (action) => (
+            <DeviceSessionMenu
+              action={action}
+              onAddAccount={() => void navigate({ to: "/add-account" })}
+            />
+          ),
           onPersonalSettings: () =>
             void navigate({ to: "/platform/personal-settings" }),
         },
@@ -274,6 +282,7 @@ export function PlatformMfaPage() {
   const setupRequired = Boolean(user && !twoFactorEnabled && !challenge)
   const [totpUri, setTotpUri] = useState<string>()
   const [error, setError] = useState(false)
+  const accountAction = useAuthAction()
   const verificationRequired = !setupRequired || Boolean(totpUri)
   const validationSchema = z
     .object({ password: z.string(), code: z.string() })
@@ -337,116 +346,127 @@ export function PlatformMfaPage() {
           void form.handleSubmit()
         }}
       >
-        <FieldGroup>
-          <div className="space-y-2 text-center">
-            <h1 className="font-heading text-2xl font-semibold tracking-tight">
-              {setupRequired && !totpUri
-                ? t("auth:mfaSetupTitle")
-                : t("auth:mfaVerifyTitle")}
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {setupRequired && !totpUri
-                ? t("auth:mfaSetupDescription")
-                : t("auth:mfaVerifyDescription")}
-            </p>
-          </div>
-          {totpUri && (
-            <Field>
-              <FieldLabel htmlFor="platform-totp-uri">
-                {t("auth:mfaAuthenticatorUri")}
-              </FieldLabel>
-              <Input
-                id="platform-totp-uri"
-                className="font-mono text-xs"
-                readOnly
-                value={totpUri}
-                autoComplete="off"
-                onFocus={(event) => event.currentTarget.select()}
-              />
-              <FieldDescription>
-                {t("auth:mfaAuthenticatorHint")}
-              </FieldDescription>
-            </Field>
-          )}
-          {verificationRequired ? (
-            <form.Field name="code">
-              {(field) => {
-                const invalid =
-                  field.state.meta.isTouched && !field.state.meta.isValid
-                return (
-                  <Field data-invalid={invalid}>
-                    <FieldLabel htmlFor="platform-totp-code">
-                      {t("auth:mfaCode")}
-                    </FieldLabel>
-                    <Input
-                      id="platform-totp-code"
-                      className="text-center font-mono text-lg tracking-[0.35em]"
-                      name={field.name}
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      maxLength={6}
-                      value={field.state.value}
-                      onChange={(event) =>
-                        field.handleChange(event.target.value)
-                      }
-                      onBlur={field.handleBlur}
-                      aria-invalid={invalid}
-                      required
-                    />
-                    {invalid && <FieldError errors={field.state.meta.errors} />}
-                  </Field>
-                )
-              }}
-            </form.Field>
-          ) : (
-            <form.Field name="password">
-              {(field) => {
-                const invalid =
-                  field.state.meta.isTouched && !field.state.meta.isValid
-                return (
-                  <Field data-invalid={invalid}>
-                    <FieldLabel htmlFor="platform-mfa-password">
-                      {t("auth:password")}
-                    </FieldLabel>
-                    <Input
-                      id="platform-mfa-password"
-                      name={field.name}
-                      type="password"
-                      autoComplete="current-password"
-                      value={field.state.value}
-                      onChange={(event) =>
-                        field.handleChange(event.target.value)
-                      }
-                      onBlur={field.handleBlur}
-                      aria-invalid={invalid}
-                      required
-                    />
-                    {invalid && <FieldError errors={field.state.meta.errors} />}
-                  </Field>
-                )
-              }}
-            </form.Field>
-          )}
-          {error && (
-            <p
-              role="alert"
-              className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+        <fieldset disabled={form.state.isSubmitting || accountAction.pending}>
+          <FieldGroup>
+            <div className="space-y-2 text-center">
+              <h1 className="font-heading text-2xl font-semibold tracking-tight">
+                {setupRequired && !totpUri
+                  ? t("auth:mfaSetupTitle")
+                  : t("auth:mfaVerifyTitle")}
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                {setupRequired && !totpUri
+                  ? t("auth:mfaSetupDescription")
+                  : t("auth:mfaVerifyDescription")}
+              </p>
+            </div>
+            {totpUri && (
+              <Field>
+                <FieldLabel htmlFor="platform-totp-uri">
+                  {t("auth:mfaAuthenticatorUri")}
+                </FieldLabel>
+                <Input
+                  id="platform-totp-uri"
+                  className="font-mono text-xs"
+                  readOnly
+                  value={totpUri}
+                  autoComplete="off"
+                  onFocus={(event) => event.currentTarget.select()}
+                />
+                <FieldDescription>
+                  {t("auth:mfaAuthenticatorHint")}
+                </FieldDescription>
+              </Field>
+            )}
+            {verificationRequired ? (
+              <form.Field name="code">
+                {(field) => {
+                  const invalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid
+                  return (
+                    <Field data-invalid={invalid}>
+                      <FieldLabel htmlFor="platform-totp-code">
+                        {t("auth:mfaCode")}
+                      </FieldLabel>
+                      <Input
+                        id="platform-totp-code"
+                        className="text-center font-mono text-lg tracking-[0.35em]"
+                        name={field.name}
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        maxLength={6}
+                        value={field.state.value}
+                        onChange={(event) =>
+                          field.handleChange(event.target.value)
+                        }
+                        onBlur={field.handleBlur}
+                        aria-invalid={invalid}
+                        required
+                      />
+                      {invalid && (
+                        <FieldError errors={field.state.meta.errors} />
+                      )}
+                    </Field>
+                  )
+                }}
+              </form.Field>
+            ) : (
+              <form.Field name="password">
+                {(field) => {
+                  const invalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid
+                  return (
+                    <Field data-invalid={invalid}>
+                      <FieldLabel htmlFor="platform-mfa-password">
+                        {t("auth:password")}
+                      </FieldLabel>
+                      <Input
+                        id="platform-mfa-password"
+                        name={field.name}
+                        type="password"
+                        autoComplete="current-password"
+                        value={field.state.value}
+                        onChange={(event) =>
+                          field.handleChange(event.target.value)
+                        }
+                        onBlur={field.handleBlur}
+                        aria-invalid={invalid}
+                        required
+                      />
+                      {invalid && (
+                        <FieldError errors={field.state.meta.errors} />
+                      )}
+                    </Field>
+                  )
+                }}
+              </form.Field>
+            )}
+            {error && (
+              <p
+                role="alert"
+                className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+              >
+                {t("auth:mfaFailed")}
+              </p>
+            )}
+            <Button
+              className="w-full"
+              type="submit"
+              disabled={form.state.isSubmitting}
             >
-              {t("auth:mfaFailed")}
-            </p>
-          )}
-          <Button
-            className="w-full"
-            type="submit"
-            disabled={form.state.isSubmitting}
-          >
-            {form.state.isSubmitting
-              ? t("common:submitting")
-              : verificationRequired
-                ? t("auth:mfaVerifyButton")
-                : t("auth:mfaSetupButton")}
-          </Button>
-        </FieldGroup>
+              {form.state.isSubmitting
+                ? t("common:submitting")
+                : verificationRequired
+                  ? t("auth:mfaVerifyButton")
+                  : t("auth:mfaSetupButton")}
+            </Button>
+            <DeviceAccountSwitcher
+              action={accountAction}
+              disabled={form.state.isSubmitting}
+              onAddAccount={() => window.location.assign("/add-account")}
+            />
+          </FieldGroup>
+        </fieldset>
       </form>
     </main>
   )
@@ -456,6 +476,7 @@ export function PlatformAccessDeniedPage() {
   const { t } = useTranslation("auth")
   const session = useAuthenticatedSession()
   const navigate = useNavigate()
+  const accountAction = useAuthAction()
 
   async function signOutAndUseAnotherAccount() {
     if (!session) return
@@ -470,10 +491,15 @@ export function PlatformAccessDeniedPage() {
       <p className="text-muted-foreground">
         {t("platformAccessDeniedDescription")}
       </p>
+      <DeviceAccountSwitcher
+        action={accountAction}
+        disabled={session?.signingOut}
+        onAddAccount={() => void navigate({ to: "/add-account" })}
+      />
       {session ? (
         <>
           <Button
-            disabled={session.signingOut}
+            disabled={session.signingOut || accountAction.pending}
             onClick={() => void signOutAndUseAnotherAccount()}
           >
             {session.signingOut

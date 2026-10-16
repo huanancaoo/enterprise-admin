@@ -24,6 +24,7 @@ import {
   TenantAcceptInvitationPage,
   TenantEmailVerifiedPage,
   TenantLoginPage,
+  TenantMfaPage,
   TenantResetPasswordPage,
   TenantAuthTitlePage,
 } from "./App"
@@ -127,6 +128,16 @@ const forgotPasswordRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/forgot-password",
   component: () => <TenantAuthTitlePage Page={ForgotPasswordPage} />,
+})
+const addAccountRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/add-account",
+  component: TenantLoginPage,
+})
+const mfaRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/mfa",
+  component: TenantMfaPage,
 })
 const resetPasswordRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -309,6 +320,8 @@ export const router = createRouter({
   routeTree: rootRoute.addChildren([
     indexRoute,
     loginRoute,
+    addAccountRoute,
+    mfaRoute,
     forgotPasswordRoute,
     resetPasswordRoute,
     emailVerifiedRoute,

@@ -2,6 +2,7 @@ import { createAuthClient } from "better-auth/react"
 import { getGlobalBroadcastChannel } from "better-auth/client"
 import {
   lastLoginMethodClient,
+  multiSessionClient,
   organizationClient,
   twoFactorClient,
 } from "better-auth/client/plugins"
@@ -25,6 +26,7 @@ export function createWorkspaceAuthClient() {
         dynamicAccessControl: { enabled: true },
       }),
       lastLoginMethodClient(),
+      multiSessionClient(),
       twoFactorClient(),
       {
         id: "workspace-session-revocation",

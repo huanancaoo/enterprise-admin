@@ -11,7 +11,7 @@ status: published
 
 Reference has two layers:
 
-- **HTTP API**: fumadocs-openapi reads the business API snapshot `apps/api/openapi/openapi.json` and Better Auth's `apps/api/openapi/auth-openapi.json`. Authentication endpoints are grouped by the core or plugin tag, including Organization and Two Factor. Pages include request and response schemas, errors, and request examples.
+- **HTTP API**: fumadocs-openapi reads the business API snapshot `apps/api/openapi/openapi.json` and Better Auth's `apps/api/openapi/auth-openapi.json`. Authentication endpoints are grouped by the core or plugin tag, including Organization, Two Factor, and Multi Session. Pages include request and response schemas, errors, and request examples.
 - **TypeScript SDK**: Orval generates the business API client in `packages/api-client`. Authentication continues to use Better Auth Client. See the [SDK guide](./sdk.mdx) and [authentication architecture](../architecture/auth.mdx).
 
 Pipeline:

@@ -1,4 +1,5 @@
 import { PersonalAvatar } from "./personal-avatar"
+import type { ReactNode } from "react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,10 +15,11 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@workspace/ui/components/sidebar"
-import { ChevronsUpDownIcon, LogOutIcon, UserRoundIcon } from "lucide-react"
+import { ChevronsUpDownIcon, UserRoundIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import type { TFunction } from "@workspace/i18n"
 import { LocaleSwitcher, ThemeSwitcher } from "./workspace"
+import { useAuthAction } from "../auth/use-auth-action"
 
 function lastLoginMethodLabel(method: string, t: TFunction<"auth">) {
   if (method === "email") return t("loginMethod_email")
@@ -34,24 +36,21 @@ export interface SidebarUser {
 
 export interface NavUserProps {
   user: SidebarUser
-  signingOut: boolean
-  error?: string
-  onSignOut: () => void
+  accountMenu: (action: ReturnType<typeof useAuthAction>) => ReactNode
   onPersonalSettings: () => void
   onLocaleSelect?: () => void
 }
 
 export function NavUser({
   user,
-  signingOut,
-  error,
-  onSignOut,
+  accountMenu,
   onPersonalSettings,
   onLocaleSelect,
 }: NavUserProps) {
   const { t } = useTranslation("auth")
   const { t: settings } = useTranslation("settings")
   const { isMobile } = useSidebar()
+  const accountAction = useAuthAction()
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -112,20 +111,7 @@ export function NavUser({
               />
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem disabled={signingOut} onClick={onSignOut}>
-                <LogOutIcon />
-                {signingOut ? t("signingOut") : t("signOut")}
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            {error && (
-              <p
-                role="alert"
-                className="max-w-64 px-2 py-1 text-sm text-destructive"
-              >
-                {error}
-              </p>
-            )}
+            {accountMenu(accountAction)}
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>

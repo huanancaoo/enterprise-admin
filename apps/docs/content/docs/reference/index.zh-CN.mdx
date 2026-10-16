@@ -11,7 +11,7 @@ status: published
 
 参考分两层：
 
-- **HTTP API**：fumadocs-openapi 读取业务接口快照 `apps/api/openapi/openapi.json` 和 Better Auth 认证快照 `apps/api/openapi/auth-openapi.json`。认证接口按核心或插件标签分组，包括 Organization 和 Two Factor。页面展示请求与响应 Schema、错误和请求示例。
+- **HTTP API**：fumadocs-openapi 读取业务接口快照 `apps/api/openapi/openapi.json` 和 Better Auth 认证快照 `apps/api/openapi/auth-openapi.json`。认证接口按核心或插件标签分组，包括 Organization、Two Factor 和 Multi Session。页面展示请求与响应 Schema、错误和请求示例。
 - **TypeScript SDK**：Orval 生成 `packages/api-client` 中的业务客户端；认证继续使用 Better Auth Client。见 [SDK 指南](./sdk.mdx)和[认证架构](../architecture/auth.mdx)。
 
 流水线：

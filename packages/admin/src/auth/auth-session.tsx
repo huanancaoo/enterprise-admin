@@ -30,6 +30,7 @@ import { AuthPageShell } from "./auth-page-shell"
 import type { WorkspaceAuthClient } from "./client"
 import { useAuthAction } from "./use-auth-action"
 import { createSessionQueryClient } from "./workspace-router"
+import { DeviceAccountSwitcher } from "./device-session-menu"
 
 function createCredentialsSchemas(
   t: TFunction<["auth", "common", "validation"]>
@@ -129,11 +130,13 @@ export function CredentialsPage({
   allowSignUp = false,
   allowGithub = false,
   onMfaRequired,
+  addingAccount = false,
 }: {
   title: string
   allowSignUp?: boolean
   allowGithub?: boolean
   onMfaRequired?: () => void
+  addingAccount?: boolean
 }) {
   const client = useWorkspaceAuthClient()
   return (
@@ -143,6 +146,7 @@ export function CredentialsPage({
       allowSignUp={allowSignUp}
       allowGithub={allowGithub}
       onMfaRequired={onMfaRequired}
+      addingAccount={addingAccount}
     />
   )
 }
@@ -157,13 +161,23 @@ export function AuthenticatedSessionProvider({
   children: ReactNode
 }) {
   const action = useAuthAction()
+  const nativeSession = client.useSession()
   return (
     <AuthenticatedSessionContext.Provider
       value={{
         user,
         signingOut: action.pending,
         signOutError: action.error,
-        signOut: () => action.run(() => client.signOut()),
+        signOut: async () => {
+          const current = nativeSession.data
+          if (!current) return false
+          const ok = await action.run(() =>
+            client.multiSession.revoke({ sessionToken: current.session.token })
+          )
+          if (ok)
+            await nativeSession.refetch({ query: { disableCookieCache: true } })
+          return ok
+        },
       }}
     >
       {children}
@@ -177,12 +191,14 @@ function AuthEntry({
   allowSignUp = false,
   allowGithub = false,
   onMfaRequired,
+  addingAccount = false,
 }: {
   client: WorkspaceAuthClient
   title: string
   allowSignUp?: boolean
   allowGithub?: boolean
   onMfaRequired?: () => void
+  addingAccount?: boolean
 }) {
   const [signUp, setSignUp] = useState(false)
   const [checkEmail, setCheckEmail] = useState(false)
@@ -218,6 +234,10 @@ function AuthEntry({
           allowSignUp={allowSignUp}
           allowGithub={allowGithub}
           onMfaRequired={onMfaRequired}
+          onSignedIn={
+            addingAccount ? () => window.location.assign("/") : undefined
+          }
+          addingAccount={addingAccount}
           onSignedUp={() => setCheckEmail(true)}
           onToggleSignUp={() => {
             action.reset()
@@ -225,6 +245,25 @@ function AuthEntry({
           }}
         />
       )}
+      <div className="mt-6 flex flex-col items-center gap-3 empty:hidden">
+        <DeviceAccountSwitcher
+          action={action}
+          disabled={action.pending}
+          onAddAccount={() => window.location.assign("/add-account")}
+        />
+        {addingAccount && (
+          <Link
+            to="/"
+            aria-disabled={action.pending}
+            onClick={(event) => {
+              if (action.pending) event.preventDefault()
+            }}
+            className="text-sm underline underline-offset-4 aria-disabled:opacity-50"
+          >
+            {t("cancelAddAccount")}
+          </Link>
+        )}
+      </div>
     </AuthPageShell>
   )
 }
@@ -236,6 +275,8 @@ function CredentialsForm({
   allowSignUp,
   allowGithub,
   onMfaRequired,
+  onSignedIn,
+  addingAccount,
   onToggleSignUp,
   onSignedUp,
 }: {
@@ -245,6 +286,8 @@ function CredentialsForm({
   allowSignUp: boolean
   allowGithub: boolean
   onMfaRequired?: () => void
+  onSignedIn?: () => void
+  addingAccount: boolean
   onToggleSignUp: () => void
   onSignedUp: () => void
 }) {
@@ -278,6 +321,8 @@ function CredentialsForm({
       if (ok && signUp) onSignedUp()
       if (ok && !signUp && signInResult?.data?.twoFactorRedirect) {
         onMfaRequired?.()
+      } else if (ok && !signUp) {
+        onSignedIn?.()
       }
     },
   })
@@ -295,7 +340,11 @@ function CredentialsForm({
         <FieldGroup>
           <div className="flex flex-col items-center gap-2 text-center">
             <h1 className="font-heading text-3xl font-semibold tracking-tight">
-              {signUp ? t("auth:signUp") : t("auth:signIn")}
+              {signUp
+                ? t("auth:signUp")
+                : addingAccount
+                  ? t("auth:addAccount")
+                  : t("auth:signIn")}
             </h1>
             <p className="text-sm text-balance text-muted-foreground">
               {signUp
@@ -465,7 +514,9 @@ function CredentialsForm({
                     void action.run(() =>
                       client.signIn.social({
                         provider: "github",
-                        callbackURL: `${window.location.origin}${window.location.pathname}${window.location.search}`,
+                        callbackURL: addingAccount
+                          ? `${window.location.origin}/`
+                          : `${window.location.origin}${window.location.pathname}${window.location.search}`,
                       })
                     )
                   }}

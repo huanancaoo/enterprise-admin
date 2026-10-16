@@ -81,8 +81,7 @@ function WorkspaceStory() {
           },
           user: {
             user: { name: "陈小明", email: "chen@example.com" },
-            signingOut: false,
-            onSignOut: fn(),
+            accountMenu: () => null,
             onPersonalSettings: fn(),
           },
         }}

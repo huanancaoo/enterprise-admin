@@ -117,7 +117,9 @@ export function PersonalSecuritySettings({
     setSessionRevoked(false)
     if (
       !(await revoke.run(() =>
-        current ? client.signOut() : client.revokeSession({ token })
+        current
+          ? client.multiSession.revoke({ sessionToken: token })
+          : client.revokeSession({ token })
       ))
     )
       return

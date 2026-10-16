@@ -4,7 +4,11 @@ import type { TFunction } from "@workspace/i18n"
 import type { OrganizationSummary } from "@workspace/contracts"
 import { getMyPreferencesOptions } from "@workspace/api-client"
 import { useOrganizationWorkspace } from "@/hooks/use-organization-workspace"
-import { useAuthenticatedSession } from "@workspace/admin/auth"
+import {
+  DeviceAccountSwitcher,
+  useAuthAction,
+  useAuthenticatedSession,
+} from "@workspace/admin/auth"
 import { FormDialog, LocaleSwitcher, useDocumentTitle } from "@workspace/admin"
 import { useForm } from "@tanstack/react-form"
 import { useQuery } from "@tanstack/react-query"
@@ -276,6 +280,7 @@ export function OrganizationGate() {
     "settings",
   ])
   const session = useAuthenticatedSession()!
+  const accountAction = useAuthAction()
   const { workspace, pending, error, createOrganization } =
     useOrganizationWorkspace()
   // 进入门只根据已读回的组织数量跳转。创建成功但读回失败时停在查询错误，不能用返回的 id 抢先进入工作区。
@@ -334,9 +339,14 @@ export function OrganizationGate() {
       >
         {t("settings:personalSettings")}
       </Button>
+      <DeviceAccountSwitcher
+        action={accountAction}
+        disabled={session.signingOut}
+        onAddAccount={() => window.location.assign("/add-account")}
+      />
       <Button
         variant="ghost"
-        disabled={session.signingOut}
+        disabled={session.signingOut || accountAction.pending}
         onClick={() => void session.signOut()}
       >
         {session.signingOut ? t("auth:signingOut") : t("auth:signOut")}

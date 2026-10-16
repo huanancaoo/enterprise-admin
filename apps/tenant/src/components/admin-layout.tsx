@@ -19,7 +19,10 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb"
-import { useAuthenticatedSession } from "@workspace/admin/auth"
+import {
+  DeviceSessionMenu,
+  useAuthenticatedSession,
+} from "@workspace/admin/auth"
 import { useUiLocale } from "@workspace/i18n/react"
 import {
   ClipboardListIcon,
@@ -489,9 +492,12 @@ export function AdminLayout() {
             avatar: session.user.image ?? undefined,
             lastLoginMethod: session.user.lastLoginMethod,
           },
-          signingOut: session.signingOut,
-          error: session.signOutError,
-          onSignOut: session.signOut,
+          accountMenu: (action) => (
+            <DeviceSessionMenu
+              action={action}
+              onAddAccount={() => void navigate({ to: "/add-account" })}
+            />
+          ),
           onPersonalSettings: () =>
             void navigate({ to: "/app/settings/preferences" }),
           onLocaleSelect: () =>

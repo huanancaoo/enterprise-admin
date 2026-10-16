@@ -27,8 +27,7 @@ const meta = {
       name: "测试用户",
       email: "user@example.com",
     },
-    signingOut: false,
-    onSignOut: () => undefined,
+    accountMenu: () => null,
     onPersonalSettings: () => undefined,
   },
 } satisfies Meta<typeof NavUser>

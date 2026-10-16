@@ -4,6 +4,7 @@ import {
   useNavigate,
   useParams,
   useSearch,
+  useLocation,
 } from "@tanstack/react-router"
 import {
   AcceptInvitationPage,
@@ -12,6 +13,7 @@ import {
   EmailVerifiedPage,
   ForgotPasswordPage,
   ResetPasswordPage,
+  TotpChallengePage,
 } from "@workspace/admin/auth"
 import { authClient } from "@/lib/auth-client"
 
@@ -31,7 +33,22 @@ export function App() {
 
 export function TenantLoginPage() {
   const { t } = useTranslation("organization")
-  return <CredentialsPage title={t("management")} allowSignUp allowGithub />
+  const navigate = useNavigate()
+  const addingAccount = useLocation().pathname === "/add-account"
+  return (
+    <CredentialsPage
+      title={t("management")}
+      allowSignUp
+      allowGithub
+      addingAccount={addingAccount}
+      onMfaRequired={() => void navigate({ to: "/mfa" })}
+    />
+  )
+}
+
+export function TenantMfaPage() {
+  const { t } = useTranslation("organization")
+  return <TotpChallengePage title={t("management")} />
 }
 
 export function TenantAuthTitlePage({

@@ -84,6 +84,11 @@ const platformMfaRoute = createRoute({
   },
   component: PlatformMfaPage,
 })
+const addAccountRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/add-account",
+  component: PlatformLoginPage,
+})
 const platformAccessDeniedRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/platform/access-denied",
@@ -202,6 +207,7 @@ export const router = createRouter({
   routeTree: rootRoute.addChildren([
     indexRoute,
     loginRoute,
+    addAccountRoute,
     forgotPasswordRoute,
     platformMfaRoute,
     platformAccessDeniedRoute,

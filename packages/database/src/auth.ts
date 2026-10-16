@@ -9,6 +9,7 @@ import {
   organization,
   twoFactor,
 } from "better-auth/plugins"
+import { multiSession } from "better-auth/plugins/multi-session"
 import { apiKey } from "@better-auth/api-key"
 import type { InferAPI } from "better-auth/types"
 
@@ -1153,6 +1154,8 @@ export function createAuth(
       }) as BetterAuthPlugin,
       organizationPlugin,
       twoFactor({ issuer: "Enterprise Admin" }) as BetterAuthPlugin,
+      // 先完成 MFA 的登录收尾，再保存可切换会话；挑战中的临时 Session 不能进入账号列表。
+      multiSession() as BetterAuthPlugin,
       createAuthI18n(() =>
         readPlatformDefaultLocale({ query: transactionalAdapter.query })
       ),
