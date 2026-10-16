@@ -149,9 +149,12 @@ export const RefreshSavedAccountsOnOpen: Story = {
     await userEvent.click(
       await within(canvasElement).findByRole("button", { name: "切换账号" })
     )
-    await expect(
-      await screen.findByRole("menuitemradio", { name: /bob@example.test/ })
-    ).toBeVisible()
+    // 刷新响应可能早于菜单定位完成；DOM 已挂载不代表菜单项已可见。
+    await waitFor(() =>
+      expect(
+        screen.getByRole("menuitemradio", { name: /bob@example.test/ })
+      ).toBeVisible()
+    )
     await expect(refreshListAttempts).toBe(2)
   },
 }
