@@ -113,7 +113,14 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
 
     await page.goto(environment.tenantOrigin + "/app/")
     await signIn(page, owner)
-    await page.getByRole("link", { name: "角色", exact: true }).click()
+    await page
+      .getByRole("navigation", { name: "主导航", exact: true })
+      .getByRole("link", { name: "组织管理", exact: true })
+      .click()
+    await page
+      .getByRole("navigation", { name: "组织管理", exact: true })
+      .getByRole("link", { name: "角色权限", exact: true })
+      .click()
     await expectUI(
       page.getByRole("heading", { name: "角色", exact: true })
     ).toBeVisible()
@@ -137,7 +144,17 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
       page.getByText("project-reader", { exact: true })
     ).toBeVisible()
 
-    await page.getByRole("link", { name: "成员", exact: true }).click()
+    await page
+      .getByRole("navigation", { name: "主导航", exact: true })
+
+      .getByRole("link", { name: "组织管理", exact: true })
+      .click()
+
+    await page
+      .getByRole("navigation", { name: "组织管理", exact: true })
+
+      .getByRole("link", { name: "成员与邀请", exact: true })
+      .click()
     const list = page.getByRole("list", { name: "成员", exact: true })
     const row = list.getByRole("listitem").filter({ hasText: member.email })
     await row.getByRole("button", { name: "更改角色", exact: true }).click()
@@ -209,7 +226,14 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
     }
     await page.goto(environment.tenantOrigin + "/app/")
     await signIn(page, manager)
-    await page.getByRole("link", { name: "成员", exact: true }).click()
+    await page
+      .getByRole("navigation", { name: "主导航", exact: true })
+      .getByRole("link", { name: "组织管理", exact: true })
+      .click()
+    await page
+      .getByRole("navigation", { name: "组织管理", exact: true })
+      .getByRole("link", { name: "成员与邀请", exact: true })
+      .click()
     const list = page.getByRole("list", { name: "成员", exact: true })
     const row = (account) =>
       list.getByRole("listitem").filter({ hasText: account.email })
@@ -340,7 +364,14 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
     })
     await page.goto(environment.tenantOrigin + "/app/")
     await signIn(page, owner)
-    await page.getByRole("link", { name: "角色", exact: true }).click()
+    await page
+      .getByRole("navigation", { name: "主导航", exact: true })
+      .getByRole("link", { name: "组织管理", exact: true })
+      .click()
+    await page
+      .getByRole("navigation", { name: "组织管理", exact: true })
+      .getByRole("link", { name: "角色权限", exact: true })
+      .click()
     const row = page.getByRole("listitem").filter({ hasText: "project-editor" })
     await expectUI(row).toContainText("成员：1；有效邀请：0")
     await row.getByRole("button", { name: "修改权限", exact: true }).click()
@@ -479,7 +510,14 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
     })
     await page.goto(environment.tenantOrigin + "/app/")
     await signIn(page, owner)
-    await page.getByRole("link", { name: "角色", exact: true }).click()
+    await page
+      .getByRole("navigation", { name: "主导航", exact: true })
+      .getByRole("link", { name: "组织管理", exact: true })
+      .click()
+    await page
+      .getByRole("navigation", { name: "组织管理", exact: true })
+      .getByRole("link", { name: "角色权限", exact: true })
+      .click()
     await selectLocale(page, "键盘角色所有者", labels.locale)
     await expectUI(page.locator("html")).toHaveAttribute("lang", labels.lang)
     await expectUI(page.locator("html")).toHaveAttribute("dir", labels.dir)
@@ -583,7 +621,14 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
 
     await page.goto(environment.tenantOrigin + "/app/")
     await signIn(page, owner)
-    await page.getByRole("link", { name: "角色", exact: true }).click()
+    await page
+      .getByRole("navigation", { name: "主导航", exact: true })
+      .getByRole("link", { name: "组织管理", exact: true })
+      .click()
+    await page
+      .getByRole("navigation", { name: "组织管理", exact: true })
+      .getByRole("link", { name: "角色权限", exact: true })
+      .click()
     await selectLocale(page, "RTL角色所有者", "العربية")
     await expectUI(page.locator("html")).toHaveAttribute("lang", "ar")
     await expectUI(page.locator("html")).toHaveAttribute("dir", "rtl")

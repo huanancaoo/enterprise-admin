@@ -47,6 +47,7 @@ import { FileUploads } from "./file-uploads"
 import { FilePathOperations } from "./file-path-operations"
 import { FileEntryActions } from "./file-entry-actions"
 import { FileBatches } from "./file-batches"
+import { WorkspaceActions } from "@/components/workspace-actions"
 import { useFileBatchActions } from "./batch-context"
 import { useFileUploadActions } from "./upload-context"
 import {
@@ -442,6 +443,7 @@ function FileWorkspaceBrowser({
                 </Button>
               )}
             </div>
+            <WorkspaceActions organizationId={organizationId} />
           </header>
           <div className="flex min-h-16 items-center border-b px-5 py-3">
             <FileBreadcrumbNavigation

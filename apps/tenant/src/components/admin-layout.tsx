@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { cloneElement, useEffect, useState } from "react"
 import {
   Link,
   Outlet,
@@ -9,6 +9,8 @@ import {
 } from "@tanstack/react-router"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@workspace/admin"
+import { buttonVariants } from "@workspace/ui/components/button"
+import { WorkspaceActions } from "./workspace-actions"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -21,8 +23,7 @@ import { useAuthenticatedSession } from "@workspace/admin/auth"
 import { useUiLocale } from "@workspace/i18n/react"
 import {
   ClipboardListIcon,
-  ListTodoIcon,
-  BellIcon,
+  BuildingIcon,
   PlugIcon,
   FolderKanbanIcon,
   FolderOpenIcon,
@@ -105,6 +106,8 @@ export function AdminLayout() {
   const onPersonalSettings = pathname === "/app/settings/preferences"
   const onAudit =
     pathname.startsWith("/app/organizations/") && pathname.endsWith("/audit")
+  const onManagement =
+    onMembers || onRoles || onIntegrations || onAudit || onOrganizationSettings
   useDropStaleOrganizationQueries(currentOrganizationId ?? undefined)
   const access = useQuery({
     ...getOrganizationAccessOptions(currentOrganizationId ?? ""),
@@ -209,20 +212,6 @@ export function AdminLayout() {
       params={{ organizationId: currentOrganizationId }}
     />
   ) : undefined
-  const tasksLink = currentOrganizationId ? (
-    <Link
-      to="/app/tasks/$organizationId"
-      params={{ organizationId: currentOrganizationId }}
-      search={{ page: 1, pageSize: 20 }}
-    />
-  ) : undefined
-  const notificationsLink = currentOrganizationId ? (
-    <Link
-      to="/app/notifications/$organizationId"
-      params={{ organizationId: currentOrganizationId }}
-      search={{ page: 1, pageSize: 20 }}
-    />
-  ) : undefined
   const integrationsLink = currentOrganizationId ? (
     <Link
       to="/app/integrations/$organizationId"
@@ -257,6 +246,44 @@ export function AdminLayout() {
   const suspended =
     access.error instanceof ApiClientError &&
     access.error.body.code === "ORGANIZATION_SUSPENDED"
+
+  // 各分区继续使用原有路由和权限；组织语言的读取权限不代表整个管理区的权限。
+  const managementItems = [
+    {
+      title: t("organization:membersAndInvitations"),
+      icon: <UsersIcon />,
+      active: onMembers,
+      render: membersLink,
+    },
+    {
+      title: t("organization:rolesAndPermissions"),
+      icon: <ShieldCheckIcon />,
+      active: onRoles,
+      render: rolesLink,
+    },
+    {
+      title: t("webhooks:integrations"),
+      icon: <PlugIcon />,
+      active: onIntegrations,
+      render: integrationsLink,
+    },
+    {
+      title: t("organization:audit"),
+      icon: <ClipboardListIcon />,
+      active: onAudit,
+      render: auditLink,
+    },
+    ...(settingsPermissions.data?.canRead
+      ? [
+          {
+            title: t("settings:generalSettings"),
+            icon: <SettingsIcon />,
+            active: onOrganizationSettings,
+            render: organizationSettingsLink,
+          },
+        ]
+      : []),
+  ]
 
   async function selectOrganization(nextOrganizationId: string) {
     const nextLocaleSnapshot = {
@@ -357,9 +384,25 @@ export function AdminLayout() {
   return (
     <AppShell
       layout={onFiles && !params.entryId ? "workspace" : "page"}
+      actions={
+        <WorkspaceActions
+          organizationId={currentOrganizationId}
+          disabled={suspended}
+        />
+      }
       breadcrumb={
         <Breadcrumb>
           <BreadcrumbList>
+            {onManagement && (
+              <>
+                <BreadcrumbItem className="hidden md:block">
+                  <BreadcrumbLink render={membersLink}>
+                    {t("organization:management")}
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator className="hidden md:block" />
+              </>
+            )}
             {params.projectId && (
               <>
                 <BreadcrumbItem className="hidden md:block">
@@ -431,63 +474,11 @@ export function AdminLayout() {
               render: filesLink,
             },
             {
-              title: t("tasks:title"),
-              icon: <ListTodoIcon />,
-              isActive: onTasks,
-              disabled: !currentOrganizationId || suspended,
-              render: tasksLink,
-            },
-            {
-              title: t("notifications:title"),
-              icon: <BellIcon />,
-              isActive: onNotifications,
-              disabled: !currentOrganizationId || suspended,
-              render: notificationsLink,
-            },
-            {
-              title: t("webhooks:integrations"),
-              icon: <PlugIcon />,
-              isActive: onIntegrations,
-              disabled: !currentOrganizationId || suspended,
-              render: integrationsLink,
-            },
-            {
-              title: t("organization:members"),
-              icon: <UsersIcon />,
-              isActive: onMembers,
+              title: t("organization:management"),
+              icon: <BuildingIcon />,
+              isActive: onManagement,
               disabled: !currentOrganizationId || suspended,
               render: membersLink,
-            },
-            {
-              title: t("organization:roles"),
-              icon: <ShieldCheckIcon />,
-              isActive: onRoles,
-              disabled: !currentOrganizationId || suspended,
-              render: rolesLink,
-            },
-            ...(settingsPermissions.data?.canRead
-              ? [
-                  {
-                    title: t("settings:organizationSettings"),
-                    icon: <SettingsIcon />,
-                    isActive: onOrganizationSettings,
-                    disabled: !currentOrganizationId || suspended,
-                    render: organizationSettingsLink,
-                  },
-                ]
-              : []),
-            {
-              title: t("settings:personalSettings"),
-              icon: <SettingsIcon />,
-              isActive: pathname === "/app/settings/preferences",
-              render: <Link to="/app/settings/preferences" />,
-            },
-            {
-              title: t("organization:audit"),
-              icon: <ClipboardListIcon />,
-              isActive: onAudit,
-              disabled: !currentOrganizationId || suspended,
-              render: auditLink,
             },
           ],
         },
@@ -557,7 +548,31 @@ export function AdminLayout() {
       {onPersonalSettings ||
       (!organizationContextPending &&
         (!currentOrganizationId || access.isSuccess)) ? (
-        <Outlet />
+        <>
+          {onManagement && (
+            <nav
+              aria-label={t("organization:management")}
+              className="flex flex-wrap gap-1 border-b pb-4"
+            >
+              {managementItems.map((item) =>
+                cloneElement(item.render!, {
+                  key: item.title,
+                  className: buttonVariants({
+                    variant: item.active ? "secondary" : "ghost",
+                  }),
+                  "aria-current": item.active ? "page" : undefined,
+                  children: (
+                    <>
+                      {item.icon}
+                      {item.title}
+                    </>
+                  ),
+                })
+              )}
+            </nav>
+          )}
+          <Outlet />
+        </>
       ) : null}
     </AppShell>
   )

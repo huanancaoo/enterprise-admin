@@ -12,6 +12,7 @@ import { AuthGate, type WorkspaceRouterContext } from "@workspace/admin/auth"
 import {
   createWorkspaceSessionHandlers,
   createProjectsHandler,
+  createMembersScenario,
   createProjectDetailHandler,
   createProjectAttachmentsScenario,
   organizations,
@@ -120,7 +121,7 @@ export const PersistentSidebar: Story = {
       await screen.findByRole("menuitem", { name: /South workspace/ })
     )
     await waitFor(() =>
-      expect(screen.queryByRole("menuitem")).not.toBeInTheDocument()
+      expect(screen.queryAllByRole("menuitem")).toHaveLength(0)
     )
     await expect(
       await canvas.findByRole("link", { name: "办公空间 2-26" })
@@ -141,12 +142,30 @@ export const RouteScrollReset: Story = {
     content.scrollTop = content.scrollHeight
     await waitFor(() => expect(content.scrollTop).toBeGreaterThan(0))
 
-    // 从固定侧栏换页，避免点击内容区元素自动滚动而掩盖旧位置残留。
-    await userEvent.click(canvas.getByRole("link", { name: "个人设置" }))
+    // 从固定头像入口换页，避免点击内容区元素自动滚动而掩盖旧位置残留。
+    await userEvent.click(
+      within(
+        canvasElement.querySelector(
+          '[data-slot="sidebar-footer"]'
+        )! as HTMLElement
+      ).getByRole("button")
+    )
+    await userEvent.click(
+      await within(canvasElement.ownerDocument.body).findByRole("menuitem", {
+        name: "个人设置",
+      })
+    )
     await expect(
       await canvas.findByRole("heading", { name: "个人设置", level: 1 })
     ).toBeVisible()
     await waitFor(() => expect(content.scrollTop).toBe(0))
+    await waitFor(() =>
+      expect(
+        within(canvasElement.ownerDocument.body).queryAllByRole("menu", {
+          hidden: true,
+        })
+      ).toHaveLength(0)
+    )
   },
 }
 
@@ -178,7 +197,7 @@ export const SuspendedOrganization: Story = {
       await screen.findByRole("menuitem", { name: /South workspace/ })
     )
     await waitFor(() =>
-      expect(screen.queryByRole("menuitem")).not.toBeInTheDocument()
+      expect(screen.queryAllByRole("menuitem")).toHaveLength(0)
     )
     await expect(await canvas.findByRole("table")).toBeVisible()
     await expect(canvas.queryByRole("alert")).toBeNull()
@@ -213,5 +232,58 @@ export const WorkspaceRefreshPending: Story = {
         screen.queryByRole("menu", { hidden: true })
       ).not.toBeInTheDocument()
     )
+  },
+}
+
+export const OrganizationNavigationWithoutSettingsPermission: Story = {
+  parameters: {
+    msw: {
+      handlers: [
+        ...createMembersScenario("member").handlers,
+        ...createWorkspaceSessionHandlers(),
+        createProjectsHandler(),
+      ],
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    // 此成员有目录读取权，没有组织设置读取权；管理区不能被后者一并拦住。
+    const main = within(
+      await canvas.findByRole("navigation", { name: "Main navigation" })
+    )
+    await expect(main.getAllByRole("link")).toHaveLength(3)
+    await expect(
+      main.queryByRole("link", { name: "Personal settings" })
+    ).toBeNull()
+    await expect(
+      canvas.getByRole("link", { name: "Task center" })
+    ).toHaveAttribute(
+      "href",
+      expect.stringContaining(`/app/tasks/${organizations[0].id}`)
+    )
+    await expect(
+      canvas.getByRole("link", { name: "Notifications" })
+    ).toHaveAttribute(
+      "href",
+      expect.stringContaining(`/app/notifications/${organizations[0].id}`)
+    )
+    await userEvent.click(
+      main.getByRole("link", { name: "Organization management" })
+    )
+    const management = within(
+      await canvas.findByRole("navigation", { name: "Organization management" })
+    )
+    await expect(
+      management.getByRole("link", { name: "Members & invitations" })
+    ).toHaveAttribute("aria-current", "page")
+    await expect(
+      management.queryByRole("link", { name: "General settings" })
+    ).toBeNull()
+    await expect(
+      await canvas.findByRole("list", { name: "Members" })
+    ).toBeVisible()
+    await expect(
+      management.getByRole("link", { name: "Roles & permissions" })
+    ).toHaveAttribute("href", `/app/organizations/${organizations[0].id}/roles`)
   },
 }

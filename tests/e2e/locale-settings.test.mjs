@@ -323,7 +323,14 @@ describe("S8-09：浏览器中的个人与组织语言设置", () => {
       [firstOrganization.slug]
     )
     const firstOrganizationId = organizations.rows[0].id
-    await page.getByRole("link", { name: "组织语言设置", exact: true }).click()
+    await page
+      .getByRole("navigation", { name: "主导航", exact: true })
+      .getByRole("link", { name: "组织管理", exact: true })
+      .click()
+    await page
+      .getByRole("navigation", { name: "组织管理", exact: true })
+      .getByRole("link", { name: "常规设置", exact: true })
+      .click()
     await page.getByRole("combobox", { name: "语言", exact: true }).click()
     await page.getByRole("option", { name: "English", exact: true }).click()
     await page.getByRole("button", { name: "保存", exact: true }).click()
@@ -349,7 +356,11 @@ describe("S8-09：浏览器中的个人与组织语言设置", () => {
     )
     try {
       await page
-        .getByRole("link", { name: "Personal settings", exact: true })
+        .locator('[data-slot="sidebar-footer"]')
+        .getByRole("button")
+        .click()
+      await page
+        .getByRole("menuitem", { name: "Personal settings", exact: true })
         .click()
       await activeOrganizationRequested.promise
       await page.route(
@@ -398,7 +409,11 @@ describe("S8-09：浏览器中的个人与组织语言设置", () => {
       .click()
     await expectUI(page.locator("html")).toHaveAttribute("lang", "en-US")
     await page
-      .getByRole("link", { name: "Personal settings", exact: true })
+      .locator('[data-slot="sidebar-footer"]')
+      .getByRole("button")
+      .click()
+    await page
+      .getByRole("menuitem", { name: "Personal settings", exact: true })
       .click()
     await expectUI(
       page.getByRole("combobox", { name: "Language", exact: true })
@@ -489,7 +504,17 @@ describe("S8-09：浏览器中的个人与组织语言设置", () => {
       .click()
     await expectUI(page.locator("html")).toHaveAttribute("lang", "zh-CN")
 
-    await page.getByRole("link", { name: "组织语言设置", exact: true }).click()
+    await page
+      .getByRole("navigation", { name: "主导航", exact: true })
+
+      .getByRole("link", { name: "组织管理", exact: true })
+      .click()
+
+    await page
+      .getByRole("navigation", { name: "组织管理", exact: true })
+
+      .getByRole("link", { name: "常规设置", exact: true })
+      .click()
     await page.getByRole("combobox", { name: "语言", exact: true }).click()
     await page.getByRole("option", { name: "العربية", exact: true }).click()
     const externalWrite = await fetch(
@@ -549,11 +574,11 @@ describe("S8-09：浏览器中的个人与组织语言设置", () => {
     )
     await page.reload()
     const navigation = page.getByRole("navigation", {
-      name: "التنقل الرئيسي",
+      name: "إدارة المؤسسات",
     })
     await expectUI(
       navigation.getByRole("link", {
-        name: "إعدادات لغة المؤسسة",
+        name: "الإعدادات العامة",
         exact: true,
       })
     ).toBeVisible()
@@ -577,7 +602,7 @@ describe("S8-09：浏览器中的个人与组织语言设置", () => {
     await page.reload()
     await expectUI(
       navigation.getByRole("link", {
-        name: "إعدادات لغة المؤسسة",
+        name: "الإعدادات العامة",
         exact: true,
       })
     ).toHaveCount(0)

@@ -260,7 +260,14 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await page.getByLabel("组织名称", { exact: true }).fill("成员目录组织")
     await page.getByLabel("组织标识", { exact: true }).fill("members-directory")
     await page.getByRole("button", { name: "创建组织", exact: true }).click()
-    await page.getByRole("link", { name: "成员", exact: true }).click()
+    await page
+      .getByRole("navigation", { name: "主导航", exact: true })
+      .getByRole("link", { name: "组织管理", exact: true })
+      .click()
+    await page
+      .getByRole("navigation", { name: "组织管理", exact: true })
+      .getByRole("link", { name: "成员与邀请", exact: true })
+      .click()
     const search = page.getByLabel("搜索成员…", { exact: true })
     await search.fill("成员目录用户")
     await search.press("Enter")
@@ -363,7 +370,14 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     })
     await page.goto(tenantOrigin + "/app/")
     await signInAccount(page, reader)
-    await page.getByRole("link", { name: "成员", exact: true }).click()
+    await page
+      .getByRole("navigation", { name: "主导航", exact: true })
+      .getByRole("link", { name: "组织管理", exact: true })
+      .click()
+    await page
+      .getByRole("navigation", { name: "组织管理", exact: true })
+      .getByRole("link", { name: "成员与邀请", exact: true })
+      .click()
     const list = page.getByRole("list", { name: "成员", exact: true })
     await expectUI(list.getByText(owner.email, { exact: true })).toBeVisible()
     const search = page.getByLabel("搜索成员…", { exact: true })
@@ -431,7 +445,14 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     }
     await page.goto(tenantOrigin + "/app/")
     await signInAccount(page, owner)
-    await page.getByRole("link", { name: "成员", exact: true }).click()
+    await page
+      .getByRole("navigation", { name: "主导航", exact: true })
+      .getByRole("link", { name: "组织管理", exact: true })
+      .click()
+    await page
+      .getByRole("navigation", { name: "组织管理", exact: true })
+      .getByRole("link", { name: "成员与邀请", exact: true })
+      .click()
     const list = page.getByRole("list", { name: "成员", exact: true })
     const row = (account) =>
       list.getByRole("listitem").filter({ hasText: account.email })
@@ -954,7 +975,15 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
       }
     }
     const selectAuditLocale = async (currentLanguage, locale, localeCode) => {
-      await page.locator('a[href="/app/settings/preferences"]').click()
+      await page
+        .locator('[data-slot="sidebar-footer"]')
+        .getByRole("button")
+        .click()
+      await page
+        .getByRole("menuitem", {
+          name: /^(个人设置|Personal settings|الإعدادات الشخصية)$/,
+        })
+        .click()
       await page
         .getByRole("combobox", { name: currentLanguage, exact: true })
         .click()

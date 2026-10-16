@@ -179,7 +179,14 @@ describe("email auth UI", () => {
     await page.getByLabel("组织标识", { exact: true }).fill(organization.slug)
     await page.getByRole("button", { name: "创建组织", exact: true }).click()
     await expectUI(page).toHaveURL(/\/app\/projects\/[0-9a-f-]+(?:\?.*)?$/)
-    await page.getByRole("link", { name: "成员", exact: true }).click()
+    await page
+      .getByRole("navigation", { name: "主导航", exact: true })
+      .getByRole("link", { name: "组织管理", exact: true })
+      .click()
+    await page
+      .getByRole("navigation", { name: "组织管理", exact: true })
+      .getByRole("link", { name: "成员与邀请", exact: true })
+      .click()
     await expectUI(
       page.getByRole("heading", { name: "成员", exact: true })
     ).toBeVisible()

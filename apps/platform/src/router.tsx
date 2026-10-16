@@ -24,7 +24,6 @@ import {
   App,
   PlatformAuthTitlePage,
   PlatformEmailVerifiedPage,
-  PlatformHome,
   PlatformLayout,
   PlatformLoginPage,
   PlatformMfaPage,
@@ -138,7 +137,17 @@ const platformRoute = createRoute({
 const platformIndexRoute = createRoute({
   getParentRoute: () => platformRoute,
   path: "/",
-  component: PlatformHome,
+  beforeLoad: () => {
+    throw redirect({
+      to: "/platform/organizations",
+      search: {
+        page: 1,
+        pageSize: 20,
+        sortBy: "createdAt",
+        sortOrder: "desc",
+      },
+    })
+  },
 })
 const platformOrganizationsRoute = createRoute({
   getParentRoute: () => platformRoute,

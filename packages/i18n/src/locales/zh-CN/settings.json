@@ -28,6 +28,7 @@
   "emailVerificationSent": "请前往 {{email}} 验证新邮箱。在验证完成前，当前邮箱保持有效。",
   "followOrganization": "跟随组织或平台默认值",
   "followPlatform": "跟随平台默认值",
+  "generalSettings": "常规设置",
   "language": "语言",
   "languageSource": "语言来源",
   "loadError": "语言设置加载失败。",

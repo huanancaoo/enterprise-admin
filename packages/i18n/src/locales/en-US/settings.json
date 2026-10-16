@@ -28,6 +28,7 @@
   "emailVerificationSent": "Check {{email}} to verify your new email address. Your current email stays active until verification.",
   "followOrganization": "Follow organization or platform defaults",
   "followPlatform": "Follow platform default",
+  "generalSettings": "General settings",
   "language": "Language",
   "languageSource": "Language source",
   "loadError": "Language settings could not be loaded.",

@@ -25,7 +25,7 @@
     "db:check": "pnpm --filter @workspace/database schema:check",
     "test:database": "pnpm release:prepare && pnpm --filter @workspace/database test:database",
     "test:isolation": "pnpm release:prepare && pnpm --filter @workspace/database test:isolation",
-    "test:e2e": "pnpm release:prepare && turbo build --filter=api --filter=tenant --filter=platform && vitest run --config vitest.config.e2e.mjs",
+    "test:e2e": "pnpm release:prepare && turbo build --filter=api --filter=worker --filter=tenant --filter=platform && vitest run --config vitest.config.e2e.mjs",
     "api:check": "node packages/api-client/scripts/check-generated.mjs",
     "i18n:check": "pnpm --filter @workspace/i18n check",
     "release:prepare": "node infra/release/build-base-images.mjs"

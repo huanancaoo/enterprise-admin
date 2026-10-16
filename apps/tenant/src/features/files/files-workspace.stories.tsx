@@ -17,12 +17,7 @@ import {
 import { AppShell } from "@workspace/admin"
 import { AuthenticatedSessionProvider } from "@workspace/admin/auth"
 import { fileWorkspaceScenario, personalAvatarUser } from "@workspace/mocks"
-import {
-  FolderKanbanIcon,
-  FolderIcon,
-  SettingsIcon,
-  UsersIcon,
-} from "lucide-react"
+import { FolderKanbanIcon, FolderIcon, BuildingIcon } from "lucide-react"
 import { authClient } from "@/lib/auth-client"
 import { FilesWorkspace } from "./files-workspace"
 
@@ -81,8 +76,7 @@ function WorkspaceStory() {
             items: [
               { title: "项目", icon: <FolderKanbanIcon /> },
               { title: "文件", icon: <FolderIcon />, isActive: true },
-              { title: "团队", icon: <UsersIcon /> },
-              { title: "设置", icon: <SettingsIcon /> },
+              { title: "组织管理", icon: <BuildingIcon /> },
             ],
           },
           user: {
@@ -130,7 +124,17 @@ async function openPoster(canvasElement: HTMLElement) {
 
 export const Preview: Story = {
   play: async ({ canvasElement }) => {
-    await openPoster(canvasElement)
+    const { canvas } = await openPoster(canvasElement)
+    await expect(
+      canvas.getByRole("link", { name: "任务中心" })
+    ).toHaveAttribute(
+      "href",
+      expect.stringContaining(`/app/tasks/${organizationId}`)
+    )
+    await expect(canvas.getByRole("link", { name: "通知" })).toHaveAttribute(
+      "href",
+      expect.stringContaining(`/app/notifications/${organizationId}`)
+    )
   },
 }
 

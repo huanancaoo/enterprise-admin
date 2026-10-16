@@ -322,7 +322,7 @@ describe("platform MFA browser flow", () => {
     await codeInput.press("Tab")
     await expectUI(verifyButton).toBeFocused()
     await page.keyboard.press("Enter")
-    await expectUI(page).toHaveURL(/\/platform$/)
+    await expectUI(page).toHaveURL(/\/platform\/organizations(?:\?|$)/)
     await expectUI(page.locator("html")).toHaveAttribute("lang", "ar")
     await expectUI(
       page.getByText("مسؤول المنصة · نطاق المنصة بالكامل", { exact: true })

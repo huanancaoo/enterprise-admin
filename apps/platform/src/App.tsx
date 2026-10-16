@@ -38,16 +38,10 @@ import {
 } from "@workspace/ui/components/field"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
-import { Badge } from "@workspace/ui/components/badge"
-import { Card, CardContent } from "@workspace/ui/components/card"
 import {
-  ArrowUpRightIcon,
   BuildingIcon,
   ClipboardListIcon,
-  LayoutDashboardIcon,
   SettingsIcon,
-  ShieldCheckIcon,
-  UserRoundIcon,
   UsersIcon,
 } from "lucide-react"
 import { authClient } from "./lib/auth-client"
@@ -212,38 +206,6 @@ export function PlatformLayout() {
           label: t("common:navigation"),
           items: [
             {
-              title: t("settings:personalSettings"),
-              icon: <UserRoundIcon />,
-              isActive: location.pathname === "/platform/personal-settings",
-              render: <Link to="/platform/personal-settings" />,
-            },
-            {
-              title: t("organization:platformSettings"),
-              icon: <SettingsIcon />,
-              isActive: location.pathname.startsWith("/platform/settings"),
-              render: <Link to="/platform/settings" />,
-            },
-            {
-              title: t("organization:audit"),
-              icon: <ClipboardListIcon />,
-              isActive: location.pathname.startsWith("/platform/audit-events"),
-              render: <Link to="/platform/audit-events" search={{}} />,
-            },
-            {
-              title: t("organization:platformUsers"),
-              icon: <UsersIcon />,
-              isActive: location.pathname.startsWith("/platform/users"),
-              render: (
-                <Link to="/platform/users" search={{ page: 1, pageSize: 20 }} />
-              ),
-            },
-            {
-              title: t("auth:platformTitle"),
-              icon: <LayoutDashboardIcon />,
-              isActive: location.pathname === "/platform",
-              render: <Link to="/platform" />,
-            },
-            {
               title: t("organization:platformOrganizations"),
               icon: <BuildingIcon />,
               isActive: location.pathname.startsWith("/platform/organizations"),
@@ -258,6 +220,26 @@ export function PlatformLayout() {
                   }}
                 />
               ),
+            },
+            {
+              title: t("organization:platformUsers"),
+              icon: <UsersIcon />,
+              isActive: location.pathname.startsWith("/platform/users"),
+              render: (
+                <Link to="/platform/users" search={{ page: 1, pageSize: 20 }} />
+              ),
+            },
+            {
+              title: t("organization:audit"),
+              icon: <ClipboardListIcon />,
+              isActive: location.pathname.startsWith("/platform/audit-events"),
+              render: <Link to="/platform/audit-events" search={{}} />,
+            },
+            {
+              title: t("organization:platformSettings"),
+              icon: <SettingsIcon />,
+              isActive: location.pathname.startsWith("/platform/settings"),
+              render: <Link to="/platform/settings" />,
             },
           ],
         },
@@ -513,111 +495,6 @@ export function PlatformAccessDeniedPage() {
         </Link>
       )}
     </main>
-  )
-}
-
-export function PlatformHome() {
-  const { t } = useTranslation(["auth", "organization", "settings"])
-  const { platformAccess } = useRouteContext({ from: "/platform" })
-  const shortcutClass =
-    "group rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
-  const contentClass =
-    "flex min-h-28 items-center gap-4 transition-colors group-hover:bg-muted/40"
-  return (
-    <section className="min-w-0 space-y-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="space-y-2">
-          <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
-            {t("auth:platformTitle")}
-          </h1>
-          <p className="text-sm text-muted-foreground">{t("auth:signedIn")}</p>
-        </div>
-        <Badge
-          variant="secondary"
-          className="max-w-full flex-wrap justify-start gap-2 py-1.5 whitespace-normal"
-        >
-          <ShieldCheckIcon className="size-3.5 shrink-0" />
-          {t(
-            platformAccess.role === "platform_admin"
-              ? "auth:platformAdminRole"
-              : "auth:platformAuditorRole"
-          )}
-          <span className="border-s border-foreground/15 ps-2 text-muted-foreground">
-            {t("auth:globalScope")}
-          </span>
-        </Badge>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <Link
-          className={shortcutClass}
-          to="/platform/organizations"
-          search={{
-            page: 1,
-            pageSize: 20,
-            sortBy: "createdAt",
-            sortOrder: "desc",
-          }}
-        >
-          <Card className={contentClass}>
-            <CardContent className="flex w-full items-center gap-4">
-              <BuildingIcon className="size-5 shrink-0 text-muted-foreground" />
-              <span className="min-w-0 flex-1 text-base font-medium">
-                {t("organization:platformOrganizations")}
-              </span>
-              <ArrowUpRightIcon className="size-4 shrink-0 text-muted-foreground" />
-            </CardContent>
-          </Card>
-        </Link>
-        <Link
-          className={shortcutClass}
-          to="/platform/users"
-          search={{ page: 1, pageSize: 20 }}
-        >
-          <Card className={contentClass}>
-            <CardContent className="flex w-full items-center gap-4">
-              <UsersIcon className="size-5 shrink-0 text-muted-foreground" />
-              <span className="min-w-0 flex-1 text-base font-medium">
-                {t("organization:platformUsers")}
-              </span>
-              <ArrowUpRightIcon className="size-4 shrink-0 text-muted-foreground" />
-            </CardContent>
-          </Card>
-        </Link>
-        <Link className={shortcutClass} to="/platform/audit-events" search={{}}>
-          <Card className={contentClass}>
-            <CardContent className="flex w-full items-center gap-4">
-              <ClipboardListIcon className="size-5 shrink-0 text-muted-foreground" />
-              <span className="min-w-0 flex-1 text-base font-medium">
-                {t("organization:audit")}
-              </span>
-              <ArrowUpRightIcon className="size-4 shrink-0 text-muted-foreground" />
-            </CardContent>
-          </Card>
-        </Link>
-        <Link className={shortcutClass} to="/platform/settings">
-          <Card className={contentClass}>
-            <CardContent className="flex w-full items-center gap-4">
-              <SettingsIcon className="size-5 shrink-0 text-muted-foreground" />
-              <span className="min-w-0 flex-1 text-base font-medium">
-                {t("organization:platformSettings")}
-              </span>
-              <ArrowUpRightIcon className="size-4 shrink-0 text-muted-foreground" />
-            </CardContent>
-          </Card>
-        </Link>
-        <Link className={shortcutClass} to="/platform/personal-settings">
-          <Card className={contentClass}>
-            <CardContent className="flex w-full items-center gap-4">
-              <UserRoundIcon className="size-5 shrink-0 text-muted-foreground" />
-              <span className="min-w-0 flex-1 text-base font-medium">
-                {t("settings:personalSettings")}
-              </span>
-              <ArrowUpRightIcon className="size-4 shrink-0 text-muted-foreground" />
-            </CardContent>
-          </Card>
-        </Link>
-      </div>
-    </section>
   )
 }
 

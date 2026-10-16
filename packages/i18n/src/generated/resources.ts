@@ -67,7 +67,6 @@ export default interface Resources {
     "signOutAndUseAnotherAccount": "退出并使用其他账号登录",
     "signUp": "创建账号",
     "signUpDescription": "创建账号后，选择或创建你的组织。",
-    "signedIn": "账户已登录",
     "signingOut": "正在退出…"
   },
   "common": {
@@ -602,6 +601,7 @@ export default interface Resources {
     "memberStatus_invited": "已邀请",
     "memberStatus_suspended": "已暂停",
     "members": "成员",
+    "membersAndInvitations": "成员与邀请",
     "membersDescription": "管理组织成员和邀请。",
     "membershipChanged": "成员权限已变更。请关闭窗口，核对最新成员信息后重新操作。",
     "name": "组织名称",
@@ -759,6 +759,7 @@ export default interface Resources {
     "role_owner": "所有者",
     "role_viewer": "查看者",
     "roles": "角色",
+    "rolesAndPermissions": "角色权限",
     "rolesDescription": "查看内置角色与自定义角色，并创建自定义角色。",
     "rolesEmpty": "尚未创建自定义角色。",
     "searchMembers": "搜索成员…",
@@ -894,6 +895,7 @@ export default interface Resources {
     "emailVerificationSent": "请前往 {{email}} 验证新邮箱。在验证完成前，当前邮箱保持有效。",
     "followOrganization": "跟随组织或平台默认值",
     "followPlatform": "跟随平台默认值",
+    "generalSettings": "常规设置",
     "language": "语言",
     "languageSource": "语言来源",
     "loadError": "语言设置加载失败。",
