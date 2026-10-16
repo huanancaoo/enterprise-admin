@@ -22,7 +22,7 @@
 产品行为：
 
 - `requireEmailVerification=true`；新注册必须验证后才能登录
-- 平台管理员 CLI 创建用户时直接写 `emailVerified=true`，不入队
+- 平台管理员 CLI 通过固定创建函数写入 `emailVerified=true`，账号、密码凭据、任职与审计原子提交，不入队验证邮件
 - 切片上线前已有用户迁移为 `email_verified = true`
 - 租户后台落地页：验证邮箱、重置密码、接受邀请；成员页可发邀请
 - 平台后台落地页：忘记密码、重置密码、已验证

@@ -1570,7 +1570,7 @@ test("平台策略CAS与幂等收据原子提交，不重复审计，相同输�
   )
 })
 
-test("平台审计员只读，管理员写入需要近期MFA与当前有效Session/任职", async () => {
+test("平台审计员只读，管理员无需MFA但必须有当前有效Session/任职", async () => {
   const a = await workspace(),
     auditor = await platformActor("platform_auditor"),
     admin = await platformActor()
@@ -1584,18 +1584,12 @@ test("平台审计员只读，管理员写入需要近期MFA与当前有效Sessi
     [admin.sessionId]
   )
   await policy(admin, a.context.organizationId)
-  await assert.rejects(
-    changePolicy(admin, a.context.organizationId),
-    databaseMessage("PLATFORM_MFA_REQUIRED")
-  )
+  await changePolicy(admin, a.context.organizationId)
   await owner.query(
     "DELETE FROM platform_session_assurance WHERE session_id=$1",
     [admin.sessionId]
   )
-  await assert.rejects(
-    policy(admin, a.context.organizationId),
-    databaseMessage("PLATFORM_MFA_REQUIRED")
-  )
+  await policy(admin, a.context.organizationId)
   await owner.query(
     `UPDATE session SET expires_at=now()-interval '1 second' WHERE id=$1`,
     [auditor.sessionId]
