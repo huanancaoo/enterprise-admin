@@ -63,27 +63,27 @@ export function NavUser({
             <ChevronsUpDownIcon className="ms-auto size-4" />
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            className="w-72 max-w-[calc(100vw-2rem)] rounded-xl shadow-lg"
+            className="w-64 max-w-[calc(100vw-2rem)] rounded-xl shadow-lg"
             side={isMobile ? "bottom" : "right"}
             align="end"
             sideOffset={4}
           >
             <DropdownMenuGroup>
               <DropdownMenuLabel className="p-0 font-normal">
-                <div className="flex items-center gap-3 px-3 py-4 text-start">
+                <div className="flex items-center gap-2 px-3 py-2.5 text-start">
                   <span aria-hidden="true">
                     <PersonalAvatar
                       image={user.avatar}
                       name={user.name}
-                      className="size-10"
+                      className="size-8"
                     />
                   </span>
-                  <div className="grid min-w-0 flex-1 gap-1 text-start text-base leading-tight">
+                  <div className="grid min-w-0 flex-1 gap-0.5 text-start text-sm leading-tight">
                     <span className="truncate font-medium text-foreground">
                       {user.name}
                     </span>
                     <span
-                      className="truncate text-sm text-muted-foreground"
+                      className="truncate text-xs text-muted-foreground"
                       title={user.email}
                     >
                       {user.email}
@@ -92,9 +92,9 @@ export function NavUser({
                 </div>
               </DropdownMenuLabel>
             </DropdownMenuGroup>
-            <DropdownMenuSeparator className="mx-2 my-3" />
+            <DropdownMenuSeparator className="mx-2 my-1.5" />
             <DropdownMenuGroup>{accountMenu(accountAction)}</DropdownMenuGroup>
-            <DropdownMenuGroup className="*:min-h-12 *:text-base [&_svg]:size-5">
+            <DropdownMenuGroup>
               <DropdownMenuItem onClick={onPersonalSettings}>
                 <UserRoundIcon />
                 {settings("personalSettings")}
@@ -105,7 +105,7 @@ export function NavUser({
                 onLocaleSelect={onLocaleSelect}
               />
             </DropdownMenuGroup>
-            <DropdownMenuSeparator className="mx-2 my-3" />
+            <DropdownMenuSeparator className="mx-2 my-1.5" />
             {signOutMenu(accountAction)}
           </DropdownMenuContent>
         </DropdownMenu>

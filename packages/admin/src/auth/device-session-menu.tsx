@@ -64,9 +64,9 @@ export function DeviceSessionMenu(props: DeviceSessionMenuProps) {
     >
       <DropdownMenuSubTrigger
         disabled={props.action.pending}
-        className="min-h-16 gap-3 text-base"
+        className="min-h-12 gap-2"
       >
-        <UsersIcon className="size-5" />
+        <UsersIcon className="size-4" />
         <div className="grid min-w-0 flex-1 gap-0.5 text-start">
           <span className="font-medium">{t("switchAccount")}</span>
           {sessions.data && (
@@ -77,7 +77,7 @@ export function DeviceSessionMenu(props: DeviceSessionMenuProps) {
         </div>
       </DropdownMenuSubTrigger>
       <DropdownMenuSubContent
-        className="w-80 max-w-[calc(100vw-2rem)] rounded-xl shadow-lg"
+        className="w-72 max-w-[calc(100vw-2rem)] rounded-xl shadow-lg"
         sideOffset={8}
         alignOffset={-80}
       >
@@ -101,7 +101,7 @@ function DeviceSessionList({
 
   return (
     <DropdownMenuGroup>
-      <DropdownMenuLabel className="px-3 py-3 text-sm">
+      <DropdownMenuLabel className="px-3 py-2">
         {t("auth:accountsOnDevice")}
       </DropdownMenuLabel>
       {sessions.isPending && (
@@ -127,7 +127,7 @@ function DeviceSessionList({
           <DropdownMenuRadioItem
             key={user.id}
             value={user.id}
-            className="min-h-18 gap-3 py-3 text-base aria-checked:bg-primary/5 [&_[data-slot=dropdown-menu-radio-item-indicator]]:text-primary"
+            className="min-h-12 gap-2 py-2 aria-checked:bg-primary/5 [&_[data-slot=dropdown-menu-radio-item-indicator]]:text-primary"
             disabled={action.pending}
             closeOnClick={false}
             onClick={() => {
@@ -143,12 +143,12 @@ function DeviceSessionList({
             }}
           >
             <span aria-hidden="true" className="shrink-0">
-              <PersonalAvatar name={user.name} className="size-10" />
+              <PersonalAvatar name={user.name} className="size-8" />
             </span>
             <div className="grid min-w-0 flex-1 gap-0.5 text-start">
               <span className="truncate font-medium">{user.name}</span>
               <span
-                className="truncate text-sm text-muted-foreground"
+                className="truncate text-xs text-muted-foreground"
                 title={user.email}
               >
                 {user.email}
@@ -158,12 +158,8 @@ function DeviceSessionList({
         ))}
       </DropdownMenuRadioGroup>
       <DropdownMenuSeparator className="mx-2 my-1.5" />
-      <DropdownMenuItem
-        className="min-h-12 text-base"
-        disabled={action.pending}
-        onClick={onAddAccount}
-      >
-        <PlusIcon className="size-5" />
+      <DropdownMenuItem disabled={action.pending} onClick={onAddAccount}>
+        <PlusIcon className="size-4" />
         {t("auth:addAccount")}
       </DropdownMenuItem>
     </DropdownMenuGroup>
@@ -181,7 +177,6 @@ export function DeviceSessionActions({
     <DropdownMenuGroup>
       {current && (
         <DropdownMenuItem
-          className="min-h-12 text-base"
           disabled={action.pending}
           closeOnClick={false}
           onClick={() =>
@@ -195,12 +190,11 @@ export function DeviceSessionActions({
             )
           }
         >
-          <LogOutIcon className="size-5" />
+          <LogOutIcon className="size-4" />
           {t("signOutCurrentAccount")}
         </DropdownMenuItem>
       )}
       <DropdownMenuItem
-        className="min-h-12 text-base"
         variant="destructive"
         disabled={action.pending}
         closeOnClick={false}
@@ -208,7 +202,7 @@ export function DeviceSessionActions({
           void changeSession(action, () => client.signOut(), onSessionChanged)
         }
       >
-        <LogOutIcon className="size-5" />
+        <LogOutIcon className="size-4" />
         {t("signOutAllAccounts")}
       </DropdownMenuItem>
       {action.error && (
@@ -253,7 +247,7 @@ export function DeviceAccountSwitcher({
         {t("switchAccount")}
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        className="w-72 max-w-[calc(100vw-2rem)] rounded-xl shadow-lg"
+        className="w-64 max-w-[calc(100vw-2rem)] rounded-xl shadow-lg"
         align="center"
       >
         <DeviceSessionList {...props} sessions={sessions} />
