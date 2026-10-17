@@ -35,7 +35,7 @@ export function PlatformLoginEventsPage() {
     queryKey: ["platform", session.user.id, "login-events", search],
     queryFn: async ({ signal }) =>
       LoginLogsPageSchema.parse(
-        (await listPlatformLoginEvents({ params: search, signal })).data
+        (await listPlatformLoginEvents(search, { signal })).data
       ),
     retry: false,
   })

@@ -34,12 +34,8 @@ export function PersonalLoginEventsRoute() {
     queryKey: ["identity", session.user.id, "my-login-events", search],
     queryFn: async ({ signal }) =>
       LoginLogsPageSchema.parse(
-        (
-          await listMyLoginEvents({
-            params: { page, pageSize, ...filters },
-            signal,
-          })
-        ).data
+        (await listMyLoginEvents({ page, pageSize, ...filters }, { signal }))
+          .data
       ),
     retry: false,
   })

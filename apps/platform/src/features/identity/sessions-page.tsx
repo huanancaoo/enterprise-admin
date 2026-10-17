@@ -52,7 +52,7 @@ export function PlatformSessionsPage() {
     queryKey,
     queryFn: async ({ signal }) =>
       PlatformSessionsPageSchema.parse(
-        (await listPlatformSessions({ params: search, signal })).data
+        (await listPlatformSessions(search, { signal })).data
       ),
     retry: false,
   })

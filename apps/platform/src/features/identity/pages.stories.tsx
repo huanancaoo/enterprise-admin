@@ -56,7 +56,7 @@ export const LoginEvents: Story = {
     const canvas = within(canvasElement)
     await canvas.findByRole("heading", { name: "Login history" })
     await canvas.findByRole("table")
-    await canvas.findByText("Platform Operator")
+    await canvas.findAllByText("Platform Operator")
     await expect(canvas.getByRole("button", { name: "Method" })).toBeVisible()
   },
 }
@@ -78,6 +78,7 @@ export const LoginEventsFilterPagination: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Result" }))
     const screen = within(canvasElement.ownerDocument.body)
     await userEvent.click(await screen.findByRole("option", { name: "Failed" }))
+    await userEvent.keyboard("{Escape}")
     await expect(
       paginatedFixture.fixture.loginQueries.at(-1)?.get("result")
     ).toBe("failed")
@@ -104,7 +105,8 @@ export const PersonalAccountRows: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await canvas.findByRole("table")
-    await expect(canvas.getByText("Platform account")).toBeVisible()
+    await waitFor(() => expect(canvas.getAllByRole("row")).toHaveLength(21))
+    await expect(canvas.getByText("Unknown account")).toBeVisible()
     await expect(canvas.getByText("—")).toBeVisible()
   },
 }
@@ -158,7 +160,7 @@ export const Sessions: Story = {
     await canvas.findByRole("heading", { name: "Global sessions" })
     await canvas.findByRole("table")
     await userEvent.click(
-      await canvas.findByRole("button", { name: "Revoke session" })
+      (await canvas.findAllByRole("button", { name: "Revoke session" }))[0]
     )
     const dialog = within(canvasElement.ownerDocument.body).getByRole("dialog")
     await expect(dialog).toBeVisible()
@@ -182,7 +184,7 @@ export const SessionRevokePending: Story = {
     const canvas = within(canvasElement)
     await canvas.findByRole("table")
     await userEvent.click(
-      await canvas.findByRole("button", { name: "Revoke session" })
+      (await canvas.findAllByRole("button", { name: "Revoke session" }))[0]
     )
     const dialog = within(canvasElement.ownerDocument.body).getByRole("dialog")
     await userEvent.click(
@@ -201,7 +203,7 @@ export const SessionRevokeError: Story = {
     const canvas = within(canvasElement)
     await canvas.findByRole("table")
     await userEvent.click(
-      await canvas.findByRole("button", { name: "Revoke session" })
+      (await canvas.findAllByRole("button", { name: "Revoke session" }))[0]
     )
     const dialog = within(canvasElement.ownerDocument.body).getByRole("dialog")
     await userEvent.click(
@@ -235,7 +237,7 @@ export const IdentityEmpty: Story = {
   ...createScenario("empty").story,
   args: { page: "sessions" },
   play: async ({ canvasElement }) => {
-    await within(canvasElement).findByText("No data yet")
+    await within(canvasElement).findByText("There are no active sessions.")
   },
 }
 

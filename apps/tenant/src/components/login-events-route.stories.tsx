@@ -8,7 +8,7 @@ import {
   RouterProvider,
 } from "@tanstack/react-router"
 import type { Meta, StoryObj } from "@storybook/react-vite"
-import { expect, within } from "storybook/test"
+import { expect, waitFor, within } from "storybook/test"
 import {
   AuthenticatedSessionProvider,
   createWorkspaceAuthClient,
@@ -96,6 +96,9 @@ export const FilteredFromUrl: Story = {
   args: { initialSearch: "?result=failed&method=email&page=2&pageSize=10" },
   play: async ({ canvasElement }) => {
     await within(canvasElement).findByRole("table")
+    await waitFor(() =>
+      expect(defaultFixture.personalLoginQueries.length).toBeGreaterThan(0)
+    )
     const params = defaultFixture.personalLoginQueries.at(-1)!
     await expect(params.get("result")).toBe("failed")
     await expect(params.get("method")).toBe("email")
@@ -114,7 +117,9 @@ export const Loading: Story = {
 export const Empty: Story = {
   ...scenario("empty"),
   play: async ({ canvasElement }) => {
-    await within(canvasElement).findByText("No data yet")
+    await within(canvasElement).findByText(
+      "No login records match these filters."
+    )
   },
 }
 
