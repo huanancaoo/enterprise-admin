@@ -66,7 +66,7 @@ export class IdentityService {
           AND active_session.expires_at > (clock_timestamp() AT TIME ZONE 'UTC')
          WHERE account.id = $1
          LIMIT 1
-         FOR SHARE OF account, active_session`,
+         FOR SHARE OF active_session`,
         [result.user.id, result.session.id],
       );
       await client.query('COMMIT');

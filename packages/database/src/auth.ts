@@ -327,7 +327,7 @@ export function createAuth(
           AND active_session.expires_at > (clock_timestamp() AT TIME ZONE 'UTC')
          WHERE account.id = $1
          LIMIT 1
-         FOR SHARE OF account, active_session`,
+         FOR SHARE OF active_session`,
         [userId, sessionId]
       )
       await client.query("COMMIT")
@@ -1013,11 +1013,6 @@ export function createAuth(
       },
       session: {
         create: {
-          before: async (session) => {
-            await requireActiveAccount(session.userId)
-          },
-        },
-        update: {
           before: async (session) => {
             await requireActiveAccount(session.userId)
           },
