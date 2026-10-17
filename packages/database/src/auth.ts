@@ -340,6 +340,20 @@ export function createAuth(
     }
   }
 
+  async function requireActiveSession(userId: string, sessionId: string) {
+    await requireActiveAccount(userId)
+    const result = await pool.query(
+      `SELECT id
+       FROM public.session
+       WHERE id = $1
+         AND user_id = $2
+         AND expires_at > (clock_timestamp() AT TIME ZONE 'UTC')
+       FOR SHARE`,
+      [sessionId, userId]
+    )
+    if (!result.rows[0]) throw new APIError("UNAUTHORIZED")
+  }
+
   async function recordLoginEvent(input: {
     userId?: string | null
     email?: string | null
@@ -359,7 +373,7 @@ export function createAuth(
         request?.clientIp ?? null,
         request?.userAgent ?? null,
         request?.requestId ?? null,
-      ],
+      ]
     )
   }
 
@@ -379,13 +393,78 @@ export function createAuth(
             : ""
     if (candidate === "ACCOUNT_SUSPENDED") return candidate
     if (candidate === "AUTHORIZATION_UNAVAILABLE") return candidate
-    if (candidate === "INVALID_EMAIL_OR_PASSWORD")
-      return "INVALID_CREDENTIALS"
+    if (candidate === "INVALID_EMAIL_OR_PASSWORD") return "INVALID_CREDENTIALS"
     if (candidate === "EMAIL_NOT_VERIFIED") return candidate
-    if (candidate === "INVALID_TOTP" || candidate === "INVALID_BACKUP_CODE")
+    if (
+      candidate === "INVALID_CODE" ||
+      candidate === "INVALID_TOTP" ||
+      candidate === "INVALID_BACKUP_CODE"
+    )
       return "INVALID_OTP"
     return "AUTHENTICATION_FAILED"
   }
+
+  const publicSessionPaths = new Set([
+    "/callback/github",
+    "/forgot-password",
+    "/get-session",
+    "/request-password-reset",
+    "/reset-password",
+    "/sign-in/email",
+    "/sign-in/social",
+    "/sign-in/username",
+    "/sign-out",
+    "/sign-up/email",
+    "/verify-email",
+  ])
+
+  const terminalLoginAuditPlugin = {
+    id: "terminal-login-audit",
+    hooks: {
+      after: [
+        {
+          matcher: () => true,
+          handler: createAuthMiddleware(async (ctx) => {
+            const attempt = takeLoginAttempt()
+            if (!attempt) return
+            const result = ctx.context.returned
+            if (result instanceof APIError) {
+              await recordLoginEvent({
+                email: attempt.email,
+                method: attempt.method,
+                result: "failed",
+                reason: loginFailureReason(result),
+              }).catch(() => {
+                console.error({
+                  event: "login.audit.unavailable",
+                  requestId: getAuthRequestContext()?.requestId,
+                })
+              })
+              return
+            }
+            const session = ctx.context.newSession
+            if (!session) return
+            try {
+              await recordLoginEvent({
+                userId: session.user.id,
+                email: session.user.email,
+                method: attempt.method,
+                result: "succeeded",
+              })
+            } catch {
+              await ctx.context.internalAdapter.deleteSession(
+                session.session.token
+              )
+              throw new APIError(503, {
+                code: "AUDIT_UNAVAILABLE",
+                message: "AUDIT_UNAVAILABLE",
+              })
+            }
+          }),
+        },
+      ],
+    },
+  } as BetterAuthPlugin
 
   const transactionalAdapter = createTransactionalAuthAdapter(pool)
   type InvitationEmailData = Omit<
@@ -1078,27 +1157,6 @@ export function createAuth(
     },
     hooks: {
       after: createAuthMiddleware(async (ctx) => {
-        const loginAttempt = takeLoginAttempt()
-        const session = ctx.context.newSession
-        if (loginAttempt && session) {
-          try {
-            await recordLoginEvent({
-              userId: session.user.id,
-              email: session.user.email,
-              method: loginAttempt.method,
-              result: "succeeded",
-            })
-          } catch {
-            // A login without its required audit fact must not leave a usable Session.
-            await ctx.context.internalAdapter.deleteSession(
-              session.session.token,
-            )
-            throw new APIError(503, {
-              code: "AUDIT_UNAVAILABLE",
-              message: "AUDIT_UNAVAILABLE",
-            })
-          }
-        }
         if (
           ctx.path === "/get-session" &&
           ctx.context.returned &&
@@ -1219,21 +1277,36 @@ export function createAuth(
           const email = (ctx.body as { email?: unknown } | undefined)?.email
           setLoginAttempt({
             method: "email",
-            email: typeof email === "string" ? email.trim().toLowerCase() : undefined,
+            email:
+              typeof email === "string"
+                ? email.trim().toLowerCase()
+                : undefined,
           })
         } else if (ctx.path.startsWith("/callback/")) {
           setLoginAttempt({ method: "github" })
-        } else if (
-          ctx.path === "/two-factor/verify-totp" ||
-          ctx.path === "/two-factor/verify-backup-code"
-        ) {
-          setLoginAttempt({ method: "totp" })
         }
         const currentSession = await getSessionFromCtx(ctx, {
           disableCookieCache: true,
           disableRefresh: true,
         })
-        if (currentSession) await requireActiveAccount(currentSession.user.id)
+        if (
+          currentSession &&
+          !publicSessionPaths.has(ctx.path) &&
+          !ctx.path.startsWith("/reset-password/") &&
+          !ctx.path.startsWith("/callback/")
+        ) {
+          await requireActiveSession(
+            currentSession.user.id,
+            currentSession.session.id
+          )
+        }
+        if (
+          !currentSession &&
+          (ctx.path === "/two-factor/verify-totp" ||
+            ctx.path === "/two-factor/verify-backup-code")
+        ) {
+          setLoginAttempt({ method: "totp" })
+        }
         if (ctx.path === "/change-password") {
           // 改密后的会话存续是服务端策略，调用方不能选择保留其他已登录会话。
           return {
@@ -1381,6 +1454,7 @@ export function createAuth(
       ),
       // 登录页读 cookie；已登录会话从 user.lastLoginMethod 展示，必须写库。
       lastLoginMethod({ storeInDatabase: true }),
+      terminalLoginAuditPlugin,
     ],
   })
   // 用具名原生 API 类型保持声明文件可序列化；运行方法仍由注册的插件生成。
