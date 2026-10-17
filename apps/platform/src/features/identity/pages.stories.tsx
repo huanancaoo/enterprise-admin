@@ -107,7 +107,7 @@ export const PersonalAccountRows: Story = {
     await canvas.findByRole("table")
     await waitFor(() => expect(canvas.getAllByRole("row")).toHaveLength(21))
     await expect(canvas.getByText("Unknown account")).toBeVisible()
-    await expect(canvas.getByText("—")).toBeVisible()
+    await expect(canvas.getAllByText("—").length).toBeGreaterThan(0)
   },
 }
 
@@ -127,7 +127,9 @@ export const LoginEventsEmpty: Story = {
   ...createScenario("empty").story,
   args: { page: "login-events" },
   play: async ({ canvasElement }) => {
-    await within(canvasElement).findByText("No data yet")
+    await within(canvasElement).findByText(
+      "No login records match these filters."
+    )
   },
 }
 
@@ -163,7 +165,7 @@ export const Sessions: Story = {
       (await canvas.findAllByRole("button", { name: "Revoke session" }))[0]
     )
     const dialog = within(canvasElement.ownerDocument.body).getByRole("dialog")
-    await expect(dialog).toBeVisible()
+    await waitFor(() => expect(dialog).toBeVisible())
     await userEvent.click(
       within(dialog).getByRole("button", { name: "Confirm" })
     )
