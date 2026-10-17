@@ -9,15 +9,16 @@ import {
   AuthorizationService,
   type PermissionRequest,
 } from '../authorization/authorization.service';
-import { ApiException } from '../http/api-exception';
 import type { RequestLanguage } from '../http/request-language';
 import { IdentityService } from '../identity/identity.service';
+import { OrganizationMembershipAccess } from './organization-membership-access';
 
 @Injectable()
 export class TenantContextService {
   constructor(
     private readonly identity: IdentityService,
     private readonly authorization: AuthorizationService,
+    private readonly membershipAccess: OrganizationMembershipAccess,
   ) {}
 
   async resolve(
@@ -80,14 +81,12 @@ export class TenantContextService {
         ? await this.identity.requireBusinessIdentity(headers, organizationId)
         : await this.identity.requireIdentity(headers);
     language.useUserPreference(actor.preferredLocale);
-    const membership = await this.identity.requireOrganizationMembership(
-      organizationId,
+    const membership = await this.membershipAccess.resolve(
       actor,
+      organizationId,
       requestId,
+      language,
     );
-    language.useOrganizationDefault(membership.defaultLocale);
-    if (membership.status !== 'ACTIVE')
-      throw new ApiException(403, 'ORGANIZATION_SUSPENDED');
     // 可信上下文只使用已验证的身份、成员和组织；请求体不能参与构造。
     return Object.freeze({
       organizationId,

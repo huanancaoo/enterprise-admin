@@ -44,14 +44,10 @@ export class PlatformSystemController {
     query: contracts.PlatformEmployeeCandidatesQuery,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.identity(
+    return this.system.employees.candidates(
       actor,
-      'employee',
-      'candidates',
-      null,
       query,
       this.requestId(response),
-      contracts.PlatformEmployeeCandidatesPageSchema,
     );
   }
 
@@ -72,12 +68,10 @@ export class PlatformSystemController {
     query: contracts.PlatformEmployeeOptionsQuery,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.employeeOptions(
+    return this.system.employees.departmentOptions(
       actor,
-      'department',
       query,
       this.requestId(response),
-      contracts.PlatformEmployeeDepartmentOptionsPageSchema,
     );
   }
 
@@ -98,12 +92,10 @@ export class PlatformSystemController {
     query: contracts.PlatformEmployeeOptionsQuery,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.employeeOptions(
+    return this.system.employees.postOptions(
       actor,
-      'post',
       query,
       this.requestId(response),
-      contracts.PlatformEmployeePostOptionsPageSchema,
     );
   }
 
@@ -124,12 +116,10 @@ export class PlatformSystemController {
     query: contracts.PlatformEmployeeOptionsQuery,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.employeeOptions(
+    return this.system.employees.roleOptions(
       actor,
-      'role',
       query,
       this.requestId(response),
-      contracts.PlatformEmployeeRoleOptionsPageSchema,
     );
   }
 
@@ -146,14 +136,10 @@ export class PlatformSystemController {
     body: contracts.BatchRemovePlatformEmployees,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.identity(
+    return this.system.employees.removeMany(
       actor,
-      'employee',
-      'batch-delete',
-      null,
       body,
       this.requestId(response),
-      contracts.PlatformEmployeeBatchRemoveResultSchema,
     );
   }
 
@@ -167,15 +153,7 @@ export class PlatformSystemController {
     @CurrentPlatform() actor: PlatformPrincipal,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
-      actor,
-      'menu',
-      'registry',
-      null,
-      {},
-      this.requestId(response),
-      contracts.PlatformMenuRegistrySchema,
-    );
+    return this.system.menus.registry(actor, this.requestId(response));
   }
 
   @Get('navigation')
@@ -188,15 +166,7 @@ export class PlatformSystemController {
     @CurrentPlatform() actor: PlatformPrincipal,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
-      actor,
-      'menu',
-      'navigation',
-      null,
-      {},
-      this.requestId(response),
-      contracts.PlatformNavigationSchema,
-    );
+    return this.system.menus.navigation(actor, this.requestId(response));
   }
 
   @Post('dictionaries/cache/refresh')
@@ -210,15 +180,7 @@ export class PlatformSystemController {
     @CurrentPlatform() actor: PlatformPrincipal,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
-      actor,
-      'dictionary',
-      'refresh',
-      null,
-      {},
-      this.requestId(response),
-      contracts.PlatformSystemRefreshResultSchema,
-    );
+    return this.system.dictionaries.refresh(actor, this.requestId(response));
   }
 
   @Get('dictionaries/by-key/:key')
@@ -232,14 +194,10 @@ export class PlatformSystemController {
     @Param('key', { schema: contracts.PlatformSystemKeySchema }) key: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
+    return this.system.dictionaries.getByKey(
       actor,
-      'dictionary',
-      'by-key',
-      null,
-      { key },
+      key,
       this.requestId(response),
-      contracts.PlatformDictionaryValueSchema,
     );
   }
 
@@ -254,15 +212,7 @@ export class PlatformSystemController {
     @CurrentPlatform() actor: PlatformPrincipal,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
-      actor,
-      'parameter',
-      'refresh',
-      null,
-      {},
-      this.requestId(response),
-      contracts.PlatformSystemRefreshResultSchema,
-    );
+    return this.system.parameters.refresh(actor, this.requestId(response));
   }
 
   @Get('parameters/by-key/:key')
@@ -276,14 +226,10 @@ export class PlatformSystemController {
     @Param('key', { schema: contracts.PlatformSystemKeySchema }) key: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
+    return this.system.parameters.getByKey(
       actor,
-      'parameter',
-      'by-key',
-      null,
-      { key },
+      key,
       this.requestId(response),
-      contracts.PlatformParameterValueSchema,
     );
   }
 
@@ -316,15 +262,7 @@ export class PlatformSystemController {
     query: contracts.PlatformEmployeesQuery,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.identity(
-      actor,
-      'employee',
-      'list',
-      null,
-      query,
-      this.requestId(response),
-      contracts.PlatformEmployeesPageSchema,
-    );
+    return this.system.employees.list(actor, query, this.requestId(response));
   }
 
   @Post('employees')
@@ -339,7 +277,7 @@ export class PlatformSystemController {
     body: contracts.CreatePlatformEmployee,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.createEmployee(actor, body, this.requestId(response));
+    return this.system.employees.create(actor, body, this.requestId(response));
   }
 
   @Get('employees/:userId')
@@ -353,15 +291,7 @@ export class PlatformSystemController {
     @Param('userId', { schema: contracts.UserIdSchema }) userId: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.identity(
-      actor,
-      'employee',
-      'get',
-      userId,
-      {},
-      this.requestId(response),
-      contracts.PlatformEmployeeSchema,
-    );
+    return this.system.employees.get(actor, userId, this.requestId(response));
   }
 
   @Patch('employees/:userId')
@@ -377,14 +307,11 @@ export class PlatformSystemController {
     body: contracts.UpdatePlatformEmployee,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.identity(
+    return this.system.employees.update(
       actor,
-      'employee',
-      'update',
       userId,
       body,
       this.requestId(response),
-      contracts.PlatformEmployeeSchema,
     );
   }
 
@@ -399,14 +326,10 @@ export class PlatformSystemController {
     @Param('userId', { schema: contracts.UserIdSchema }) userId: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.identity(
+    return this.system.employees.remove(
       actor,
-      'employee',
-      'delete',
       userId,
-      {},
       this.requestId(response),
-      contracts.PlatformSystemDeleteResultSchema,
     );
   }
 
@@ -423,14 +346,11 @@ export class PlatformSystemController {
     body: contracts.SetPlatformEmployeeStatus,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.identity(
+    return this.system.employees.setStatus(
       actor,
-      'employee',
-      'set-status',
       userId,
       body,
       this.requestId(response),
-      contracts.PlatformEmployeeSchema,
     );
   }
 
@@ -447,14 +367,11 @@ export class PlatformSystemController {
     body: contracts.SetPlatformEmployeeRoles,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.identity(
+    return this.system.employees.setRoles(
       actor,
-      'employee',
-      'set-roles',
       userId,
       body,
       this.requestId(response),
-      contracts.PlatformEmployeeSchema,
     );
   }
 
@@ -480,15 +397,7 @@ export class PlatformSystemController {
     query: contracts.PlatformSystemQuery,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.identity(
-      actor,
-      'role',
-      'list',
-      null,
-      query,
-      this.requestId(response),
-      contracts.PlatformRolesPageSchema,
-    );
+    return this.system.roles.list(actor, query, this.requestId(response));
   }
 
   @Post('roles')
@@ -500,15 +409,7 @@ export class PlatformSystemController {
     body: contracts.CreatePlatformRole,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.identity(
-      actor,
-      'role',
-      'create',
-      null,
-      body,
-      this.requestId(response),
-      contracts.PlatformRoleSchema,
-    );
+    return this.system.roles.create(actor, body, this.requestId(response));
   }
 
   @Get('roles/:roleId')
@@ -519,15 +420,7 @@ export class PlatformSystemController {
     @Param('roleId', { schema: contracts.UserIdSchema }) roleId: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.identity(
-      actor,
-      'role',
-      'get',
-      roleId,
-      {},
-      this.requestId(response),
-      contracts.PlatformRoleSchema,
-    );
+    return this.system.roles.get(actor, roleId, this.requestId(response));
   }
 
   @Patch('roles/:roleId')
@@ -540,14 +433,11 @@ export class PlatformSystemController {
     body: contracts.UpdatePlatformRole,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.identity(
+    return this.system.roles.update(
       actor,
-      'role',
-      'update',
       roleId,
       body,
       this.requestId(response),
-      contracts.PlatformRoleSchema,
     );
   }
 
@@ -562,15 +452,7 @@ export class PlatformSystemController {
     @Param('roleId', { schema: contracts.UserIdSchema }) roleId: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.identity(
-      actor,
-      'role',
-      'delete',
-      roleId,
-      {},
-      this.requestId(response),
-      contracts.PlatformSystemDeleteResultSchema,
-    );
+    return this.system.roles.remove(actor, roleId, this.requestId(response));
   }
 
   @Patch('roles/:roleId/status')
@@ -583,14 +465,11 @@ export class PlatformSystemController {
     body: contracts.SetPlatformSystemStatus,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.identity(
+    return this.system.roles.setStatus(
       actor,
-      'role',
-      'set-status',
       roleId,
       body,
       this.requestId(response),
-      contracts.PlatformRoleSchema,
     );
   }
 
@@ -609,15 +488,7 @@ export class PlatformSystemController {
     query: contracts.PlatformSystemTreeQuery,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
-      actor,
-      'menu',
-      'list',
-      null,
-      query,
-      this.requestId(response),
-      contracts.PlatformMenusTreeSchema,
-    );
+    return this.system.menus.list(actor, query, this.requestId(response));
   }
 
   @Post('menus')
@@ -629,15 +500,7 @@ export class PlatformSystemController {
     body: contracts.CreatePlatformMenu,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
-      actor,
-      'menu',
-      'create',
-      null,
-      body,
-      this.requestId(response),
-      contracts.PlatformMenuSchema,
-    );
+    return this.system.menus.create(actor, body, this.requestId(response));
   }
 
   @Get('menus/:menuId')
@@ -648,15 +511,7 @@ export class PlatformSystemController {
     @Param('menuId', { schema: contracts.UserIdSchema }) menuId: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
-      actor,
-      'menu',
-      'get',
-      menuId,
-      {},
-      this.requestId(response),
-      contracts.PlatformMenuSchema,
-    );
+    return this.system.menus.get(actor, menuId, this.requestId(response));
   }
 
   @Patch('menus/:menuId')
@@ -669,14 +524,11 @@ export class PlatformSystemController {
     body: contracts.UpdatePlatformMenu,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
+    return this.system.menus.update(
       actor,
-      'menu',
-      'update',
       menuId,
       body,
       this.requestId(response),
-      contracts.PlatformMenuSchema,
     );
   }
 
@@ -691,15 +543,7 @@ export class PlatformSystemController {
     @Param('menuId', { schema: contracts.UserIdSchema }) menuId: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
-      actor,
-      'menu',
-      'delete',
-      menuId,
-      {},
-      this.requestId(response),
-      contracts.PlatformSystemDeleteResultSchema,
-    );
+    return this.system.menus.remove(actor, menuId, this.requestId(response));
   }
 
   @Patch('menus/:menuId/status')
@@ -712,14 +556,11 @@ export class PlatformSystemController {
     body: contracts.SetPlatformSystemStatus,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
+    return this.system.menus.setStatus(
       actor,
-      'menu',
-      'set-status',
       menuId,
       body,
       this.requestId(response),
-      contracts.PlatformMenuSchema,
     );
   }
 
@@ -738,15 +579,7 @@ export class PlatformSystemController {
     query: contracts.PlatformSystemTreeQuery,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
-      actor,
-      'department',
-      'list',
-      null,
-      query,
-      this.requestId(response),
-      contracts.PlatformDepartmentsTreeSchema,
-    );
+    return this.system.departments.list(actor, query, this.requestId(response));
   }
 
   @Post('departments')
@@ -761,14 +594,10 @@ export class PlatformSystemController {
     body: contracts.CreatePlatformDepartment,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
+    return this.system.departments.create(
       actor,
-      'department',
-      'create',
-      null,
       body,
       this.requestId(response),
-      contracts.PlatformDepartmentSchema,
     );
   }
 
@@ -784,14 +613,10 @@ export class PlatformSystemController {
     departmentId: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
+    return this.system.departments.get(
       actor,
-      'department',
-      'get',
       departmentId,
-      {},
       this.requestId(response),
-      contracts.PlatformDepartmentSchema,
     );
   }
 
@@ -809,14 +634,11 @@ export class PlatformSystemController {
     body: contracts.UpdatePlatformDepartment,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
+    return this.system.departments.update(
       actor,
-      'department',
-      'update',
       departmentId,
       body,
       this.requestId(response),
-      contracts.PlatformDepartmentSchema,
     );
   }
 
@@ -832,14 +654,10 @@ export class PlatformSystemController {
     departmentId: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
+    return this.system.departments.remove(
       actor,
-      'department',
-      'delete',
       departmentId,
-      {},
       this.requestId(response),
-      contracts.PlatformSystemDeleteResultSchema,
     );
   }
 
@@ -857,14 +675,11 @@ export class PlatformSystemController {
     body: contracts.SetPlatformSystemStatus,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
+    return this.system.departments.setStatus(
       actor,
-      'department',
-      'set-status',
       departmentId,
       body,
       this.requestId(response),
-      contracts.PlatformDepartmentSchema,
     );
   }
 
@@ -890,15 +705,7 @@ export class PlatformSystemController {
     query: contracts.PlatformSystemQuery,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
-      actor,
-      'post',
-      'list',
-      null,
-      query,
-      this.requestId(response),
-      contracts.PlatformPostsPageSchema,
-    );
+    return this.system.posts.list(actor, query, this.requestId(response));
   }
 
   @Post('posts')
@@ -910,15 +717,7 @@ export class PlatformSystemController {
     body: contracts.CreatePlatformPost,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
-      actor,
-      'post',
-      'create',
-      null,
-      body,
-      this.requestId(response),
-      contracts.PlatformPostSchema,
-    );
+    return this.system.posts.create(actor, body, this.requestId(response));
   }
 
   @Get('posts/:postId')
@@ -929,15 +728,7 @@ export class PlatformSystemController {
     @Param('postId', { schema: contracts.UserIdSchema }) postId: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
-      actor,
-      'post',
-      'get',
-      postId,
-      {},
-      this.requestId(response),
-      contracts.PlatformPostSchema,
-    );
+    return this.system.posts.get(actor, postId, this.requestId(response));
   }
 
   @Patch('posts/:postId')
@@ -950,14 +741,11 @@ export class PlatformSystemController {
     body: contracts.UpdatePlatformPost,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
+    return this.system.posts.update(
       actor,
-      'post',
-      'update',
       postId,
       body,
       this.requestId(response),
-      contracts.PlatformPostSchema,
     );
   }
 
@@ -972,15 +760,7 @@ export class PlatformSystemController {
     @Param('postId', { schema: contracts.UserIdSchema }) postId: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
-      actor,
-      'post',
-      'delete',
-      postId,
-      {},
-      this.requestId(response),
-      contracts.PlatformSystemDeleteResultSchema,
-    );
+    return this.system.posts.remove(actor, postId, this.requestId(response));
   }
 
   @Patch('posts/:postId/status')
@@ -993,14 +773,11 @@ export class PlatformSystemController {
     body: contracts.SetPlatformSystemStatus,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
+    return this.system.posts.setStatus(
       actor,
-      'post',
-      'set-status',
       postId,
       body,
       this.requestId(response),
-      contracts.PlatformPostSchema,
     );
   }
 
@@ -1026,14 +803,10 @@ export class PlatformSystemController {
     query: contracts.PlatformSystemQuery,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
+    return this.system.dictionaries.list(
       actor,
-      'dictionary',
-      'list',
-      null,
       query,
       this.requestId(response),
-      contracts.PlatformDictionariesPageSchema,
     );
   }
 
@@ -1049,14 +822,10 @@ export class PlatformSystemController {
     body: contracts.CreatePlatformDictionary,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
+    return this.system.dictionaries.create(
       actor,
-      'dictionary',
-      'create',
-      null,
       body,
       this.requestId(response),
-      contracts.PlatformDictionarySchema,
     );
   }
 
@@ -1072,14 +841,10 @@ export class PlatformSystemController {
     dictionaryId: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
+    return this.system.dictionaries.get(
       actor,
-      'dictionary',
-      'get',
       dictionaryId,
-      {},
       this.requestId(response),
-      contracts.PlatformDictionarySchema,
     );
   }
 
@@ -1097,14 +862,11 @@ export class PlatformSystemController {
     body: contracts.UpdatePlatformDictionary,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
+    return this.system.dictionaries.update(
       actor,
-      'dictionary',
-      'update',
       dictionaryId,
       body,
       this.requestId(response),
-      contracts.PlatformDictionarySchema,
     );
   }
 
@@ -1120,14 +882,10 @@ export class PlatformSystemController {
     dictionaryId: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
+    return this.system.dictionaries.remove(
       actor,
-      'dictionary',
-      'delete',
       dictionaryId,
-      {},
       this.requestId(response),
-      contracts.PlatformSystemDeleteResultSchema,
     );
   }
 
@@ -1145,14 +903,11 @@ export class PlatformSystemController {
     body: contracts.SetPlatformSystemStatus,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
+    return this.system.dictionaries.setStatus(
       actor,
-      'dictionary',
-      'set-status',
       dictionaryId,
       body,
       this.requestId(response),
-      contracts.PlatformDictionarySchema,
     );
   }
 
@@ -1178,15 +933,7 @@ export class PlatformSystemController {
     query: contracts.PlatformSystemQuery,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
-      actor,
-      'parameter',
-      'list',
-      null,
-      query,
-      this.requestId(response),
-      contracts.PlatformParametersPageSchema,
-    );
+    return this.system.parameters.list(actor, query, this.requestId(response));
   }
 
   @Post('parameters')
@@ -1201,15 +948,7 @@ export class PlatformSystemController {
     body: contracts.CreatePlatformParameter,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
-      actor,
-      'parameter',
-      'create',
-      null,
-      body,
-      this.requestId(response),
-      contracts.PlatformParameterSchema,
-    );
+    return this.system.parameters.create(actor, body, this.requestId(response));
   }
 
   @Get('parameters/:parameterId')
@@ -1224,14 +963,10 @@ export class PlatformSystemController {
     parameterId: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
+    return this.system.parameters.get(
       actor,
-      'parameter',
-      'get',
       parameterId,
-      {},
       this.requestId(response),
-      contracts.PlatformParameterSchema,
     );
   }
 
@@ -1249,14 +984,11 @@ export class PlatformSystemController {
     body: contracts.UpdatePlatformParameter,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
+    return this.system.parameters.update(
       actor,
-      'parameter',
-      'update',
       parameterId,
       body,
       this.requestId(response),
-      contracts.PlatformParameterSchema,
     );
   }
 
@@ -1272,14 +1004,10 @@ export class PlatformSystemController {
     parameterId: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
+    return this.system.parameters.remove(
       actor,
-      'parameter',
-      'delete',
       parameterId,
-      {},
       this.requestId(response),
-      contracts.PlatformSystemDeleteResultSchema,
     );
   }
 
@@ -1297,14 +1025,11 @@ export class PlatformSystemController {
     body: contracts.SetPlatformSystemStatus,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
+    return this.system.parameters.setStatus(
       actor,
-      'parameter',
-      'set-status',
       parameterId,
       body,
       this.requestId(response),
-      contracts.PlatformParameterSchema,
     );
   }
 
@@ -1318,14 +1043,11 @@ export class PlatformSystemController {
     body: contracts.SetPlatformRolePermissions,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.identity(
+    return this.system.roles.setPermissions(
       actor,
-      'role',
-      'set-permissions',
       roleId,
       body,
       this.requestId(response),
-      contracts.PlatformRoleSchema,
     );
   }
 
@@ -1359,14 +1081,11 @@ export class PlatformSystemController {
     query: contracts.PlatformRoleEmployeesQuery,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.identity(
+    return this.system.roles.employees(
       actor,
-      'role',
-      'employees',
       roleId,
       query,
       this.requestId(response),
-      contracts.PlatformEmployeesPageSchema,
     );
   }
 
@@ -1384,14 +1103,11 @@ export class PlatformSystemController {
     body: contracts.SetPlatformRoleEmployees,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.identity(
+    return this.system.roles.assignEmployees(
       actor,
-      'role',
-      'assign-employees',
       roleId,
       body,
       this.requestId(response),
-      contracts.PlatformRoleEmployeesMutationResultSchema,
     );
   }
 
@@ -1408,14 +1124,11 @@ export class PlatformSystemController {
     body: contracts.SetPlatformRoleEmployees,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.identity(
+    return this.system.roles.revokeEmployees(
       actor,
-      'role',
-      'revoke-employees',
       roleId,
       body,
       this.requestId(response),
-      contracts.PlatformRoleEmployeesMutationResultSchema,
     );
   }
 
@@ -1443,14 +1156,11 @@ export class PlatformSystemController {
     query: contracts.PlatformDictionaryItemsQuery,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
+    return this.system.dictionaries.items.list(
       actor,
-      'dictionary-item',
-      'list',
-      null,
-      { ...query, dictionaryId },
+      dictionaryId,
+      query,
       this.requestId(response),
-      contracts.PlatformDictionaryItemsPageSchema,
     );
   }
 
@@ -1468,14 +1178,11 @@ export class PlatformSystemController {
     body: contracts.CreatePlatformDictionaryItem,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
+    return this.system.dictionaries.items.create(
       actor,
-      'dictionary-item',
-      'create',
-      null,
-      { ...body, dictionaryId },
+      dictionaryId,
+      body,
       this.requestId(response),
-      contracts.PlatformDictionaryItemSchema,
     );
   }
 
@@ -1492,14 +1199,11 @@ export class PlatformSystemController {
     @Param('itemId', { schema: contracts.UserIdSchema }) itemId: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
+    return this.system.dictionaries.items.get(
       actor,
-      'dictionary-item',
-      'get',
+      dictionaryId,
       itemId,
-      { dictionaryId },
       this.requestId(response),
-      contracts.PlatformDictionaryItemSchema,
     );
   }
 
@@ -1518,14 +1222,12 @@ export class PlatformSystemController {
     body: contracts.UpdatePlatformDictionaryItem,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
+    return this.system.dictionaries.items.update(
       actor,
-      'dictionary-item',
-      'update',
+      dictionaryId,
       itemId,
-      { ...body, dictionaryId },
+      body,
       this.requestId(response),
-      contracts.PlatformDictionaryItemSchema,
     );
   }
 
@@ -1542,14 +1244,11 @@ export class PlatformSystemController {
     @Param('itemId', { schema: contracts.UserIdSchema }) itemId: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
+    return this.system.dictionaries.items.remove(
       actor,
-      'dictionary-item',
-      'delete',
+      dictionaryId,
       itemId,
-      { dictionaryId },
       this.requestId(response),
-      contracts.PlatformSystemDeleteResultSchema,
     );
   }
 
@@ -1568,14 +1267,12 @@ export class PlatformSystemController {
     body: contracts.SetPlatformSystemStatus,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.system.catalog(
+    return this.system.dictionaries.items.setStatus(
       actor,
-      'dictionary-item',
-      'set-status',
+      dictionaryId,
       itemId,
-      { ...body, dictionaryId },
+      body,
       this.requestId(response),
-      contracts.PlatformDictionaryItemSchema,
     );
   }
 

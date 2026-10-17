@@ -9,6 +9,7 @@ import {
   type PlatformEmployee,
   type PlatformRole,
 } from "@workspace/contracts/platform-system"
+import { platformUserFixture } from "./platform-users"
 
 const employeeId = "c7dd0a27-4f8a-4aef-8d4c-000000008001"
 const departmentId = "c7dd0a27-4f8a-4aef-8d4c-000000008101"
@@ -48,6 +49,8 @@ export type PlatformEmployeesRolesScenario =
   | "loading"
   | "unavailable"
   | "locked"
+  | "passwordFailures"
+  | "unlockFailure"
   | "mutationFailure"
   | "withoutCatalogRead"
 
@@ -73,9 +76,14 @@ export function createPlatformEmployeesRolesScenario(
               index % 2 === 0
                 ? structuredClone(platformEmployeeFixture.roles)
                 : [],
-            lockedUntil:
-              scenario === "locked" ? "2026-10-17T00:15:00.000Z" : null,
-            failedAttempts: scenario === "locked" ? 5 : 0,
+            lockedUntil: ["locked", "unlockFailure"].includes(scenario)
+              ? new Date(Date.now() + 15 * 60_000).toISOString()
+              : null,
+            failedAttempts: ["locked", "unlockFailure"].includes(scenario)
+              ? 5
+              : scenario === "passwordFailures"
+                ? 2
+                : 0,
           }))
     roles = scenario === "empty" ? [] : [structuredClone(platformRoleFixture)]
     requests.splice(0)
@@ -350,6 +358,17 @@ export function createPlatformEmployeesRolesScenario(
           return HttpResponse.json({ id: params.userId, deleted: true })
         }
       ),
+      http.get("*/api/v1/platform/users/:userId", ({ params }) => {
+        const employee = employees.find(
+          (item) => item.userId === params.userId
+        )!
+        return HttpResponse.json({
+          ...platformUserFixture,
+          userId: employee.userId,
+          name: employee.name,
+          lockedUntil: employee.lockedUntil,
+        })
+      }),
       http.post("*/api/v1/platform/users/:userId/password-reset", () =>
         HttpResponse.json({ accepted: true })
       ),
@@ -357,13 +376,20 @@ export function createPlatformEmployeesRolesScenario(
         "*/api/v1/platform/users/:userId/password-login/unlock",
         ({ params, request }) => {
           record(request)
-          if (scenario === "mutationFailure") return error()
+          if (["mutationFailure", "unlockFailure"].includes(scenario))
+            return error()
           const employee = employees.find(
             (employee) => employee.userId === params.userId
           )!
+          const changed =
+            employee.lockedUntil !== null || employee.failedAttempts > 0
           employee.lockedUntil = null
           employee.failedAttempts = 0
-          return HttpResponse.json({ unlocked: true })
+          return HttpResponse.json({
+            userId: employee.userId,
+            changed,
+            lockedUntil: null,
+          })
         }
       ),
       http.get("*/api/v1/platform/departments", ({ request }) => {

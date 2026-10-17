@@ -29,10 +29,10 @@ import {
   type AuditEventsPage,
   type AuditEventsQuery,
 } from '@workspace/contracts';
-import { ApiException } from '../http/api-exception';
 import { getRequestLanguage } from '../http/request-language';
 import { IdentityService } from '../identity/identity.service';
 import { CurrentTenant, RequireTenant } from '../tenancy/tenant.guard';
+import { OrganizationMembershipAccess } from '../tenancy/organization-membership-access';
 import type { TenantContext } from '@workspace/database/tenant';
 import { OrganizationAuditEvents } from './audit-events';
 
@@ -42,6 +42,7 @@ export class OrganizationsController {
   constructor(
     private readonly identity: IdentityService,
     private readonly auditEvents: OrganizationAuditEvents,
+    private readonly membershipAccess: OrganizationMembershipAccess,
   ) {}
 
   @Get('me/organizations')
@@ -79,14 +80,12 @@ export class OrganizationsController {
     const language = getRequestLanguage(response);
     const actor = await this.identity.requireIdentity(fromNodeHeaders(headers));
     language.useUserPreference(actor.preferredLocale);
-    const membership = await this.identity.requireOrganizationMembership(
-      organizationId,
+    const membership = await this.membershipAccess.resolve(
       actor,
+      organizationId,
       response.locals.requestId as string,
+      language,
     );
-    language.useOrganizationDefault(membership.defaultLocale);
-    if (membership.status !== 'ACTIVE')
-      throw new ApiException(403, 'ORGANIZATION_SUSPENDED');
     // 目标组织的偏好解析结果与 HTTP 内容协商分别返回，供界面按语言保留策略使用。
     const effective = language.preferenceResolution;
     return {
@@ -115,16 +114,13 @@ export class OrganizationsController {
   ): Promise<OrganizationRoleAccess> {
     const authHeaders = fromNodeHeaders(headers);
     const actor = await this.identity.requireIdentity(authHeaders);
-    const membership = await this.identity.requireOrganizationMembership(
-      organizationId,
+    // 角色读取只有成员验证成功后才使用用户偏好，保持原有拒绝响应的语言阶段。
+    await this.membershipAccess.resolve(
       actor,
+      organizationId,
       response.locals.requestId as string,
+      getRequestLanguage(response),
     );
-    const language = getRequestLanguage(response);
-    language.useUserPreference(actor.preferredLocale);
-    language.useOrganizationDefault(membership.defaultLocale);
-    if (membership.status !== 'ACTIVE')
-      throw new ApiException(403, 'ORGANIZATION_SUSPENDED');
     return this.identity.readOrganizationRoleAccess(
       authHeaders,
       organizationId,

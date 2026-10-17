@@ -24,7 +24,6 @@ import {
   listPlatformEmployeeRoleOptions,
   requestPlatformUserPasswordReset,
   listPlatformEmployeeCandidates,
-  unlockPlatformUserPasswordLogin,
 } from "@workspace/api-client"
 import {
   PlatformEmployeeSchema,
@@ -84,6 +83,7 @@ import {
 } from "@workspace/ui/components/popover"
 import { ArrowLeftIcon } from "lucide-react"
 import { usePlatformAccessFailure } from "../../lib/use-platform-access-failure"
+import { useUnlockPasswordLogin } from "../users/use-unlock-password-login"
 import {
   PlatformExportButton,
   PlatformEmployeeImportButton,
@@ -1187,6 +1187,7 @@ function EmployeeStatusActions({
   onSaved: () => void
 }) {
   const refreshAuthority = useRefreshPlatformAuthority()
+  const unlock = useUnlockPasswordLogin(employee.userId)
   const { t } = useTranslation("employees")
   const { platformAccess } = useRouteContext({ from: "/platform" })
   const [action, setAction] = useState<"status" | "reset" | "unlock" | null>(
@@ -1304,8 +1305,7 @@ function EmployeeStatusActions({
                   setError(undefined)
                   try {
                     if (action === "unlock") {
-                      await unlockPlatformUserPasswordLogin(employee.userId)
-                      onSaved()
+                      await unlock.mutateAsync()
                     } else if (action === "reset") {
                       await requestPlatformUserPasswordReset(employee.userId)
                       setSent(true)

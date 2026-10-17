@@ -38,6 +38,7 @@ import { AuthRuntime } from '../identity/auth-runtime';
 import type { Identity } from '../identity/identity.service';
 import { ApiException } from '../http/api-exception';
 import { PlatformResources } from '../platform-resources/platform-resources';
+import { PlatformSystem } from './platform-system';
 import {
   encryptPlatformTaskCredential,
   decryptPlatformTaskCredential,
@@ -128,6 +129,7 @@ export class PlatformTasks implements OnApplicationShutdown {
     private readonly runtime: AuthRuntime,
     private readonly privateResources: PlatformResources,
     @Inject(PLATFORM_TASK_CONFIG) private readonly config: PlatformTaskConfig,
+    private readonly system: PlatformSystem,
   ) {}
   start(): void {
     this.queueRuntime ??= createPlatformTaskRuntime(this.config.worker, {
@@ -601,41 +603,29 @@ export class PlatformTasks implements OnApplicationShutdown {
     const common = [actor.userId, actor.sessionId];
     const page = q.page ?? 1;
     const size = q.pageSize ?? 100;
-    if (['employees', 'roles'].includes(resource))
-      return this.query(
-        'SELECT public.platform_system_identity($1,$2,$3,$4,$5,$6::jsonb,$7) AS result',
-        [
-          ...common,
-          resources[resource],
-          'export-page',
-          null,
-          JSON.stringify(q),
+    switch (resource) {
+      case 'employees':
+        return this.system.employees.exportPage(actor, q, requestId, client);
+      case 'roles':
+        return this.system.roles.exportPage(actor, q, requestId, client);
+      case 'menus':
+        return this.system.menus.exportPage(actor, q, requestId, client);
+      case 'departments':
+        return this.system.departments.exportPage(actor, q, requestId, client);
+      case 'posts':
+        return this.system.posts.exportPage(actor, q, requestId, client);
+      case 'dictionaries':
+        return this.system.dictionaries.exportPage(actor, q, requestId, client);
+      case 'dictionary-items':
+        return this.system.dictionaries.items.exportPage(
+          actor,
+          q,
           requestId,
-        ],
-        client,
-      );
-    if (
-      [
-        'posts',
-        'dictionaries',
-        'dictionary-items',
-        'parameters',
-        'menus',
-        'departments',
-      ].includes(resource)
-    )
-      return this.query(
-        'SELECT public.platform_system_catalog($1,$2,$3,$4,$5,$6::jsonb,$7) AS result',
-        [
-          ...common,
-          resources[resource],
-          'export-page',
-          null,
-          JSON.stringify(q),
-          requestId,
-        ],
-        client,
-      );
+          client,
+        );
+      case 'parameters':
+        return this.system.parameters.exportPage(actor, q, requestId, client);
+    }
     if (resource === 'users')
       return this.query(
         'SELECT public.export_platform_users_page($1,$2,$3,$4,$5,$6) AS result',

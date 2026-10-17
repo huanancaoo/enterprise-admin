@@ -30,6 +30,7 @@ import {
   encryptPlatformTaskCredential,
 } from './platform-task-crypto';
 import { PlatformTasks } from './platform-tasks';
+import { PlatformSystem } from './platform-system';
 
 vi.mock('@workspace/jobs/platform-exchange', async (importOriginal) => {
   const actual =
@@ -197,6 +198,7 @@ function setup() {
       worker: readWorkerConfig({ REDIS_URL: 'redis://localhost:6379' }),
       encryptionKey,
     },
+    new PlatformSystem({ pool } as unknown as AuthRuntime),
   );
   return {
     service,
@@ -482,24 +484,45 @@ describe('平台异步任务业务链', () => {
       const sibling = randomUUID();
       const child = randomUUID();
       const requests: Record<string, unknown>[] = [];
+      const node = (
+        id: string,
+        parentId: string | null,
+        hasChildren: boolean,
+      ) => ({
+        id,
+        key: id,
+        name: 'Sales',
+        status: 'active',
+        sort: 0,
+        createdAt: '2026-10-17T00:00:00.000Z',
+        updatedAt: '2026-10-17T00:00:00.000Z',
+        parentId,
+        hasChildren,
+        ...(resource === 'menus'
+          ? {
+              kind: 'directory',
+              routeKey: null,
+              actionKey: null,
+              url: null,
+              icon: null,
+              hidden: false,
+            }
+          : {}),
+      });
       control.page = (_sql, params) => {
         const query = JSON.parse(String(params[5])) as Record<string, unknown>;
         requests.push(query);
         if (query.parentId === null)
           return {
-            items: [
-              { id: parent, hasChildren: true },
-              { id: sibling, hasChildren: true },
-            ],
+            items: [node(parent, null, true), node(sibling, null, true)],
+            ancestors: [],
           };
         if (query.parentId === parent)
           return {
-            items: [
-              { id: child, hasChildren: false },
-              { id: parent, hasChildren: true },
-            ],
+            items: [node(child, parent, false), node(parent, null, true)],
+            ancestors: [],
           };
-        return { items: [] };
+        return { items: [], ancestors: [] };
       };
       const rows = await internal.exportRows(
         actor,

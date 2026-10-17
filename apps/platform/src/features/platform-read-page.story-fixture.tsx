@@ -53,12 +53,15 @@ export function PlatformReadPageStory({
   detail = false,
   auditor = false,
   initialEntry,
+  embedded = false,
 }: {
   page: "users" | "audit" | "settings" | "login-events" | "sessions"
   detail?: boolean
   auditor?: boolean
   initialEntry?: string
+  embedded?: boolean
 }) {
+  const PageContainer = embedded ? "div" : "main"
   const [router] = useState(() => {
     const root = createRootRoute({
       beforeLoad: () => ({
@@ -81,18 +84,18 @@ export function PlatformReadPageStory({
       path: "users",
       validateSearch: (search) => PlatformUsersQuerySchema.parse(search),
       component: () => (
-        <main className="mx-auto max-w-6xl p-6">
+        <PageContainer className="mx-auto max-w-6xl p-6">
           <PlatformUsersPage />
-        </main>
+        </PageContainer>
       ),
     })
     const user = createRoute({
       getParentRoute: () => platform,
       path: "users/$userId",
       component: () => (
-        <main className="mx-auto max-w-6xl p-6">
+        <PageContainer className="mx-auto max-w-6xl p-6">
           <PlatformUserDetailPage />
-        </main>
+        </PageContainer>
       ),
     })
     const audit = createRoute({
@@ -100,9 +103,9 @@ export function PlatformReadPageStory({
       path: "audit-events",
       validateSearch: (search) => PlatformAuditQuerySchema.parse(search),
       component: () => (
-        <main className="mx-auto max-w-6xl p-6">
+        <PageContainer className="mx-auto max-w-6xl p-6">
           <PlatformAuditPage />
-        </main>
+        </PageContainer>
       ),
     })
     const loginEvents = createRoute({
@@ -110,9 +113,9 @@ export function PlatformReadPageStory({
       path: "login-events",
       validateSearch: (search) => LoginLogsQuerySchema.parse(search),
       component: () => (
-        <main className="mx-auto max-w-6xl p-6">
+        <PageContainer className="mx-auto max-w-6xl p-6">
           <PlatformLoginEventsPage />
-        </main>
+        </PageContainer>
       ),
     })
     const sessions = createRoute({
@@ -120,9 +123,9 @@ export function PlatformReadPageStory({
       path: "sessions",
       validateSearch: (search) => PlatformSessionsQuerySchema.parse(search),
       component: () => (
-        <main className="mx-auto max-w-6xl p-6">
+        <PageContainer className="mx-auto max-w-6xl p-6">
           <PlatformSessionsPage />
-        </main>
+        </PageContainer>
       ),
     })
     const denied = createRoute({
@@ -139,9 +142,9 @@ export function PlatformReadPageStory({
       getParentRoute: () => platform,
       path: "settings",
       component: () => (
-        <main className="mx-auto max-w-5xl p-6">
+        <PageContainer className="mx-auto max-w-5xl p-6">
           <PlatformSettingsPage />
-        </main>
+        </PageContainer>
       ),
     })
     return createRouter({

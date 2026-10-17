@@ -1,5 +1,5 @@
 import type { Server } from 'node:http';
-import { z } from 'zod';
+import type { PoolClient } from 'pg';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
@@ -90,10 +90,51 @@ function createService() {
 }
 
 describe('PlatformSystem database boundary', () => {
+  it('keeps employee exports on the task connection and rejects private projection drift', async () => {
+    const { query, service } = createService();
+    const page = { items: [employee], page: 1, pageSize: 100, total: 1 };
+    const taskQuery = vi
+      .fn<Query>()
+      .mockResolvedValueOnce({ rows: [{ result: page }] })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            result: {
+              ...page,
+              items: [{ ...employee, passwordHash: 'must-not-be-exported' }],
+            },
+          },
+        ],
+      });
+    const client = { query: taskQuery } as unknown as PoolClient;
+    await expect(
+      service.employees.exportPage(
+        actor,
+        { page: 1, pageSize: 100 },
+        'export-employees',
+        client,
+      ),
+    ).resolves.toEqual(page);
+    await expect(
+      service.employees.exportPage(
+        actor,
+        { page: 1, pageSize: 100 },
+        'export-employees',
+        client,
+      ),
+    ).rejects.toThrow();
+    expect(taskQuery).toHaveBeenCalledTimes(2);
+    expect(taskQuery.mock.calls[0][1].slice(2, 4)).toEqual([
+      'employee',
+      'export-page',
+    ]);
+    expect(query).not.toHaveBeenCalled();
+  });
+
   it('passes only the Better Auth password hash to the fixed employee function', async () => {
     const { query, service } = createService();
     const password = 'A-platform-password-42';
-    await service.createEmployee(
+    await service.employees.create(
       actor,
       {
         mode: 'create',
@@ -125,7 +166,7 @@ describe('PlatformSystem database boundary', () => {
 
   it('does not create a credential when granting employment to an existing account', async () => {
     const { query, service } = createService();
-    await service.createEmployee(
+    await service.employees.create(
       actor,
       { mode: 'existing', userId: entityId, roleIds: [] },
       'request-existing',
@@ -139,21 +180,21 @@ describe('PlatformSystem database boundary', () => {
 
   it('revalidates through the database on each call and exposes the next-request denial', async () => {
     const { query, service } = createService();
-    query.mockResolvedValueOnce({ rows: [{ result: { items: [] } }] });
+    query.mockResolvedValueOnce({
+      rows: [{ result: { items: [], page: 1, pageSize: 20, total: 0 } }],
+    });
     query.mockRejectedValueOnce(
       Object.assign(new Error('FORBIDDEN'), { code: 'P0001' }),
     );
-    await service.catalog(
-      actor,
-      'post',
-      'list',
-      null,
-      {},
-      'first',
-      z.unknown(),
-    );
+    const queryInput = {
+      page: 1,
+      pageSize: 20,
+      sortBy: 'sort',
+      sortOrder: 'asc',
+    } as const;
+    await service.posts.list(actor, queryInput, 'first');
     await expect(
-      service.catalog(actor, 'post', 'list', null, {}, 'second', z.unknown()),
+      service.posts.list(actor, queryInput, 'second'),
     ).rejects.toMatchObject({ response: { code: 'FORBIDDEN' }, status: 403 });
     expect(query).toHaveBeenCalledTimes(2);
     expect(query.mock.calls[1][1].slice(0, 2)).toEqual([
@@ -184,15 +225,7 @@ describe('PlatformSystem database boundary', () => {
       Object.assign(new Error(code), { code: 'P0001' }),
     );
     await expect(
-      service.identity(
-        actor,
-        'role',
-        'delete',
-        entityId,
-        {},
-        'request',
-        z.unknown(),
-      ),
+      service.roles.remove(actor, entityId, 'request'),
     ).rejects.toMatchObject({ response: { code }, status });
   });
 
@@ -201,15 +234,7 @@ describe('PlatformSystem database boundary', () => {
     const failure = new Error('connection failed');
     query.mockRejectedValueOnce(failure);
     await expect(
-      service.catalog(
-        actor,
-        'parameter',
-        'get',
-        entityId,
-        {},
-        'request',
-        z.unknown(),
-      ),
+      service.parameters.get(actor, entityId, 'request'),
     ).rejects.toBe(failure);
   });
 });

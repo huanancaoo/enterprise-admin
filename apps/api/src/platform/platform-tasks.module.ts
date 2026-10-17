@@ -4,6 +4,7 @@ import { PlatformTasks, PLATFORM_TASK_CONFIG } from './platform-tasks';
 import { PlatformTasksController } from './platform-tasks.controller';
 import { PlatformAccessService } from './platform-access.service';
 import { PlatformGuard } from './platform.guard';
+import { PlatformSystem } from './platform-system';
 
 @Module({})
 export class PlatformTasksModule {
@@ -15,6 +16,7 @@ export class PlatformTasksModule {
         PlatformAccessService,
         PlatformGuard,
         PlatformTasks,
+        PlatformSystem,
         { provide: PLATFORM_TASK_CONFIG, useValue: { worker, encryptionKey } },
       ],
       exports: [PlatformTasks],

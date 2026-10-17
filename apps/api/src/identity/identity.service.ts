@@ -1,9 +1,4 @@
-import {
-  ForbiddenException,
-  Injectable,
-  Logger,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import type {
   OrganizationRoleAccess,
   OrganizationStatus,
@@ -47,46 +42,25 @@ export class IdentityService {
       query: { disableCookieCache: true, disableRefresh: true },
     });
     if (!result) return null;
-    // Better Auth 次级存储可能仍返回数据库变更前的会话快照。
-    // 会话过期或撤销以当前数据库行判断，不能以该快照授权。
-    const client = await this.runtime.pool.connect();
     try {
-      await client.query('BEGIN');
-      await client.query('SELECT public.require_active_account($1::uuid)', [
+      // 原生会话读取与业务入口检查是两个时点；共享判定规则，不复用此前的授权快照。
+      const user = await this.runtime.auth.sessionFacts.readCurrentUser(
         result.user.id,
-      ]);
-      const user = await client.query<{
-        preferred_locale: string | null;
-      }>(
-        `SELECT account.preferred_locale
-         FROM public."user" AS account
-         INNER JOIN public.session AS active_session
-           ON active_session.user_id = account.id
-          AND active_session.id = $2
-          AND active_session.expires_at > (clock_timestamp() AT TIME ZONE 'UTC')
-         WHERE account.id = $1
-         LIMIT 1
-         FOR SHARE OF active_session`,
-        [result.user.id, result.session.id],
+        result.session.id,
       );
-      await client.query('COMMIT');
-      if (!user.rows[0]) return null;
+      if (!user) return null;
       return {
         userId: result.user.id,
         sessionId: result.session.id,
-        // secondary storage 里的 user 是登录快照；界面语言以当前 user 行为准。
-        preferredLocale: user.rows[0].preferred_locale,
+        preferredLocale: user.preferred_locale,
       };
     } catch (error) {
-      await client.query('ROLLBACK');
       const value = error as { message?: string };
       if (value.message === 'ACCOUNT_SUSPENDED')
         throw new ApiException(403, 'ACCOUNT_SUSPENDED');
       if (value.message === 'AUTHORIZATION_UNAVAILABLE')
         throw new ApiException(503, 'AUTHORIZATION_UNAVAILABLE');
       throw error;
-    } finally {
-      client.release();
     }
   }
 
@@ -94,48 +68,6 @@ export class IdentityService {
     const identity = await this.getIdentity(headers);
     if (!identity) throw new UnauthorizedException();
     return identity;
-  }
-
-  async requireOrganizationMembership(
-    organizationId: string,
-    identity: Pick<Identity, 'userId'>,
-    requestId: string,
-  ): Promise<{
-    membershipId: string;
-    defaultLocale: string | null;
-    status: OrganizationStatus;
-    authorizationVersion: number;
-  }> {
-    const result = await this.runtime.pool.query<{
-      membership_id: string;
-      default_locale: string | null;
-      status: OrganizationStatus | null;
-      authorization_version: number | null;
-    }>(
-      `SELECT m.id AS membership_id, o.default_locale, s.status, s.authorization_version
-       FROM member m
-       INNER JOIN organization o ON o.id = m.organization_id
-       LEFT JOIN organization_status s ON s.organization_id = m.organization_id
-       WHERE m.organization_id = $1 AND m.user_id = $2
-       LIMIT 1`,
-      [organizationId, identity.userId],
-    );
-    const membership = result.rows[0];
-    if (!membership) throw new ForbiddenException();
-    if (!membership.status || membership.authorization_version == null) {
-      this.logger.error({
-        event: 'organization.status.missing',
-        organizationId,
-        requestId,
-      });
-      throw new ApiException(503, 'AUTHORIZATION_UNAVAILABLE');
-    }
-    return {
-      membershipId: membership.membership_id,
-      defaultLocale: membership.default_locale,
-      status: membership.status,
-      authorizationVersion: membership.authorization_version,
-    };
   }
 
   async listMembershipOrganizations(

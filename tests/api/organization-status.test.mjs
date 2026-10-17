@@ -39,6 +39,42 @@ describe("S8-02: organization status access boundary", () => {
     await environment?.close()
   })
 
+  it("preserves the verified-language stage of each organization entry", async () => {
+    const owner = await signup()
+    const actor = await signup()
+    const org = await organization(owner)
+    await migrator.query(
+      'UPDATE public."user" SET preferred_locale = $1 WHERE id = $2',
+      ["ar", actor.user.id]
+    )
+
+    for (const [entry, locale] of [
+      ["access", "ar"],
+      ["role-access", "zh-CN"],
+      ["projects", "ar"],
+    ]) {
+      const denied = await fetch(
+        `${baseURL}/api/v1/organizations/${org.id}/${entry}`,
+        { headers: { cookie: actor.cookie } }
+      )
+      expect(denied.status).toBe(403)
+      expect(await json(denied)).toMatchObject({ code: "FORBIDDEN" })
+      expect(denied.headers.get("content-language")).toBe(locale)
+    }
+  })
+
+  it("keeps organization access and role reads on the supplied cookie identity", async () => {
+    const actor = await signup()
+    const org = await organization(actor)
+    for (const entry of ["access", "role-access"]) {
+      const response = await fetch(
+        `${baseURL}/api/v1/organizations/${org.id}/${entry}`,
+        { headers: { cookie: actor.cookie, "x-api-key": "unused-key" } }
+      )
+      expect(response.status).toBe(200)
+    }
+  })
+
   it("lists membership organizations with status and allows access only when ACTIVE", async () => {
     const actor = await signup()
     const active = await organization(actor, "Active org")

@@ -1,13 +1,5 @@
 import { useCallback, useState, useSyncExternalStore } from "react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
-import { unlockPlatformUserPasswordLogin } from "@workspace/api-client"
-import { PasswordLoginUnlockResultSchema } from "@workspace/contracts/identity-management"
-import type {
-  PlatformUserDetail,
-  PlatformUsersPage,
-} from "@workspace/contracts/platform"
-import { useAuthenticatedSession } from "@workspace/admin/auth"
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
 import { Badge } from "@workspace/ui/components/badge"
@@ -21,6 +13,7 @@ import {
   DialogTitle,
 } from "@workspace/ui/components/dialog"
 import { usePlatformAccessFailure } from "../../lib/use-platform-access-failure"
+import { useUnlockPasswordLogin } from "./use-unlock-password-login"
 
 function useActivePasswordLock(lockedUntil: string | null) {
   const snapshot = useCallback(
@@ -55,52 +48,11 @@ export function PlatformPasswordLoginLock({
   showExpiry?: boolean
 }) {
   const { t } = useTranslation(["identity", "common"])
-  const session = useAuthenticatedSession()!
-  const queryClient = useQueryClient()
   const format = createFormatter(useUiLocale())
   const active = useActivePasswordLock(lockedUntil)
   const [open, setOpen] = useState(false)
-  const rejectAccess = usePlatformAccessFailure()
-  const unlock = useMutation({
-    mutationFn: async () =>
-      PasswordLoginUnlockResultSchema.parse(
-        (await unlockPlatformUserPasswordLogin(userId)).data
-      ),
-    onSuccess: async (result) => {
-      setOpen(false)
-      queryClient.setQueryData<PlatformUserDetail>(
-        ["platform", session.user.id, "user", userId],
-        (current) =>
-          current ? { ...current, lockedUntil: result.lockedUntil } : current
-      )
-      queryClient.setQueriesData<PlatformUsersPage>(
-        { queryKey: ["platform", session.user.id, "users"] },
-        (current) =>
-          current
-            ? {
-                ...current,
-                items: current.items.map((user) =>
-                  user.userId === result.userId
-                    ? { ...user, lockedUntil: result.lockedUntil }
-                    : user
-                ),
-              }
-            : current
-      )
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: ["platform", session.user.id, "user", userId],
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ["platform", session.user.id, "users"],
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ["platform", session.user.id, "login-events"],
-        }),
-      ])
-    },
-    onError: (error) => void rejectAccess(error),
-  })
+  const unlock = useUnlockPasswordLogin(userId)
+  usePlatformAccessFailure(unlock.error)
   return (
     <div className="space-y-1.5">
       <div className="flex flex-wrap items-center gap-2">
@@ -176,7 +128,9 @@ export function PlatformPasswordLoginLock({
             </Button>
             <Button
               disabled={!active || !canUnlock || unlock.isPending}
-              onClick={() => unlock.mutate()}
+              onClick={() =>
+                unlock.mutate(undefined, { onSuccess: () => setOpen(false) })
+              }
             >
               {unlock.isPending
                 ? t("common:submitting")

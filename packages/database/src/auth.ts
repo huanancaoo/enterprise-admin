@@ -56,6 +56,7 @@ import { readPlatformDefaultLocale } from "./platform-locale.ts"
 import { createAuthI18n } from "./auth-i18n.ts"
 import { authPasswordPolicy } from "./auth-password-policy.ts"
 import { verifyPasswordLogin } from "./password-login.ts"
+import { createSessionFacts } from "./session-facts.ts"
 import {
   assertMemberDirectoryRead,
   normalizeMemberListQuery,
@@ -278,93 +279,38 @@ export function createAuth(
 ) {
   const transactionalAdapter = createTransactionalAuthAdapter(pool)
 
-  async function requireActiveAccount(
-    userId: string,
-    executor: {
-      query: (statement: string, values: unknown[]) => Promise<unknown>
-    } = { query: transactionalAdapter.query }
-  ) {
-    try {
-      await executor.query("SELECT public.require_active_account($1::uuid)", [
-        userId,
-      ])
-    } catch (error) {
-      const value = error as { code?: string; message?: string }
-      if (value.message === "ACCOUNT_SUSPENDED")
-        throw new APIError("FORBIDDEN", {
-          code: "ACCOUNT_SUSPENDED",
-          message: "ACCOUNT_SUSPENDED",
-        })
-      if (value.message === "AUTHORIZATION_UNAVAILABLE")
-        throw new APIError(503, {
-          code: "AUTHORIZATION_UNAVAILABLE",
-          message: "AUTHORIZATION_UNAVAILABLE",
-        })
-      throw error
-    }
+  const sessionFacts = createSessionFacts(pool, transactionalAdapter)
+
+  function rethrowSessionError(error: unknown): never {
+    const value = error as { message?: string }
+    if (value.message === "ACCOUNT_SUSPENDED")
+      throw new APIError("FORBIDDEN", {
+        code: "ACCOUNT_SUSPENDED",
+        message: "ACCOUNT_SUSPENDED",
+      })
+    if (value.message === "AUTHORIZATION_UNAVAILABLE")
+      throw new APIError(503, {
+        code: "AUTHORIZATION_UNAVAILABLE",
+        message: "AUTHORIZATION_UNAVAILABLE",
+      })
+    throw error
   }
 
-  async function readCurrentSessionUser(userId: string, sessionId: string) {
-    const read = async (client: PoolClient) => {
-      await requireActiveAccount(userId, client)
-      const result = await client.query<{
-        name: string
-        email: string
-        email_verified: boolean
-        image: string | null
-        two_factor_enabled: boolean | null
-        last_login_method: string | null
-        preferred_locale: string | null
-        preferred_locale_version: number
-        created_at: Date
-        updated_at: Date
-      }>(
-        `SELECT account.name, account.email, account.email_verified, account.image,
-                account.two_factor_enabled, account.last_login_method,
-                account.preferred_locale, account.preferred_locale_version,
-                account.created_at, account.updated_at
-         FROM public."user" AS account
-         INNER JOIN public.session AS active_session
-           ON active_session.user_id = account.id
-          AND active_session.id = $2
-          AND active_session.expires_at > (clock_timestamp() AT TIME ZONE 'UTC')
-         WHERE account.id = $1
-         LIMIT 1
-         FOR SHARE OF active_session`,
-        [userId, sessionId]
-      )
-      return result.rows[0] ?? null
-    }
+  function requireActiveAccount(userId: string) {
+    return sessionFacts.requireActiveAccount(userId).catch(rethrowSessionError)
+  }
 
-    const boundClient = transactionalAdapter.currentClient()
-    if (boundClient) return read(boundClient)
-
-    const client = await pool.connect()
-    try {
-      await client.query("BEGIN")
-      const currentUser = await read(client)
-      await client.query("COMMIT")
-      return currentUser
-    } catch (error) {
-      await client.query("ROLLBACK")
-      throw error
-    } finally {
-      client.release()
-    }
+  function readCurrentSessionUser(userId: string, sessionId: string) {
+    return sessionFacts
+      .readCurrentUser(userId, sessionId)
+      .catch(rethrowSessionError)
   }
 
   async function requireActiveSession(userId: string, sessionId: string) {
-    await requireActiveAccount(userId)
-    const result = await transactionalAdapter.query(
-      `SELECT id
-       FROM public.session
-       WHERE id = $1
-         AND user_id = $2
-         AND expires_at > (clock_timestamp() AT TIME ZONE 'UTC')
-       FOR SHARE`,
-      [sessionId, userId]
-    )
-    if (!result.rows[0]) throw new APIError("UNAUTHORIZED")
+    const active = await sessionFacts
+      .isActiveSession(userId, sessionId)
+      .catch(rethrowSessionError)
+    if (!active) throw new APIError("UNAUTHORIZED")
   }
 
   async function recordLoginEvent(input: {
@@ -1489,6 +1435,7 @@ export function createAuth(
     NativeCredentialApi
   return Object.assign(auth, {
     credentialApi,
+    sessionFacts,
     async withDatabaseClient<T>(client: PoolClient, work: () => Promise<T>) {
       await auth.$context
       return transactionalAdapter.withDatabaseClient(client, work)

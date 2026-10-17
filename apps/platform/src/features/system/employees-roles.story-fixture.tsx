@@ -55,11 +55,14 @@ export function EmployeeRoleStory({
   page = "employees",
   readOnly = false,
   employeeAccess,
+  embedded = false,
 }: {
   page?: EmployeeRoleStoryPage
   readOnly?: boolean
   employeeAccess?: "read" | "update"
+  embedded?: boolean
 }) {
+  const PageContainer = embedded ? "div" : "main"
   const [router] = useState(() => {
     const root = createRootRoute({
       beforeLoad: () => ({ user: platformOrganizationActor }),
@@ -93,9 +96,9 @@ export function EmployeeRoleStory({
         },
       }),
       component: () => (
-        <main className="mx-auto max-w-6xl p-6">
+        <PageContainer className="mx-auto max-w-6xl p-6">
           <Outlet />
-        </main>
+        </PageContainer>
       ),
     })
     const routes = [

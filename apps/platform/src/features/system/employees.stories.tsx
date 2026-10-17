@@ -3,9 +3,11 @@ import { expect, userEvent, waitFor, within } from "storybook/test"
 import {
   createPlatformEmployeesRolesScenario,
   createWorkspaceSessionHandlers,
+  platformEmployeeFixture,
   type PlatformEmployeesRolesScenario,
 } from "@workspace/mocks"
 import { EmployeeRoleStory } from "./employees-roles.story-fixture"
+import { PlatformReadPageStory } from "../platform-read-page.story-fixture"
 
 const scenario = (name: PlatformEmployeesRolesScenario = "success") => {
   const fixture = createPlatformEmployeesRolesScenario(name)
@@ -93,6 +95,131 @@ export const Locked: Story = {
     })
   },
 }
+export const UnlockUpdatesUserAndEmployee: Story = {
+  ...scenario("locked"),
+  args: { page: "employee-detail" },
+  render: (args) => (
+    <main>
+      <section aria-label="Employee detail">
+        <EmployeeRoleStory {...args} embedded />
+      </section>
+      <section aria-label="User detail">
+        <PlatformReadPageStory
+          page="users"
+          embedded
+          initialEntry={`/platform/users/${platformEmployeeFixture.userId}`}
+        />
+      </section>
+    </main>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const employee = within(
+      canvas.getByRole("region", { name: "Employee detail" })
+    )
+    const user = within(canvas.getByRole("region", { name: "User detail" }))
+    await user.findByText("Locked")
+    await expect(
+      await employee.findByText("5", { selector: "dd" })
+    ).toBeVisible()
+    await userEvent.click(
+      await employee.findByRole("button", { name: "Unlock password login" })
+    )
+    const dialog = within(
+      await within(canvasElement.ownerDocument.body).findByRole("dialog")
+    )
+    await userEvent.click(
+      dialog.getByRole("button", { name: "Unlock password login" })
+    )
+    await employee.findByText("Not locked")
+    await expect(employee.getByText("0", { selector: "dd" })).toBeVisible()
+    await user.findByText("Not locked")
+    await expect(user.queryByText("Locked")).toBeNull()
+    await expect(
+      employee.queryByRole("button", { name: "Unlock password login" })
+    ).toBeNull()
+    await expect(
+      employee.getByRole("button", { name: "Disable employment" })
+    ).toBeVisible()
+  },
+}
+
+export const UserUnlockUpdatesEmployee: Story = {
+  ...UnlockUpdatesUserAndEmployee,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const employee = within(
+      canvas.getByRole("region", { name: "Employee detail" })
+    )
+    const user = within(canvas.getByRole("region", { name: "User detail" }))
+    await expect(
+      await employee.findByText("5", { selector: "dd" })
+    ).toBeVisible()
+    await userEvent.click(
+      await user.findByRole("button", { name: "Unlock password login" })
+    )
+    const dialog = within(
+      await within(canvasElement.ownerDocument.body).findByRole("dialog")
+    )
+    await userEvent.click(dialog.getByRole("button", { name: "Confirm" }))
+    await user.findByText("Not locked")
+    await employee.findByText("Not locked")
+    await expect(employee.getByText("0", { selector: "dd" })).toBeVisible()
+    await expect(
+      employee.queryByRole("button", { name: "Unlock password login" })
+    ).toBeNull()
+    await expect(
+      employee.getByRole("button", { name: "Disable employment" })
+    ).toBeVisible()
+  },
+}
+
+export const ClearPasswordFailuresWithoutLock: Story = {
+  ...scenario("passwordFailures"),
+  args: { page: "employee-detail" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await canvas.findByText("Not locked")
+    await expect(canvas.getByText("2", { selector: "dd" })).toBeVisible()
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Unlock password login" })
+    )
+    const dialog = within(
+      await within(canvasElement.ownerDocument.body).findByRole("dialog")
+    )
+    await userEvent.click(
+      dialog.getByRole("button", { name: "Unlock password login" })
+    )
+    await canvas.findByText("0", { selector: "dd" })
+    await expect(
+      canvas.queryByRole("button", { name: "Unlock password login" })
+    ).toBeNull()
+  },
+}
+
+export const UnlockFailureKeepsLock: Story = {
+  ...scenario("unlockFailure"),
+  args: { page: "employee-detail" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(
+      await canvas.findByRole("button", { name: "Unlock password login" })
+    )
+    const dialog = within(
+      await within(canvasElement.ownerDocument.body).findByRole("dialog")
+    )
+    await userEvent.click(
+      dialog.getByRole("button", { name: "Unlock password login" })
+    )
+    await dialog.findByRole("alert")
+    await expect(
+      dialog.getByRole("button", { name: "Unlock password login" })
+    ).toBeEnabled()
+    await expect(canvas.getByText("5", { selector: "dd" })).toBeVisible()
+    await expect(canvas.queryByText("Not locked")).toBeNull()
+  },
+}
+
 export const ReadOnly: Story = {
   args: { readOnly: true },
   play: async ({ canvasElement }) => {
