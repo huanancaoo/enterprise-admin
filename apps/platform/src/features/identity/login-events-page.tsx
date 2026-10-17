@@ -42,8 +42,15 @@ export function PlatformLoginEventsPage() {
   usePlatformAccessFailure(query.error)
   const columns = useMemo(() => {
     const format = createFormatter(locale)
-    const methodLabel = (method: LoginLog["method"]) =>
-      String(t(`identity:${method}Method`))
+    const methodLabels = {
+      email: String(t("emailMethod")),
+      github: String(t("githubMethod")),
+      totp: String(t("totpMethod")),
+    } satisfies Record<LoginLog["method"], string>
+    const resultLabels = {
+      succeeded: String(t("succeeded")),
+      failed: String(t("failed")),
+    } satisfies Record<LoginLog["result"], string>
     const reasonLabel = (reason: LoginLog["reasonCode"]) => {
       if (!reason) return "—"
       const labels = {
@@ -88,13 +95,13 @@ export function PlatformLoginEventsPage() {
         header: ({ header }) => (
           <DataTableColumnHeader header={header} title={t("method")} />
         ),
-        cell: ({ getValue }) => methodLabel(getValue()),
+        cell: ({ getValue }) => methodLabels[getValue()],
         meta: {
           label: t("method"),
           facetMode: "single",
           facetOptions: (["email", "github", "totp"] as const).map((value) => ({
             value,
-            label: methodLabel(value),
+            label: methodLabels[value],
           })),
         },
       }),
@@ -104,7 +111,7 @@ export function PlatformLoginEventsPage() {
         ),
         cell: ({ getValue }) => (
           <Badge variant={getValue() === "succeeded" ? "secondary" : "outline"}>
-            {t(getValue())}
+            {resultLabels[getValue()]}
           </Badge>
         ),
         meta: {
@@ -112,7 +119,7 @@ export function PlatformLoginEventsPage() {
           facetMode: "single",
           facetOptions: (["succeeded", "failed"] as const).map((value) => ({
             value,
-            label: String(t(value)),
+            label: resultLabels[value],
           })),
         },
       }),
