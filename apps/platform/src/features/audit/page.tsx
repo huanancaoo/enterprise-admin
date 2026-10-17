@@ -51,6 +51,8 @@ import {
   DialogClose,
 } from "@workspace/ui/components/dialog"
 import { usePlatformAccessFailure } from "../../lib/use-platform-access-failure"
+import { OrganizationCombobox } from "../../components/organization-combobox"
+import { UserCombobox } from "../../components/user-combobox"
 
 const optionalText = <T extends z.ZodType<string, string>>(schema: T) =>
   z
@@ -85,10 +87,8 @@ const filterSchema = z
     { path: ["from"] }
   )
 
-const names = ["organizationId", "actorId", "from", "to"] as const
+const dateNames = ["from", "to"] as const
 const labels = {
-  organizationId: "platformAuditOrganization",
-  actorId: "auditActor",
   from: "platformAuditFrom",
   to: "platformAuditTo",
 } as const
@@ -192,7 +192,54 @@ function AuditFilters({
             >
               <fieldset disabled={busy || loading} className="space-y-4">
                 <FieldGroup className="grid gap-4 sm:grid-cols-2">
-                  {names.map((name) => (
+                  {(["organizationId", "actorId"] as const).map((name) => (
+                    <form.Field key={name} name={name}>
+                      {(field) => {
+                        const invalid =
+                          field.state.meta.isTouched &&
+                          !field.state.meta.isValid
+                        const id = `platform-audit-${name}`
+                        const label =
+                          name === "organizationId"
+                            ? t("platformAuditOrganizationLabel")
+                            : t("platformAuditActorLabel")
+                        const Selector =
+                          name === "organizationId"
+                            ? OrganizationCombobox
+                            : UserCombobox
+                        return (
+                          <Field data-invalid={invalid}>
+                            <FieldLabel htmlFor={id}>{label}</FieldLabel>
+                            <Selector
+                              id={id}
+                              value={field.state.value || null}
+                              placeholder={
+                                name === "organizationId"
+                                  ? t("platformAuditAllOrganizations")
+                                  : t("platformAuditAllActors")
+                              }
+                              onValueChange={(value) =>
+                                field.handleChange(value ?? "")
+                              }
+                              onBlur={field.handleBlur}
+                              disabled={busy || loading}
+                              invalid={invalid}
+                              aria-describedby={
+                                invalid ? `${id}-error` : undefined
+                              }
+                            />
+                            {invalid && (
+                              <FieldError
+                                id={`${id}-error`}
+                                errors={field.state.meta.errors}
+                              />
+                            )}
+                          </Field>
+                        )
+                      }}
+                    </form.Field>
+                  ))}
+                  {dateNames.map((name) => (
                     <form.Field key={name} name={name}>
                       {(field) => {
                         const invalid =
@@ -205,11 +252,7 @@ function AuditFilters({
                             </FieldLabel>
                             <Input
                               id={`platform-audit-${name}`}
-                              type={
-                                name === "from" || name === "to"
-                                  ? "datetime-local"
-                                  : "text"
-                              }
+                              type="datetime-local"
                               value={field.state.value}
                               onChange={(event) =>
                                 field.handleChange(event.target.value)

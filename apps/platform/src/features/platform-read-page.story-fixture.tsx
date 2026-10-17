@@ -45,10 +45,12 @@ export function PlatformReadPageStory({
   page,
   detail = false,
   auditor = false,
+  initialEntry,
 }: {
   page: "users" | "audit" | "settings"
   detail?: boolean
   auditor?: boolean
+  initialEntry?: string
 }) {
   const [router] = useState(() => {
     const root = createRootRoute({
@@ -124,13 +126,14 @@ export function PlatformReadPageStory({
       ]),
       history: createMemoryHistory({
         initialEntries: [
-          page === "settings"
-            ? "/platform/settings"
-            : page === "audit"
-              ? "/platform/audit-events"
-              : detail
-                ? `/platform/users/${platformUserFixture.userId}`
-                : "/platform/users",
+          initialEntry ??
+            (page === "settings"
+              ? "/platform/settings"
+              : page === "audit"
+                ? "/platform/audit-events"
+                : detail
+                  ? `/platform/users/${platformUserFixture.userId}`
+                  : "/platform/users"),
         ],
       }),
     })

@@ -120,6 +120,20 @@ describe("platform audit browser investigation", () => {
       page.getByRole("dialog", { name: label, exact: true })
     ).toBeVisible()
   }
+  async function selectEntity(page, entity, query, name) {
+    const trigger = page.getByRole("combobox", { name: entity, exact: true })
+    await trigger.click()
+    await page
+      .getByPlaceholder(
+        entity === "Organization"
+          ? "Search organizations by name, slug, or ID"
+          : "Search users by name, masked email, or ID",
+        { exact: true }
+      )
+      .fill(query)
+    await page.getByRole("option", { name: new RegExp(name) }).click()
+    await expectUI(trigger).toContainText(name)
+  }
   const url = () =>
     `${environment.platformOrigin}/platform/audit-events?eventCode=member.role_changed`
 
@@ -232,7 +246,7 @@ describe("platform audit browser investigation", () => {
     ).toBeDisabled()
     await openFilters(page)
     const fixedWindow = new URL(page.url()).searchParams
-    await page.getByLabel("Actor ID", { exact: true }).fill(tenant.user.id)
+    await selectEntity(page, "Actor", tenant.user.id, tenant.user.name)
     await page
       .getByRole("button", { name: "Apply filters", exact: true })
       .click()
@@ -257,9 +271,133 @@ describe("platform audit browser investigation", () => {
     })
   })
 
+  it("selects directory identities as drafts and restores current and historical IDs after reload", async () => {
+    const page = await pageFor(admin)
+    const reads = []
+    page.on("request", (request) => {
+      if (new URL(request.url()).pathname === "/api/v1/platform/audit-events")
+        reads.push(request.url())
+    })
+    await page.goto(`${url()}&page=2&pageSize=10`)
+    await expectUI(page.locator("tbody tr")).toHaveCount(10)
+    await openFilters(page)
+    const initialUrl = page.url()
+    const initialReads = reads.length
+    const org = page.getByRole("combobox", {
+      name: "Organization",
+      exact: true,
+    })
+    await org.click()
+    const orgSearch = page.getByPlaceholder(
+      "Search organizations by name, slug, or ID",
+      { exact: true }
+    )
+    await expectUI(orgSearch).toBeFocused()
+    await orgSearch.fill(organization.slug)
+    await expectUI(
+      page.getByRole("option", { name: new RegExp(organization.name) })
+    ).toHaveCount(1)
+    await axe(page, '[data-slot="combobox-content"]')
+    await orgSearch.press("ArrowDown")
+    await orgSearch.press("Enter")
+    await expectUI(org).toContainText(organization.name)
+    await expectUI(
+      page.getByRole("dialog", { name: "Advanced filters", exact: true })
+    ).toBeVisible()
+    expect(page.url()).toBe(initialUrl)
+    expect(reads).toHaveLength(initialReads)
+
+    const actor = page.getByRole("combobox", { name: "Actor", exact: true })
+    await actor.click()
+    const userSearch = page.getByPlaceholder(
+      "Search users by name, masked email, or ID",
+      { exact: true }
+    )
+    await userSearch.fill(tenant.user.id)
+    const candidate = page.getByRole("option", {
+      name: new RegExp(tenant.user.name),
+    })
+    await expectUI(candidate).toHaveCount(1)
+    await userSearch.press("ArrowDown")
+    await userSearch.dispatchEvent("keydown", {
+      key: "Enter",
+      code: "Enter",
+      keyCode: 13,
+      which: 13,
+      isComposing: true,
+    })
+    await expectUI(userSearch).toBeVisible()
+    expect(page.url()).toBe(initialUrl)
+    expect(reads).toHaveLength(initialReads)
+    await userSearch.press("Enter")
+    await expectUI(actor).toContainText(tenant.user.name)
+    await expectUI(actor).not.toContainText(tenant.email)
+    await page
+      .getByRole("button", { name: "Apply filters", exact: true })
+      .click()
+    await expectUI(page).toHaveURL(/page=1&pageSize=10/)
+    const applied = new URL(page.url()).searchParams
+    expect(applied.get("organizationId")).toBe(organization.id)
+    expect(applied.get("actorId")).toBe(tenant.user.id)
+    expect(page.url()).not.toContain(encodeURIComponent(organization.name))
+    await expectUI(page.locator("tbody tr")).toHaveCount(10)
+    await page.reload()
+    await expectUI(page.locator("tbody tr")).toHaveCount(10)
+    await openFilters(page)
+    await expectUI(org).toContainText(organization.name)
+    await expectUI(actor).toContainText(tenant.user.name)
+    await org.click()
+    await expectUI(orgSearch).toBeVisible()
+    await page.keyboard.press("Escape")
+    await expectUI(orgSearch).toHaveCount(0)
+    await expectUI(
+      page.getByRole("dialog", { name: "Advanced filters", exact: true })
+    ).toBeVisible()
+    await expectUI(org).toBeFocused()
+    await page.keyboard.press("Escape")
+    await expectUI(
+      page.getByRole("dialog", { name: "Advanced filters", exact: true })
+    ).toHaveCount(0)
+
+    const historicalId = randomUUID()
+    await openFilters(page)
+    await expectUI(
+      page.getByRole("button", { name: /Filter .* by ID/ })
+    ).toHaveCount(0)
+    const historicalUrl = new URL(page.url())
+    historicalUrl.searchParams.set("organizationId", historicalId)
+    await page.goto(historicalUrl.toString())
+    await expectUI(page.getByText("No results", { exact: true })).toBeVisible()
+    await openFilters(page)
+    await expectUI(org).toContainText(historicalId)
+    await expectUI(
+      page.getByText("This ID is not in the current directory", { exact: true })
+    ).toBeVisible()
+    await expectUI(actor).toContainText(tenant.user.name)
+    await page
+      .getByRole("button", { name: "Apply filters", exact: true })
+      .click()
+    await expectUI(page.getByText("No results", { exact: true })).toBeVisible()
+    await page.reload()
+    await expectUI(page.getByText("No results", { exact: true })).toBeVisible()
+    await openFilters(page)
+    await expectUI(org).toContainText(historicalId)
+    await expectUI(actor).toContainText(tenant.user.name)
+    const shared = new URL(page.url()).searchParams
+    expect(shared.get("organizationId")).toBe(historicalId)
+    expect(shared.get("actorId")).toBe(tenant.user.id)
+    expect(shared.has("source")).toBe(false)
+    expect(shared.has("mode")).toBe(false)
+    await axe(page, '[role="dialog"]')
+    await page.screenshot({
+      path: join(tmpdir(), "enterprise-admin-platform-combobox-history.png"),
+      fullPage: true,
+    })
+  })
+
   for (const [
     locale,
-    organizationLabel,
+    fromLabel,
     applyLabel,
     detailsLabel,
     closeLabel,
@@ -267,7 +405,7 @@ describe("platform audit browser investigation", () => {
   ] of [
     [
       "zh-CN",
-      "组织 ID",
+      "开始时间（UTC）",
       "应用筛选",
       "操作日志详情",
       "关闭",
@@ -275,7 +413,7 @@ describe("platform audit browser investigation", () => {
     ],
     [
       "ar",
-      "معرّف المنظمة",
+      "من (UTC)",
       "تطبيق عوامل التصفية",
       "تفاصيل سجل العمليات",
       "إغلاق",
@@ -292,7 +430,7 @@ describe("platform audit browser investigation", () => {
       )
       await expectUI(page.locator("tbody tr")).toHaveCount(20)
       await openFilters(page, locale)
-      await page.getByLabel(organizationLabel, { exact: true }).fill("bad-uuid")
+      await page.getByLabel(fromLabel, { exact: true }).fill("2099-01-01T00:00")
       const apply = page.getByRole("button", { name: applyLabel, exact: true })
       await apply.focus()
       await page.keyboard.press("Enter")
@@ -300,9 +438,7 @@ describe("platform audit browser investigation", () => {
       await expectUI(page.locator('[data-invalid="true"]')).toContainText(
         errorLabel
       )
-      await page
-        .getByLabel(organizationLabel, { exact: true })
-        .fill(organization.id)
+      await page.getByLabel(fromLabel, { exact: true }).fill("")
       await apply.focus()
       await page.keyboard.press("Enter")
       await expectUI(page.locator("tbody tr")).toHaveCount(20)
@@ -327,19 +463,12 @@ describe("platform audit browser investigation", () => {
       await expectUI(dialog).toHaveCount(0)
     })
 
-  it("keeps filter values on audit failure, exposes loading, retries and rejects invalid IDs and ranges", async () => {
+  it("keeps filter values on audit failure, exposes loading, retries and rejects invalid ranges", async () => {
     const page = await pageFor(admin)
     await page.goto(url())
     await expectUI(page.locator("tbody tr")).toHaveCount(20)
     await openFilters(page)
-    await page.getByLabel("Organization ID", { exact: true }).fill("bad-uuid")
-    await page
-      .getByRole("button", { name: "Apply filters", exact: true })
-      .click()
-    await expectUI(page.locator('[data-invalid="true"]')).toHaveCount(1)
-    await page
-      .getByLabel("Organization ID", { exact: true })
-      .fill(organization.id)
+    await selectEntity(page, "Organization", organization.id, organization.name)
     await environment.migrator
       .query(`CREATE FUNCTION public.issue22_browser_fail() RETURNS trigger LANGUAGE plpgsql AS $$
       BEGIN IF NEW.event_code='platform.audit_queried' THEN RAISE EXCEPTION 'audit failure'; END IF; RETURN NEW; END; $$;
@@ -368,8 +497,8 @@ describe("platform audit browser investigation", () => {
     await expectUI(page.getByRole("alert")).toBeVisible()
     await openFilters(page)
     await expectUI(
-      page.getByLabel("Organization ID", { exact: true })
-    ).toHaveValue(organization.id)
+      page.getByRole("combobox", { name: "Organization", exact: true })
+    ).toContainText(organization.name)
     await page.unroute("**/api/v1/platform/audit-events?**")
     await environment.migrator.query(
       "DROP TRIGGER issue22_browser_fail ON public.audit_events; DROP FUNCTION public.issue22_browser_fail()"

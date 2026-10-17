@@ -117,3 +117,5 @@ export {
 export { createOrganizationAuthorizationScenario } from "./organization-authorization"
 
 export { fileWorkspaceScenario } from "./handlers/files-workspace"
+
+export { createPlatformEntityComboboxScenario } from "./handlers/platform-entity-combobox"

@@ -116,11 +116,15 @@ export {
 export {
   listPlatformUsers,
   getPlatformUser,
+  getListPlatformUsersQueryKey,
+  getGetPlatformUserQueryKey,
   getPlatformSensitiveProfile,
 } from "./generated/endpoints/platform-users/platform-users"
 export {
   listPlatformOrganizations,
   getPlatformOrganization,
+  getListPlatformOrganizationsQueryKey,
+  getGetPlatformOrganizationQueryKey,
   suspendPlatformOrganization,
   resumePlatformOrganization,
 } from "./generated/endpoints/platform-organizations/platform-organizations"
