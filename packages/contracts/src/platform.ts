@@ -11,7 +11,15 @@ import {
 export const PlatformAccessSchema = z
   .strictObject({
     userId: z.uuid(),
-    role: z.enum(["platform_admin", "platform_auditor"]),
+    roles: z.array(
+      z.strictObject({
+        id: z.uuid(),
+        key: z.string(),
+        name: z.string(),
+        builtIn: z.boolean(),
+      })
+    ),
+    permissions: z.array(z.string()),
     scope: z.literal("global"),
     mfaVerifiedAt: z.iso.datetime({ offset: true }).nullable(),
   })
@@ -88,14 +96,8 @@ export const PlatformAuditEventSchema = z
     resourceId: z.uuid().nullable(),
     result: AuditResultSchema,
     metadata: z.strictObject({
-      previousRole: z
-        .enum(["platform_admin", "platform_auditor"])
-        .nullable()
-        .optional(),
-      nextRole: z
-        .enum(["platform_admin", "platform_auditor"])
-        .nullable()
-        .optional(),
+      previousRole: z.string().nullable().optional(),
+      nextRole: z.string().nullable().optional(),
     }),
   })
   .meta({ id: "PlatformAuditEvent" })
@@ -125,6 +127,7 @@ export const PlatformUserSchema = z
     name: z.string(),
     maskedEmail: z.string(),
     emailVerified: z.boolean(),
+    lockedUntil: z.iso.datetime({ offset: true }).nullable(),
     createdAt: z.iso.datetime({ offset: true }),
     organizationCount: z.number().int().min(0),
     status: AccountStatusSchema,

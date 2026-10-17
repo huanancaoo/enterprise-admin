@@ -294,10 +294,13 @@ describe(suiteName, { concurrent: false }, () => {
         "invitation_send_events",
         "operation_receipts",
         "organization_status",
+        "password_login_lock",
         "personal_media",
         "personal_media_operations",
         "platform_assignment",
         "platform_assignment_audit",
+        "platform_assignment_role",
+        "platform_role",
         "platform_session_assurance",
         "platform_settings",
         "user_account_status",
@@ -715,7 +718,7 @@ describe(suiteName, { concurrent: false }, () => {
       "get_platform_organization",
       "transition_platform_organization",
       "record_platform_organization_failure",
-      "require_platform_organization_access",
+      "require_platform_action",
     ]
     const functions = (
       await owner.query(
@@ -737,10 +740,7 @@ describe(suiteName, { concurrent: false }, () => {
         "search_path=pg_catalog",
         "row_security=on",
       ])
-      assert.equal(
-        fn.runtime,
-        fn.proname !== "require_platform_organization_access"
-      )
+      assert.equal(fn.runtime, fn.proname !== "require_platform_action")
       assert.equal(fn.legacy, false)
       assert.equal(fn.public, false)
     }
@@ -940,22 +940,13 @@ describe(suiteName, { concurrent: false }, () => {
       'UPDATE public."user" SET email_verified = true WHERE id = $1',
       [userId]
     )
-    assert.deepEqual(
+    assert.equal(
       (
-        await deployer.query(`
-          SELECT
-            has_column_privilege(current_user, 'platform_assignment', 'user_id', 'INSERT') AS insert_user_id,
-            has_column_privilege(current_user, 'platform_assignment', 'role', 'INSERT') AS insert_role,
-            has_column_privilege(current_user, 'platform_assignment', 'version', 'UPDATE') AS update_version,
-            has_table_privilege(current_user, 'platform_assignment', 'INSERT') AS insert_table
-        `)
-      ).rows[0],
-      {
-        insert_user_id: true,
-        insert_role: true,
-        update_version: true,
-        insert_table: false,
-      }
+        await deployer.query(
+          "SELECT has_table_privilege(current_user,'platform_assignment','INSERT') AS allowed"
+        )
+      ).rows[0].allowed,
+      false
     )
     await managePlatformAssignment(deployer, "grant", {
       userId,

@@ -1,3 +1,5 @@
+import { PlatformSystem } from './platform-system';
+import { PlatformSystemController } from './platform-system.controller';
 import { PlatformStoragePolicyService } from './platform-storage-policy';
 import { PlatformStoragePolicyController } from './platform-storage-policy.controller';
 import { Module, type DynamicModule } from '@nestjs/common';
@@ -26,6 +28,7 @@ import { PersonalLoginEventsController } from './personal-login-events.controlle
 
 @Module({
   controllers: [
+    PlatformSystemController,
     PlatformController,
     PlatformOrganizationsController,
     PlatformUsersController,
@@ -36,6 +39,7 @@ import { PersonalLoginEventsController } from './personal-login-events.controlle
     PersonalLoginEventsController,
   ],
   providers: [
+    PlatformSystem,
     PlatformAccessService,
     PlatformGuard,
     PlatformOrganizations,

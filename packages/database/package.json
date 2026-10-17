@@ -63,6 +63,10 @@
     "./tenant-actor": {
       "types": "./dist/tenant-actor.d.ts",
       "default": "./dist/tenant-actor.js"
+    },
+    "./repositories/announcements": {
+      "types": "./dist/repositories/announcements.d.ts",
+      "default": "./dist/repositories/announcements.js"
     }
   },
   "scripts": {

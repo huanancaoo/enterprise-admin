@@ -82,6 +82,7 @@ describe("platform storage policy HTTP authorization and atomic changes", () => 
       CREATE TRIGGER storage_http_capture AFTER INSERT ON public.audit_events FOR EACH ROW EXECUTE FUNCTION public.storage_http_capture();`)
     admin = await platformOperator(environment, origin)
     auditor = await platformOperator(environment, origin, "platform_auditor")
+    await platformOperator(environment, origin)
     owner = await signUpVerified(
       environment.baseURL,
       origin,
@@ -370,7 +371,7 @@ describe("platform storage policy HTTP authorization and atomic changes", () => 
       pending = request(actor)
       await waitForBlockedCall("get_platform_storage_policy")
       await environment.deployerPool.query(
-        "UPDATE platform_assignment SET status='revoked',revoked_at=now(),revoked_by=current_user,revoke_reason='Scope revoked during wait' WHERE user_id=$1",
+        "SELECT public.manage_platform_assignment('revoke',$1,'platform_admin','scope revocation during acceptance')",
         [actor.user.id]
       )
       await locked.query("COMMIT")

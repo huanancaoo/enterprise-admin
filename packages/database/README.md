@@ -65,7 +65,7 @@ API / Worker 启动脚本不运行迁移。运行账号、平台账号、迁移�
 
 部署 CLI 的 `platform admin create --email <email> --name <name> --reason <reason> --password-stdin` 可直接创建 `platform_admin`。密码通过标准输入传入，使用 Better Auth 原生哈希与统一的 12–128 字符规则；邮箱转小写并默认已验证，不发送验证邮件。账号、credential、平台任职及授权审计在一个事务内提交；邮箱重复或任一步骤失败均回滚，不修改已有账号。命令仅依赖 `PLATFORM_ASSIGNMENT_DATABASE_URL` 指向的 `platform_deployer`，不依赖运行中的 API、Redis 或 SMTP。
 
-已有用户通过正常认证完成注册和邮箱验证后，仍使用 `platform assignment grant/revoke` 以精确 UUID 管理任职；它们不创建账号或修改邮箱验证状态。`platform_admin` 与 `platform_auditor` 只存于独立 `platform_assignment`。每次 grant/revoke 都把操作者、角色变化、原因和结果写入内部 `platform_assignment_audit`，写入与任职变更使用同一事务。创建账号不初始化 MFA 或登录会话；MFA 由用户自主启用，未启用者密码登录后即可进入平台。
+已有用户通过正常认证完成注册和邮箱验证后，仍使用 `platform assignment grant/revoke` 以精确 UUID 管理任职；它们不创建账号或修改邮箱验证状态。平台任职保存在独立 `platform_assignment`，角色存于 `platform_role`，多角色关联存于 `platform_assignment_role`。grant/revoke 分别添加或撤销指定角色；最后角色撤销时终止任职。每次 grant/revoke 都把操作者、角色变化、原因和结果写入内部 `platform_assignment_audit`，写入与任职变更使用同一事务。创建账号不初始化 MFA 或登录会话；MFA 由用户自主启用，未启用者密码登录后即可进入平台。
 
 ```sh
 PLATFORM_ASSIGNMENT_DATABASE_URL='postgresql://platform_deployer:...@db/enterprise_admin' \
@@ -76,7 +76,19 @@ PLATFORM_ASSIGNMENT_DATABASE_URL='postgresql://platform_deployer:...@db/enterpri
   --user-id '<verified-user-uuid>' --role platform_admin --reason 'assignment ended'
 ```
 
-API 的认证、租户与平台模块统一使用 `DATABASE_URL` 对应的 `app_runtime` 连接池。迁移 `0024_shared-runtime-platform-access.sql` 将 `read_platform_access(user_id, session_id)` 与 `record_platform_access_denial(actor_id, reason, request_id)` 的执行权限授予 `app_runtime`，并撤销 `platform_runtime` 的相应权限；`app_runtime` 仍不能直接读写 `platform_assignment`。平台认证插件仅在 Better Auth 报告成功的当前 Session TOTP 验证后登记 session assurance。迁移 `0060_optional-platform-mfa.sql` 将平台 MFA 改为可选；平台每次请求校验当前未过期 Session 与有效任职，写入继续检查管理员角色。真实 TOTP 验证仍登记 assurance 作为验证事实，但不作为平台准入或操作的必要条件。自主启用两步验证后的登录由 Better Auth 执行。
+API 的认证、租户与平台模块统一使用 `DATABASE_URL` 对应的 `app_runtime` 连接池。迁移 `0024_shared-runtime-platform-access.sql` 将 `read_platform_access(user_id, session_id)` 与 `record_platform_access_denial(actor_id, reason, request_id)` 的执行权限授予 `app_runtime`，并撤销 `platform_runtime` 的相应权限；`app_runtime` 仍不能直接读写 `platform_assignment`。平台认证插件仅在 Better Auth 报告成功的当前 Session TOTP 验证后登记 session assurance。迁移 `0060_optional-platform-mfa.sql` 将平台 MFA 改为可选；平台每次请求校验当前未过期 Session 与有效任职，读写通过 `require_platform_action` 校验具体代码动作，只有内置超级管理员可管理任职和角色授权。真实 TOTP 验证仍登记 assurance 作为验证事实，但不作为平台准入或操作的必要条件。自主启用两步验证后的登录由 Better Auth 执行。
+
+### 多角色授权与密码登录锁
+
+迁移 `0070` 将旧平台角色迁移至 `platform_role` / `platform_assignment_role`，移除任职表的单角色列；`0071` 将所有平台固定函数替换为具体动作授权。代码目录为 `packages/permissions/src/platform.ts`，数据库纯目录函数为 `platform_permission_catalog()`。受限函数每次读取有效 Session、全局账号、任职和多角色权限并集，runtime 无角色表直接访问权。
+
+内置超级管理员不可删除、停用或修改权限，自定义角色不接受 `platform.authorization:manage`。任职及角色写入先调用 `lock_platform_authorization()`（事务锁 `20261017,1`），提交时由延迟约束保护最后一位有效超级管理员；全局账号暂停也受该约束。任职停用或撤销自动清除角色，恢复不会恢复角色。
+
+迁移 `0075_platform-export-actions` 将既有组织、全局账号、登录日志、会话与操作日志的列表投影复用为受限内部函数。`list_*` 固定入口要求 `read`，`export_*_page` 固定入口只要求对应 `export`；内部投影函数不向 runtime 开放，导出不隐含额外读取权限。
+
+`password_login_lock` 按全局账号保存滚动失败时间和锁定截止时间。原生密码 verifier 在单连接事务中调用 `begin_password_login` / `finish_password_login`，同账号并发验密串行；滚动15分钟内第五次失败锁15分钟，正确密码先清零再继续原生邮箱/MFA流程。既有Session、GitHub和原生MFA锁不受影响。`POST /api/v1/platform/users/:userId/password-login/unlock` 要求 `platform.user:unlock` 并同事务记录解锁审计，不重置密码。
+
+迁移 `0077_platform-login-lock-projection` 让平台登录记录以当前账号关联有效 `lockedUntil`，匿名、无锁或已过期均为 `null`。平台使用独立 `PlatformLoginLog` / `PlatformLoginLogsPage` 契约，个人登录记录保持原契约；锁状态不写入历史表，解锁或到期后下一次查询立即反映。
 
 ### 已有数据库升级
 
@@ -121,7 +133,7 @@ MIGRATION_DATABASE_URL='postgresql://app_migrator:...@db/enterprise_admin' pnpm 
 | 创建普通账号、编辑姓名、暂停或恢复账号   | 允许                     | 拒绝                     |
 | 请求密码重置、撤销单个会话               | 允许                     | 拒绝                     |
 
-这些全局管理权限不由租户成员或角色授予。两张新表均启用并强制 RLS，`app_runtime` 不获得直接读写权限，通过受限 `platform_executor` 所有的固定函数访问；内部投影和审计辅助函数不对 runtime 开放。平台任职仍通过部署 CLI 管理，网页创建账号不创建平台任职或组织成员关系。
+这些全局管理权限不由租户成员或角色授予。两张新表均启用并强制 RLS，`app_runtime` 不获得直接读写权限，通过受限 `platform_executor` 所有的固定函数访问；内部投影和审计辅助函数不对 runtime 开放。部署 CLI 与系统管理员工接口分别提供受控任职入口；普通全局账号创建不创建平台任职或组织成员关系。
 
 用户管理通过 `POST /api/v1/platform/users` 创建账号，通过 `PATCH /api/v1/platform/users/:userId` 编辑姓名。管理员填写姓名、邮箱和 12–128 字符初始密码；API 使用 Better Auth 原生哈希，固定函数在同一事务创建账号、credential 与成功审计。邮箱转为小写并默认已验证，不发送验证邮件；重复邮箱返回 `EMAIL_ALREADY_EXISTS`，不修改已有账号。编辑只允许改姓名；本批不提供修改他人邮箱或硬删除账号。
 

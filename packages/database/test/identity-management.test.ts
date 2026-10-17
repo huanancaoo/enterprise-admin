@@ -176,7 +176,7 @@ describe("全局身份管理固定函数", { concurrent: false }, () => {
     }
     await assert.rejects(
       runtime.query(
-        "UPDATE public.platform_assignment SET role='platform_admin' WHERE user_id=$1",
+        "INSERT INTO public.platform_assignment_role(user_id,role_id) SELECT $1,id FROM public.platform_role WHERE key='platform_admin'",
         [current.id]
       ),
       { code: "42501" }

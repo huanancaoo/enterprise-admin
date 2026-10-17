@@ -1,3 +1,5 @@
+import { PlatformResourcesModule } from './platform-resources/platform-resources.module';
+import { PlatformTasksModule } from './platform/platform-tasks.module';
 import { DynamicModule, Module } from '@nestjs/common';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { BusinessModule } from './business/business.module';
@@ -21,6 +23,7 @@ import { type DeploymentSummary } from './config/deployment-summary';
 import { PersonalMediaModule } from './personal-media/personal-media.module';
 import { FilesModule } from './files/files.module';
 import { FilesRuntime } from './files/files-runtime';
+import { AnnouncementsModule } from './announcements/announcements.module';
 
 @Module({})
 export class AppModule {
@@ -36,6 +39,7 @@ export class AppModule {
       module: AppModule,
       providers: [TelemetryRuntime],
       imports: [
+        AnnouncementsModule,
         ScheduleModule.forRoot(),
         IdentityModule.forRoot(runtime),
         LocaleSettingsModule,
@@ -53,6 +57,8 @@ export class AppModule {
         NotificationsModule.forRoot({ email: emailConfig, worker: jobs }),
         AccessCredentialsModule,
         FilesModule.forRoot(files),
+        PlatformResourcesModule.forRoot(files),
+        PlatformTasksModule.forRoot(jobs, emailConfig.encryptionKey),
         PersonalMediaModule.forRoot(files),
         PlatformModule.forRoot(
           deployment,

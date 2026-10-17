@@ -21,11 +21,12 @@ import {
   PlatformUserDetailSchema,
   PlatformUserMutationResultSchema,
   LoginLogsQuerySchema,
-  LoginLogsPageSchema,
+  PlatformLoginLogsPageSchema,
   PlatformSessionsQuerySchema,
   PlatformSessionsPageSchema,
   SessionRevokeResultSchema,
   PasswordResetRequestResultSchema,
+  PasswordLoginUnlockResultSchema,
   LoginMethodSchema,
   LoginResultSchema,
   type CreatePlatformUser,
@@ -128,6 +129,23 @@ export class PlatformIdentityManagementController {
     );
   }
 
+  @Post('users/:userId/password-login/unlock')
+  @HttpCode(200)
+  @ApiOperation({ operationId: 'unlockPlatformUserPasswordLogin' })
+  @ApiResponse({ status: 200, standardSchema: PasswordLoginUnlockResultSchema })
+  unlock(
+    @CurrentPlatform() actor: PlatformPrincipal,
+    @Param('userId', { schema: UserIdSchema }) userId: string,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    response.setHeader('Cache-Control', 'private, no-store');
+    return this.identity.unlockPasswordLogin(
+      actor,
+      userId,
+      response.locals.requestId as string,
+    );
+  }
+
   @Get('login-events')
   @ApiQuery({ name: 'q', required: false, type: String })
   @ApiQuery({ name: 'userId', required: false, type: String, format: 'uuid' })
@@ -151,7 +169,7 @@ export class PlatformIdentityManagementController {
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'pageSize', required: false, type: Number })
   @ApiOperation({ operationId: 'listPlatformLoginEvents' })
-  @ApiResponse({ status: 200, standardSchema: LoginLogsPageSchema })
+  @ApiResponse({ status: 200, standardSchema: PlatformLoginLogsPageSchema })
   loginEvents(
     @CurrentPlatform() actor: PlatformPrincipal,
     @Query({ schema: LoginLogsQuerySchema }) query: LoginLogsQuery,

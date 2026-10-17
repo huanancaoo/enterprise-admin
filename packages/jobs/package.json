@@ -47,6 +47,14 @@
     "./business-task-dispatch": {
       "types": "./dist/business-task-dispatch.d.ts",
       "default": "./dist/business-task-dispatch.js"
+    },
+    "./platform-runtime": {
+      "types": "./dist/platform-runtime.d.ts",
+      "default": "./dist/platform-runtime.js"
+    },
+    "./platform-exchange": {
+      "types": "./dist/platform-exchange.d.ts",
+      "default": "./dist/platform-exchange.js"
     }
   }
 }

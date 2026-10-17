@@ -34,9 +34,7 @@ export async function platformOperator(
     { name: "Platform operator" }
   )
   await environment.deployerPool.query(
-    `INSERT INTO public.platform_assignment
-    (user_id, role, status, granted_at, granted_by, grant_reason)
-    VALUES ($1, $2, 'active', clock_timestamp(), current_user, 'organization acceptance')`,
+    "SELECT public.manage_platform_assignment('grant',$1,$2,'organization acceptance')",
     [target.user.id, role]
   )
   let cookie = target.cookie

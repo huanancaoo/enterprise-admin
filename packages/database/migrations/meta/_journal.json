@@ -491,6 +491,83 @@
       "when": 1792210139978,
       "tag": "0069_identity-management-access",
       "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1792244626332,
+      "tag": "0070_platform-authorization-foundation",
+      "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1792244629364,
+      "tag": "0071_platform-actions-and-password-lock",
+      "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1792244889426,
+      "tag": "0072_platform-system-management",
+      "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1792245866092,
+      "tag": "0073_platform-tasks-resources",
+      "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1792245968883,
+      "tag": "0074_platform-announcements",
+      "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1792246147991,
+      "tag": "0075_platform-export-actions",
+      "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1792247331709,
+      "tag": "0076_platform-employee-references",
+      "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1792247471459,
+      "tag": "0077_platform-login-lock-projection",
+      "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1792247857009,
+      "tag": "0078_platform-navigation-visibility",
+      "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1792249618416,
+      "tag": "0079_platform-task-submission-authorization",
+      "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "7",
+      "when": 1792251922111,
+      "tag": "0080_platform-online-users-menu",
+      "breakpoints": true
     }
   ]
 }

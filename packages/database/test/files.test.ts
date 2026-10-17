@@ -1383,9 +1383,7 @@ async function platformActor(
     [sessionId, actorId, randomUUID()]
   )
   await owner.query(
-    `INSERT INTO public.platform_assignment
-    (user_id,role,status,version,granted_at,granted_by,grant_reason)
-    VALUES ($1,$2,'active',1,now(),'test','storage policy verification')`,
+    "SELECT public.manage_platform_assignment('grant',$1,$2,'storage policy verification')",
     [actorId, role]
   )
   await owner.query(

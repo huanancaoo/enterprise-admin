@@ -12,9 +12,11 @@ import {
   type LoginLogsQuery,
   type PersonalLoginLogsQuery,
   type LoginLogsPage,
+  type PlatformLoginLogsPage,
   type PlatformSessionsQuery,
   type PlatformSessionsPage,
   type SessionRevokeResult,
+  type PasswordLoginUnlockResult,
 } from '@workspace/contracts';
 import { AuthRuntime } from '../identity/auth-runtime';
 import type { Identity } from '../identity/identity.service';
@@ -149,11 +151,29 @@ export class PlatformIdentityManagement {
     );
   }
 
+  unlockPasswordLogin(
+    actor: PlatformPrincipal,
+    userId: string,
+    requestId: string,
+  ): Promise<PasswordLoginUnlockResult> {
+    return this.mutate(
+      actor,
+      'platform.user_password_login_unlocked',
+      userId,
+      requestId,
+      () =>
+        this.call(
+          'SELECT public.unlock_platform_password_login($1,$2,$3,$4) AS result',
+          [actor.userId, actor.sessionId, userId, requestId],
+        ),
+    );
+  }
+
   loginEvents(
     actor: PlatformPrincipal,
     query: LoginLogsQuery,
     requestId: string,
-  ): Promise<LoginLogsPage> {
+  ): Promise<PlatformLoginLogsPage> {
     return this.call(
       'SELECT public.list_platform_login_logs($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) AS result',
       [
@@ -256,7 +276,7 @@ export class PlatformIdentityManagement {
       return result;
     } catch (error) {
       await client.query('ROLLBACK');
-      throw error;
+      this.throwDatabaseError(error);
     } finally {
       client.release();
     }
@@ -270,8 +290,6 @@ export class PlatformIdentityManagement {
     action: () => Promise<T>,
   ): Promise<T> {
     try {
-      if (actor.role !== 'platform_admin')
-        throw new ApiException(403, 'FORBIDDEN');
       return await action();
     } catch (error) {
       const code =
@@ -299,23 +317,29 @@ export class PlatformIdentityManagement {
       return (await executor.query<{ result: T }>(statement, values)).rows[0]
         .result;
     } catch (error) {
-      if (error instanceof Error && 'code' in error && error.code === 'P0001') {
-        const code = ApiErrorCodeSchema.safeParse(error.message);
-        const statuses: Partial<Record<ApiErrorCode, number>> = {
-          FORBIDDEN: 403,
-          UNAUTHENTICATED: 401,
-          NOT_FOUND: 404,
-          VALIDATION_ERROR: 400,
-          ACCOUNT_SUSPENDED: 403,
-          EMAIL_ALREADY_EXISTS: 409,
-          VERSION_CONFLICT: 409,
-          AUDIT_UNAVAILABLE: 503,
-          AUTHORIZATION_UNAVAILABLE: 503,
-        };
-        if (code.success && statuses[code.data])
-          throw new ApiException(statuses[code.data]!, code.data);
-      }
-      throw error;
+      this.throwDatabaseError(error);
     }
+  }
+
+  private throwDatabaseError(error: unknown): never {
+    if (error instanceof Error && 'code' in error && error.code === 'P0001') {
+      const code = ApiErrorCodeSchema.safeParse(error.message);
+      const statuses: Partial<Record<ApiErrorCode, number>> = {
+        FORBIDDEN: 403,
+        UNAUTHENTICATED: 401,
+        NOT_FOUND: 404,
+        VALIDATION_ERROR: 400,
+        ACCOUNT_SUSPENDED: 403,
+        LAST_PLATFORM_SUPERADMIN: 409,
+        BUILT_IN_ROLE_IMMUTABLE: 403,
+        EMAIL_ALREADY_EXISTS: 409,
+        VERSION_CONFLICT: 409,
+        AUDIT_UNAVAILABLE: 503,
+        AUTHORIZATION_UNAVAILABLE: 503,
+      };
+      if (code.success && statuses[code.data])
+        throw new ApiException(statuses[code.data]!, code.data);
+    }
+    throw error;
   }
 }

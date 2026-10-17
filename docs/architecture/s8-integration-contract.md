@@ -6,21 +6,11 @@
 
 ### 身份与任职
 
-复用 Better Auth User/Session。平台权限只来自独立的 platform_assignment：userId 唯一、role、status、version、grantedAt/By、revokedAt/By；一位用户最多一个当前平台角色。组织 owner/admin、自定义角色同名字符串、metadata、URL、Cookie 和客户端状态都不产生平台任职。保留平台角色名称，禁止租户创建。
+复用 Better Auth User/Session。2026-10-17 平台系统管理决策以 [ADR-0002](../adr/0002-platform-assignment.md) 为准：独立 `platform_assignment` 记录任职，`platform_role` 与 `platform_assignment_role` 提供多角色权限并集。租户角色、metadata、URL、Cookie 和客户端状态都不产生平台任职。
 
-平台角色只由受控部署 CLI 管理。`platform admin create` 使用独立部署凭据，原子创建邮箱已验证的新管理员、密码凭据、任职及审计。已有用户的 grant/revoke 仍输入精确 userId、role、reason；grant 检查用户存在且邮箱已验证，任职变更与审计在同一事务提交。拒绝在线运行凭据；无授予/撤销 HTTP 接口、首位注册者或邮箱域名自动授权。每次平台请求重新检查权威 Session 和有效任职，撤销后旧 Session 的下一请求被拒绝。
+只有内置超级管理员可管理平台任职和角色授权；内置超级管理员角色不可删除或修改权限。允许自我降权，数据库事务锁与延迟约束保护最后一位全局账号正常、任职有效的超级管理员。每次平台请求重新检查权威 Session、账号状态、任职和有效角色，撤权下一请求生效。部署 CLI 保留独立凭据，网页管理通过固定动作函数访问；在线 runtime 不直接读写平台表。
 
-| 动作                                   | platform_admin           | platform_auditor |
-| -------------------------------------- | ------------------------ | ---------------- |
-| platform.organization:read             | 允许                     | 允许             |
-| platform.organization:suspend / resume | 允许                     | 禁止             |
-| platform.user:read                     | 脱敏                     | 脱敏             |
-| platform.user:readSensitive            | 明示 purpose，审计后返回 | 禁止             |
-| platform.audit:read                    | 范围审计                 | 范围审计         |
-| platform.settings:read                 | 安全摘要                 | 安全摘要         |
-| platform.settings:update               | 仅平台默认语言           | 禁止             |
-
-没有 Projects 访问、冒充用户、任意 SQL 或平台动态角色。平台人员访问租户 API 仍须有该组织 Membership，并通过普通租户动作和 Domain Policy。
+代码权限目录位于 `packages/permissions/src/platform.ts`，数据库目录和固定函数随同迁移发布。既有组织、用户、敏感邮箱、审计、设置、登录日志和会话分别验证自己的动作。任职停用/移除不改变全局账号或租户成员，恢复不恢复已撤销角色。平台人员访问租户 API 仍须有该组织 Membership，并通过普通租户动作和 Domain Policy；没有 Projects 跨租户访问、冒充用户或任意 SQL。
 
 ### 自主启用的双重验证
 
@@ -44,7 +34,7 @@
 | ----------------- | ------------------------------------------------ | --------------------------------------------------- |
 | app_runtime       | 认证集成、TenantTx/RLS、已交付的平台固定函数     | 角色继承、直接平台授权写、DDL/BYPASSRLS             |
 | platform_runtime  | 仅历史迁移回放所需，0024 撤销平台函数执行权限    | 平台函数、基础表 CRUD、SET ROLE 提权、DDL/BYPASSRLS |
-| platform_executor | NOLOGIN，固定函数需要的列级读写和专用审计 policy | 超级用户、表 Owner、DDL/BYPASSRLS、平台任职写入     |
+| platform_executor | NOLOGIN，固定函数需要的列级读写和专用审计 policy | 超级用户、表 Owner、DDL/BYPASSRLS                   |
 | app_migrator      | reviewed migration                               | API 日常凭据                                        |
 | 部署授权身份      | 专用 CLI 的任职与审计命令                        | 注入在线 API                                        |
 

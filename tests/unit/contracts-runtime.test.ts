@@ -50,6 +50,7 @@ describe("HTTP contract runtime isolation", () => {
     expect(loadedContractModules("platform.js").contractModules).toEqual([
       "audit.js",
       "identifiers.js",
+      "identity-management.js",
       "locale.js",
       "organizations.js",
       "platform.js",

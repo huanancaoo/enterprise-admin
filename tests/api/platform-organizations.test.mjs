@@ -79,6 +79,7 @@ describe("platform organization operations", () => {
     environment = await startTestApplication({ origins: [origin] })
     admin = await platformOperator(environment, origin)
     auditor = await platformOperator(environment, origin, "platform_auditor")
+    await platformOperator(environment, origin)
     owner = await signUpVerified(
       environment.baseURL,
       origin,
@@ -329,7 +330,7 @@ describe("platform organization operations", () => {
       )
     }
     await environment.deployerPool.query(
-      "UPDATE public.platform_assignment SET role = 'platform_auditor' WHERE user_id = $1",
+      "WITH granted AS (SELECT public.manage_platform_assignment('grant',$1,'platform_auditor','role reduction')) SELECT public.manage_platform_assignment('revoke',$1,'platform_admin','role reduction') FROM granted",
       [admin.user.id]
     )
     try {
@@ -338,7 +339,7 @@ describe("platform organization operations", () => {
       ).toBe(403)
     } finally {
       await environment.deployerPool.query(
-        "UPDATE public.platform_assignment SET role = 'platform_admin' WHERE user_id = $1",
+        "WITH granted AS (SELECT public.manage_platform_assignment('grant',$1,'platform_admin','restore role')) SELECT public.manage_platform_assignment('revoke',$1,'platform_auditor','restore role') FROM granted",
         [admin.user.id]
       )
     }
@@ -560,7 +561,7 @@ describe("platform organization operations", () => {
       },
     })
     await environment.deployerPool.query(
-      "UPDATE public.platform_assignment SET status = 'revoked', revoked_at = clock_timestamp(), revoked_by = current_user, revoke_reason = 'independent revocation' WHERE user_id = $1",
+      "SELECT public.manage_platform_assignment('revoke',$1,'platform_auditor','scope revocation during acceptance')",
       [auditor.user.id]
     )
     expect(
@@ -707,7 +708,7 @@ describe("platform organization operations", () => {
       replay = transition("suspend", body, key, admin, target.id)
       await waitForLock("transactionid")
       await environment.deployerPool.query(
-        "UPDATE public.platform_assignment SET status = 'revoked', revoked_at = clock_timestamp(), revoked_by = current_user, revoke_reason = 'revocation while awaiting state lock' WHERE user_id = $1",
+        "SELECT public.manage_platform_assignment('revoke',$1,'platform_admin','scope revocation during acceptance')",
         [admin.user.id]
       )
       await connection.query("COMMIT")
@@ -731,7 +732,7 @@ describe("platform organization operations", () => {
       await Promise.allSettled([replay].filter(Boolean))
       connection.release()
       await environment.deployerPool.query(
-        "UPDATE public.platform_assignment SET status = 'active', revoked_at = NULL, revoked_by = NULL, revoke_reason = NULL WHERE user_id = $1",
+        "SELECT public.manage_platform_assignment('grant',$1,'platform_admin','restore role')",
         [admin.user.id]
       )
     }

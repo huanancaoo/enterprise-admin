@@ -76,7 +76,7 @@ describe("platform administrator creation CLI", () => {
     expect(
       (
         await migrator.query(
-          "SELECT role, status, granted_by FROM public.platform_assignment WHERE user_id=$1",
+          "SELECT r.key AS role,a.status,a.granted_by FROM public.platform_assignment a JOIN public.platform_assignment_role ar ON ar.user_id=a.user_id JOIN public.platform_role r ON r.id=ar.role_id WHERE a.user_id=$1",
           [created.userId]
         )
       ).rows[0]
@@ -124,7 +124,9 @@ describe("platform administrator creation CLI", () => {
     })
     expect(access.status).toBe(200)
     expect(await access.json()).toMatchObject({
-      role: "platform_admin",
+      roles: expect.arrayContaining([
+        expect.objectContaining({ key: "platform_admin" }),
+      ]),
       mfaVerifiedAt: null,
     })
     expect(

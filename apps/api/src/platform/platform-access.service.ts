@@ -5,7 +5,7 @@ import type { Identity } from '../identity/identity.service';
 import { AuthRuntime } from '../identity/auth-runtime';
 
 export type PlatformPrincipal = Identity &
-  Pick<PlatformAccess, 'role' | 'scope' | 'mfaVerifiedAt'>;
+  Pick<PlatformAccess, 'roles' | 'permissions' | 'scope' | 'mfaVerifiedAt'>;
 
 @Injectable()
 export class PlatformAccessService {
@@ -28,17 +28,19 @@ export class PlatformAccessService {
 
   async requireAccess(identity: Identity): Promise<PlatformPrincipal> {
     const result = await this.runtime.pool.query<{
-      role: PlatformAccess['role'];
+      roles: PlatformAccess['roles'];
+      permissions: string[];
       mfa_verified_at: Date | null;
     }>(
-      'SELECT role, mfa_verified_at FROM public.read_platform_access($1, $2)',
+      'SELECT roles, permissions, mfa_verified_at FROM public.read_platform_access($1, $2)',
       [identity.userId, identity.sessionId],
     );
     const access = result.rows[0];
     if (!access) throw new ForbiddenException();
     return {
       ...identity,
-      role: access.role,
+      roles: access.roles,
+      permissions: access.permissions,
       scope: 'global',
       mfaVerifiedAt: access.mfa_verified_at?.toISOString() ?? null,
     };

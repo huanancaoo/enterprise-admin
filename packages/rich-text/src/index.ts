@@ -4,6 +4,7 @@ import {
   SaveProjectContentSchema,
 } from "@workspace/contracts/project-files"
 import { createProjectRichTextExtensions } from "./extensions.js"
+import { AnnouncementRichTextDocumentSchema } from "@workspace/contracts/platform-announcements"
 
 const editorSchema = getSchema(createProjectRichTextExtensions())
 
@@ -23,3 +24,13 @@ export const ProjectEditorDocumentSchema =
 export const SaveProjectEditorContentSchema = SaveProjectContentSchema.extend({
   document: ProjectEditorDocumentSchema,
 }).meta({ id: "SaveProjectContent" })
+
+// 编辑器节点语法共用；项目文件与公告资源的归属由各自的内容契约和领域入口校验。
+export const AnnouncementEditorDocumentSchema =
+  AnnouncementRichTextDocumentSchema.superRefine((document, ctx) => {
+    try {
+      editorSchema.nodeFromJSON(document).check()
+    } catch {
+      ctx.addIssue({ code: "custom", message: "Invalid editor node structure" })
+    }
+  })

@@ -5,6 +5,8 @@ import {
   uuid,
   integer,
   index,
+  boolean,
+  primaryKey,
 } from "drizzle-orm/pg-core"
 import { session, user } from "./auth.ts"
 
@@ -12,10 +14,9 @@ export const platformAssignment = pgTable("platform_assignment", {
   userId: uuid("user_id")
     .primaryKey()
     .references(() => user.id, { onDelete: "cascade" }),
-  role: text("role", {
-    enum: ["platform_admin", "platform_auditor"],
+  status: text("status", {
+    enum: ["active", "suspended", "revoked"],
   }).notNull(),
-  status: text("status", { enum: ["active", "revoked"] }).notNull(),
   version: integer("version").default(1).notNull(),
   grantedAt: timestamp("granted_at", { withTimezone: true }).notNull(),
   grantedBy: text("granted_by").notNull(),
@@ -42,12 +43,8 @@ export const platformAssignmentAudit = pgTable(
     id: uuid("id").defaultRandom().primaryKey(),
     userId: uuid("user_id").notNull(),
     action: text("action", { enum: ["grant", "revoke"] }).notNull(),
-    previousRole: text("previous_role", {
-      enum: ["platform_admin", "platform_auditor"],
-    }),
-    nextRole: text("next_role", {
-      enum: ["platform_admin", "platform_auditor"],
-    }),
+    previousRole: text("previous_role"),
+    nextRole: text("next_role"),
     result: text("result", { enum: ["changed", "no_change"] }).notNull(),
     reason: text("reason").notNull(),
     actor: text("actor").notNull(),
@@ -60,3 +57,46 @@ export const platformAssignmentAudit = pgTable(
     ),
   ]
 )
+
+export const platformRole = pgTable("platform_role", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  key: text("key").notNull().unique(),
+  name: text("name").notNull(),
+  builtIn: boolean("built_in").default(false).notNull(),
+  status: text("status", { enum: ["active", "suspended"] })
+    .default("active")
+    .notNull(),
+  permissions: text("permissions").array().default([]).notNull(),
+  version: integer("version").default(1).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+})
+
+export const platformAssignmentRole = pgTable(
+  "platform_assignment_role",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => platformAssignment.userId, { onDelete: "cascade" }),
+    roleId: uuid("role_id")
+      .notNull()
+      .references(() => platformRole.id, { onDelete: "cascade" }),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.roleId] })]
+)
+
+// 密码失败锁属于全局账号，与任职、Session 和原生 MFA 锁分别建模。
+export const passwordLoginLock = pgTable("password_login_lock", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  failureTimes: timestamp("failure_times", { withTimezone: true })
+    .array()
+    .default([])
+    .notNull(),
+  lockedUntil: timestamp("locked_until", { withTimezone: true }),
+})

@@ -6,9 +6,15 @@ import {
 } from '@workspace/contracts/file-path';
 
 export type StorageOwner = {
-  kind: 'organization' | 'personal';
+  kind: 'organization' | 'personal' | 'platform';
   id: string;
 };
+
+// 平台资源属于独立身份域，不能复用任何真实组织或员工的存储归属。
+export const platformStorageOwner: Readonly<StorageOwner> = Object.freeze({
+  kind: 'platform',
+  id: '00000000-0000-4000-8000-000000000001',
+});
 
 export type StorageAddress = {
   owner: StorageOwner;
@@ -53,7 +59,7 @@ export class StorageError extends Error {
   }
 }
 
-// 这是物理存储接口。归属、授权、版本及操作收据由 Files 的受控入口确定。
+// 这是物理存储接口。归属、授权、版本及操作收据由各领域的受控入口确定。
 // copy 只准备并验证目标；源清理须在数据库定位与成功审计提交后执行。
 export interface FileStorage {
   ensureOwner(owner: StorageOwner, signal?: AbortSignal): Promise<void>;
@@ -105,8 +111,16 @@ export function storageKey(address: StorageAddress, directory = false): string {
   );
   if (!directory && names.length === 0)
     throw new StorageError('STORAGE_LOCATION_INVALID');
-  const owner =
-    address.owner.kind === 'organization' ? 'organizations' : 'users';
+  if (
+    address.owner.kind === 'platform' &&
+    address.owner.id.toLowerCase() !== platformStorageOwner.id
+  )
+    throw new StorageError('STORAGE_LOCATION_INVALID');
+  const owner = {
+    organization: 'organizations',
+    personal: 'users',
+    platform: 'platforms',
+  }[address.owner.kind];
   const area = address.area === 'files' ? 'files' : `internal/${address.area}`;
   return `${owner}/${address.owner.id.toLowerCase()}/${area}/${names.join('/')}${directory && names.length > 0 ? '/' : ''}`;
 }

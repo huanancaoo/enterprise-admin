@@ -88,6 +88,13 @@ describe("platform assignment access boundary", () => {
   beforeAll(async () => {
     environment = await startTestApplication({ origins: [origin] })
     ;({ runtime, migrator, baseURL } = environment)
+    const reserve = await signup()
+    await cli(
+      "grant",
+      reserve.user.id,
+      "platform_admin",
+      "retain a valid superadmin during revocation tests"
+    )
   })
   afterAll(async () => {
     await environment?.close()
@@ -104,7 +111,7 @@ describe("platform assignment access boundary", () => {
       )
     ).toBe(`grant ${member.user.id} platform_auditor`)
     const record = await migrator.query(
-      "SELECT role, status, granted_by, grant_reason FROM platform_assignment WHERE user_id = $1",
+      "SELECT r.key AS role,a.status,a.granted_by,a.grant_reason FROM public.platform_assignment a JOIN public.platform_assignment_role ar ON ar.user_id=a.user_id JOIN public.platform_role r ON r.id=ar.role_id WHERE a.user_id=$1",
       [member.user.id]
     )
     expect(record.rows[0]).toMatchObject({
@@ -138,6 +145,13 @@ describe("platform assignment access boundary", () => {
       "changed",
       "no_change",
     ])
+    expect((await platformAccess(member.cookie)).status).toBe(200)
+    await cli(
+      "revoke",
+      member.user.id,
+      "platform_auditor",
+      "remove remaining platform role"
+    )
     expect((await platformAccess(member.cookie)).status).toBe(403)
 
     const unverified = await runtime.auth.api.signUpEmail({
@@ -168,7 +182,9 @@ describe("platform assignment access boundary", () => {
     const initiallyDenied = await platformAccess(member.cookie)
     expect(initiallyDenied.status).toBe(200)
     expect(await json(initiallyDenied)).toMatchObject({
-      role: "platform_admin",
+      roles: expect.arrayContaining([
+        expect.objectContaining({ key: "platform_admin" }),
+      ]),
       mfaVerifiedAt: null,
     })
     for (const path of [
@@ -266,7 +282,9 @@ describe("platform assignment access boundary", () => {
     expect(allowed.status).toBe(200)
     expect(await json(allowed)).toMatchObject({
       userId: member.user.id,
-      role: "platform_admin",
+      roles: expect.arrayContaining([
+        expect.objectContaining({ key: "platform_admin" }),
+      ]),
       scope: "global",
       mfaVerifiedAt: expect.any(String),
     })
@@ -530,8 +548,9 @@ describe("platform assignment access boundary", () => {
     )
     expect(activeDatabaseAccess.rows).toEqual([
       expect.objectContaining({
-        role: "platform_admin",
-        two_factor_enabled: true,
+        roles: expect.arrayContaining([
+          expect.objectContaining({ key: "platform_admin" }),
+        ]),
         mfa_verified_at: expect.any(Date),
       }),
     ])
@@ -550,7 +569,7 @@ describe("platform assignment access boundary", () => {
       headers: new Headers({ cookie: verifiedSessionCookie }),
       query: { disableCookieCache: true },
     })
-    expect(secondarySession?.session.id).toBe(session.session.id)
+    expect(secondarySession).toBeNull()
 
     const databaseAccess = await environment.runtime.pool.query(
       "SELECT * FROM public.read_platform_access($1, $2)",

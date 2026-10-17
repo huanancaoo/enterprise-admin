@@ -18,8 +18,15 @@ function makeAccessService(mfaVerifiedAt: Date | null) {
     query: vi.fn().mockResolvedValue({
       rows: [
         {
-          role: 'platform_admin',
-          two_factor_enabled: true,
+          roles: [
+            {
+              id: 'admin-role',
+              key: 'platform_admin',
+              name: '超级管理员',
+              builtIn: true,
+            },
+          ],
+          permissions: ['platform.user:read'],
           mfa_verified_at: mfaVerifiedAt,
         },
       ],
@@ -34,7 +41,15 @@ describe('PlatformAccessService optional MFA', () => {
     const { service } = makeAccessService(null);
     await expect(service.requireAccess(identity)).resolves.toMatchObject({
       userId: identity.userId,
-      role: 'platform_admin',
+      roles: [
+        {
+          id: 'admin-role',
+          key: 'platform_admin',
+          name: '超级管理员',
+          builtIn: true,
+        },
+      ],
+      permissions: ['platform.user:read'],
       mfaVerifiedAt: null,
     });
   });
@@ -62,7 +77,15 @@ describe('PlatformGuard session and assignment policy', () => {
       const access = {
         requireAccess: vi.fn().mockResolvedValue({
           ...identity,
-          role: 'platform_admin',
+          roles: [
+            {
+              id: 'admin-role',
+              key: 'platform_admin',
+              name: '超级管理员',
+              builtIn: true,
+            },
+          ],
+          permissions: ['platform.user:read'],
           scope: 'global',
           mfaVerifiedAt: now.toISOString(),
         }),

@@ -24,9 +24,8 @@ function requireUserId(value: string): string {
 }
 
 function requireRole(value: string): PlatformRole {
-  if (value !== 'platform_admin' && value !== 'platform_auditor') {
-    throw new Error('--role must be platform_admin or platform_auditor');
-  }
+  if (!value.trim())
+    throw new Error('--role must be an exact platform role key');
   return value;
 }
 
@@ -77,7 +76,7 @@ abstract class PlatformAssignmentActionCommand extends CommandRunner {
   @Option({
     flags: '--role <role>',
     required: true,
-    description: 'platform_admin 或 platform_auditor',
+    description: '平台角色 key',
   })
   parseRole(value: string): PlatformRole {
     return requireRole(value);
@@ -93,13 +92,13 @@ abstract class PlatformAssignmentActionCommand extends CommandRunner {
   }
 }
 
-@SubCommand({ name: 'grant', description: '授予或更改平台任职' })
+@SubCommand({ name: 'grant', description: '授予平台角色' })
 @Injectable()
 export class PlatformAssignmentGrantCommand extends PlatformAssignmentActionCommand {
   readonly action = 'grant' as const;
 }
 
-@SubCommand({ name: 'revoke', description: '撤销平台任职' })
+@SubCommand({ name: 'revoke', description: '撤销平台角色' })
 @Injectable()
 export class PlatformAssignmentRevokeCommand extends PlatformAssignmentActionCommand {
   readonly action = 'revoke' as const;

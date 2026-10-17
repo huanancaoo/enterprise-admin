@@ -21,6 +21,7 @@ describe("platform user directory and sensitive access", () => {
     environment = await startTestApplication({ origins: [origin] })
     admin = await platformOperator(environment, origin)
     auditor = await platformOperator(environment, origin, "platform_auditor")
+    await platformOperator(environment, origin)
     target = await signUpVerified(
       environment.baseURL,
       origin,
@@ -63,6 +64,7 @@ describe("platform user directory and sensitive access", () => {
           name: "Directory target",
           maskedEmail: "d***@example.test",
           emailVerified: true,
+          lockedUntil: null,
           status: "active",
           version: 1,
           createdAt: expect.any(String),
@@ -105,6 +107,7 @@ describe("platform user directory and sensitive access", () => {
       name: target.user.name,
       maskedEmail: "d***@example.test",
       emailVerified: true,
+      lockedUntil: null,
       status: "active",
       version: 1,
       createdAt: expect.any(String),
@@ -223,7 +226,7 @@ describe("platform user directory and sensitive access", () => {
 
   it("rechecks the current assignment for sensitive reads and the directory after role changes", async () => {
     await environment.deployerPool.query(
-      "UPDATE public.platform_assignment SET role = 'platform_auditor' WHERE user_id = $1",
+      "WITH granted AS (SELECT public.manage_platform_assignment('grant',$1,'platform_auditor','role reduction')) SELECT public.manage_platform_assignment('revoke',$1,'platform_admin','role reduction') FROM granted",
       [admin.user.id]
     )
     try {
@@ -236,14 +239,14 @@ describe("platform user directory and sensitive access", () => {
       ).toBe(403)
       expect((await request("")).status).toBe(200)
       await environment.deployerPool.query(
-        "UPDATE public.platform_assignment SET status = 'revoked', revoked_at = clock_timestamp(), revoked_by = current_user, revoke_reason = 'directory revocation' WHERE user_id = $1",
+        "SELECT public.manage_platform_assignment('revoke',$1,'platform_auditor','scope revocation during acceptance')",
         [admin.user.id]
       )
       expect((await request("")).status).toBe(403)
       expect((await request(`/${target.user.id}`)).status).toBe(403)
     } finally {
       await environment.deployerPool.query(
-        "UPDATE public.platform_assignment SET role = 'platform_admin', status = 'active', revoked_at = NULL, revoked_by = NULL, revoke_reason = NULL WHERE user_id = $1",
+        "SELECT public.manage_platform_assignment('grant',$1,'platform_admin','restore role')",
         [admin.user.id]
       )
     }
@@ -274,7 +277,7 @@ describe("platform user directory and sensitive access", () => {
             "list_platform_users",
             "get_platform_user",
             "get_platform_sensitive_profile",
-            "require_platform_user_access",
+            "require_platform_action",
           ],
         ]
       )
@@ -285,7 +288,7 @@ describe("platform user directory and sensitive access", () => {
         rolname: "platform_executor",
         prosecdef: true,
         proconfig: ["search_path=pg_catalog", "row_security=on"],
-        runtime: fn.proname !== "require_platform_user_access",
+        runtime: fn.proname !== "require_platform_action",
         legacy: false,
         public: false,
       })

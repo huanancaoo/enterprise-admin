@@ -79,6 +79,18 @@
     "./identity-management": {
       "types": "./dist/identity-management.d.ts",
       "default": "./dist/identity-management.js"
+    },
+    "./platform-tasks": {
+      "types": "./dist/platform-tasks.d.ts",
+      "default": "./dist/platform-tasks.js"
+    },
+    "./platform-system": {
+      "types": "./dist/platform-system.d.ts",
+      "default": "./dist/platform-system.js"
+    },
+    "./platform-announcements": {
+      "types": "./dist/platform-announcements.d.ts",
+      "default": "./dist/platform-announcements.js"
     }
   },
   "scripts": {

@@ -68,6 +68,16 @@ export async function createApplication(
         contentTypeEssence(request.headers['content-type']) ===
           'application/json',
     });
+    app.useBodyParser('json', {
+      limit: Math.ceil((10 * 1024 * 1024) / 3) * 4 + 4096,
+      type: (request) =>
+        request.method === 'POST' &&
+        /^\/api\/v1\/platform\/employees\/imports\/?(?:\?|$)/.test(
+          request.url ?? '',
+        ) &&
+        contentTypeEssence(request.headers['content-type']) ===
+          'application/json',
+    });
     app.useBodyParser('json');
     app.useBodyParser('urlencoded', { extended: true });
     setupSwagger(app);

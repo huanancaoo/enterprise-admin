@@ -51,6 +51,7 @@ export type LoginMethod = z.infer<typeof LoginMethodSchema>
 export const LoginResultSchema = z.enum(["succeeded", "failed"])
 export type LoginResult = z.infer<typeof LoginResultSchema>
 export const LoginReasonCodeSchema = z.enum([
+  "PASSWORD_LOGIN_LOCKED",
   "INVALID_CREDENTIALS",
   "EMAIL_NOT_VERIFIED",
   "INVALID_OTP",
@@ -104,6 +105,16 @@ export const LoginLogsPageSchema = z
   })
   .meta({ id: "LoginLogsPage" })
 export type LoginLogsPage = z.infer<typeof LoginLogsPageSchema>
+// 只在平台管理投影读取当前账号锁状态；登录历史与个人记录不保存此可变状态。
+export const PlatformLoginLogSchema = LoginLogSchema.extend({
+  lockedUntil: z.iso.datetime({ offset: true }).nullable(),
+}).meta({ id: "PlatformLoginLog" })
+export type PlatformLoginLog = z.infer<typeof PlatformLoginLogSchema>
+export const PlatformLoginLogsPageSchema = LoginLogsPageSchema.extend({
+  items: z.array(PlatformLoginLogSchema),
+}).meta({ id: "PlatformLoginLogsPage" })
+export type PlatformLoginLogsPage = z.infer<typeof PlatformLoginLogsPageSchema>
+
 export const PlatformSessionsQuerySchema = z
   .strictObject({
     q: z.string().trim().max(200).optional(),
@@ -148,4 +159,15 @@ export const PasswordResetRequestResultSchema = z
   .meta({ id: "PasswordResetRequestResult" })
 export type PasswordResetRequestResult = z.infer<
   typeof PasswordResetRequestResultSchema
+>
+
+export const PasswordLoginUnlockResultSchema = z
+  .strictObject({
+    userId: UserIdSchema,
+    changed: z.boolean(),
+    lockedUntil: z.null(),
+  })
+  .meta({ id: "PasswordLoginUnlockResult" })
+export type PasswordLoginUnlockResult = z.infer<
+  typeof PasswordLoginUnlockResultSchema
 >

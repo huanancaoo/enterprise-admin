@@ -55,6 +55,7 @@ import { readRoleReferences } from "./role-references.ts"
 import { readPlatformDefaultLocale } from "./platform-locale.ts"
 import { createAuthI18n } from "./auth-i18n.ts"
 import { authPasswordPolicy } from "./auth-password-policy.ts"
+import { verifyPasswordLogin } from "./password-login.ts"
 import {
   assertMemberDirectoryRead,
   normalizeMemberListQuery,
@@ -403,7 +404,11 @@ export function createAuth(
           : typeof value?.code === "string"
             ? value.code
             : ""
-    if (candidate === "ACCOUNT_SUSPENDED") return candidate
+    if (
+      candidate === "ACCOUNT_SUSPENDED" ||
+      candidate === "PASSWORD_LOGIN_LOCKED"
+    )
+      return candidate
     if (candidate === "AUTHORIZATION_UNAVAILABLE") return candidate
     if (candidate === "INVALID_EMAIL_OR_PASSWORD") return "INVALID_CREDENTIALS"
     if (candidate === "EMAIL_NOT_VERIFIED") return candidate
@@ -1293,6 +1298,17 @@ export function createAuth(
                 ? email.trim().toLowerCase()
                 : undefined,
           })
+          if (typeof email === "string") {
+            const nativePassword = ctx.context.password
+            // dispatch 的 context 属于本次请求；替换整个对象，不能改写共享 verifier。
+            ctx.context.password = {
+              ...nativePassword,
+              verify: (input) =>
+                verifyPasswordLogin(pool, email, () =>
+                  nativePassword.verify(input)
+                ),
+            }
+          }
         } else if (ctx.path.startsWith("/callback/")) {
           setLoginAttempt({ method: "github" })
         }

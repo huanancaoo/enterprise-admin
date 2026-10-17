@@ -21,7 +21,8 @@ export class PlatformController {
   me(@CurrentPlatform() identity: PlatformPrincipal): PlatformAccess {
     return {
       userId: identity.userId,
-      role: identity.role,
+      roles: identity.roles,
+      permissions: identity.permissions,
       scope: identity.scope,
       mfaVerifiedAt: identity.mfaVerifiedAt,
     };

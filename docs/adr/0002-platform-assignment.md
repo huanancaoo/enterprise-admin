@@ -1,28 +1,31 @@
 ---
 status: accepted
 date: 2026-09-18
-updated: 2026-10-16
+updated: 2026-10-17
 ---
 
-# 平台管理员由部署 CLI 创建或授予任职
+# 独立平台任职与多角色动作授权
 
-平台后台没有注册入口。平台权限只来自独立的任职表，组织角色、打开平台后台的路由、Cookie 或 Header 都不能产生这个身份。部署操作者可以创建新的平台管理员，或向已注册且邮箱已验证的用户授予任职。
+平台员工复用 Better Auth 全局账号和 Session，平台任职、角色及权限独立于租户 Membership。组织 owner/admin、自定义租户角色、路由、Cookie 和客户端状态都不能产生平台权限。
 
-2026-10-16 根据用户确认新增 `platform admin create`：受信部署操作者直接创建邮箱已验证的 `platform_admin`，不发送验证邮件。账号、Better Auth 原生密码凭据、独立任职与授权审计在同一事务提交；邮箱已存在时失败，不修改既有账号。密码通过标准输入传入，遵守与正常认证相同的密码规则。
+2026-10-17 用户确认平台系统管理需要不同运营岗位、多角色权限并集，以及网页任职与角色授权管理。该决定替代原有两个固定角色和仅部署 CLI 管理任职的限制。
 
-部署 CLI 的 grant/revoke 接受精确用户 UUID、platform_admin 或 platform_auditor，以及非空审计原因。grant 检查用户存在且邮箱已验证；这两个命令不创建账号或修改邮箱验证状态，也不提供 HTTP 任职管理接口。任职变更与内部审计在同一事务提交。
+`platform_assignment` 按 userId 唯一记录任职状态、版本、授予/撤销时间、操作者和原因。`platform_role` 保存平台角色、启停状态和代码已注册的动作集合；`platform_assignment_role` 建立多角色关联。每个请求按当前有效 Session、全局账号状态、有效任职和有效角色重新计算权限并集；权限变更在下一请求生效。菜单隐藏不改变权限。
 
-CLI 使用专用部署连接 `PLATFORM_ASSIGNMENT_DATABASE_URL`，不向在线 API 注入该凭据。API 统一使用 `DATABASE_URL`，每次平台请求重新检查权威 Session 与有效任职；撤销后旧 Session 的下一请求被拒绝。
+内置 `platform_admin` 是超级管理员，角色不可删除、停用或修改权限；它取得代码注册的全部动作。`platform_auditor` 迁移为内置只读角色，保留旧任职的原有权限。自定义角色不得授予 `platform.authorization:manage`，只有内置超级管理员可管理平台任职和角色授权。
 
-2026-10-16 用户确认平台 MFA 改为可选：平台接口与操作不再要求启用、当前会话 assurance 或 15 分钟内验证。已主动启用两步验证的账号仍遵循 Better Auth 登录挑战。
+允许自我降权。任职、角色关联及全局账号暂停使用同一事务级 advisory lock；数据库延迟约束在提交时保证至少留有一位全局账号正常、任职有效的超级管理员。停用或撤销任职清除角色关联，恢复任职不恢复已撤销角色；不修改全局账号状态或租户成员关系。全局账号暂停仍是独立管理动作，同样受最后超级管理员约束。
 
-## Considered Options
+部署 CLI 使用专用 `PLATFORM_ASSIGNMENT_DATABASE_URL`，不注入在线 API。`platform admin create` 原子创建已验证邮箱的新账号、Better Auth 原生密码凭据、超级管理员任职及内部审计；密码仅从标准输入读取。`platform assignment grant/revoke` 接受精确 userId、平台角色 key 和原因，分别添加或撤销一项角色，写入与审计共同提交。最后角色撤销时终止任职。网页创建员工使用同一原生身份结构，管理员设初始密码或选择已有已验证账号，不修改既有邮箱验证事实。
 
-- **公开注册的首位用户自动成为平台管理员**：注册和平台任职分别产生事实；否决。
-- **CLI 给已存在且已验证邮箱的用户授权**：复用正常账号认证和邮箱验证，以精确 UUID 明确指定目标；采用。
-- **CLI 创建邮箱已验证的平台管理员**：原决定否决；2026-10-16 根据用户确认改为采用，仅允许专用部署身份创建新账号，保留独立任职与审计，不初始化登录会话或 MFA。
-- **组织 owner 自动成为平台管理员**：两个任职会互相推导；否决。
+平台 MFA 保持可选；已启用者遵循 Better Auth 原生挑战。原生 assurance 继续记录实际验证事实，不作为平台额外准入要求。
 
-## 依据与证据
+密码登录锁按全局 userId 共用：滚动 15 分钟内连续 5 次密码错误锁定 15 分钟；成功验密、到期或具 `platform.user:unlock` 权限的管理员解锁清零。原生 verifier 在同一账号的数据库行锁事务中执行，计数在原生邮箱校验和 MFA 挑战之前提交。锁不踢已有 Session，不影响 GitHub 或原生 MFA 临时锁。解锁是独立动作并同事务留痕。
 
-本文与已完成的 [#19](https://github.com/huanancaoo/enterprise-admin/issues/19) 及 [S8 集成约束](../architecture/s8-integration-contract.md) 对齐。[真实 CLI 测试](../../tests/api/platform-assignment.test.mjs) 核对已验证用户授予、未验证用户拒绝、重复操作、角色变更、撤销及任职/审计持久化；平台访问测试另核对自选 MFA 和撤销后旧 Session 拒绝。这些证据不表示已经完成生产部署。
+## 数据库边界
+
+`require_platform_action(actor, session, action)` 是固定平台函数的共同授权入口。所有既有组织、账号、审计、设置、登录日志和会话函数都检查各自代码动作，不再按固定角色名放行。受限 NOLOGIN `platform_executor` 拥有函数，固定 search_path、启用 RLS、撤销 PUBLIC；在线 runtime 不直接读写平台任职、角色或密码锁表。
+
+## 验证证据
+
+[数据库身份管理测试](../../packages/database/test/identity-management.test.ts) 验证旧账号管理函数、事务审计和会话状态约束。[多角色与密码锁测试](../../packages/database/test/platform-authorization.test.ts) 覆盖权限并集、旧动作函数、并发最后超级管理员保护和真实 Better Auth 密码流程。实际运行结果由本次交付记录说明；这些测试不代表生产部署或浏览器验收。
