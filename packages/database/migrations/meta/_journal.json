@@ -477,6 +477,20 @@
       "when": 1792183756536,
       "tag": "0067_remove-platform-audit-purpose",
       "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1792210086478,
+      "tag": "0068_flippant_magma",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1792210139978,
+      "tag": "0069_identity-management-access",
+      "breakpoints": true
     }
   ]
 }
