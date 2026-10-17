@@ -5,7 +5,6 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import type { PoolClient } from 'pg';
-import { sql } from 'drizzle-orm';
 import type {
   FileVersionReference,
   ProjectAttachmentsResponse,
@@ -56,9 +55,9 @@ export class ProjectFiles {
     const client: PoolClient = await this.runtime.pool.connect();
     try {
       return await createTenantRunner(client)(context, async (tx) => {
-        await tx.execute(
-          sql`SELECT public.require_active_account(${context.userId}::uuid)`,
-        );
+        await client.query('SELECT public.require_active_account($1::uuid)', [
+          context.userId,
+        ]);
         // 引用写、路径操作和清理遵循 usage→Session/status/member→项目/版本的同一锁序。
         await fileRepository.lockOrganization(tx);
         let actor: string | { credentialId: string };

@@ -89,21 +89,25 @@ export class EmailService {
       preferredLocale?: string | null;
     };
     url: string;
+    client?: Pick<RuntimePool, 'query'>;
   }): Promise<void> {
     const url = assertAllowedEmailUrl(data.url, this.allowedOrigins);
-    await this.enqueue({
-      organizationId: null,
-      templateKey: 'password-reset',
-      requestedLocale: data.user.preferredLocale,
-      to: data.user.email,
-      idempotencyKey: `auth.reset-password/${data.user.id}/${hashEmailUrl(url.href)}`,
-      render: (locale) =>
-        renderPasswordResetEmail(locale, {
-          name: data.user.name,
-          resetUrl: url.href,
-        }),
-      replaceOnConflict: true,
-    });
+    await this.enqueue(
+      {
+        organizationId: null,
+        templateKey: 'password-reset',
+        requestedLocale: data.user.preferredLocale,
+        to: data.user.email,
+        idempotencyKey: `auth.reset-password/${data.user.id}/${hashEmailUrl(url.href)}`,
+        render: (locale) =>
+          renderPasswordResetEmail(locale, {
+            name: data.user.name,
+            resetUrl: url.href,
+          }),
+        replaceOnConflict: true,
+      },
+      data.client,
+    );
   }
 
   async sendInvitation(
@@ -198,10 +202,13 @@ export class EmailService {
     }
   }
 
-  private async enqueue(input: EnqueueInput): Promise<void> {
+  private async enqueue(
+    input: EnqueueInput,
+    executor: Pick<RuntimePool, 'query'> = this.pool,
+  ): Promise<void> {
     const locale = resolveEmailLocale(
       input.requestedLocale,
-      await readPlatformDefaultLocale(this.pool),
+      await readPlatformDefaultLocale(executor),
     );
     const rendered = input.render(locale);
     const payload: EmailPayload = {
@@ -233,6 +240,6 @@ export class EmailService {
            $5, $6, $7, 'v1',
            'queued', 0, now(), $8
          )${input.replaceOnConflict ? ' ON CONFLICT (idempotency_key) DO NOTHING' : ''}`;
-    await this.pool.query(sql, values);
+    await executor.query(sql, values);
   }
 }

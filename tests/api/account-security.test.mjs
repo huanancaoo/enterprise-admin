@@ -49,8 +49,8 @@ describe("native account security", () => {
     const account = await signUpVerified(baseURL, origin, migrator)
     const name = `Updated ${randomUUID()}`
     await migrator.query(
-      'UPDATE public."user" SET name = $1, email_verified = false, image = $2, preferred_locale = $3 WHERE id = $4',
-      [name, "https://example.test/avatar.png", "ar", account.user.id]
+      'UPDATE public."user" SET name = $1, email_verified = false, preferred_locale = $2 WHERE id = $3',
+      [name, "ar", account.user.id]
     )
 
     const response = await fetch(`${baseURL}/api/auth/get-session`, {
@@ -62,7 +62,7 @@ describe("native account security", () => {
       name,
       email: account.email,
       emailVerified: false,
-      image: "https://example.test/avatar.png",
+      image: null,
       preferredLocale: "ar",
     })
   })

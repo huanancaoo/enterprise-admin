@@ -54,7 +54,10 @@ export class AppModule {
         AccessCredentialsModule,
         FilesModule.forRoot(files),
         PersonalMediaModule.forRoot(files),
-        PlatformModule.forRoot(deployment),
+        PlatformModule.forRoot(
+          deployment,
+          `${emailConfig.linkOrigin}/reset-password`,
+        ),
       ],
     };
   }

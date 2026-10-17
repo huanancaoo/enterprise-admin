@@ -5,6 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { PlatformUserDetailOrganizationsItem } from "./platformUserDetailOrganizationsItem"
+import type { PlatformUserDetailStatus } from "./platformUserDetailStatus"
 
 export interface PlatformUserDetail {
   /** @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$ */
@@ -19,6 +20,12 @@ export interface PlatformUserDetail {
    * @maximum 9007199254740991
    */
   organizationCount: number
+  status: PlatformUserDetailStatus
+  /**
+   * @minimum 1
+   * @maximum 9007199254740991
+   */
+  version: number
   twoFactorEnabled: boolean
   organizations: PlatformUserDetailOrganizationsItem[]
 }

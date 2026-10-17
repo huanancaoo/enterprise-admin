@@ -159,3 +159,14 @@ export {
   useDeleteWebhook,
   useListWebhookDeliveries,
 } from "./generated/endpoints/webhooks/webhooks"
+
+export {
+  createPlatformUser,
+  updatePlatformUser,
+  setPlatformUserStatus,
+  requestPlatformUserPasswordReset,
+  listPlatformLoginEvents,
+  listPlatformSessions,
+  revokePlatformSession,
+} from "./generated/endpoints/platform-identity-management/platform-identity-management"
+export { listMyLoginEvents } from "./generated/endpoints/personal-login-events/personal-login-events"

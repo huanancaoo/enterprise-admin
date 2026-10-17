@@ -17,6 +17,12 @@ import { PlatformUsersController } from './platform-users.controller';
 
 import { PlatformAudit } from './platform-audit';
 import { PlatformAuditController } from './platform-audit.controller';
+import {
+  PlatformIdentityManagement,
+  PLATFORM_PASSWORD_RESET_REDIRECT,
+} from './platform-identity-management';
+import { PlatformIdentityManagementController } from './platform-identity-management.controller';
+import { PersonalLoginEventsController } from './personal-login-events.controller';
 
 @Module({
   controllers: [
@@ -26,6 +32,8 @@ import { PlatformAuditController } from './platform-audit.controller';
     PlatformAuditController,
     PlatformSettingsController,
     PlatformStoragePolicyController,
+    PlatformIdentityManagementController,
+    PersonalLoginEventsController,
   ],
   providers: [
     PlatformAccessService,
@@ -35,14 +43,22 @@ import { PlatformAuditController } from './platform-audit.controller';
     PlatformAudit,
     PlatformSettings,
     PlatformStoragePolicyService,
+    PlatformIdentityManagement,
   ],
 })
 export class PlatformModule {
-  static forRoot(deployment: DeploymentSummary): DynamicModule {
+  static forRoot(
+    deployment: DeploymentSummary,
+    passwordResetRedirect: string,
+  ): DynamicModule {
     return {
       module: PlatformModule,
       providers: [
         { provide: PLATFORM_DEPLOYMENT_SUMMARY, useValue: deployment },
+        {
+          provide: PLATFORM_PASSWORD_RESET_REDIRECT,
+          useValue: passwordResetRedirect,
+        },
       ],
     };
   }

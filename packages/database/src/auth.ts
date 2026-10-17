@@ -279,7 +279,9 @@ export function createAuth(
 
   async function requireActiveAccount(
     userId: string,
-    executor: Pick<Pool, "query"> = { query: transactionalAdapter.query }
+    executor: {
+      query: (statement: string, values: unknown[]) => Promise<unknown>
+    } = { query: transactionalAdapter.query }
   ) {
     try {
       await executor.query("SELECT public.require_active_account($1::uuid)", [
