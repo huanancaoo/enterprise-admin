@@ -1,5 +1,7 @@
 export { organizations, projectFixtures } from "./fixtures/projects"
 export { createWorkspaceSessionHandlers } from "./handlers/workspace-session"
+export { createPlatformIdentityScenario } from "./handlers/platform-identity"
+export type { PlatformIdentityScenario } from "./handlers/platform-identity"
 export { createProjectsHandler } from "./handlers/projects"
 export type { ProjectsScenario } from "./handlers/projects"
 export { projectScenarios } from "./scenarios/projects"

@@ -70,6 +70,7 @@ export function AdminLayout() {
     "notifications",
     "webhooks",
     "settings",
+    "identity",
     "common",
     "errors",
   ])
@@ -107,7 +108,8 @@ export function AdminLayout() {
   const onRoles = isOrganizationRolesPath(pathname)
   const onOrganizationSettings =
     pathname.startsWith("/app/organizations/") && pathname.endsWith("/settings")
-  const onPersonalSettings = pathname === "/app/settings/preferences"
+  const onPersonalLoginEvents = pathname === "/app/settings/login-events"
+  const onPersonalSettings = pathname.startsWith("/app/settings/")
   const onAudit =
     pathname.startsWith("/app/organizations/") && pathname.endsWith("/audit")
   const onManagement =
@@ -432,7 +434,9 @@ export function AdminLayout() {
                               : onOrganizationSettings
                                 ? t("settings:organizationSettings")
                                 : onPersonalSettings
-                                  ? t("settings:personalSettings")
+                                  ? onPersonalLoginEvents
+                                    ? t("identity:personalLoginEvents")
+                                    : t("settings:personalSettings")
                                   : params.projectId
                                     ? t("projects:detail")
                                     : t("projects:title")}

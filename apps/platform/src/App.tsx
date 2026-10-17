@@ -99,7 +99,13 @@ export function PlatformLoginPage() {
 
 export function PlatformLayout() {
   const navigate = useNavigate()
-  const { t } = useTranslation(["auth", "common", "organization", "settings"])
+  const { t } = useTranslation([
+    "auth",
+    "common",
+    "organization",
+    "settings",
+    "identity",
+  ])
   const location = useLocation()
   const session = useAuthenticatedSession()!
   const { platformAccess } = useRouteContext({ from: "/platform" })
@@ -109,11 +115,15 @@ export function PlatformLayout() {
       ? { title: t("organization:platformUsers"), kind: "users" }
       : location.pathname.startsWith("/platform/audit-events")
         ? { title: t("organization:platformOperationsLog"), kind: "audit" }
-        : location.pathname.startsWith("/platform/settings")
-          ? { title: t("organization:platformSettings"), kind: "settings" }
-          : location.pathname.startsWith("/platform/personal-settings")
-            ? { title: t("settings:personalSettings"), kind: "personal" }
-            : null
+        : location.pathname.startsWith("/platform/login-events")
+          ? { title: t("identity:loginEvents"), kind: "loginEvents" }
+          : location.pathname.startsWith("/platform/sessions")
+            ? { title: t("identity:sessions"), kind: "sessions" }
+            : location.pathname.startsWith("/platform/settings")
+              ? { title: t("organization:platformSettings"), kind: "settings" }
+              : location.pathname.startsWith("/platform/personal-settings")
+                ? { title: t("settings:personalSettings"), kind: "personal" }
+                : null
   const detailId =
     section && ["organizations", "users"].includes(section.kind)
       ? location.pathname.split("/")[3]
@@ -233,6 +243,28 @@ export function PlatformLayout() {
               render: (
                 <Link
                   to="/platform/audit-events"
+                  search={{ page: 1, pageSize: 20 }}
+                />
+              ),
+            },
+            {
+              title: t("identity:loginEvents"),
+              icon: <ClipboardListIcon />,
+              isActive: location.pathname.startsWith("/platform/login-events"),
+              render: (
+                <Link
+                  to="/platform/login-events"
+                  search={{ page: 1, pageSize: 20 }}
+                />
+              ),
+            },
+            {
+              title: t("identity:sessions"),
+              icon: <UsersIcon />,
+              isActive: location.pathname.startsWith("/platform/sessions"),
+              render: (
+                <Link
+                  to="/platform/sessions"
                   search={{ page: 1, pageSize: 20 }}
                 />
               ),

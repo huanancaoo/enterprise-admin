@@ -14,6 +14,10 @@ import {
   PlatformUsersQuerySchema,
 } from "@workspace/contracts/platform"
 import {
+  LoginLogsQuerySchema,
+  PlatformSessionsQuerySchema,
+} from "@workspace/contracts/identity-management"
+import {
   platformOrganizationActor,
   platformUserFixture,
 } from "@workspace/mocks"
@@ -22,6 +26,8 @@ import { authClient } from "../lib/auth-client"
 import { PlatformUsersPage, PlatformUserDetailPage } from "./users/pages"
 import { PlatformAuditPage } from "./audit/page"
 import { PlatformSettingsPage } from "./settings-page"
+import { PlatformLoginEventsPage } from "./identity/login-events-page"
+import { PlatformSessionsPage } from "./identity/sessions-page"
 
 function StoryDenied() {
   const { t } = useTranslation("auth")
@@ -47,7 +53,7 @@ export function PlatformReadPageStory({
   auditor = false,
   initialEntry,
 }: {
-  page: "users" | "audit" | "settings"
+  page: "users" | "audit" | "settings" | "login-events" | "sessions"
   detail?: boolean
   auditor?: boolean
   initialEntry?: string
@@ -100,6 +106,26 @@ export function PlatformReadPageStory({
         </main>
       ),
     })
+    const loginEvents = createRoute({
+      getParentRoute: () => platform,
+      path: "login-events",
+      validateSearch: (search) => LoginLogsQuerySchema.parse(search),
+      component: () => (
+        <main className="mx-auto max-w-6xl p-6">
+          <PlatformLoginEventsPage />
+        </main>
+      ),
+    })
+    const sessions = createRoute({
+      getParentRoute: () => platform,
+      path: "sessions",
+      validateSearch: (search) => PlatformSessionsQuerySchema.parse(search),
+      component: () => (
+        <main className="mx-auto max-w-6xl p-6">
+          <PlatformSessionsPage />
+        </main>
+      ),
+    })
     const denied = createRoute({
       getParentRoute: () => platform,
       path: "access-denied",
@@ -121,7 +147,15 @@ export function PlatformReadPageStory({
     })
     return createRouter({
       routeTree: root.addChildren([
-        platform.addChildren([users, user, audit, settings, denied]),
+        platform.addChildren([
+          users,
+          user,
+          audit,
+          loginEvents,
+          sessions,
+          settings,
+          denied,
+        ]),
         login,
       ]),
       history: createMemoryHistory({
@@ -129,11 +163,15 @@ export function PlatformReadPageStory({
           initialEntry ??
             (page === "settings"
               ? "/platform/settings"
-              : page === "audit"
-                ? "/platform/audit-events"
-                : detail
-                  ? `/platform/users/${platformUserFixture.userId}`
-                  : "/platform/users"),
+              : page === "login-events"
+                ? "/platform/login-events"
+                : page === "sessions"
+                  ? "/platform/sessions"
+                  : page === "audit"
+                    ? "/platform/audit-events"
+                    : detail
+                      ? `/platform/users/${platformUserFixture.userId}`
+                      : "/platform/users"),
         ],
       }),
     })

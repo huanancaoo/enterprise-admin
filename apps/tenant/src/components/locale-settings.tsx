@@ -1,4 +1,4 @@
-import { useParams } from "@tanstack/react-router"
+import { Link, useParams } from "@tanstack/react-router"
 import {
   PageHeader,
   PersonalAvatarSettings,
@@ -25,6 +25,7 @@ import { SupportedLocaleSchema } from "@workspace/contracts/locale"
 import { localeMeta } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
 import { Button } from "@workspace/ui/components/button"
+import { ArrowRightIcon } from "lucide-react"
 import {
   Field,
   FieldDescription,
@@ -102,7 +103,7 @@ function LocaleSelect({
 }
 
 export function PersonalLocaleSettingsRoute() {
-  const { t, i18n } = useTranslation(["settings", "common"])
+  const { t, i18n } = useTranslation(["settings", "common", "identity"])
   const session = useAuthenticatedSession()!
   const locale = useUiLocale()
   const queryClient = useQueryClient()
@@ -249,6 +250,14 @@ export function PersonalLocaleSettingsRoute() {
         title={t("personalSettings")}
         description={t("personalDescription")}
       />
+      <Link
+        to="/app/settings/login-events"
+        search={{ page: 1, pageSize: 20 }}
+        className="inline-flex min-h-10 items-center gap-2 rounded-lg border bg-card px-3 text-sm font-medium underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+      >
+        {t("personalLoginEvents")}
+        <ArrowRightIcon className="size-4 rtl:rotate-180" aria-hidden="true" />
+      </Link>
       <PersonalAvatarSettings client={authClient} />
       <PersonalSecuritySettings client={authClient} />
       <div className="rounded-xl border bg-card p-4 text-sm shadow-sm sm:p-5">

@@ -8,6 +8,8 @@ import {
 export const platformUserFullEmail = "mina.chen@example.test"
 export const platformUserFixture: PlatformUserDetail = {
   userId: "c7dd0a27-4f8a-4aef-8d4c-000000001001",
+  status: "active",
+  version: 1,
   name: "Mina Chen",
   maskedEmail: "m***@example.test",
   emailVerified: true,

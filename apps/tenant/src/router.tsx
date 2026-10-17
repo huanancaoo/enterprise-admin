@@ -8,6 +8,7 @@ import {
   redirect,
 } from "@tanstack/react-router"
 import { AuditEventsQuerySchema } from "@workspace/contracts/audit"
+import { PersonalLoginLogsQuerySchema } from "@workspace/contracts/identity-management"
 import { CapabilityPageQuerySchema } from "@workspace/contracts/framework-capabilities"
 import { FileListQuerySchema } from "@workspace/contracts/files"
 import { ProjectListQuerySchema } from "@workspace/contracts/project-query"
@@ -83,6 +84,10 @@ const OrganizationGate = lazyRouteComponent(
 const PersonalLocaleSettingsRoute = lazyRouteComponent(
   () => import("./components/locale-settings"),
   "PersonalLocaleSettingsRoute"
+)
+const PersonalLoginEventsRoute = lazyRouteComponent(
+  () => import("./components/login-events-route"),
+  "PersonalLoginEventsRoute"
 )
 const OrganizationLocaleSettingsPage = lazyRouteComponent(
   () => import("./components/locale-settings"),
@@ -308,6 +313,12 @@ const personalSettingsRoute = createRoute({
   path: "/preferences",
   component: PersonalLocaleSettingsRoute,
 })
+const personalLoginEventsRoute = createRoute({
+  getParentRoute: () => personalSettingsLayoutRoute,
+  path: "/login-events",
+  validateSearch: (search) => PersonalLoginLogsQuerySchema.parse(search),
+  component: PersonalLoginEventsRoute,
+})
 const auditEventsRoute = createRoute({
   getParentRoute: () => organizationSettingsLayoutRoute,
   path: "/$organizationId/audit",
@@ -340,7 +351,10 @@ export const router = createRouter({
         organizationSettingsRoute,
         auditEventsRoute,
       ]),
-      personalSettingsLayoutRoute.addChildren([personalSettingsRoute]),
+      personalSettingsLayoutRoute.addChildren([
+        personalSettingsRoute,
+        personalLoginEventsRoute,
+      ]),
     ]),
   ]),
   context: {

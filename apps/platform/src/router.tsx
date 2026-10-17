@@ -21,6 +21,10 @@ import {
   type PlatformAccess,
 } from "@workspace/contracts/platform"
 import {
+  LoginLogsQuerySchema,
+  PlatformSessionsQuerySchema,
+} from "@workspace/contracts/identity-management"
+import {
   App,
   PlatformAuthTitlePage,
   PlatformEmailVerifiedPage,
@@ -56,6 +60,14 @@ const PlatformOrganizationDetailPage = lazyRouteComponent(
 const PlatformUsersPage = lazyRouteComponent(
   () => import("./features/users/pages"),
   "PlatformUsersPage"
+)
+const PlatformLoginEventsPage = lazyRouteComponent(
+  () => import("./features/identity/login-events-page"),
+  "PlatformLoginEventsPage"
+)
+const PlatformSessionsPage = lazyRouteComponent(
+  () => import("./features/identity/sessions-page"),
+  "PlatformSessionsPage"
 )
 const PlatformUserDetailPage = lazyRouteComponent(
   () => import("./features/users/pages"),
@@ -184,6 +196,18 @@ const platformAuditRoute = createRoute({
   validateSearch: (search) => PlatformAuditQuerySchema.parse(search),
   component: PlatformAuditPage,
 })
+const platformLoginEventsRoute = createRoute({
+  getParentRoute: () => platformRoute,
+  path: "login-events",
+  validateSearch: (search) => LoginLogsQuerySchema.parse(search),
+  component: PlatformLoginEventsPage,
+})
+const platformSessionsRoute = createRoute({
+  getParentRoute: () => platformRoute,
+  path: "sessions",
+  validateSearch: (search) => PlatformSessionsQuerySchema.parse(search),
+  component: PlatformSessionsPage,
+})
 const personalSettingsRoute = createRoute({
   getParentRoute: () => platformRoute,
   path: "personal-settings",
@@ -219,6 +243,8 @@ export const router = createRouter({
       platformUsersRoute,
       platformUserDetailRoute,
       platformAuditRoute,
+      platformLoginEventsRoute,
+      platformSessionsRoute,
       platformSettingsRoute,
       personalSettingsRoute,
     ]),
