@@ -1,8 +1,10 @@
 {
+  "ACCOUNT_SUSPENDED": "هذا الحساب موقوف. تواصل مع مسؤول المنصة.",
   "AUDIT_UNAVAILABLE": "خدمة التدقيق غير متاحة. أعد المحاولة لاحقًا.",
   "AUTHORIZATION_UNAVAILABLE": "حالة التفويض غير متاحة",
   "AUTHORIZATION_VERSION_CONFLICT": "تغير التفويض. حدّث الصفحة ثم أعد المحاولة.",
   "EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION": "يرجى التحقق من بريدك الإلكتروني قبل معالجة الدعوة.",
+  "EMAIL_ALREADY_EXISTS": "هذا البريد مسجل بالفعل. استخدم عنوان بريد آخر.",
   "FILE_CONTENT_MISMATCH": "لا يطابق محتوى الملف المعلومات المعلنة عنه. اختر الملف مرة أخرى.",
   "FILE_FOLDER_CYCLE": "لا يمكن نقل مجلد إلى نفسه أو إلى أحد مجلداته الفرعية. اختر وجهة أخرى.",
   "FILE_NAME_CONFLICT": "يوجد ملف أو مجلد بهذا الاسم هنا. اختر اسماً آخر.",

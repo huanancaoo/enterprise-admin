@@ -41,6 +41,7 @@
   "passwordTitle": "密码",
   "permissionDenied": "你没有查看或修改组织语言设置的权限。",
   "personalDescription": "管理头像、界面语言与账户安全。",
+  "personalLoginEvents": "登录记录",
   "personalSettings": "个人设置",
   "readOnly": "你可以查看此组织设置，但无权修改。",
   "revokeCurrentHint": "当前浏览器将退出登录，需要重新登录。",

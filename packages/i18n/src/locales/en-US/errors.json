@@ -1,8 +1,10 @@
 {
+  "ACCOUNT_SUSPENDED": "This account is suspended. Contact a platform administrator.",
   "AUDIT_UNAVAILABLE": "Audit is unavailable. Try again later.",
   "AUTHORIZATION_UNAVAILABLE": "Authorization is unavailable",
   "AUTHORIZATION_VERSION_CONFLICT": "Authorization changed. Refresh and try again.",
   "EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION": "Verify your email before handling this invitation.",
+  "EMAIL_ALREADY_EXISTS": "This email is already registered. Use another email address.",
   "FILE_CONTENT_MISMATCH": "The file content does not match its declared information. Select the file again.",
   "FILE_FOLDER_CYCLE": "A folder cannot be moved into itself or its subfolders. Choose another destination.",
   "FILE_NAME_CONFLICT": "A file or folder with this name already exists here. Choose another name.",

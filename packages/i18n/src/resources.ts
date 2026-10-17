@@ -1,6 +1,9 @@
 import webhooks2 from "./locales/ar/webhooks.json" with { type: "json" }
 import webhooks1 from "./locales/en-US/webhooks.json" with { type: "json" }
 import webhooks0 from "./locales/zh-CN/webhooks.json" with { type: "json" }
+import identity2 from "./locales/ar/identity.json" with { type: "json" }
+import identity1 from "./locales/en-US/identity.json" with { type: "json" }
+import identity0 from "./locales/zh-CN/identity.json" with { type: "json" }
 import tasks2 from "./locales/ar/tasks.json" with { type: "json" }
 import tasks1 from "./locales/en-US/tasks.json" with { type: "json" }
 import tasks0 from "./locales/zh-CN/tasks.json" with { type: "json" }
@@ -49,6 +52,7 @@ export const resources = {
     tasks: tasks0,
     webhooks: webhooks0,
     credentials: credentials0,
+    identity: identity0,
   },
   "en-US": {
     common: common1,
@@ -63,6 +67,7 @@ export const resources = {
     tasks: tasks1,
     webhooks: webhooks1,
     credentials: credentials1,
+    identity: identity1,
   },
   ar: {
     common: common2,
@@ -77,5 +82,6 @@ export const resources = {
     tasks: tasks2,
     webhooks: webhooks2,
     credentials: credentials2,
+    identity: identity2,
   },
 }

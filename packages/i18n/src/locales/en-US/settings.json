@@ -41,6 +41,7 @@
   "passwordTitle": "Password",
   "permissionDenied": "You do not have permission to view or change organization language settings.",
   "personalDescription": "Manage your avatar, interface language and account security.",
+  "personalLoginEvents": "Login history",
   "personalSettings": "Personal settings",
   "readOnly": "You can view this organization's settings, but you cannot change them.",
   "revokeCurrentHint": "This browser will be signed out. You will need to sign in again.",
