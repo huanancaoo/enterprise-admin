@@ -39,14 +39,17 @@ export class CredentialPrincipal {
       await client.query("SELECT set_config('app.organization_id', $1, true)", [
         organizationId,
       ]);
+      const lookup = await client.query<{ id: string; user_id: string }>(
+        'SELECT id, reference_id AS user_id FROM public.apikey WHERE key=$1',
+        [await hashAccessCredential(key)],
+      );
+      if (!lookup.rows[0]) throw new UnauthorizedException();
+      await client.query('SELECT public.require_active_account($1::uuid)', [
+        lookup.rows[0].user_id,
+      ]);
       let keyId: string;
       if (ownedClient) {
         // 已持有业务/身份锁时只读取原生哈希事实；再次运行计数型 verifier 会升级行锁并造成并发互等。
-        const lookup = await client.query<{ id: string }>(
-          'SELECT id FROM public.apikey WHERE key=$1',
-          [await hashAccessCredential(key)],
-        );
-        if (!lookup.rows[0]) throw new UnauthorizedException();
         keyId = lookup.rows[0].id;
       } else {
         const checked = await this.runtime.auth.withDatabaseClient(client, () =>
@@ -117,10 +120,15 @@ export class CredentialPrincipal {
       };
     } catch (error) {
       if (!ownedClient) await client.query('ROLLBACK');
-      if (typeof error === 'object' && error !== null && 'code' in error) {
-        if (error.code === 'ORS02')
+      if (typeof error === 'object' && error !== null) {
+        const value = error as { code?: string; message?: string };
+        if (value.code === 'ORS02')
           throw new ApiException(403, 'ORGANIZATION_SUSPENDED');
-        if (error.code === 'ORS01')
+        if (value.code === 'ORS01')
+          throw new ApiException(503, 'AUTHORIZATION_UNAVAILABLE');
+        if (value.message === 'ACCOUNT_SUSPENDED')
+          throw new ApiException(403, 'ACCOUNT_SUSPENDED');
+        if (value.message === 'AUTHORIZATION_UNAVAILABLE')
           throw new ApiException(503, 'AUTHORIZATION_UNAVAILABLE');
       }
       throw error;

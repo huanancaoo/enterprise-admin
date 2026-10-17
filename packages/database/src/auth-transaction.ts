@@ -136,7 +136,18 @@ export function createTransactionalAuthAdapter(pool: Pool) {
     context.afterCommit.push(work)
   }
 
-  return { adapterFactory, run, query, deferUntilCommit, withDatabaseClient }
+  function currentClient() {
+    return transactionContext.getStore()?.client
+  }
+
+  return {
+    adapterFactory,
+    run,
+    query,
+    deferUntilCommit,
+    withDatabaseClient,
+    currentClient,
+  }
 }
 
 type EndpointFunction = ((...args: unknown[]) => unknown) & {

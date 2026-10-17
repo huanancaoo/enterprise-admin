@@ -12,6 +12,100 @@ describe("native account security", () => {
   })
   afterAll(async () => environment?.close())
 
+  it("projects current account fields into a cached native session response", async () => {
+    const { baseURL, migrator } = environment
+    const account = await signUpVerified(baseURL, origin, migrator)
+    const name = `Updated ${randomUUID()}`
+    await migrator.query(
+      'UPDATE public."user" SET name = $1, email_verified = false, image = $2, preferred_locale = $3 WHERE id = $4',
+      [name, "https://example.test/avatar.png", "ar", account.user.id]
+    )
+
+    const response = await fetch(`${baseURL}/api/auth/get-session`, {
+      headers: { cookie: account.cookie },
+    })
+    expect(response.status).toBe(200)
+    expect((await response.json()).user).toMatchObject({
+      id: account.user.id,
+      name,
+      email: account.email,
+      emailVerified: false,
+      image: "https://example.test/avatar.png",
+      preferredLocale: "ar",
+    })
+  })
+
+  it("records successful and failed email authentication without retaining raw email", async () => {
+    const { baseURL, migrator } = environment
+    const account = await signUpVerified(baseURL, origin, migrator)
+    const failed = await fetch(`${baseURL}/api/auth/sign-in/email`, {
+      method: "POST",
+      headers: {
+        origin,
+        "content-type": "application/json",
+        "x-real-ip": `10.${[...randomBytes(3)].join(".")}`,
+        "user-agent": "account-security-test",
+      },
+      body: JSON.stringify({
+        email: account.email,
+        password: "incorrect-password",
+      }),
+    })
+    expect(failed.status).toBe(401)
+
+    const events = await migrator.query(
+      "SELECT user_id, masked_email, method, result, reason_code, user_agent FROM public.login_events WHERE user_id = $1 ORDER BY occurred_at, id",
+      [account.user.id]
+    )
+    expect(events.rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          user_id: account.user.id,
+          method: "email",
+          result: "succeeded",
+          reason_code: null,
+        }),
+        expect.objectContaining({
+          user_id: account.user.id,
+          method: "email",
+          result: "failed",
+          reason_code: "INVALID_CREDENTIALS",
+          user_agent: "account-security-test",
+        }),
+      ])
+    )
+    expect(events.rows.every((row) => row.masked_email !== account.email)).toBe(
+      true
+    )
+  })
+
+  it("rejects a suspended session and does not restore it after the account resumes", async () => {
+    const { baseURL, migrator } = environment
+    const account = await signUpVerified(baseURL, origin, migrator)
+    await migrator.query(
+      "UPDATE public.user_account_status SET status = 'suspended', version = version + 1, updated_at = clock_timestamp() WHERE user_id = $1",
+      [account.user.id]
+    )
+    await migrator.query("DELETE FROM public.session WHERE user_id = $1", [
+      account.user.id,
+    ])
+
+    const suspended = await fetch(`${baseURL}/api/auth/get-session`, {
+      headers: { cookie: account.cookie },
+    })
+    expect(suspended.status).toBe(403)
+    expect(await suspended.json()).toMatchObject({ code: "ACCOUNT_SUSPENDED" })
+
+    await migrator.query(
+      "UPDATE public.user_account_status SET status = 'active', version = version + 1, updated_at = clock_timestamp() WHERE user_id = $1",
+      [account.user.id]
+    )
+    const resumed = await fetch(`${baseURL}/api/auth/get-session`, {
+      headers: { cookie: account.cookie },
+    })
+    expect(await resumed.json()).toBeNull()
+  })
+
   it("changes the email only after the new address verifies and preserves the user identity", async () => {
     const { baseURL, migrator, mailpitOrigin } = environment
     const account = await signUpVerified(baseURL, origin, migrator)

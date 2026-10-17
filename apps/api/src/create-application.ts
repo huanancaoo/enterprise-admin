@@ -52,6 +52,7 @@ export async function createApplication(
         {
           requestId: response.locals.requestId as string,
           clientIp: request.ip,
+          userAgent: request.get('user-agent'),
         },
         () => authHandler(request, response),
       );

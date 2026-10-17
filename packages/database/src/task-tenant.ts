@@ -21,7 +21,11 @@ export type TaskIdentity = Readonly<{
 export class TaskAuthorizationError extends Error {
   constructor(
     readonly code:
-      "ORGANIZATION_SUSPENDED" | "MEMBERSHIP_REQUIRED" | "PERMISSION_DENIED"
+      | "ACCOUNT_SUSPENDED"
+      | "AUTHORIZATION_UNAVAILABLE"
+      | "ORGANIZATION_SUSPENDED"
+      | "MEMBERSHIP_REQUIRED"
+      | "PERMISSION_DENIED"
   ) {
     super(code)
     this.name = "TaskAuthorizationError"
@@ -44,6 +48,23 @@ function membershipKernel(connection: Pool | PoolClient) {
   ): Promise<T> {
     const snapshot = Object.freeze({ ...identity })
     return db.transaction(async (tx) => {
+      try {
+        await tx.execute(
+          sql`SELECT public.require_active_account(${snapshot.actorId}::uuid)`
+        )
+      } catch (error) {
+        const message =
+          error instanceof Error && "cause" in error && error.cause instanceof Error
+            ? error.cause.message
+            : error instanceof Error
+              ? error.message
+              : undefined
+        if (message === "ACCOUNT_SUSPENDED")
+          throw new TaskAuthorizationError("ACCOUNT_SUSPENDED")
+        if (message === "AUTHORIZATION_UNAVAILABLE")
+          throw new TaskAuthorizationError("AUTHORIZATION_UNAVAILABLE")
+        throw error
+      }
       try {
         await tx.execute(
           sql`SELECT public.require_active_organization(${snapshot.organizationId}::uuid)`

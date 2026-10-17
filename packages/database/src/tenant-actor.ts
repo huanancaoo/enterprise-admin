@@ -12,6 +12,7 @@ export async function requireCurrentTenantActor(
   tx: TenantTx,
   sessionId: string | { credentialId: string }
 ): Promise<Date> {
+  await requireActiveAccount(tx)
   if (typeof sessionId !== "string")
     return requireCredentialActor(tx, sessionId.credentialId)
   const active = await tx.execute<{ valid: boolean }>(sql`
@@ -45,6 +46,13 @@ export async function requireCurrentTenantActor(
   if (!current.rows[0]?.valid) throw new TenantActorError("UNAUTHENTICATED")
   return new Date(current.rows[0].now)
 }
+
+async function requireActiveAccount(tx: TenantTx) {
+  await tx.execute(
+    sql`SELECT public.require_active_account(${tx.context.userId}::uuid)`
+  )
+}
+
 async function requireCredentialActor(
   tx: TenantTx,
   credentialId: string

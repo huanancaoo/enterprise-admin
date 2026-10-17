@@ -134,6 +134,10 @@ export class BusinessTasks implements OnApplicationShutdown {
     ).catch((error: unknown) => {
       // HTTP 初检后资格仍可能改变；事务拒绝属于当前授权失败，不能报为执行故障。
       if (!(error instanceof TaskAuthorizationError)) throw error;
+      if (error.code === 'ACCOUNT_SUSPENDED')
+        throw new ApiException(403, 'ACCOUNT_SUSPENDED');
+      if (error.code === 'AUTHORIZATION_UNAVAILABLE')
+        throw new ApiException(503, 'AUTHORIZATION_UNAVAILABLE');
       throw new ApiException(
         403,
         error.code === 'ORGANIZATION_SUSPENDED' ? error.code : 'FORBIDDEN',

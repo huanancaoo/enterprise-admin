@@ -108,5 +108,10 @@ export function rethrowTenantWriteError(
     });
     throw new ApiException(503, 'AUTHORIZATION_UNAVAILABLE');
   }
+  const message = (error as { message?: string } | null)?.message;
+  if (message === 'ACCOUNT_SUSPENDED')
+    throw new ApiException(403, 'ACCOUNT_SUSPENDED');
+  if (message === 'AUTHORIZATION_UNAVAILABLE')
+    throw new ApiException(503, 'AUTHORIZATION_UNAVAILABLE');
   throw error;
 }

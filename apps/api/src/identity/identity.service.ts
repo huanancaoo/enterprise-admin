@@ -44,31 +44,50 @@ export class IdentityService {
     const result = await this.runtime.auth.api.getSession({
       headers,
       // 受保护业务必须读取当前会话，不能依赖 Cookie 中的身份快照。
-      query: { disableCookieCache: true },
+      query: { disableCookieCache: true, disableRefresh: true },
     });
     if (!result) return null;
     // Better Auth 次级存储可能仍返回数据库变更前的会话快照。
     // 会话过期或撤销以当前数据库行判断，不能以该快照授权。
-    const user = await this.runtime.pool.query<{
-      preferred_locale: string | null;
-    }>(
-      `SELECT account.preferred_locale
-       FROM public."user" AS account
-       INNER JOIN public.session AS active_session
-         ON active_session.user_id = account.id
-        AND active_session.id = $2
-        AND active_session.expires_at > (clock_timestamp() AT TIME ZONE 'UTC')
-       WHERE account.id = $1
-       LIMIT 1`,
-      [result.user.id, result.session.id],
-    );
-    if (!user.rows[0]) return null;
-    return {
-      userId: result.user.id,
-      sessionId: result.session.id,
-      // secondary storage 里的 user 是登录快照；界面语言以当前 user 行为准。
-      preferredLocale: user.rows[0].preferred_locale,
-    };
+    const client = await this.runtime.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('SELECT public.require_active_account($1::uuid)', [
+        result.user.id,
+      ]);
+      const user = await client.query<{
+        preferred_locale: string | null;
+      }>(
+        `SELECT account.preferred_locale
+         FROM public."user" AS account
+         INNER JOIN public.session AS active_session
+           ON active_session.user_id = account.id
+          AND active_session.id = $2
+          AND active_session.expires_at > (clock_timestamp() AT TIME ZONE 'UTC')
+         WHERE account.id = $1
+         LIMIT 1
+         FOR SHARE OF account, active_session`,
+        [result.user.id, result.session.id],
+      );
+      await client.query('COMMIT');
+      if (!user.rows[0]) return null;
+      return {
+        userId: result.user.id,
+        sessionId: result.session.id,
+        // secondary storage 里的 user 是登录快照；界面语言以当前 user 行为准。
+        preferredLocale: user.rows[0].preferred_locale,
+      };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      const value = error as { message?: string };
+      if (value.message === 'ACCOUNT_SUSPENDED')
+        throw new ApiException(403, 'ACCOUNT_SUSPENDED');
+      if (value.message === 'AUTHORIZATION_UNAVAILABLE')
+        throw new ApiException(503, 'AUTHORIZATION_UNAVAILABLE');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async requireIdentity(headers: Headers): Promise<Identity> {

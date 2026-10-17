@@ -45,7 +45,12 @@ import {
   createTransactionalAuthAdapter,
   wrapTransactionalOrganizationEndpoints,
 } from "./auth-transaction.ts"
-import { getAuthRequestContext } from "./auth-request-context.ts"
+import {
+  getAuthRequestContext,
+  setLoginAuditPromise,
+  setLoginAttempt,
+  takeLoginAttempt,
+} from "./auth-request-context.ts"
 import { readRoleReferences } from "./role-references.ts"
 import { readPlatformDefaultLocale } from "./platform-locale.ts"
 import { createAuthI18n } from "./auth-i18n.ts"
@@ -90,6 +95,7 @@ export type AuthEmailHooks = {
   sendResetPassword: (data: {
     user: AuthEmailUser
     url: string
+    client?: PoolClient
   }) => Promise<void>
   sendInvitationEmail: (data: {
     id: string
@@ -269,6 +275,118 @@ export function createAuth(
   github: { clientId: string; clientSecret: string },
   invitationLimits: InvitationLimits = defaultInvitationLimits
 ) {
+  async function requireActiveAccount(
+    userId: string,
+    executor: Pick<Pool, "query"> = pool
+  ) {
+    try {
+      await executor.query("SELECT public.require_active_account($1::uuid)", [
+        userId,
+      ])
+    } catch (error) {
+      const value = error as { code?: string; message?: string }
+      if (value.message === "ACCOUNT_SUSPENDED")
+        throw new APIError("FORBIDDEN", {
+          code: "ACCOUNT_SUSPENDED",
+          message: "ACCOUNT_SUSPENDED",
+        })
+      if (value.message === "AUTHORIZATION_UNAVAILABLE")
+        throw new APIError(503, {
+          code: "AUTHORIZATION_UNAVAILABLE",
+          message: "AUTHORIZATION_UNAVAILABLE",
+        })
+      throw error
+    }
+  }
+
+  async function readCurrentSessionUser(userId: string, sessionId: string) {
+    const client = await pool.connect()
+    try {
+      await client.query("BEGIN")
+      await requireActiveAccount(userId, client)
+      const result = await client.query<{
+        name: string
+        email: string
+        email_verified: boolean
+        image: string | null
+        two_factor_enabled: boolean | null
+        last_login_method: string | null
+        preferred_locale: string | null
+        preferred_locale_version: number
+        created_at: Date
+        updated_at: Date
+      }>(
+        `SELECT account.name, account.email, account.email_verified, account.image,
+                account.two_factor_enabled, account.last_login_method,
+                account.preferred_locale, account.preferred_locale_version,
+                account.created_at, account.updated_at
+         FROM public."user" AS account
+         INNER JOIN public.session AS active_session
+           ON active_session.user_id = account.id
+          AND active_session.id = $2
+          AND active_session.expires_at > (clock_timestamp() AT TIME ZONE 'UTC')
+         WHERE account.id = $1
+         LIMIT 1
+         FOR SHARE OF account, active_session`,
+        [userId, sessionId]
+      )
+      await client.query("COMMIT")
+      return result.rows[0] ?? null
+    } catch (error) {
+      await client.query("ROLLBACK")
+      throw error
+    } finally {
+      client.release()
+    }
+  }
+
+  async function recordLoginEvent(input: {
+    userId?: string | null
+    email?: string | null
+    method: "email" | "github" | "totp"
+    result: "succeeded" | "failed"
+    reason?: string | null
+  }) {
+    const request = getAuthRequestContext()
+    await pool.query(
+      "SELECT public.record_login_event($1::uuid, $2, $3, $4, $5, $6, $7, $8)",
+      [
+        input.userId ?? null,
+        input.email ?? null,
+        input.method,
+        input.result,
+        input.reason ?? null,
+        request?.clientIp ?? null,
+        request?.userAgent ?? null,
+        request?.requestId ?? null,
+      ],
+    )
+  }
+
+  function loginFailureReason(error: unknown) {
+    const value = error as {
+      body?: { code?: unknown }
+      code?: unknown
+      message?: unknown
+    }
+    const candidate =
+      typeof value?.body?.code === "string"
+        ? value.body.code
+        : typeof value?.message === "string"
+          ? value.message
+          : typeof value?.code === "string"
+            ? value.code
+            : ""
+    if (candidate === "ACCOUNT_SUSPENDED") return candidate
+    if (candidate === "AUTHORIZATION_UNAVAILABLE") return candidate
+    if (candidate === "INVALID_EMAIL_OR_PASSWORD")
+      return "INVALID_CREDENTIALS"
+    if (candidate === "EMAIL_NOT_VERIFIED") return candidate
+    if (candidate === "INVALID_TOTP" || candidate === "INVALID_BACKUP_CODE")
+      return "INVALID_OTP"
+    return "AUTHENTICATION_FAILED"
+  }
+
   const transactionalAdapter = createTransactionalAuthAdapter(pool)
   type InvitationEmailData = Omit<
     Parameters<AuthEmailHooks["sendInvitationEmail"]>[0],
@@ -833,7 +951,28 @@ export function createAuth(
                 : undefined,
           },
           url,
+          client: transactionalAdapter.currentClient(),
         })
+      },
+    },
+    onAPIError: {
+      onError: (error) => {
+        const attempt = takeLoginAttempt()
+        if (!attempt) return
+        setLoginAuditPromise(
+          recordLoginEvent({
+            userId: null,
+            email: attempt.email,
+            method: attempt.method,
+            result: "failed",
+            reason: loginFailureReason(error),
+          }).catch(() => {
+            console.error({
+              event: "login.audit.unavailable",
+              requestId: getAuthRequestContext()?.requestId,
+            })
+          })
+        )
       },
     },
     emailVerification: {
@@ -869,6 +1008,18 @@ export function createAuth(
                 code: "VALIDATION_ERROR",
                 message: "VALIDATION_ERROR",
               })
+          },
+        },
+      },
+      session: {
+        create: {
+          before: async (session) => {
+            await requireActiveAccount(session.userId)
+          },
+        },
+        update: {
+          before: async (session) => {
+            await requireActiveAccount(session.userId)
           },
         },
       },
@@ -932,6 +1083,60 @@ export function createAuth(
     },
     hooks: {
       after: createAuthMiddleware(async (ctx) => {
+        const loginAttempt = takeLoginAttempt()
+        const session = ctx.context.newSession
+        if (loginAttempt && session) {
+          try {
+            await recordLoginEvent({
+              userId: session.user.id,
+              email: session.user.email,
+              method: loginAttempt.method,
+              result: "succeeded",
+            })
+          } catch {
+            // A login without its required audit fact must not leave a usable Session.
+            await ctx.context.internalAdapter.deleteSession(
+              session.session.token,
+            )
+            throw new APIError(503, {
+              code: "AUDIT_UNAVAILABLE",
+              message: "AUDIT_UNAVAILABLE",
+            })
+          }
+        }
+        if (
+          ctx.path === "/get-session" &&
+          ctx.context.returned &&
+          !(ctx.context.returned instanceof APIError)
+        ) {
+          const returned = ctx.context.returned as {
+            session?: { id?: string }
+            user?: { id?: string; name?: string; updatedAt?: Date }
+          }
+          if (returned.session?.id && returned.user?.id) {
+            const currentUser = await readCurrentSessionUser(
+              returned.user.id,
+              returned.session.id
+            )
+            if (!currentUser) return ctx.json(null)
+            return ctx.json({
+              ...returned,
+              user: {
+                ...returned.user,
+                name: currentUser.name,
+                email: currentUser.email,
+                emailVerified: currentUser.email_verified,
+                image: currentUser.image,
+                twoFactorEnabled: currentUser.two_factor_enabled,
+                lastLoginMethod: currentUser.last_login_method,
+                preferredLocale: currentUser.preferred_locale,
+                preferredLocaleVersion: currentUser.preferred_locale_version,
+                createdAt: currentUser.created_at,
+                updatedAt: currentUser.updated_at,
+              },
+            })
+          }
+        }
         if (
           ctx.path === "/organization/list-roles" &&
           Array.isArray(ctx.context.returned)
@@ -1015,6 +1220,25 @@ export function createAuth(
         )
       }),
       before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path === "/sign-in/email") {
+          const email = (ctx.body as { email?: unknown } | undefined)?.email
+          setLoginAttempt({
+            method: "email",
+            email: typeof email === "string" ? email.trim().toLowerCase() : undefined,
+          })
+        } else if (ctx.path.startsWith("/callback/")) {
+          setLoginAttempt({ method: "github" })
+        } else if (
+          ctx.path === "/two-factor/verify-totp" ||
+          ctx.path === "/two-factor/verify-backup-code"
+        ) {
+          setLoginAttempt({ method: "totp" })
+        }
+        const currentSession = await getSessionFromCtx(ctx, {
+          disableCookieCache: true,
+          disableRefresh: true,
+        })
+        if (currentSession) await requireActiveAccount(currentSession.user.id)
         if (ctx.path === "/change-password") {
           // 改密后的会话存续是服务端策略，调用方不能选择保留其他已登录会话。
           return {
