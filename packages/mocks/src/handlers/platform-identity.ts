@@ -50,6 +50,7 @@ export function createPlatformIdentityScenario(
   const revokedSessionIds: string[] = []
   const personalLoginQueries: URLSearchParams[] = []
   const loginQueries: URLSearchParams[] = []
+  const sessionQueries: URLSearchParams[] = []
   const failure = async () => {
     if (scenario === "loading") await delay("infinite")
     if (scenario === "forbidden")
@@ -88,10 +89,12 @@ export function createPlatformIdentityScenario(
     revokedSessionIds,
     personalLoginQueries,
     loginQueries,
+    sessionQueries,
     reset: () => {
       revokedSessionIds.splice(0)
       personalLoginQueries.splice(0)
       loginQueries.splice(0)
+      sessionQueries.splice(0)
     },
     handlers: [
       http.get("*/api/v1/platform/login-events", async ({ request }) => {
@@ -153,6 +156,7 @@ export function createPlatformIdentityScenario(
       http.get("*/api/v1/platform/sessions", async ({ request }) => {
         const rejected = await failure()
         if (rejected) return rejected
+        sessionQueries.push(new URL(request.url).searchParams)
         const query = PlatformSessionsQuerySchema.parse(
           Object.fromEntries(new URL(request.url).searchParams)
         )

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react"
+import { useForm } from "@tanstack/react-form"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate, useRouteContext, useSearch } from "@tanstack/react-router"
 import { useTranslation } from "react-i18next"
@@ -9,6 +10,7 @@ import {
 } from "@workspace/api-client"
 import {
   PlatformSessionsPageSchema,
+  PlatformSessionsQuerySchema,
   SessionRevokeResultSchema,
   type PlatformSession,
 } from "@workspace/contracts/identity-management"
@@ -23,7 +25,17 @@ import { usePlatformAccessFailure } from "../../lib/use-platform-access-failure"
 import { UserCombobox } from "../../components/user-combobox"
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
+import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
+import { Field, FieldError, FieldLabel } from "@workspace/ui/components/field"
+import {
+  Popover,
+  PopoverContent,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from "@workspace/ui/components/popover"
+import { FilterIcon } from "lucide-react"
 import {
   Dialog,
   DialogClose,
@@ -38,7 +50,7 @@ const sessionColumns = createDataTableColumnHelper<PlatformSession>()
 const EMPTY_SESSIONS: PlatformSession[] = []
 
 export function PlatformSessionsPage() {
-  const { t } = useTranslation(["identity", "common"])
+  const { t } = useTranslation(["identity", "common", "organization"])
   const session = useAuthenticatedSession()!
   const search = useSearch({ from: "/platform/sessions" })
   const navigate = useNavigate({ from: "/platform/sessions" })
@@ -47,6 +59,34 @@ export function PlatformSessionsPage() {
   const { platformAccess } = useRouteContext({ from: "/platform" })
   const [selectedSession, setSelectedSession] =
     useState<PlatformSession | null>(null)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const filterQuery = (value: { userId: string }) => ({
+    ...search,
+    userId: value.userId || undefined,
+    page: 1,
+  })
+  const filtersForm = useForm({
+    defaultValues: { userId: search.userId ?? "" },
+    validators: {
+      onSubmit: ({ value }) => {
+        const result = PlatformSessionsQuerySchema.safeParse(filterQuery(value))
+        if (result.success) return undefined
+        return {
+          fields: Object.fromEntries(
+            result.error.issues.map((issue) => [
+              issue.path[0],
+              { message: t("organization:platformAuditInvalid") },
+            ])
+          ),
+        }
+      },
+    },
+    onSubmit: async ({ value }) => {
+      const parsed = PlatformSessionsQuerySchema.parse(filterQuery(value))
+      await navigate({ search: parsed })
+      setFiltersOpen(false)
+    },
+  })
   const queryKey = ["platform", session.user.id, "sessions", search] as const
   const query = useQuery({
     queryKey,
@@ -205,15 +245,102 @@ export function PlatformSessionsPage() {
           columnFilters: filters,
         }}
         toolbarContent={
-          <UserCombobox
-            value={search.userId ?? null}
-            placeholder={t("filterUser")}
-            onValueChange={(userId) =>
-              void navigate({
-                search: { ...search, userId: userId ?? undefined, page: 1 },
-              })
-            }
-          />
+          <Popover
+            open={filtersOpen}
+            onOpenChange={(open) => {
+              if (open) filtersForm.setFieldValue("userId", search.userId ?? "")
+              setFiltersOpen(open)
+            }}
+          >
+            <PopoverTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={query.isFetching}
+                />
+              }
+            >
+              <FilterIcon data-icon="inline-start" />
+              {t("organization:platformOperationAdvancedFilters")}
+              {search.userId && <Badge variant="secondary">1</Badge>}
+            </PopoverTrigger>
+            <PopoverContent
+              align="start"
+              className="max-h-[min(40rem,calc(100dvh-4rem))] w-[min(36rem,calc(100vw-2rem))] overflow-y-auto"
+            >
+              <PopoverHeader>
+                <PopoverTitle>
+                  {t("organization:platformOperationAdvancedFilters")}
+                </PopoverTitle>
+              </PopoverHeader>
+              <filtersForm.Subscribe selector={(state) => state.isSubmitting}>
+                {(busy) => (
+                  <form
+                    noValidate
+                    aria-busy={busy || query.isFetching}
+                    onSubmit={(event) => {
+                      event.preventDefault()
+                      void filtersForm.handleSubmit()
+                    }}
+                  >
+                    <fieldset
+                      disabled={busy || query.isFetching}
+                      className="space-y-4"
+                    >
+                      <filtersForm.Field name="userId">
+                        {(field) => {
+                          const invalid =
+                            field.state.meta.isTouched &&
+                            !field.state.meta.isValid
+                          return (
+                            <Field data-invalid={invalid}>
+                              <FieldLabel htmlFor="platform-sessions-user">
+                                {t("filterUser")}
+                              </FieldLabel>
+                              <UserCombobox
+                                id="platform-sessions-user"
+                                value={field.state.value || null}
+                                placeholder={t("filterUser")}
+                                onValueChange={(userId) =>
+                                  field.handleChange(userId ?? "")
+                                }
+                                onBlur={field.handleBlur}
+                                invalid={invalid}
+                                aria-describedby={
+                                  invalid
+                                    ? "platform-sessions-user-error"
+                                    : undefined
+                                }
+                              />
+                              {invalid && (
+                                <FieldError
+                                  id="platform-sessions-user-error"
+                                  errors={field.state.meta.errors}
+                                />
+                              )}
+                            </Field>
+                          )
+                        }}
+                      </filtersForm.Field>
+                      <div className="flex justify-end gap-2 border-t pt-4">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => setFiltersOpen(false)}
+                        >
+                          {t("common:close")}
+                        </Button>
+                        <Button type="submit">
+                          {t("organization:platformApplyFilters")}
+                        </Button>
+                      </div>
+                    </fieldset>
+                  </form>
+                )}
+              </filtersForm.Subscribe>
+            </PopoverContent>
+          </Popover>
         }
         onGlobalFilterChange={(updater) => {
           const q =

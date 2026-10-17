@@ -8,7 +8,7 @@ import {
   RouterProvider,
 } from "@tanstack/react-router"
 import type { Meta, StoryObj } from "@storybook/react-vite"
-import { expect, waitFor, within } from "storybook/test"
+import { expect, userEvent, waitFor, within } from "storybook/test"
 import {
   AuthenticatedSessionProvider,
   createWorkspaceAuthClient,
@@ -83,12 +83,47 @@ export const Default: Story = {
     await expect(canvas.queryByRole("searchbox")).toBeNull()
     await expect(canvas.queryByText("Platform Operator")).toBeNull()
     await expect(
+      canvas.getByRole("button", { name: "Advanced filters" })
+    ).toBeVisible()
+    await expect(
       canvas.queryByRole("button", { name: "Filter by account" })
     ).toBeNull()
     await expect(defaultFixture.personalLoginQueries.length).toBeGreaterThan(0)
     const params = defaultFixture.personalLoginQueries.at(-1)!
     await expect(params.has("userId")).toBe(false)
     await expect(params.has("organizationId")).toBe(false)
+  },
+}
+
+const dateFilterFixture = createPlatformIdentityScenario()
+export const DateFilters: Story = {
+  args: { initialSearch: "?result=failed&method=email&page=2&pageSize=10" },
+  beforeEach: dateFilterFixture.reset,
+  parameters: {
+    layout: "fullscreen",
+    a11y: { test: "error" },
+    msw: { handlers: dateFilterFixture.handlers },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await canvas.findByRole("table")
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Advanced filters" })
+    )
+    const screen = within(canvasElement.ownerDocument.body)
+    await userEvent.fill(screen.getByLabelText("From"), "2026-10-16T10:30")
+    await userEvent.fill(screen.getByLabelText("To"), "2026-10-16T11:30")
+    await userEvent.click(screen.getByRole("button", { name: "Apply filters" }))
+    await waitFor(() => {
+      const params = dateFilterFixture.personalLoginQueries.at(-1)
+      expect(params?.get("from")).toBe("2026-10-16T10:30:00Z")
+      expect(params?.get("to")).toBe("2026-10-16T11:30:00Z")
+      expect(params?.get("result")).toBe("failed")
+      expect(params?.get("method")).toBe("email")
+      expect(params?.get("page")).toBe("1")
+      expect(params?.has("userId")).toBe(false)
+      expect(params?.has("organizationId")).toBe(false)
+    })
   },
 }
 

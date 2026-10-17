@@ -1,10 +1,12 @@
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
+import { useForm } from "@tanstack/react-form"
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate, useSearch } from "@tanstack/react-router"
 import { useTranslation } from "react-i18next"
 import { ApiClientError, listMyLoginEvents } from "@workspace/api-client"
 import {
   LoginLogsPageSchema,
+  PersonalLoginLogsQuerySchema,
   type LoginLog,
   type PersonalLoginLogsQuery,
 } from "@workspace/contracts/identity-management"
@@ -18,17 +20,66 @@ import {
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
 import { Badge } from "@workspace/ui/components/badge"
+import { Button } from "@workspace/ui/components/button"
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@workspace/ui/components/field"
 import { Input } from "@workspace/ui/components/input"
+import {
+  Popover,
+  PopoverContent,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from "@workspace/ui/components/popover"
+import { FilterIcon } from "lucide-react"
 
 const loginColumns = createDataTableColumnHelper<LoginLog>()
 const EMPTY_LOGS: LoginLog[] = []
 
 export function PersonalLoginEventsRoute() {
-  const { t } = useTranslation(["identity", "common"])
+  const { t } = useTranslation(["identity", "common", "organization"])
   const session = useAuthenticatedSession()!
   const search = useSearch({ from: "/app/settings/login-events" })
   const navigate = useNavigate({ from: "/app/settings/login-events" })
   const locale = useUiLocale()
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const filterQuery = (value: { from: string; to: string }) => ({
+    ...search,
+    from: value.from ? `${value.from}:00Z` : undefined,
+    to: value.to ? `${value.to}:00Z` : undefined,
+    page: 1,
+  })
+  const filtersForm = useForm({
+    defaultValues: {
+      from: search.from ? new Date(search.from).toISOString().slice(0, 16) : "",
+      to: search.to ? new Date(search.to).toISOString().slice(0, 16) : "",
+    },
+    validators: {
+      onSubmit: ({ value }) => {
+        const result = PersonalLoginLogsQuerySchema.safeParse(
+          filterQuery(value)
+        )
+        if (result.success) return undefined
+        return {
+          fields: Object.fromEntries(
+            result.error.issues.map((issue) => [
+              issue.path[0],
+              { message: t("organization:platformAuditInvalid") },
+            ])
+          ),
+        }
+      },
+    },
+    onSubmit: async ({ value }) => {
+      const parsed = PersonalLoginLogsQuerySchema.parse(filterQuery(value))
+      await navigate({ search: parsed })
+      setFiltersOpen(false)
+    },
+  })
   const { page, pageSize, ...filters } = search
   const query = useQuery({
     queryKey: ["identity", session.user.id, "my-login-events", search],
@@ -169,48 +220,122 @@ export function PersonalLoginEventsRoute() {
         enableRowSelection={false}
         state={{ pagination, columnFilters }}
         toolbarContent={
-          <div className="flex flex-wrap items-center gap-2">
-            <Input
-              className="w-40"
-              type="datetime-local"
-              aria-label={t("filterFrom")}
-              value={
-                search.from
-                  ? new Date(search.from).toISOString().slice(0, 16)
-                  : ""
+          <Popover
+            open={filtersOpen}
+            onOpenChange={(open) => {
+              if (open) {
+                filtersForm.setFieldValue(
+                  "from",
+                  search.from
+                    ? new Date(search.from).toISOString().slice(0, 16)
+                    : ""
+                )
+                filtersForm.setFieldValue(
+                  "to",
+                  search.to
+                    ? new Date(search.to).toISOString().slice(0, 16)
+                    : ""
+                )
               }
-              onChange={(event) =>
-                void navigate({
-                  search: {
-                    ...search,
-                    from: event.target.value
-                      ? `${event.target.value}:00Z`
-                      : undefined,
-                    page: 1,
-                  },
-                })
+              setFiltersOpen(open)
+            }}
+          >
+            <PopoverTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={query.isFetching}
+                />
               }
-            />
-            <Input
-              className="w-40"
-              type="datetime-local"
-              aria-label={t("filterTo")}
-              value={
-                search.to ? new Date(search.to).toISOString().slice(0, 16) : ""
-              }
-              onChange={(event) =>
-                void navigate({
-                  search: {
-                    ...search,
-                    to: event.target.value
-                      ? `${event.target.value}:00Z`
-                      : undefined,
-                    page: 1,
-                  },
-                })
-              }
-            />
-          </div>
+            >
+              <FilterIcon data-icon="inline-start" />
+              {t("organization:platformOperationAdvancedFilters")}
+              {(search.from || search.to) && (
+                <Badge variant="secondary">1</Badge>
+              )}
+            </PopoverTrigger>
+            <PopoverContent
+              align="start"
+              className="max-h-[min(40rem,calc(100dvh-4rem))] w-[min(36rem,calc(100vw-2rem))] overflow-y-auto"
+            >
+              <PopoverHeader>
+                <PopoverTitle>
+                  {t("organization:platformOperationAdvancedFilters")}
+                </PopoverTitle>
+              </PopoverHeader>
+              <filtersForm.Subscribe selector={(state) => state.isSubmitting}>
+                {(busy) => (
+                  <form
+                    noValidate
+                    aria-busy={busy || query.isFetching}
+                    onSubmit={(event) => {
+                      event.preventDefault()
+                      void filtersForm.handleSubmit()
+                    }}
+                  >
+                    <fieldset
+                      disabled={busy || query.isFetching}
+                      className="space-y-4"
+                    >
+                      <FieldGroup className="grid gap-4 sm:grid-cols-2">
+                        {(["from", "to"] as const).map((name) => (
+                          <filtersForm.Field key={name} name={name}>
+                            {(field) => {
+                              const invalid =
+                                field.state.meta.isTouched &&
+                                !field.state.meta.isValid
+                              const label =
+                                name === "from"
+                                  ? t("filterFrom")
+                                  : t("filterTo")
+                              const id = `personal-login-${name}`
+                              return (
+                                <Field data-invalid={invalid}>
+                                  <FieldLabel htmlFor={id}>{label}</FieldLabel>
+                                  <Input
+                                    id={id}
+                                    type="datetime-local"
+                                    value={field.state.value}
+                                    onChange={(event) =>
+                                      field.handleChange(event.target.value)
+                                    }
+                                    onBlur={field.handleBlur}
+                                    aria-invalid={invalid}
+                                    aria-describedby={
+                                      invalid ? `${id}-error` : undefined
+                                    }
+                                  />
+                                  {invalid && (
+                                    <FieldError
+                                      id={`${id}-error`}
+                                      errors={field.state.meta.errors}
+                                    />
+                                  )}
+                                </Field>
+                              )
+                            }}
+                          </filtersForm.Field>
+                        ))}
+                      </FieldGroup>
+                      <div className="flex justify-end gap-2 border-t pt-4">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => setFiltersOpen(false)}
+                        >
+                          {t("common:close")}
+                        </Button>
+                        <Button type="submit">
+                          {t("organization:platformApplyFilters")}
+                        </Button>
+                      </div>
+                    </fieldset>
+                  </form>
+                )}
+              </filtersForm.Subscribe>
+            </PopoverContent>
+          </Popover>
         }
         onColumnFiltersChange={(updater) => {
           const next =

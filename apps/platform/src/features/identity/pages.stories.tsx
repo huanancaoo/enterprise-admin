@@ -58,6 +58,42 @@ export const LoginEvents: Story = {
     await canvas.findByRole("table")
     await canvas.findAllByText("Platform Operator")
     await expect(canvas.getByRole("button", { name: "Method" })).toBeVisible()
+    await expect(
+      canvas.getByRole("button", { name: "Advanced filters" })
+    ).toBeVisible()
+    await expect(
+      canvas.queryByRole("button", { name: "Filter by account" })
+    ).toBeNull()
+  },
+}
+
+const loginFilterFixture = createScenario("success")
+export const LoginEventsAdvancedFilters: Story = {
+  ...loginFilterFixture.story,
+  args: { page: "login-events" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await canvas.findByRole("table")
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Advanced filters" })
+    )
+    const screen = within(canvasElement.ownerDocument.body)
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Filter by account" })
+    )
+    await userEvent.click(
+      await screen.findByRole("option", { name: /Mina Chen/ })
+    )
+    await userEvent.fill(screen.getByLabelText("From"), "2026-10-16T10:30")
+    await userEvent.fill(screen.getByLabelText("To"), "2026-10-16T11:30")
+    await userEvent.click(screen.getByRole("button", { name: "Apply filters" }))
+    await waitFor(() => {
+      const params = loginFilterFixture.fixture.loginQueries.at(-1)
+      expect(params?.get("userId")).toBe("c7dd0a27-4f8a-4aef-8d4c-000000001001")
+      expect(params?.get("from")).toBe("2026-10-16T10:30:00Z")
+      expect(params?.get("to")).toBe("2026-10-16T11:30:00Z")
+      expect(params?.get("page")).toBe("1")
+    })
   },
 }
 
@@ -161,6 +197,12 @@ export const Sessions: Story = {
     const canvas = within(canvasElement)
     await canvas.findByRole("heading", { name: "Global sessions" })
     await canvas.findByRole("table")
+    await expect(
+      canvas.getByRole("button", { name: "Advanced filters" })
+    ).toBeVisible()
+    await expect(
+      canvas.queryByRole("button", { name: "Filter by account" })
+    ).toBeNull()
     await userEvent.click(
       (await canvas.findAllByRole("button", { name: "Revoke session" }))[0]
     )
@@ -176,6 +218,32 @@ export const Sessions: Story = {
     await expect(sessionFixture.fixture.revokedSessionIds).toEqual([
       "c7dd0a27-4f8a-4aef-8d4c-000000003001",
     ])
+  },
+}
+
+const sessionFilterFixture = createScenario("success")
+export const SessionsUserFilter: Story = {
+  ...sessionFilterFixture.story,
+  args: { page: "sessions" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await canvas.findByRole("table")
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Advanced filters" })
+    )
+    const screen = within(canvasElement.ownerDocument.body)
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Filter by account" })
+    )
+    await userEvent.click(
+      await screen.findByRole("option", { name: /Mina Chen/ })
+    )
+    await userEvent.click(screen.getByRole("button", { name: "Apply filters" }))
+    await waitFor(() => {
+      expect(
+        sessionFilterFixture.fixture.sessionQueries.at(-1)?.get("userId")
+      ).toBe("c7dd0a27-4f8a-4aef-8d4c-000000001001")
+    })
   },
 }
 
