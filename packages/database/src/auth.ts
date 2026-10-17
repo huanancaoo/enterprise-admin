@@ -275,9 +275,11 @@ export function createAuth(
   github: { clientId: string; clientSecret: string },
   invitationLimits: InvitationLimits = defaultInvitationLimits
 ) {
+  const transactionalAdapter = createTransactionalAuthAdapter(pool)
+
   async function requireActiveAccount(
     userId: string,
-    executor: Pick<Pool, "query"> = pool
+    executor: Pick<Pool, "query"> = { query: transactionalAdapter.query }
   ) {
     try {
       await executor.query("SELECT public.require_active_account($1::uuid)", [
@@ -300,9 +302,7 @@ export function createAuth(
   }
 
   async function readCurrentSessionUser(userId: string, sessionId: string) {
-    const client = await pool.connect()
-    try {
-      await client.query("BEGIN")
+    const read = async (client: PoolClient) => {
       await requireActiveAccount(userId, client)
       const result = await client.query<{
         name: string
@@ -330,8 +330,18 @@ export function createAuth(
          FOR SHARE OF active_session`,
         [userId, sessionId]
       )
-      await client.query("COMMIT")
       return result.rows[0] ?? null
+    }
+
+    const boundClient = transactionalAdapter.currentClient()
+    if (boundClient) return read(boundClient)
+
+    const client = await pool.connect()
+    try {
+      await client.query("BEGIN")
+      const currentUser = await read(client)
+      await client.query("COMMIT")
+      return currentUser
     } catch (error) {
       await client.query("ROLLBACK")
       throw error
@@ -342,7 +352,7 @@ export function createAuth(
 
   async function requireActiveSession(userId: string, sessionId: string) {
     await requireActiveAccount(userId)
-    const result = await pool.query(
+    const result = await transactionalAdapter.query(
       `SELECT id
        FROM public.session
        WHERE id = $1
@@ -466,7 +476,6 @@ export function createAuth(
     },
   } as BetterAuthPlugin
 
-  const transactionalAdapter = createTransactionalAuthAdapter(pool)
   type InvitationEmailData = Omit<
     Parameters<AuthEmailHooks["sendInvitationEmail"]>[0],
     "attemptId" | "actorId" | "requestId"
