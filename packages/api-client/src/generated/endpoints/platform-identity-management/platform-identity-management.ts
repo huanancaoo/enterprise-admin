@@ -25,8 +25,9 @@ import type {
   CreatePlatformUser,
   ListPlatformLoginEventsParams,
   ListPlatformSessionsParams,
-  LoginLogsPage,
+  PasswordLoginUnlockResult,
   PasswordResetRequestResult,
+  PlatformLoginLogsPage,
   PlatformSessionsPage,
   PlatformUserDetail,
   PlatformUserMutationResult,
@@ -700,8 +701,150 @@ export const useRequestPlatformUserPasswordReset = <
     queryClient
   )
 }
+export type unlockPlatformUserPasswordLoginResponse200 = {
+  data: PasswordLoginUnlockResult
+  status: 200
+}
+
+export type unlockPlatformUserPasswordLoginResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type unlockPlatformUserPasswordLoginResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type unlockPlatformUserPasswordLoginResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type unlockPlatformUserPasswordLoginResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type unlockPlatformUserPasswordLoginResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type unlockPlatformUserPasswordLoginResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type unlockPlatformUserPasswordLoginResponseSuccess =
+  unlockPlatformUserPasswordLoginResponse200 & {
+    headers: Headers
+  }
+export type unlockPlatformUserPasswordLoginResponseError = (
+  | unlockPlatformUserPasswordLoginResponse400
+  | unlockPlatformUserPasswordLoginResponse401
+  | unlockPlatformUserPasswordLoginResponse403
+  | unlockPlatformUserPasswordLoginResponse404
+  | unlockPlatformUserPasswordLoginResponse409
+  | unlockPlatformUserPasswordLoginResponse503
+) & {
+  headers: Headers
+}
+
+export const getUnlockPlatformUserPasswordLoginUrl = (userId: string) => {
+  return `/api/v1/platform/users/${userId}/password-login/unlock`
+}
+
+export const unlockPlatformUserPasswordLogin = async (
+  userId: string,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<unlockPlatformUserPasswordLoginResponseSuccess> => {
+  return apiClient<unlockPlatformUserPasswordLoginResponseSuccess>(
+    getUnlockPlatformUserPasswordLoginUrl(userId),
+    {
+      ...options,
+      method: "POST",
+    }
+  )
+}
+
+export const getUnlockPlatformUserPasswordLoginMutationKey = () =>
+  ["unlockPlatformUserPasswordLogin"] as const
+
+export const getUnlockPlatformUserPasswordLoginMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof unlockPlatformUserPasswordLogin>>,
+    TError,
+    UnlockPlatformUserPasswordLoginMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof unlockPlatformUserPasswordLogin>>,
+  TError,
+  UnlockPlatformUserPasswordLoginMutationVariables,
+  TContext
+> => {
+  const mutationKey = getUnlockPlatformUserPasswordLoginMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof unlockPlatformUserPasswordLogin>>,
+    UnlockPlatformUserPasswordLoginMutationVariables
+  > = (props) => {
+    const { userId } = props ?? {}
+
+    return unlockPlatformUserPasswordLogin(userId, requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type UnlockPlatformUserPasswordLoginMutationResult = NonNullable<
+  Awaited<ReturnType<typeof unlockPlatformUserPasswordLogin>>
+>
+
+export type UnlockPlatformUserPasswordLoginMutationError = ErrorType<ApiError>
+export type UnlockPlatformUserPasswordLoginMutationVariables = {
+  userId: string
+}
+
+export const useUnlockPlatformUserPasswordLogin = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof unlockPlatformUserPasswordLogin>>,
+      TError,
+      UnlockPlatformUserPasswordLoginMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof unlockPlatformUserPasswordLogin>>,
+  TError,
+  UnlockPlatformUserPasswordLoginMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getUnlockPlatformUserPasswordLoginMutationOptions(options),
+    queryClient
+  )
+}
 export type listPlatformLoginEventsResponse200 = {
-  data: LoginLogsPage
+  data: PlatformLoginLogsPage
   status: 200
 }
 

@@ -4,13 +4,14 @@
  * Enterprise Foundation API
  * OpenAPI spec version: 0.1.0
  */
-import type { PlatformAccessRole } from "./platformAccessRole"
+import type { PlatformAccessRolesItem } from "./platformAccessRolesItem"
 import type { PlatformAccessScope } from "./platformAccessScope"
 
 export interface PlatformAccess {
   /** @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$ */
   userId: string
-  role: PlatformAccessRole
+  roles: PlatformAccessRolesItem[]
+  permissions: string[]
   scope: PlatformAccessScope
   /**
    * @nullable

@@ -12,6 +12,7 @@ export type LoginLogReasonCode =
   (typeof LoginLogReasonCode)[keyof typeof LoginLogReasonCode] | null
 
 export const LoginLogReasonCode = {
+  PASSWORD_LOGIN_LOCKED: "PASSWORD_LOGIN_LOCKED",
   INVALID_CREDENTIALS: "INVALID_CREDENTIALS",
   EMAIL_NOT_VERIFIED: "EMAIL_NOT_VERIFIED",
   INVALID_OTP: "INVALID_OTP",

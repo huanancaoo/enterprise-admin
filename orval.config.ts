@@ -18,6 +18,36 @@ export default defineConfig({
       packageJson: "./packages/api-client/package.json",
       override: {
         operations: {
+          getPlatformAnnouncementMedia: {
+            mutator: {
+              path: "./packages/api-client/src/http/client.ts",
+              name: "binaryApiClient",
+            },
+          },
+          getPlatformAnnouncementInboxMedia: {
+            mutator: {
+              path: "./packages/api-client/src/http/client.ts",
+              name: "binaryApiClient",
+            },
+          },
+          getTenantAnnouncementMedia: {
+            mutator: {
+              path: "./packages/api-client/src/http/client.ts",
+              name: "binaryApiClient",
+            },
+          },
+          getPlatformEmployeeImportTemplate: {
+            mutator: {
+              path: "./packages/api-client/src/http/client.ts",
+              name: "binaryApiClient",
+            },
+          },
+          getPlatformTaskResult: {
+            mutator: {
+              path: "./packages/api-client/src/http/client.ts",
+              name: "binaryApiClient",
+            },
+          },
           getBusinessTaskResult: {
             mutator: {
               path: "./packages/api-client/src/http/client.ts",

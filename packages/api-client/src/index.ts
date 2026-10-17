@@ -170,3 +170,15 @@ export {
   revokePlatformSession,
 } from "./generated/endpoints/platform-identity-management/platform-identity-management"
 export { listMyLoginEvents } from "./generated/endpoints/personal-login-events/personal-login-events"
+
+export * from "./generated/endpoints/platform-system/platform-system"
+
+export * from "./generated/endpoints/platform-tasks/platform-tasks"
+
+export * from "./generated/endpoints/platform-announcements/platform-announcements"
+
+export * from "./generated/endpoints/platform-announcement-inbox/platform-announcement-inbox"
+
+export * from "./generated/endpoints/tenant-announcements/tenant-announcements"
+
+export { unlockPlatformUserPasswordLogin } from "./generated/endpoints/platform-identity-management/platform-identity-management"

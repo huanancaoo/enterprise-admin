@@ -4,12 +4,10 @@
  * Enterprise Foundation API
  * OpenAPI spec version: 0.1.0
  */
-import type { PlatformAuditEventMetadataNextRole } from "./platformAuditEventMetadataNextRole"
-import type { PlatformAuditEventMetadataPreviousRole } from "./platformAuditEventMetadataPreviousRole"
 
 export type PlatformAuditEventMetadata = {
   /** @nullable */
-  previousRole?: PlatformAuditEventMetadataPreviousRole
+  previousRole?: string | null
   /** @nullable */
-  nextRole?: PlatformAuditEventMetadataNextRole
+  nextRole?: string | null
 }
