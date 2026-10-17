@@ -8,7 +8,7 @@ import {
   RouterProvider,
 } from "@tanstack/react-router"
 import type { Meta, StoryObj } from "@storybook/react-vite"
-import { expect, userEvent, waitFor, within } from "storybook/test"
+import { expect, fireEvent, userEvent, waitFor, within } from "storybook/test"
 import {
   AuthenticatedSessionProvider,
   createWorkspaceAuthClient,
@@ -107,12 +107,18 @@ export const DateFilters: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await canvas.findByRole("table")
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Advanced filters" })
-    )
+    const filterButton = canvas.getByRole("button", {
+      name: "Advanced filters",
+    })
+    await waitFor(() => expect(filterButton).toBeEnabled())
+    await userEvent.click(filterButton)
     const screen = within(canvasElement.ownerDocument.body)
-    await userEvent.fill(screen.getByLabelText("From"), "2026-10-16T10:30")
-    await userEvent.fill(screen.getByLabelText("To"), "2026-10-16T11:30")
+    fireEvent.change(await screen.findByLabelText("From (UTC)"), {
+      target: { value: "2026-10-16T10:30" },
+    })
+    fireEvent.change(await screen.findByLabelText("To (UTC)"), {
+      target: { value: "2026-10-16T11:30" },
+    })
     await userEvent.click(screen.getByRole("button", { name: "Apply filters" }))
     await waitFor(() => {
       const params = dateFilterFixture.personalLoginQueries.at(-1)
@@ -124,6 +130,13 @@ export const DateFilters: Story = {
       expect(params?.has("userId")).toBe(false)
       expect(params?.has("organizationId")).toBe(false)
     })
+    await waitFor(() =>
+      expect(
+        canvasElement.ownerDocument.querySelector(
+          '[data-slot="popover-content"]'
+        )
+      ).toBeNull()
+    )
   },
 }
 

@@ -15,6 +15,7 @@ const namespaces = [
   "tasks",
   "webhooks",
   "credentials",
+  "identity",
   "validation",
   "errors",
 ]

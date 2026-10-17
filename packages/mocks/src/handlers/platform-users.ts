@@ -134,6 +134,8 @@ export function createPlatformUsersScenario(
               emailVerified: item.emailVerified,
               createdAt: item.createdAt,
               organizationCount: item.organizationCount,
+              status: item.status,
+              version: item.version,
             })),
           page: query.page,
           pageSize: query.pageSize,

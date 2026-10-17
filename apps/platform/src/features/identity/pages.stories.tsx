@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite"
-import { expect, userEvent, waitFor, within } from "storybook/test"
+import { expect, fireEvent, userEvent, waitFor, within } from "storybook/test"
 import {
   createPlatformEntityComboboxScenario,
   createPlatformIdentityScenario,
@@ -74,18 +74,24 @@ export const LoginEventsAdvancedFilters: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await canvas.findByRole("table")
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Advanced filters" })
-    )
+    const filterButton = canvas.getByRole("button", {
+      name: "Advanced filters",
+    })
+    await waitFor(() => expect(filterButton).toBeEnabled())
+    await userEvent.click(filterButton)
     const screen = within(canvasElement.ownerDocument.body)
     await userEvent.click(
-      await screen.findByRole("button", { name: "Filter by account" })
+      await screen.findByRole("combobox", { name: "Filter by account" })
     )
     await userEvent.click(
-      await screen.findByRole("option", { name: /Mina Chen/ })
+      (await screen.findAllByRole("option", { name: /Mina Chen/ }))[0]!
     )
-    await userEvent.fill(screen.getByLabelText("From"), "2026-10-16T10:30")
-    await userEvent.fill(screen.getByLabelText("To"), "2026-10-16T11:30")
+    fireEvent.change(await screen.findByLabelText("From (UTC)"), {
+      target: { value: "2026-10-16T10:30" },
+    })
+    fireEvent.change(await screen.findByLabelText("To (UTC)"), {
+      target: { value: "2026-10-16T11:30" },
+    })
     await userEvent.click(screen.getByRole("button", { name: "Apply filters" }))
     await waitFor(() => {
       const params = loginFilterFixture.fixture.loginQueries.at(-1)
@@ -94,6 +100,13 @@ export const LoginEventsAdvancedFilters: Story = {
       expect(params?.get("to")).toBe("2026-10-16T11:30:00Z")
       expect(params?.get("page")).toBe("1")
     })
+    await waitFor(() =>
+      expect(
+        canvasElement.ownerDocument.querySelector(
+          '[data-slot="popover-content"]'
+        )
+      ).toBeNull()
+    )
   },
 }
 
@@ -228,15 +241,17 @@ export const SessionsUserFilter: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await canvas.findByRole("table")
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Advanced filters" })
-    )
+    const filterButton = canvas.getByRole("button", {
+      name: "Advanced filters",
+    })
+    await waitFor(() => expect(filterButton).toBeEnabled())
+    await userEvent.click(filterButton)
     const screen = within(canvasElement.ownerDocument.body)
     await userEvent.click(
-      await screen.findByRole("button", { name: "Filter by account" })
+      await screen.findByRole("combobox", { name: "Filter by account" })
     )
     await userEvent.click(
-      await screen.findByRole("option", { name: /Mina Chen/ })
+      (await screen.findAllByRole("option", { name: /Mina Chen/ }))[0]!
     )
     await userEvent.click(screen.getByRole("button", { name: "Apply filters" }))
     await waitFor(() => {
@@ -244,6 +259,13 @@ export const SessionsUserFilter: Story = {
         sessionFilterFixture.fixture.sessionQueries.at(-1)?.get("userId")
       ).toBe("c7dd0a27-4f8a-4aef-8d4c-000000001001")
     })
+    await waitFor(() =>
+      expect(
+        canvasElement.ownerDocument.querySelector(
+          '[data-slot="popover-content"]'
+        )
+      ).toBeNull()
+    )
   },
 }
 
@@ -280,7 +302,7 @@ export const SessionRevokeError: Story = {
       within(dialog).getByRole("button", { name: "Confirm" })
     )
     await within(dialog).findByRole("alert")
-    await expect(dialog).toBeVisible()
+    await waitFor(() => expect(dialog).toBeVisible())
   },
 }
 

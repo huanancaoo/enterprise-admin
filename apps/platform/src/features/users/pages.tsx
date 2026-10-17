@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useForm } from "@tanstack/react-form"
 import {
   Link,
@@ -22,13 +22,9 @@ import {
   PlatformSensitiveProfileSchema,
   SensitiveProfileQuerySchema,
   type PlatformUsersPage,
+  type PlatformUserDetail,
 } from "@workspace/contracts/platform"
-import {
-  EmptyState,
-  ErrorState,
-  LoadingState,
-  NotFoundContent,
-} from "@workspace/admin"
+import { ErrorState, LoadingState, NotFoundContent } from "@workspace/admin"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
@@ -49,14 +45,6 @@ import {
   type DataTableStatus,
 } from "@workspace/admin/data-table"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@workspace/ui/components/table"
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -66,6 +54,11 @@ import {
   DialogClose,
 } from "@workspace/ui/components/dialog"
 import { usePlatformAccessFailure } from "../../lib/use-platform-access-failure"
+import {
+  CreatePlatformAccount,
+  PlatformAccountActions,
+} from "./account-management"
+import { authClient } from "../../lib/auth-client"
 
 type UserRow = PlatformUsersPage["items"][number]
 const userColumns = createDataTableColumnHelper<UserRow>()
@@ -73,7 +66,10 @@ const EMPTY_USERS: UserRow[] = []
 
 export function PlatformUsersPage() {
   const { t } = useTranslation("organization")
+  const { t: identityText } = useTranslation("identity")
   const session = useAuthenticatedSession()!
+  const { platformAccess } = useRouteContext({ from: "/platform" })
+  const queryClient = useQueryClient()
   const search = useSearch({ from: "/platform/users" })
   const navigate = useNavigate({ from: "/platform/users" })
   const locale = useUiLocale()
@@ -126,6 +122,17 @@ export function PlatformUsersPage() {
         ),
         meta: { label: t("platformEmailVerified") },
       }),
+      userColumns.accessor("status", {
+        header: identityText("accountStatus"),
+        cell: ({ getValue }) => (
+          <Badge
+            variant={getValue() === "active" ? "secondary" : "destructive"}
+          >
+            {identityText(getValue())}
+          </Badge>
+        ),
+        meta: { label: identityText("accountStatus") },
+      }),
       userColumns.accessor("createdAt", {
         header: t("platformCreatedAt"),
         cell: ({ getValue }) =>
@@ -142,7 +149,7 @@ export function PlatformUsersPage() {
         meta: { label: t("platformOrganizationCount") },
       }),
     ])
-  }, [locale, t])
+  }, [locale, t, identityText])
   const pagination = { pageIndex: search.page - 1, pageSize: search.pageSize }
   const status: DataTableStatus = query.isError
     ? query.error instanceof ApiClientError && query.error.status === 403
@@ -173,6 +180,25 @@ export function PlatformUsersPage() {
         enableRowSelection={false}
         searchPlaceholder={t("platformUsersSearch")}
         searchMaxLength={200}
+        toolbarContent={
+          platformAccess.role === "platform_admin" && (
+            <CreatePlatformAccount
+              onCreated={(user) => {
+                queryClient.setQueryData(
+                  ["platform", session.user.id, "user", user.userId],
+                  user
+                )
+                void queryClient.invalidateQueries({
+                  queryKey: ["platform", session.user.id, "users"],
+                })
+                void navigate({
+                  to: "/platform/users/$userId",
+                  params: { userId: user.userId },
+                })
+              }}
+            />
+          )
+        }
         state={{ globalFilter: search.q ?? "", pagination }}
         onResetFilters={() =>
           void navigate({ search: { ...search, page: 1, q: undefined } })
@@ -297,9 +323,12 @@ function SensitiveProfile({ userId }: { userId: string }) {
 
 export function PlatformUserDetailPage() {
   const { t } = useTranslation("organization")
+  const { t: identityText } = useTranslation("identity")
   const { userId } = useParams({ from: "/platform/users/$userId" })
   const { platformAccess } = useRouteContext({ from: "/platform" })
   const session = useAuthenticatedSession()!
+  const nativeSession = authClient.useSession()
+  const queryClient = useQueryClient()
   const format = createFormatter(useUiLocale())
   const [open, setOpen] = useState(false)
   const query = useQuery({
@@ -333,6 +362,30 @@ export function PlatformUserDetailPage() {
       <h1 className="font-heading text-2xl font-semibold tracking-tight break-words sm:text-3xl">
         {user.name}
       </h1>
+      {platformAccess.role === "platform_admin" && (
+        <PlatformAccountActions
+          key={`${user.userId}-${user.version}`}
+          user={user}
+          onSaved={(result) => {
+            queryClient.setQueryData(
+              ["platform", session.user.id, "user", userId],
+              {
+                ...user,
+                name: result.name,
+                status: result.status,
+                version: result.version,
+              }
+            )
+            void queryClient.invalidateQueries({
+              queryKey: ["platform", session.user.id, "users"],
+            })
+            if (userId === session.user.id)
+              void nativeSession.refetch({
+                query: { disableCookieCache: true },
+              })
+          }}
+        />
+      )}
       <Card>
         <CardContent>
           <dl className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 [&_dd]:mt-1 [&_dd]:font-medium [&_dd]:break-words [&_dt]:text-sm [&_dt]:text-muted-foreground [&>div]:min-w-0">
@@ -346,6 +399,18 @@ export function PlatformUserDetailPage() {
               <dt>{t("platformMaskedEmail")}</dt>
               <dd>
                 <bdi>{user.maskedEmail}</bdi>
+              </dd>
+            </div>
+            <div>
+              <dt>{identityText("accountStatus")}</dt>
+              <dd>
+                <Badge
+                  variant={
+                    user.status === "active" ? "secondary" : "destructive"
+                  }
+                >
+                  {identityText(user.status)}
+                </Badge>
               </dd>
             </div>
             <div>
@@ -408,57 +473,62 @@ export function PlatformUserDetailPage() {
           </h2>
         </CardHeader>
         <CardContent>
-          {user.organizations.length === 0 ? (
-            <EmptyState />
-          ) : (
-            <div className="overflow-x-auto rounded-xl ring-1 ring-foreground/10">
-              {/* 只读表格没有可聚焦操作，键盘通过表格本身滚动长字段。 */}
-              <Table
-                className="min-w-[680px]"
-                tabIndex={0}
-                aria-label={t("platformUserOrganizations")}
-              >
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t("platformName")}</TableHead>
-                    <TableHead>{t("platformSlug")}</TableHead>
-                    <TableHead>{t("platformStatus")}</TableHead>
-                    <TableHead>{t("platformUserRole")}</TableHead>
-                    <TableHead>{t("platformJoinedAt")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {user.organizations.map((organization) => (
-                    <TableRow key={organization.organizationId}>
-                      <TableCell>{organization.name}</TableCell>
-                      <TableCell>
-                        <bdi>{organization.slug}</bdi>
-                      </TableCell>
-                      <TableCell>
-                        {organization.status === "ACTIVE"
-                          ? t("platformActive")
-                          : t("platformSuspended")}
-                      </TableCell>
-                      <TableCell>
-                        <bdi>{organization.role}</bdi>
-                      </TableCell>
-                      <TableCell>
-                        {format.dateTime(
-                          new Date(organization.joinedAt),
-                          "UTC",
-                          {
-                            dateStyle: "medium",
-                          }
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+          <UserOrganizations data={user.organizations} />
         </CardContent>
       </Card>
     </section>
+  )
+}
+
+function UserOrganizations({
+  data,
+}: {
+  data: PlatformUserDetail["organizations"]
+}) {
+  const { t } = useTranslation("organization")
+  const locale = useUiLocale()
+  const columns = useMemo(() => {
+    const helper =
+      createDataTableColumnHelper<PlatformUserDetail["organizations"][number]>()
+    const format = createFormatter(locale)
+    return helper.columns([
+      helper.accessor("name", {
+        header: t("platformName"),
+        meta: { label: t("platformName") },
+      }),
+      helper.accessor("slug", {
+        header: t("platformSlug"),
+        cell: ({ getValue }) => <bdi>{getValue()}</bdi>,
+        meta: { label: t("platformSlug") },
+      }),
+      helper.accessor("status", {
+        header: t("platformStatus"),
+        cell: ({ getValue }) =>
+          getValue() === "ACTIVE"
+            ? t("platformActive")
+            : t("platformSuspended"),
+        meta: { label: t("platformStatus") },
+      }),
+      helper.accessor("role", {
+        header: t("platformUserRole"),
+        cell: ({ getValue }) => <bdi>{getValue()}</bdi>,
+        meta: { label: t("platformUserRole") },
+      }),
+      helper.accessor("joinedAt", {
+        header: t("platformJoinedAt"),
+        cell: ({ getValue }) =>
+          format.dateTime(new Date(getValue()), "UTC", { dateStyle: "medium" }),
+        meta: { label: t("platformJoinedAt") },
+      }),
+    ])
+  }, [locale, t])
+  return (
+    <DataTable
+      columns={columns}
+      data={data}
+      getRowId={(row) => row.organizationId}
+      showSearch={false}
+      enableRowSelection={false}
+    />
   )
 }

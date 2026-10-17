@@ -146,7 +146,7 @@ export const DetailEmptyMemberships: Story = {
   ...scenario("noMemberships"),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await canvas.findByRole("heading", { name: "No results" })
+    await canvas.findByText("No data yet")
     await expect(
       canvas.getByRole("heading", { name: platformUserFixture.name })
     ).toBeVisible()
@@ -183,9 +183,8 @@ export const DetailLongText: Story = {
     await canvas.findByRole("heading", {
       name: /国际研发与合规协作成员/,
     })
-    const table = canvas.getByRole("table")
-    table.focus()
-    await expect(table).toHaveFocus()
+    await expect(canvas.getByRole("table")).toBeVisible()
+    await expect(canvas.getAllByRole("columnheader")).toHaveLength(5)
   },
 }
 export const DetailRTL: Story = {

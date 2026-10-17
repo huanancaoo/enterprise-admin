@@ -534,7 +534,6 @@ export function PlatformEntityCombobox({
                       .filter(Boolean)
                       .join(" ") || undefined
                   }
-                  aria-label={label ?? defaultPlaceholder}
                   className={[
                     "relative h-9 w-full justify-start text-start font-normal",
                     clearable ? "pe-14" : "pe-9",

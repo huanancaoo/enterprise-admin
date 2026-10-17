@@ -206,6 +206,8 @@ export function createPlatformEntityComboboxScenario(
                 emailVerified,
                 createdAt,
                 organizationCount,
+                status,
+                version,
               }) => ({
                 userId,
                 name,
@@ -213,6 +215,8 @@ export function createPlatformEntityComboboxScenario(
                 emailVerified,
                 createdAt,
                 organizationCount,
+                status,
+                version,
               })
             ),
           total: matching.length,

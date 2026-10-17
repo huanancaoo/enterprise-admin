@@ -26,12 +26,26 @@ const clientIp = () => `10.${[...randomBytes(3)].join(".")}`
 describe("platform identity management browser flows", () => {
   let environment
   let admin
+  let auditor
   let contexts = []
   let currentPage
 
   beforeAll(async () => {
     environment = await startBrowserApplication({ mail: true })
     admin = await platformOperator(environment, environment.platformOrigin)
+    auditor = await platformOperator(
+      environment,
+      environment.platformOrigin,
+      "platform_auditor"
+    )
+    await environment.migrator.query(
+      'UPDATE public."user" SET preferred_locale = $2 WHERE id = $1',
+      [admin.user.id, "en-US"]
+    )
+    await environment.migrator.query(
+      'UPDATE public."user" SET preferred_locale = $2 WHERE id = $1',
+      [auditor.user.id, "en-US"]
+    )
   })
 
   afterEach(async ({ task }) => {
@@ -47,10 +61,10 @@ describe("platform identity management browser flows", () => {
 
   afterAll(async () => environment?.close())
 
-  async function platformPage(path) {
+  async function platformPage(path, actor = admin) {
     const context = await environment.browser.newContext()
     contexts.push(context)
-    await attach(context, admin.cookie, environment.platformOrigin)
+    await attach(context, actor.cookie, environment.platformOrigin)
     currentPage = await context.newPage()
     await currentPage.goto(`${environment.platformOrigin}${path}`)
     return currentPage
@@ -84,6 +98,10 @@ describe("platform identity management browser flows", () => {
     expect(account.rows).toHaveLength(1)
     expect(account.rows[0].email_verified).toBe(true)
     const userId = account.rows[0].id
+    await environment.migrator.query(
+      'UPDATE public."user" SET preferred_locale = $2 WHERE id = $1',
+      [userId, "en-US"]
+    )
 
     await page.getByRole("button", { name: "Edit account" }).click()
     const editDialog = page.getByRole("dialog")
@@ -142,9 +160,13 @@ describe("platform identity management browser flows", () => {
       .getByRole("button", { name: "Send password reset email", exact: true })
       .click()
     await expectUI(
-      page.getByText("Password reset email sent.", { exact: true })
+      page.getByText("Password reset email request submitted.", { exact: true })
     ).toBeVisible()
     await waitForMail(environment.mailpitOrigin, email, "Reset your password")
+    await page.screenshot({
+      path: "/private/tmp/identity-account-management.png",
+      fullPage: true,
+    })
   })
 
   it("filters and paginates global login records and restores the query after reload", async () => {
@@ -181,6 +203,17 @@ describe("platform identity management browser flows", () => {
     await expectUI(page).toHaveURL(/result=failed/)
     await expectUI(page.locator("tbody tr")).toHaveCount(20)
 
+    await page
+      .getByRole("button", { name: "Advanced filters", exact: true })
+      .click()
+    const from = new Date().toISOString().slice(0, 10) + "T00:00"
+    await page.getByLabel("From (UTC)", { exact: true }).fill(from)
+    await page
+      .getByRole("button", { name: "Apply filters", exact: true })
+      .click()
+    await expectUI(page).toHaveURL(/from=/)
+    await expectUI(page.locator("tbody tr")).toHaveCount(20)
+
     await page.getByRole("button", { name: "Next page", exact: true }).click()
     await expectUI(page).toHaveURL(/page=2/)
     await expectUI(page.locator("tbody tr")).toHaveCount(1)
@@ -189,6 +222,43 @@ describe("platform identity management browser flows", () => {
     expect(new URL(page.url()).searchParams.get("q")).toBe(admin.user.name)
     expect(new URL(page.url()).searchParams.get("result")).toBe("failed")
     expect(new URL(page.url()).searchParams.get("page")).toBe("2")
+    await page.screenshot({
+      path: "/private/tmp/identity-platform-login-history.png",
+      fullPage: true,
+    })
+  })
+
+  it("lets auditors read the directory and sessions without account mutation controls", async () => {
+    const page = await platformPage("/platform/users", auditor)
+    await expectUI(
+      page.getByRole("heading", { name: "Users", exact: true })
+    ).toBeVisible()
+    await expectUI(
+      page.getByRole("button", { name: "Create account", exact: true })
+    ).toHaveCount(0)
+    await page.goto(
+      `${environment.platformOrigin}/platform/users/${admin.user.id}`
+    )
+    await expectUI(
+      page.getByRole("heading", { name: admin.user.name, exact: true })
+    ).toBeVisible()
+    for (const name of [
+      "Edit account",
+      "Suspend account",
+      "Send password reset email",
+    ]) {
+      await expectUI(
+        page.getByRole("button", { name, exact: true })
+      ).toHaveCount(0)
+    }
+    await page.goto(`${environment.platformOrigin}/platform/sessions`)
+    await expectUI(
+      page.getByRole("heading", { name: "Global sessions", exact: true })
+    ).toBeVisible()
+    await expectUI(page.locator("tbody tr")).not.toHaveCount(0)
+    await expectUI(
+      page.getByRole("button", { name: "Revoke session", exact: true })
+    ).toHaveCount(0)
   })
 
   it("revokes the selected global session and leaves the other session active", async () => {
@@ -262,6 +332,10 @@ describe("platform identity management browser flows", () => {
         )
       ).status()
     ).toBe(200)
+    await page.screenshot({
+      path: "/private/tmp/identity-platform-sessions.png",
+      fullPage: true,
+    })
   })
 
   it("shows only the signed-in tenant account's personal login events", async () => {
@@ -278,6 +352,10 @@ describe("platform identity management browser flows", () => {
       { name: `Tenant other ${randomUUID()}` }
     )
     const ownerAgent = `Tenant owner browser ${randomUUID()}`
+    await environment.migrator.query(
+      'UPDATE public."user" SET preferred_locale = $2 WHERE id = $1',
+      [owner.user.id, "en-US"]
+    )
     const otherAgent = `Different tenant browser ${randomUUID()}`
     for (const [account, userAgent] of [
       [owner, ownerAgent],
@@ -307,19 +385,18 @@ describe("platform identity management browser flows", () => {
     await attach(context, owner.cookie, environment.tenantOrigin)
     const page = await context.newPage()
     currentPage = page
-    const eventsResponse = page.waitForResponse(
-      (response) =>
-        new URL(response.url()).pathname === "/api/v1/me/login-events"
-    )
     await page.goto(`${environment.tenantOrigin}/app/settings/preferences`)
-    await page
-      .getByRole("link", { name: "My login history", exact: true })
-      .click()
+    const [response] = await Promise.all([
+      page.waitForResponse(
+        (response) =>
+          new URL(response.url()).pathname === "/api/v1/me/login-events"
+      ),
+      page.getByRole("link", { name: "Login history", exact: true }).click(),
+    ])
     await expectUI(page).toHaveURL(/\/app\/settings\/login-events/)
     await expectUI(
       page.getByRole("heading", { name: "My login history", exact: true })
     ).toBeVisible()
-    const response = await eventsResponse
     const payload = await response.json()
     expect(payload.items.length).toBeGreaterThan(0)
     expect(payload.items.every((item) => item.userId === owner.user.id)).toBe(
@@ -331,5 +408,9 @@ describe("platform identity management browser flows", () => {
     )
     await expectUI(page.locator("main")).toContainText(ownerAgent)
     await expectUI(page.locator("main")).not.toContainText(otherAgent)
+    await page.screenshot({
+      path: "/private/tmp/identity-personal-login-history.png",
+      fullPage: true,
+    })
   })
 })
