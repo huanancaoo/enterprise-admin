@@ -32,7 +32,7 @@
   "searchSessions": "Search account, email, or IP",
   "sessionId": "Session ID",
   "createdAt": "Created",
-  "updatedAt": "Last active",
+  "updatedAt": "Last updated",
   "expiresAt": "Expires",
   "revokeSession": "Revoke session",
   "revokeSessionDescription": "This session will end immediately and the user must sign in again.",

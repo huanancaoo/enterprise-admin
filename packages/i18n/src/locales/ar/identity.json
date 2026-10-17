@@ -32,7 +32,7 @@
   "searchSessions": "ابحث عن الحساب أو البريد أو IP",
   "sessionId": "معرّف الجلسة",
   "createdAt": "تاريخ الإنشاء",
-  "updatedAt": "آخر نشاط",
+  "updatedAt": "آخر تحديث",
   "expiresAt": "تاريخ الانتهاء",
   "revokeSession": "إلغاء الجلسة",
   "revokeSessionDescription": "ستنتهي هذه الجلسة فوراً وسيتعين على المستخدم تسجيل الدخول مجدداً.",

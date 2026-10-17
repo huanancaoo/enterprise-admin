@@ -32,7 +32,7 @@
   "searchSessions": "搜索账号、邮箱或 IP",
   "sessionId": "会话 ID",
   "createdAt": "创建时间",
-  "updatedAt": "最近活动",
+  "updatedAt": "最近更新",
   "expiresAt": "到期时间",
   "revokeSession": "撤销会话",
   "revokeSessionDescription": "此会话将立即失效，用户需要重新登录。",

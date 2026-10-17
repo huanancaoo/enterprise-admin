@@ -40,22 +40,22 @@ export function PlatformLoginEventsPage() {
     retry: false,
   })
   usePlatformAccessFailure(query.error)
-  const methodLabel = (method: LoginLog["method"]) =>
-    String(t(`identity:${method}Method`))
-  const reasonLabel = (reason: LoginLog["reasonCode"]) => {
-    if (!reason) return "—"
-    const labels = {
-      INVALID_CREDENTIALS: "reasonInvalidCredentials",
-      EMAIL_NOT_VERIFIED: "reasonEmailNotVerified",
-      INVALID_OTP: "reasonInvalidOtp",
-      ACCOUNT_SUSPENDED: "reasonAccountSuspended",
-      AUTHORIZATION_UNAVAILABLE: "reasonAuthorizationUnavailable",
-      AUTHENTICATION_FAILED: "reasonAuthenticationFailed",
-    } as const
-    return String(t(`identity:${labels[reason]}`))
-  }
   const columns = useMemo(() => {
     const format = createFormatter(locale)
+    const methodLabel = (method: LoginLog["method"]) =>
+      String(t(`identity:${method}Method`))
+    const reasonLabel = (reason: LoginLog["reasonCode"]) => {
+      if (!reason) return "—"
+      const labels = {
+        INVALID_CREDENTIALS: "reasonInvalidCredentials",
+        EMAIL_NOT_VERIFIED: "reasonEmailNotVerified",
+        INVALID_OTP: "reasonInvalidOtp",
+        ACCOUNT_SUSPENDED: "reasonAccountSuspended",
+        AUTHORIZATION_UNAVAILABLE: "reasonAuthorizationUnavailable",
+        AUTHENTICATION_FAILED: "reasonAuthenticationFailed",
+      } as const
+      return String(t(`identity:${labels[reason]}`))
+    }
     return loginColumns.columns([
       loginColumns.accessor("occurredAt", {
         header: ({ header }) => (

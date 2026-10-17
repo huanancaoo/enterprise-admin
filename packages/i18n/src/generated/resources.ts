@@ -538,7 +538,7 @@ export default interface Resources {
     "suspendDescription": "停用后，该账号的所有会话会结束，且其所有组织访问都会暂停。",
     "suspended": "停用",
     "totpMethod": "身份验证器",
-    "updatedAt": "最近活动",
+    "updatedAt": "最近更新",
     "user": "账号",
     "userAgent": "设备与浏览器",
     "verifiedAtCreation": "邮箱在创建时即为已验证状态。"

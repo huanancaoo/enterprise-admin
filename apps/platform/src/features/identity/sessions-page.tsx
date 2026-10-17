@@ -70,6 +70,8 @@ export function PlatformSessionsPage() {
     },
     onError: (error) => void rejectAccessFailure(error),
   })
+  const revokePending = revoke.isPending
+  const resetRevoke = revoke.reset
   const columns = useMemo(() => {
     const format = createFormatter(locale)
     const date = (value: string) =>
@@ -142,9 +144,9 @@ export function PlatformSessionsPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={revoke.isPending}
+                  disabled={revokePending}
                   onClick={() => {
-                    revoke.reset()
+                    resetRevoke()
                     setSelectedSession(row.original)
                   }}
                 >
@@ -157,7 +159,7 @@ export function PlatformSessionsPage() {
           ]
         : []),
     ])
-  }, [locale, platformAccess.role, revoke.isPending, t])
+  }, [locale, platformAccess.role, resetRevoke, revokePending, t])
   const pagination = { pageIndex: search.page - 1, pageSize: search.pageSize }
   const status: DataTableStatus = query.isError
     ? query.error instanceof ApiClientError && query.error.status === 403
