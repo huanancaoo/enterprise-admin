@@ -13,6 +13,7 @@ export const platformUserFixture: PlatformUserDetail = {
   name: "Mina Chen",
   maskedEmail: "m***@example.test",
   emailVerified: true,
+  lockedUntil: null,
   createdAt: "2026-09-16T00:00:00.000Z",
   organizationCount: 2,
   twoFactorEnabled: true,
@@ -52,11 +53,30 @@ export type PlatformUsersScenario =
   | "sensitiveLoading"
   | "sensitiveFailure"
   | "sensitiveRateLimited"
+  | "locked"
+  | "lockExpired"
+  | "unlockFailure"
+  | "unlockSlow"
+  | "unlockForbidden"
 
 export function createPlatformUsersScenario(
   scenario: PlatformUsersScenario = "success"
 ) {
   const user = structuredClone(platformUserFixture)
+  const lockedScenario = [
+    "locked",
+    "unlockFailure",
+    "unlockSlow",
+    "unlockForbidden",
+  ].includes(scenario)
+  const lockTime = () =>
+    scenario === "lockExpired"
+      ? new Date(Date.now() - 60_000).toISOString()
+      : lockedScenario
+        ? new Date(Date.now() + 600_000).toISOString()
+        : null
+  user.lockedUntil = lockTime()
+  const unlockedUserIds: string[] = []
   if (scenario === "noMemberships") {
     user.organizations = []
     user.organizationCount = 0
@@ -104,8 +124,11 @@ export function createPlatformUsersScenario(
     if (scenario === "unavailable") return failure(503, "AUDIT_UNAVAILABLE")
   }
   return {
+    unlockedUserIds,
     reset: () => {
       sensitiveFailureReturned = false
+      unlockedUserIds.length = 0
+      users[0]!.lockedUntil = lockTime()
     },
     handlers: [
       http.get("*/api/v1/platform/users", async ({ request }) => {
@@ -132,6 +155,7 @@ export function createPlatformUsersScenario(
               name: item.name,
               maskedEmail: item.maskedEmail,
               emailVerified: item.emailVerified,
+              lockedUntil: item.lockedUntil,
               createdAt: item.createdAt,
               organizationCount: item.organizationCount,
               status: item.status,
@@ -149,6 +173,25 @@ export function createPlatformUsersScenario(
         const result = users.find((item) => item.userId === params.userId)
         return result ? HttpResponse.json(result) : failure(404, "NOT_FOUND")
       }),
+      http.post(
+        "*/api/v1/platform/users/:userId/password-login/unlock",
+        async ({ params }) => {
+          if (scenario === "unlockSlow") await delay("infinite")
+          if (scenario === "unlockForbidden") return failure(403, "FORBIDDEN")
+          if (scenario === "unlockFailure")
+            return failure(503, "INTERNAL_ERROR")
+          const target = users.find((item) => item.userId === params.userId)
+          if (!target) return failure(404, "NOT_FOUND")
+          const changed = target.lockedUntil !== null
+          target.lockedUntil = null
+          unlockedUserIds.push(target.userId)
+          return HttpResponse.json({
+            userId: target.userId,
+            changed,
+            lockedUntil: null,
+          })
+        }
+      ),
       http.get(
         "*/api/v1/platform/users/:userId/sensitive-profile",
         async ({ request, params }) => {

@@ -68,6 +68,7 @@ export function AdminLayout() {
     "credentials",
     "tasks",
     "notifications",
+    "announcements",
     "webhooks",
     "settings",
     "identity",
@@ -101,6 +102,7 @@ export function AdminLayout() {
     !organizationId && activeOrganization.isPending
   const organizations = workspace.workspace.data ?? []
   const onMembers = pathname.startsWith("/app/members/")
+  const onAnnouncements = pathname.startsWith("/app/announcements/")
   const onNotifications = pathname.startsWith("/app/notifications/")
   const onTasks = pathname.startsWith("/app/tasks/")
   const onIntegrations = pathname.startsWith("/app/integrations/")
@@ -302,6 +304,14 @@ export function AdminLayout() {
     } else {
       cancelOrganizationSwitchLocale(nextLocaleSnapshot)
     }
+    if (onAnnouncements) {
+      await navigate({
+        to: "/app/announcements/$organizationId",
+        params: { organizationId: nextOrganizationId },
+        search: { page: 1, pageSize: 20 },
+      })
+      return
+    }
     if (onNotifications) {
       await navigate({
         to: "/app/notifications/$organizationId",
@@ -415,31 +425,33 @@ export function AdminLayout() {
             )}
             <BreadcrumbItem>
               <BreadcrumbPage>
-                {onNotifications
-                  ? t("notifications:title")
-                  : onTasks
-                    ? t("tasks:title")
-                    : onIntegrations
-                      ? t("webhooks:integrations")
-                      : onFiles
-                        ? params.entryId
-                          ? t("files:detail")
-                          : t("files:title")
-                        : onAudit
-                          ? t("organization:audit")
-                          : onMembers
-                            ? t("organization:members")
-                            : onRoles
-                              ? t("organization:roles")
-                              : onOrganizationSettings
-                                ? t("settings:organizationSettings")
-                                : onPersonalSettings
-                                  ? onPersonalLoginEvents
-                                    ? t("identity:personalLoginEvents")
-                                    : t("settings:personalSettings")
-                                  : params.projectId
-                                    ? t("projects:detail")
-                                    : t("projects:title")}
+                {onAnnouncements
+                  ? t("announcements:title")
+                  : onNotifications
+                    ? t("notifications:title")
+                    : onTasks
+                      ? t("tasks:title")
+                      : onIntegrations
+                        ? t("webhooks:integrations")
+                        : onFiles
+                          ? params.entryId
+                            ? t("files:detail")
+                            : t("files:title")
+                          : onAudit
+                            ? t("organization:audit")
+                            : onMembers
+                              ? t("organization:members")
+                              : onRoles
+                                ? t("organization:roles")
+                                : onOrganizationSettings
+                                  ? t("settings:organizationSettings")
+                                  : onPersonalSettings
+                                    ? onPersonalLoginEvents
+                                      ? t("identity:personalLoginEvents")
+                                      : t("settings:personalSettings")
+                                    : params.projectId
+                                      ? t("projects:detail")
+                                      : t("projects:title")}
               </BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>

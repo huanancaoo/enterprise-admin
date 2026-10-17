@@ -206,9 +206,11 @@ export function CreatePlatformAccount({
 
 export function PlatformAccountActions({
   user,
+  permissions,
   onSaved,
 }: {
   user: PlatformUserDetail
+  permissions: string[]
   onSaved: (result: PlatformUserMutationResult) => void
 }) {
   const { t } = useTranslation(["identity", "validation", "common"])
@@ -274,19 +276,25 @@ export function PlatformAccountActions({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" onClick={() => show("edit")}>
-          {t("identity:editAccount")}
-        </Button>
-        <Button
-          variant={user.status === "active" ? "destructive" : "outline"}
-          size="sm"
-          onClick={() => show("status")}
-        >
-          {statusLabel}
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => show("reset")}>
-          {t("identity:resetPassword")}
-        </Button>
+        {permissions.includes("platform.user:update") && (
+          <Button variant="outline" size="sm" onClick={() => show("edit")}>
+            {t("identity:editAccount")}
+          </Button>
+        )}
+        {permissions.includes("platform.user:suspend") && (
+          <Button
+            variant={user.status === "active" ? "destructive" : "outline"}
+            size="sm"
+            onClick={() => show("status")}
+          >
+            {statusLabel}
+          </Button>
+        )}
+        {permissions.includes("platform.user:resetPassword") && (
+          <Button variant="outline" size="sm" onClick={() => show("reset")}>
+            {t("identity:resetPassword")}
+          </Button>
+        )}
       </div>
       {resetRequested && (
         <p role="status" className="text-sm text-muted-foreground">

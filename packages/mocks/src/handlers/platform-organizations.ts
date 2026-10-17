@@ -1,3 +1,4 @@
+import { createPlatformAccessFixture } from "./platform-access"
 import { delay, http, HttpResponse } from "msw"
 import {
   PlatformOrganizationQuerySchema,
@@ -271,12 +272,9 @@ export function createPlatformOrganizationScenario(
         }
       ),
       http.get("*/api/v1/me/platform", () =>
-        HttpResponse.json({
-          userId: platformOrganizationActor.id,
-          role: "platform_admin",
-          scope: "global",
-          mfaVerifiedAt: "2026-10-02T00:00:00.000Z",
-        })
+        HttpResponse.json(
+          createPlatformAccessFixture(platformOrganizationActor.id)
+        )
       ),
       transition("suspend"),
       transition("resume"),

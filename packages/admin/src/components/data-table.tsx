@@ -52,6 +52,8 @@ export function DataTable<TData extends RowData>({
   renderSelectionActions,
   renderExpandedRow,
   toolbarContent,
+  toolbarFilters,
+  showPagination = true,
   rowClassName,
   ...options
 }: DataTableProps<TData>) {
@@ -135,7 +137,9 @@ export function DataTable<TData extends RowData>({
             />
           )}
           {status !== "forbidden" &&
-            (!isCollectionEmpty || toolbarContent != null) && (
+            (!isCollectionEmpty ||
+              toolbarContent != null ||
+              toolbarFilters != null) && (
               <DataTableToolbar>
                 {showSelection ? (
                   <DataTableSelectionActions<TData>
@@ -163,6 +167,7 @@ export function DataTable<TData extends RowData>({
                           />
                         ) : null
                       )}
+                    {toolbarFilters}
                     {hasFilters && (
                       <Button variant="ghost" size="sm" onClick={clearFilters}>
                         {t("clearFilters")}
@@ -190,7 +195,8 @@ export function DataTable<TData extends RowData>({
                 onResetFilters={clearFilters}
               />
             ))}
-          {status !== "forbidden" &&
+          {showPagination &&
+            status !== "forbidden" &&
             (table.getRowCount() > 0 || status === "loading") && (
               <Pagination
                 pageIndex={table.state.pagination.pageIndex}

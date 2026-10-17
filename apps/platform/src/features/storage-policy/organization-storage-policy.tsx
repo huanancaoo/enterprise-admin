@@ -159,7 +159,7 @@ export function OrganizationStoragePolicy({
               {t("organization:storagePolicySaved")}
             </p>
           )}
-          {platformAccess.role === "platform_admin" ? (
+          {platformAccess.permissions.includes("platform.settings:update") ? (
             <StoragePolicyForm
               key={query.data.version}
               policy={query.data}

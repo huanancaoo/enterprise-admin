@@ -1,15 +1,16 @@
-import { useMemo, useState } from "react"
+import { PlatformExportButton } from "../tasks/task-actions"
+import { useEffect, useMemo } from "react"
 import { useForm } from "@tanstack/react-form"
 import { useQuery } from "@tanstack/react-query"
-import { useNavigate, useSearch } from "@tanstack/react-router"
+import { useNavigate, useRouteContext, useSearch } from "@tanstack/react-router"
 import { useTranslation } from "react-i18next"
 import { ApiClientError, listPlatformLoginEvents } from "@workspace/api-client"
 import {
-  LoginLogsPageSchema,
+  PlatformLoginLogsPageSchema,
   LoginLogsQuerySchema,
-  type LoginLog,
+  type PlatformLoginLog,
   type LoginLogsQuery,
-} from "@workspace/contracts/identity-management"
+} from "@workspace/contracts"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import {
   DataTable,
@@ -19,6 +20,7 @@ import {
 } from "@workspace/admin/data-table"
 import { usePlatformAccessFailure } from "../../lib/use-platform-access-failure"
 import { UserCombobox } from "../../components/user-combobox"
+import { PlatformPasswordLoginLock } from "../users/password-login-lock"
 import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -28,27 +30,19 @@ import {
   FieldLabel,
 } from "@workspace/ui/components/field"
 import { Input } from "@workspace/ui/components/input"
-import {
-  Popover,
-  PopoverContent,
-  PopoverHeader,
-  PopoverTitle,
-  PopoverTrigger,
-} from "@workspace/ui/components/popover"
-import { FilterIcon } from "lucide-react"
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
 
-const loginColumns = createDataTableColumnHelper<LoginLog>()
-const EMPTY_LOGS: LoginLog[] = []
+const loginColumns = createDataTableColumnHelper<PlatformLoginLog>()
+const EMPTY_LOGS: PlatformLoginLog[] = []
 
 export function PlatformLoginEventsPage() {
   const { t } = useTranslation(["identity", "common", "organization"])
   const session = useAuthenticatedSession()!
+  const { platformAccess } = useRouteContext({ from: "/platform" })
   const search = useSearch({ from: "/platform/login-events" })
   const navigate = useNavigate({ from: "/platform/login-events" })
   const locale = useUiLocale()
-  const [filtersOpen, setFiltersOpen] = useState(false)
   const filterQuery = (value: {
     userId: string
     from: string
@@ -83,13 +77,20 @@ export function PlatformLoginEventsPage() {
     onSubmit: async ({ value }) => {
       const parsed = LoginLogsQuerySchema.parse(filterQuery(value))
       await navigate({ search: parsed })
-      setFiltersOpen(false)
     },
   })
+  // URL 条件变更时回填表单；搜索和翻页不覆盖尚未应用的筛选输入。
+  useEffect(() => {
+    filtersForm.reset({
+      userId: search.userId ?? "",
+      from: search.from ? new Date(search.from).toISOString().slice(0, 16) : "",
+      to: search.to ? new Date(search.to).toISOString().slice(0, 16) : "",
+    })
+  }, [filtersForm, search.userId, search.from, search.to])
   const query = useQuery({
     queryKey: ["platform", session.user.id, "login-events", search],
     queryFn: async ({ signal }) =>
-      LoginLogsPageSchema.parse(
+      PlatformLoginLogsPageSchema.parse(
         (await listPlatformLoginEvents(search, { signal })).data
       ),
     retry: false,
@@ -101,15 +102,16 @@ export function PlatformLoginEventsPage() {
       email: String(t("emailMethod")),
       github: String(t("githubMethod")),
       totp: String(t("totpMethod")),
-    } satisfies Record<LoginLog["method"], string>
+    } satisfies Record<PlatformLoginLog["method"], string>
     const resultLabels = {
       succeeded: String(t("succeeded")),
       failed: String(t("failed")),
-    } satisfies Record<LoginLog["result"], string>
-    const reasonLabel = (reason: LoginLog["reasonCode"]) => {
+    } satisfies Record<PlatformLoginLog["result"], string>
+    const reasonLabel = (reason: PlatformLoginLog["reasonCode"]) => {
       if (!reason) return "—"
       const labels = {
         INVALID_CREDENTIALS: "reasonInvalidCredentials",
+        PASSWORD_LOGIN_LOCKED: "reasonPasswordLoginLocked",
         EMAIL_NOT_VERIFIED: "reasonEmailNotVerified",
         INVALID_OTP: "reasonInvalidOtp",
         ACCOUNT_SUSPENDED: "reasonAccountSuspended",
@@ -145,6 +147,25 @@ export function PlatformLoginEventsPage() {
         ),
         meta: { label: t("user") },
         size: 240,
+      }),
+      loginColumns.accessor("lockedUntil", {
+        header: t("passwordLoginLock"),
+        cell: ({ row, getValue }) =>
+          row.original.userId ? (
+            <PlatformPasswordLoginLock
+              userId={row.original.userId}
+              name={row.original.name ?? t("platformAccount")}
+              lockedUntil={getValue()}
+              canUnlock={platformAccess.permissions.includes(
+                "platform.user:unlock"
+              )}
+              showExpiry
+            />
+          ) : (
+            "—"
+          ),
+        meta: { label: t("passwordLoginLock") },
+        size: 260,
       }),
       loginColumns.accessor("method", {
         header: ({ header }) => (
@@ -200,7 +221,7 @@ export function PlatformLoginEventsPage() {
         size: 300,
       }),
     ])
-  }, [locale, t])
+  }, [locale, platformAccess.permissions, t])
   const pagination = { pageIndex: search.page - 1, pageSize: search.pageSize }
   const filters = [
     ...(search.method ? [{ id: "method", value: search.method }] : []),
@@ -240,6 +261,11 @@ export function PlatformLoginEventsPage() {
         status={status}
         error={query.error instanceof Error ? query.error.message : undefined}
         onRetry={() => void query.refetch()}
+        toolbarContent={
+          platformAccess.permissions.includes("platform.login:export") && (
+            <PlatformExportButton resource="login" filters={search} />
+          )
+        }
         manualPagination
         manualFiltering
         manualSorting
@@ -252,164 +278,117 @@ export function PlatformLoginEventsPage() {
           globalFilter: search.q ?? "",
           columnFilters: filters,
         }}
-        toolbarContent={
-          <Popover
-            open={filtersOpen}
-            onOpenChange={(open) => {
-              if (open) {
-                filtersForm.setFieldValue("userId", search.userId ?? "")
-                filtersForm.setFieldValue(
-                  "from",
-                  search.from
-                    ? new Date(search.from).toISOString().slice(0, 16)
-                    : ""
-                )
-                filtersForm.setFieldValue(
-                  "to",
-                  search.to
-                    ? new Date(search.to).toISOString().slice(0, 16)
-                    : ""
-                )
-              }
-              setFiltersOpen(open)
-            }}
-          >
-            <PopoverTrigger
-              render={
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={query.isFetching}
-                />
-              }
-            >
-              <FilterIcon data-icon="inline-start" />
-              {t("organization:platformOperationAdvancedFilters")}
-              {(search.userId || search.from || search.to) && (
-                <Badge variant="secondary">
-                  {
-                    [search.userId, search.from || search.to].filter(Boolean)
-                      .length
-                  }
-                </Badge>
-              )}
-            </PopoverTrigger>
-            <PopoverContent
-              align="start"
-              className="max-h-[min(40rem,calc(100dvh-4rem))] w-[min(36rem,calc(100vw-2rem))] overflow-y-auto"
-            >
-              <PopoverHeader>
-                <PopoverTitle>
-                  {t("organization:platformOperationAdvancedFilters")}
-                </PopoverTitle>
-              </PopoverHeader>
-              <filtersForm.Subscribe selector={(state) => state.isSubmitting}>
-                {(busy) => (
-                  <form
-                    noValidate
-                    aria-busy={busy || query.isFetching}
-                    onSubmit={(event) => {
-                      event.preventDefault()
-                      void filtersForm.handleSubmit()
-                    }}
-                  >
-                    <fieldset
-                      disabled={busy || query.isFetching}
-                      className="space-y-4"
-                    >
-                      <FieldGroup className="grid gap-4 sm:grid-cols-2">
-                        <filtersForm.Field name="userId">
-                          {(field) => {
-                            const invalid =
-                              field.state.meta.isTouched &&
-                              !field.state.meta.isValid
-                            return (
-                              <Field data-invalid={invalid}>
-                                <FieldLabel htmlFor="platform-login-user">
-                                  {t("filterUser")}
-                                </FieldLabel>
-                                <UserCombobox
-                                  id="platform-login-user"
-                                  value={field.state.value || null}
-                                  placeholder={t("filterUser")}
-                                  onValueChange={(userId) =>
-                                    field.handleChange(userId ?? "")
-                                  }
-                                  onBlur={field.handleBlur}
-                                  invalid={invalid}
-                                  aria-describedby={
-                                    invalid
-                                      ? "platform-login-user-error"
-                                      : undefined
-                                  }
+        toolbarFilters={
+          <filtersForm.Subscribe selector={(state) => state.isSubmitting}>
+            {(busy) => (
+              <form
+                className="w-full max-w-full min-w-0 sm:w-auto"
+                noValidate
+                aria-busy={busy || query.isFetching}
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  void filtersForm.handleSubmit()
+                }}
+              >
+                <fieldset
+                  disabled={busy || query.isFetching}
+                  className="flex min-w-0 flex-wrap items-end gap-2"
+                >
+                  <FieldGroup className="contents">
+                    <filtersForm.Field name="userId">
+                      {(field) => {
+                        const invalid =
+                          field.state.meta.isTouched &&
+                          !field.state.meta.isValid
+                        return (
+                          <Field
+                            data-invalid={invalid}
+                            className="w-full gap-1 sm:w-56"
+                          >
+                            <FieldLabel
+                              className="text-xs text-muted-foreground"
+                              htmlFor="platform-login-user"
+                            >
+                              {t("filterUser")}
+                            </FieldLabel>
+                            <UserCombobox
+                              disabled={busy || query.isFetching}
+                              id="platform-login-user"
+                              value={field.state.value || null}
+                              placeholder={t("filterUser")}
+                              onValueChange={(userId) =>
+                                field.handleChange(userId ?? "")
+                              }
+                              onBlur={field.handleBlur}
+                              invalid={invalid}
+                              aria-describedby={
+                                invalid
+                                  ? "platform-login-user-error"
+                                  : undefined
+                              }
+                            />
+                            {invalid && (
+                              <FieldError
+                                id="platform-login-user-error"
+                                errors={field.state.meta.errors}
+                              />
+                            )}
+                          </Field>
+                        )
+                      }}
+                    </filtersForm.Field>
+                    {(["from", "to"] as const).map((name) => (
+                      <filtersForm.Field key={name} name={name}>
+                        {(field) => {
+                          const invalid =
+                            field.state.meta.isTouched &&
+                            !field.state.meta.isValid
+                          const label =
+                            name === "from" ? t("filterFrom") : t("filterTo")
+                          const id = `platform-login-${name}`
+                          return (
+                            <Field
+                              data-invalid={invalid}
+                              className="w-full gap-1 sm:w-56"
+                            >
+                              <FieldLabel
+                                className="text-xs text-muted-foreground"
+                                htmlFor={id}
+                              >
+                                {label}
+                              </FieldLabel>
+                              <Input
+                                id={id}
+                                type="datetime-local"
+                                value={field.state.value}
+                                onChange={(event) =>
+                                  field.handleChange(event.target.value)
+                                }
+                                onBlur={field.handleBlur}
+                                aria-invalid={invalid}
+                                aria-describedby={
+                                  invalid ? `${id}-error` : undefined
+                                }
+                              />
+                              {invalid && (
+                                <FieldError
+                                  id={`${id}-error`}
+                                  errors={field.state.meta.errors}
                                 />
-                                {invalid && (
-                                  <FieldError
-                                    id="platform-login-user-error"
-                                    errors={field.state.meta.errors}
-                                  />
-                                )}
-                              </Field>
-                            )
-                          }}
-                        </filtersForm.Field>
-                        {(["from", "to"] as const).map((name) => (
-                          <filtersForm.Field key={name} name={name}>
-                            {(field) => {
-                              const invalid =
-                                field.state.meta.isTouched &&
-                                !field.state.meta.isValid
-                              const label =
-                                name === "from"
-                                  ? t("filterFrom")
-                                  : t("filterTo")
-                              const id = `platform-login-${name}`
-                              return (
-                                <Field data-invalid={invalid}>
-                                  <FieldLabel htmlFor={id}>{label}</FieldLabel>
-                                  <Input
-                                    id={id}
-                                    type="datetime-local"
-                                    value={field.state.value}
-                                    onChange={(event) =>
-                                      field.handleChange(event.target.value)
-                                    }
-                                    onBlur={field.handleBlur}
-                                    aria-invalid={invalid}
-                                    aria-describedby={
-                                      invalid ? `${id}-error` : undefined
-                                    }
-                                  />
-                                  {invalid && (
-                                    <FieldError
-                                      id={`${id}-error`}
-                                      errors={field.state.meta.errors}
-                                    />
-                                  )}
-                                </Field>
-                              )
-                            }}
-                          </filtersForm.Field>
-                        ))}
-                      </FieldGroup>
-                      <div className="flex justify-end gap-2 border-t pt-4">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          onClick={() => setFiltersOpen(false)}
-                        >
-                          {t("common:close")}
-                        </Button>
-                        <Button type="submit">
-                          {t("organization:platformApplyFilters")}
-                        </Button>
-                      </div>
-                    </fieldset>
-                  </form>
-                )}
-              </filtersForm.Subscribe>
-            </PopoverContent>
-          </Popover>
+                              )}
+                            </Field>
+                          )
+                        }}
+                      </filtersForm.Field>
+                    ))}
+                  </FieldGroup>
+                  <Button type="submit" size="sm" className="h-9">
+                    {t("organization:platformApplyFilters")}
+                  </Button>
+                </fieldset>
+              </form>
+            )}
+          </filtersForm.Subscribe>
         }
         onGlobalFilterChange={(updater) => {
           const q =

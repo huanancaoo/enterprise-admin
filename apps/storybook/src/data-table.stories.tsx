@@ -9,6 +9,7 @@ import {
   createDataTableSelectColumn,
 } from "@workspace/admin/data-table"
 import { Button } from "@workspace/ui/components/button"
+import { Input } from "@workspace/ui/components/input"
 
 type RecordRow = { id: string; name: string; status: string }
 
@@ -100,6 +101,59 @@ const meta = {
 } satisfies Meta<typeof TableExample>
 export default meta
 type Story = StoryObj<typeof meta>
+
+function InlineFiltersExample({ empty = false }: { empty?: boolean }) {
+  return (
+    <DataTable
+      columns={singleStatusColumns}
+      data={empty ? [] : records}
+      getRowId={(row) => row.id}
+      searchPlaceholder="Search records"
+      enableRowSelection={false}
+      toolbarContent={<Button>Create record</Button>}
+      toolbarFilters={<Input aria-label="Account filter" className="w-48" />}
+    />
+  )
+}
+
+export const InlineFilters: Story = {
+  render: () => <InlineFiltersExample />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const create = canvas.getByRole("button", { name: "Create record" })
+    const search = canvas.getByRole("textbox", { name: "Search records" })
+    const status = canvas.getByRole("button", { name: "Status" })
+    const filter = canvas.getByRole("textbox", { name: "Account filter" })
+    await expect(create).toBeVisible()
+    await expect(filter).toBeVisible()
+    for (const [before, after] of [
+      [create, search],
+      [search, status],
+      [status, filter],
+    ]) {
+      await expect(
+        Boolean(
+          before!.compareDocumentPosition(after!) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+        )
+      ).toBe(true)
+    }
+  },
+}
+
+export const InlineFiltersEmpty: Story = {
+  render: () => <InlineFiltersExample empty />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(
+      canvas.getByRole("textbox", { name: "Account filter" })
+    ).toBeVisible()
+    await expect(
+      canvas.getByRole("button", { name: "Create record" })
+    ).toBeVisible()
+    await expect(canvas.queryByRole("table")).toBeNull()
+  },
+}
 
 export const ContentStates: Story = {
   play: async ({ canvasElement }) => {

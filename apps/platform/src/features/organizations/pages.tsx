@@ -1,3 +1,4 @@
+import { PlatformExportButton } from "../tasks/task-actions"
 import { useMemo, useRef, useState } from "react"
 import { useForm } from "@tanstack/react-form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
@@ -65,6 +66,7 @@ export function PlatformOrganizationsPage() {
   const search = useSearch({ from: "/platform/organizations" })
   const navigate = useNavigate({ from: "/platform/organizations" })
   const session = useAuthenticatedSession()!
+  const { platformAccess } = useRouteContext({ from: "/platform" })
   const locale = useUiLocale()
   const query = useQuery({
     queryKey: ["platform", session.user.id, "organizations", search],
@@ -183,6 +185,11 @@ export function PlatformOrganizationsPage() {
         status={status}
         error={query.error instanceof Error ? query.error.message : undefined}
         onRetry={() => void query.refetch()}
+        toolbarContent={
+          platformAccess.permissions.includes(
+            "platform.organization:export"
+          ) && <PlatformExportButton resource="organization" filters={search} />
+        }
         manualPagination
         manualFiltering
         manualSorting
@@ -533,7 +540,9 @@ export function PlatformOrganizationDetailPage() {
         <h1 className="min-w-0 font-heading text-2xl font-semibold tracking-tight break-words sm:text-3xl">
           {organization.name}
         </h1>
-        {platformAccess.role === "platform_admin" && (
+        {platformAccess.permissions.includes(
+          "platform.organization:update"
+        ) && (
           <OrganizationAction
             key={organization.id}
             organization={organization}

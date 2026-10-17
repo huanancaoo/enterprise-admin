@@ -47,11 +47,11 @@ export function DataTableToolbar({
   return (
     <div
       data-slot="data-table-toolbar"
-      className={cn("flex flex-wrap items-center gap-2", className)}
+      className={cn("flex flex-wrap items-end gap-2", className)}
       {...props}
     >
-      {/* 与搜索框保持同高，切换为选择操作时不改变表格的垂直位置。 */}
-      <div className="flex min-h-9 min-w-0 flex-1 flex-wrap items-center gap-2">
+      {/* 最低高度与搜索框一致，避免只展示短按钮时工具栏收缩。 */}
+      <div className="flex min-h-9 min-w-0 flex-1 flex-wrap items-end gap-2">
         {children}
       </div>
       <DataTableViewOptions />

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo } from "react"
 import { useForm } from "@tanstack/react-form"
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate, useSearch } from "@tanstack/react-router"
@@ -28,14 +28,6 @@ import {
   FieldLabel,
 } from "@workspace/ui/components/field"
 import { Input } from "@workspace/ui/components/input"
-import {
-  Popover,
-  PopoverContent,
-  PopoverHeader,
-  PopoverTitle,
-  PopoverTrigger,
-} from "@workspace/ui/components/popover"
-import { FilterIcon } from "lucide-react"
 
 const loginColumns = createDataTableColumnHelper<LoginLog>()
 const EMPTY_LOGS: LoginLog[] = []
@@ -46,7 +38,6 @@ export function PersonalLoginEventsRoute() {
   const search = useSearch({ from: "/app/settings/login-events" })
   const navigate = useNavigate({ from: "/app/settings/login-events" })
   const locale = useUiLocale()
-  const [filtersOpen, setFiltersOpen] = useState(false)
   const filterQuery = (value: { from: string; to: string }) => ({
     ...search,
     from: value.from ? `${value.from}:00Z` : undefined,
@@ -77,9 +68,15 @@ export function PersonalLoginEventsRoute() {
     onSubmit: async ({ value }) => {
       const parsed = PersonalLoginLogsQuerySchema.parse(filterQuery(value))
       await navigate({ search: parsed })
-      setFiltersOpen(false)
     },
   })
+  // URL 条件变更时回填表单；搜索和翻页不覆盖尚未应用的筛选输入。
+  useEffect(() => {
+    filtersForm.reset({
+      from: search.from ? new Date(search.from).toISOString().slice(0, 16) : "",
+      to: search.to ? new Date(search.to).toISOString().slice(0, 16) : "",
+    })
+  }, [filtersForm, search.from, search.to])
   const { page, pageSize, ...filters } = search
   const query = useQuery({
     queryKey: ["identity", session.user.id, "my-login-events", search],
@@ -146,6 +143,7 @@ export function PersonalLoginEventsRoute() {
           if (!reason) return "—"
           const labels = {
             INVALID_CREDENTIALS: "reasonInvalidCredentials",
+            PASSWORD_LOGIN_LOCKED: "reasonPasswordLoginLocked",
             EMAIL_NOT_VERIFIED: "reasonEmailNotVerified",
             INVALID_OTP: "reasonInvalidOtp",
             ACCOUNT_SUSPENDED: "reasonAccountSuspended",
@@ -219,123 +217,75 @@ export function PersonalLoginEventsRoute() {
         enableSorting={false}
         enableRowSelection={false}
         state={{ pagination, columnFilters }}
-        toolbarContent={
-          <Popover
-            open={filtersOpen}
-            onOpenChange={(open) => {
-              if (open) {
-                filtersForm.setFieldValue(
-                  "from",
-                  search.from
-                    ? new Date(search.from).toISOString().slice(0, 16)
-                    : ""
-                )
-                filtersForm.setFieldValue(
-                  "to",
-                  search.to
-                    ? new Date(search.to).toISOString().slice(0, 16)
-                    : ""
-                )
-              }
-              setFiltersOpen(open)
-            }}
-          >
-            <PopoverTrigger
-              render={
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={query.isFetching}
-                />
-              }
-            >
-              <FilterIcon data-icon="inline-start" />
-              {t("organization:platformOperationAdvancedFilters")}
-              {(search.from || search.to) && (
-                <Badge variant="secondary">1</Badge>
-              )}
-            </PopoverTrigger>
-            <PopoverContent
-              align="start"
-              className="max-h-[min(40rem,calc(100dvh-4rem))] w-[min(36rem,calc(100vw-2rem))] overflow-y-auto"
-            >
-              <PopoverHeader>
-                <PopoverTitle>
-                  {t("organization:platformOperationAdvancedFilters")}
-                </PopoverTitle>
-              </PopoverHeader>
-              <filtersForm.Subscribe selector={(state) => state.isSubmitting}>
-                {(busy) => (
-                  <form
-                    noValidate
-                    aria-busy={busy || query.isFetching}
-                    onSubmit={(event) => {
-                      event.preventDefault()
-                      void filtersForm.handleSubmit()
-                    }}
-                  >
-                    <fieldset
-                      disabled={busy || query.isFetching}
-                      className="space-y-4"
-                    >
-                      <FieldGroup className="grid gap-4 sm:grid-cols-2">
-                        {(["from", "to"] as const).map((name) => (
-                          <filtersForm.Field key={name} name={name}>
-                            {(field) => {
-                              const invalid =
-                                field.state.meta.isTouched &&
-                                !field.state.meta.isValid
-                              const label =
-                                name === "from"
-                                  ? t("filterFrom")
-                                  : t("filterTo")
-                              const id = `personal-login-${name}`
-                              return (
-                                <Field data-invalid={invalid}>
-                                  <FieldLabel htmlFor={id}>{label}</FieldLabel>
-                                  <Input
-                                    id={id}
-                                    type="datetime-local"
-                                    value={field.state.value}
-                                    onChange={(event) =>
-                                      field.handleChange(event.target.value)
-                                    }
-                                    onBlur={field.handleBlur}
-                                    aria-invalid={invalid}
-                                    aria-describedby={
-                                      invalid ? `${id}-error` : undefined
-                                    }
-                                  />
-                                  {invalid && (
-                                    <FieldError
-                                      id={`${id}-error`}
-                                      errors={field.state.meta.errors}
-                                    />
-                                  )}
-                                </Field>
-                              )
-                            }}
-                          </filtersForm.Field>
-                        ))}
-                      </FieldGroup>
-                      <div className="flex justify-end gap-2 border-t pt-4">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          onClick={() => setFiltersOpen(false)}
-                        >
-                          {t("common:close")}
-                        </Button>
-                        <Button type="submit">
-                          {t("organization:platformApplyFilters")}
-                        </Button>
-                      </div>
-                    </fieldset>
-                  </form>
-                )}
-              </filtersForm.Subscribe>
-            </PopoverContent>
-          </Popover>
+        toolbarFilters={
+          <filtersForm.Subscribe selector={(state) => state.isSubmitting}>
+            {(busy) => (
+              <form
+                className="w-full max-w-full min-w-0 sm:w-auto"
+                noValidate
+                aria-busy={busy || query.isFetching}
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  void filtersForm.handleSubmit()
+                }}
+              >
+                <fieldset
+                  disabled={busy || query.isFetching}
+                  className="flex min-w-0 flex-wrap items-end gap-2"
+                >
+                  <FieldGroup className="contents">
+                    {(["from", "to"] as const).map((name) => (
+                      <filtersForm.Field key={name} name={name}>
+                        {(field) => {
+                          const invalid =
+                            field.state.meta.isTouched &&
+                            !field.state.meta.isValid
+                          const label =
+                            name === "from" ? t("filterFrom") : t("filterTo")
+                          const id = `personal-login-${name}`
+                          return (
+                            <Field
+                              data-invalid={invalid}
+                              className="w-full gap-1 sm:w-56"
+                            >
+                              <FieldLabel
+                                className="text-xs text-muted-foreground"
+                                htmlFor={id}
+                              >
+                                {label}
+                              </FieldLabel>
+                              <Input
+                                id={id}
+                                type="datetime-local"
+                                value={field.state.value}
+                                onChange={(event) =>
+                                  field.handleChange(event.target.value)
+                                }
+                                onBlur={field.handleBlur}
+                                aria-invalid={invalid}
+                                aria-describedby={
+                                  invalid ? `${id}-error` : undefined
+                                }
+                              />
+                              {invalid && (
+                                <FieldError
+                                  id={`${id}-error`}
+                                  errors={field.state.meta.errors}
+                                />
+                              )}
+                            </Field>
+                          )
+                        }}
+                      </filtersForm.Field>
+                    ))}
+                  </FieldGroup>
+                  <Button type="submit" size="sm" className="h-9">
+                    {t("organization:platformApplyFilters")}
+                  </Button>
+                </fieldset>
+              </form>
+            )}
+          </filtersForm.Subscribe>
         }
         onColumnFiltersChange={(updater) => {
           const next =

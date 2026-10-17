@@ -18,8 +18,18 @@ const namespaces = [
   "identity",
   "validation",
   "errors",
+  "system",
+  "catalogs",
+  "employees",
+  "roles",
+  "announcements",
+  "platformTasks",
 ]
 const errors = []
+const pluralSuffix = /_(zero|one|two|few|many|other)$/
+const messageKey = (key) => key.replace(pluralSuffix, "")
+const semanticKeys = (catalog) =>
+  [...new Set(Object.keys(catalog).map(messageKey))].sort()
 const placeholders = (value) =>
   [...value.matchAll(/{{\s*([^},\s]+)[^}]*}}/g)]
     .map((match) => match[1])
@@ -43,16 +53,34 @@ for (const namespace of namespaces) {
     const url = new URL(`${locale}/${namespace}.json`, root)
     const catalog = JSON.parse(readFileSync(url, "utf8"))
     if (
-      JSON.stringify(Object.keys(primary).sort()) !==
-      JSON.stringify(Object.keys(catalog).sort())
+      JSON.stringify(semanticKeys(primary)) !==
+      JSON.stringify(semanticKeys(catalog))
     )
       errors.push(`${fileURLToPath(url)}: key set drift`)
+    // 阿拉伯语需要六种基数形式；按消息语义比较集合，再独立检查各语言的 CLDR 形式。
+    const pluralMessages = new Set(
+      Object.keys(primary)
+        .filter((key) => pluralSuffix.test(key))
+        .map(messageKey)
+    )
+    for (const key of pluralMessages) {
+      for (const category of new Intl.PluralRules(locale).resolvedOptions()
+        .pluralCategories) {
+        if (!Object.hasOwn(catalog, `${key}_${category}`))
+          errors.push(
+            `${locale}/${namespace}:${key}_${category}: missing plural translation`
+          )
+      }
+    }
     for (const [key, value] of Object.entries(catalog)) {
+      const primaryValue = pluralSuffix.test(key)
+        ? primary[`${messageKey(key)}_other`]
+        : primary[key]
       if (typeof value !== "string" || !value.trim())
         errors.push(`${locale}/${namespace}:${key}: empty translation`)
       else if (
-        typeof primary[key] === "string" &&
-        placeholders(value) !== placeholders(primary[key])
+        typeof primaryValue === "string" &&
+        placeholders(value) !== placeholders(primaryValue)
       )
         errors.push(`${locale}/${namespace}:${key}: interpolation mismatch`)
     }

@@ -44,3 +44,17 @@ export { PersonalAvatar } from "./components/personal-avatar"
 export { PersonalAvatarSettings } from "./components/personal-avatar-settings"
 
 export { PersonalSecuritySettings } from "./components/personal-security-settings"
+
+export {
+  AnnouncementEntry,
+  AnnouncementInbox,
+  AnnouncementArticle,
+} from "./components/announcement-components"
+export type {
+  AnnouncementReading,
+  AnnouncementInboxSearch,
+  AnnouncementInboxItem,
+  AnnouncementAttachment,
+} from "./components/announcement-components"
+
+export { saveAnnouncementResource } from "./lib/announcement-resource"

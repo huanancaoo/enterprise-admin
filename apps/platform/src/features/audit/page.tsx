@@ -1,7 +1,8 @@
+import { PlatformExportButton } from "../tasks/task-actions"
 import { useMemo, useState } from "react"
 import { useForm } from "@tanstack/react-form"
 import { useQuery } from "@tanstack/react-query"
-import { useNavigate, useSearch } from "@tanstack/react-router"
+import { useNavigate, useRouteContext, useSearch } from "@tanstack/react-router"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
 import {
@@ -16,18 +17,15 @@ import {
   type PlatformAuditQuery,
   type PlatformAuditEvent,
 } from "@workspace/contracts/platform"
-import { ErrorState, LoadingState, NotFoundContent } from "@workspace/admin"
+import {
+  ErrorState,
+  LoadingState,
+  NotFoundContent,
+  PermissionDeniedState,
+} from "@workspace/admin"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
-import { FilterIcon } from "lucide-react"
-import {
-  Popover,
-  PopoverContent,
-  PopoverHeader,
-  PopoverTitle,
-  PopoverTrigger,
-} from "@workspace/ui/components/popover"
 import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
@@ -113,12 +111,6 @@ function AuditFilters({
   onApply: (query: PlatformAuditQuery) => Promise<void>
 }) {
   const { t } = useTranslation(["organization", "common"])
-  const [open, setOpen] = useState(false)
-  const filterCount = [
-    search.organizationId,
-    search.actorId,
-    search.from || search.to,
-  ].filter(Boolean).length
   const initialFrom = search.from
     ? new Date(search.from).toISOString().slice(0, 16)
     : ""
@@ -159,135 +151,127 @@ function AuditFilters({
         page: 1,
         pageSize: search.pageSize,
       })
-      setOpen(false)
     },
   })
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
-        render={<Button variant="outline" size="sm" disabled={loading} />}
-      >
-        <FilterIcon data-icon="inline-start" />
-        {t("organization:platformOperationAdvancedFilters")}
-        {filterCount > 0 && <Badge variant="secondary">{filterCount}</Badge>}
-      </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        className="max-h-[min(40rem,calc(100dvh-4rem))] w-[min(36rem,calc(100vw-2rem))] overflow-y-auto"
-      >
-        <PopoverHeader>
-          <PopoverTitle>
-            {t("organization:platformOperationAdvancedFilters")}
-          </PopoverTitle>
-        </PopoverHeader>
-        <form.Subscribe selector={(state) => state.isSubmitting}>
-          {(busy) => (
-            <form
-              noValidate
-              aria-busy={busy || loading}
-              onSubmit={(event) => {
-                event.preventDefault()
-                void form.handleSubmit()
-              }}
-            >
-              <fieldset disabled={busy || loading} className="space-y-4">
-                <FieldGroup className="grid gap-4 sm:grid-cols-2">
-                  {(["organizationId", "actorId"] as const).map((name) => (
-                    <form.Field key={name} name={name}>
-                      {(field) => {
-                        const invalid =
-                          field.state.meta.isTouched &&
-                          !field.state.meta.isValid
-                        const id = `platform-audit-${name}`
-                        const label =
-                          name === "organizationId"
-                            ? t("platformAuditOrganizationLabel")
-                            : t("platformAuditActorLabel")
-                        const Selector =
-                          name === "organizationId"
-                            ? OrganizationCombobox
-                            : UserCombobox
-                        return (
-                          <Field data-invalid={invalid}>
-                            <FieldLabel htmlFor={id}>{label}</FieldLabel>
-                            <Selector
-                              id={id}
-                              value={field.state.value || null}
-                              placeholder={
-                                name === "organizationId"
-                                  ? t("platformAuditAllOrganizations")
-                                  : t("platformAuditAllActors")
-                              }
-                              onValueChange={(value) =>
-                                field.handleChange(value ?? "")
-                              }
-                              onBlur={field.handleBlur}
-                              disabled={busy || loading}
-                              invalid={invalid}
-                              aria-describedby={
-                                invalid ? `${id}-error` : undefined
-                              }
-                            />
-                            {invalid && (
-                              <FieldError
-                                id={`${id}-error`}
-                                errors={field.state.meta.errors}
-                              />
-                            )}
-                          </Field>
-                        )
-                      }}
-                    </form.Field>
-                  ))}
-                  {dateNames.map((name) => (
-                    <form.Field key={name} name={name}>
-                      {(field) => {
-                        const invalid =
-                          field.state.meta.isTouched &&
-                          !field.state.meta.isValid
-                        return (
-                          <Field data-invalid={invalid}>
-                            <FieldLabel htmlFor={`platform-audit-${name}`}>
-                              {t(labels[name])}
-                            </FieldLabel>
-                            <Input
-                              id={`platform-audit-${name}`}
-                              type="datetime-local"
-                              value={field.state.value}
-                              onChange={(event) =>
-                                field.handleChange(event.target.value)
-                              }
-                              onBlur={field.handleBlur}
-                              aria-invalid={invalid}
-                              maxLength={36}
-                            />
-                            {invalid && (
-                              <FieldError errors={field.state.meta.errors} />
-                            )}
-                          </Field>
-                        )
-                      }}
-                    </form.Field>
-                  ))}
-                </FieldGroup>
-                <div className="flex justify-end gap-2 border-t pt-4">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => setOpen(false)}
-                  >
-                    {t("common:close")}
-                  </Button>
-                  <Button type="submit">
-                    {t("organization:platformApplyFilters")}
-                  </Button>
-                </div>
-              </fieldset>
-            </form>
-          )}
-        </form.Subscribe>
-      </PopoverContent>
-    </Popover>
+    <form.Subscribe selector={(state) => state.isSubmitting}>
+      {(busy) => (
+        <form
+          className="w-full max-w-full min-w-0 sm:w-auto"
+          noValidate
+          aria-label={t("common:filters")}
+          aria-busy={busy || loading}
+          onSubmit={(event) => {
+            event.preventDefault()
+            void form.handleSubmit()
+          }}
+        >
+          <fieldset
+            disabled={busy || loading}
+            className="flex min-w-0 flex-wrap items-end gap-2"
+          >
+            <FieldGroup className="contents">
+              {(["organizationId", "actorId"] as const).map((name) => (
+                <form.Field key={name} name={name}>
+                  {(field) => {
+                    const invalid =
+                      field.state.meta.isTouched && !field.state.meta.isValid
+                    const id = `platform-audit-${name}`
+                    const label =
+                      name === "organizationId"
+                        ? t("platformAuditOrganizationLabel")
+                        : t("platformAuditActorLabel")
+                    const Selector =
+                      name === "organizationId"
+                        ? OrganizationCombobox
+                        : UserCombobox
+                    return (
+                      <Field
+                        data-invalid={invalid}
+                        className="w-full gap-1 sm:w-56"
+                      >
+                        <FieldLabel
+                          className="text-xs text-muted-foreground"
+                          htmlFor={id}
+                        >
+                          {label}
+                        </FieldLabel>
+                        <Selector
+                          id={id}
+                          value={field.state.value || null}
+                          placeholder={
+                            name === "organizationId"
+                              ? t("platformAuditAllOrganizations")
+                              : t("platformAuditAllActors")
+                          }
+                          onValueChange={(value) =>
+                            field.handleChange(value ?? "")
+                          }
+                          onBlur={field.handleBlur}
+                          disabled={busy || loading}
+                          invalid={invalid}
+                          aria-describedby={invalid ? `${id}-error` : undefined}
+                        />
+                        {invalid && (
+                          <FieldError
+                            id={`${id}-error`}
+                            errors={field.state.meta.errors}
+                          />
+                        )}
+                      </Field>
+                    )
+                  }}
+                </form.Field>
+              ))}
+              {dateNames.map((name) => (
+                <form.Field key={name} name={name}>
+                  {(field) => {
+                    const invalid =
+                      field.state.meta.isTouched && !field.state.meta.isValid
+                    return (
+                      <Field
+                        data-invalid={invalid}
+                        className="w-full gap-1 sm:w-56"
+                      >
+                        <FieldLabel
+                          className="text-xs text-muted-foreground"
+                          htmlFor={`platform-audit-${name}`}
+                        >
+                          {t(labels[name])}
+                        </FieldLabel>
+                        <Input
+                          id={`platform-audit-${name}`}
+                          type="datetime-local"
+                          value={field.state.value}
+                          onChange={(event) =>
+                            field.handleChange(event.target.value)
+                          }
+                          onBlur={field.handleBlur}
+                          aria-invalid={invalid}
+                          aria-describedby={
+                            invalid ? `platform-audit-${name}-error` : undefined
+                          }
+                          maxLength={36}
+                        />
+                        {invalid && (
+                          <FieldError
+                            id={`platform-audit-${name}-error`}
+                            errors={field.state.meta.errors}
+                          />
+                        )}
+                      </Field>
+                    )
+                  }}
+                </form.Field>
+              ))}
+            </FieldGroup>
+            <Button type="submit" size="sm" className="h-9">
+              {t("organization:platformApplyFilters")}
+            </Button>
+          </fieldset>
+        </form>
+      )}
+    </form.Subscribe>
   )
 }
 
@@ -335,6 +319,9 @@ function AuditDetail({
           query.error instanceof ApiClientError &&
           query.error.status === 404 ? (
             <NotFoundContent />
+          ) : query.error instanceof ApiClientError &&
+            query.error.status === 403 ? (
+            <PermissionDeniedState />
           ) : (
             <ErrorState onRetry={() => void query.refetch()} />
           )
@@ -399,6 +386,7 @@ function AuditWorkspace({ search }: { search: PlatformAuditQuery }) {
   const { t } = useTranslation(["organization", "common"])
   const navigate = useNavigate({ from: "/platform/audit-events" })
   const session = useAuthenticatedSession()!
+  const { platformAccess } = useRouteContext({ from: "/platform" })
   const locale = useUiLocale()
   const [selected, setSelected] = useState<string | null>(null)
   const query = useQuery({
@@ -554,6 +542,11 @@ function AuditWorkspace({ search }: { search: PlatformAuditQuery }) {
           columnFilters,
         }}
         toolbarContent={
+          platformAccess.permissions.includes("platform.audit:export") && (
+            <PlatformExportButton resource="audit" filters={search} />
+          )
+        }
+        toolbarFilters={
           <AuditFilters
             key={JSON.stringify(search)}
             search={search}

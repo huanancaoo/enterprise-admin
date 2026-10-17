@@ -83,8 +83,10 @@ export const Default: Story = {
     await expect(canvas.queryByRole("searchbox")).toBeNull()
     await expect(canvas.queryByText("Platform Operator")).toBeNull()
     await expect(
-      canvas.getByRole("button", { name: "Advanced filters" })
-    ).toBeVisible()
+      canvas.queryByRole("button", { name: "Advanced filters" })
+    ).toBeNull()
+    await expect(canvas.getByLabelText("From (UTC)")).toBeVisible()
+    await expect(canvas.getByLabelText("To (UTC)")).toBeVisible()
     await expect(
       canvas.queryByRole("button", { name: "Filter by account" })
     ).toBeNull()
@@ -107,11 +109,9 @@ export const DateFilters: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await canvas.findByRole("table")
-    const filterButton = canvas.getByRole("button", {
-      name: "Advanced filters",
-    })
-    await waitFor(() => expect(filterButton).toBeEnabled())
-    await userEvent.click(filterButton)
+    await waitFor(() =>
+      expect(canvas.getByLabelText("From (UTC)")).toBeEnabled()
+    )
     const screen = within(canvasElement.ownerDocument.body)
     fireEvent.change(await screen.findByLabelText("From (UTC)"), {
       target: { value: "2026-10-16T10:30" },
@@ -130,12 +130,24 @@ export const DateFilters: Story = {
       expect(params?.has("userId")).toBe(false)
       expect(params?.has("organizationId")).toBe(false)
     })
+    await expect(canvas.getByLabelText("From (UTC)")).toBeVisible()
+    const apply = canvas.getByRole("button", { name: "Apply filters" })
+    await waitFor(() => expect(apply).toBeEnabled())
+    await userEvent.click(
+      within(
+        canvasElement.querySelector('[data-slot="data-table-toolbar"]')!
+      ).getByRole("button", { name: "Clear filters" })
+    )
     await waitFor(() =>
-      expect(
-        canvasElement.ownerDocument.querySelector(
-          '[data-slot="popover-content"]'
-        )
-      ).toBeNull()
+      expect(canvas.getByLabelText("From (UTC)")).toHaveValue("")
+    )
+    await expect(canvas.getByLabelText("To (UTC)")).toHaveValue("")
+    await waitFor(() => expect(apply).toBeEnabled())
+    await userEvent.click(apply)
+    await waitFor(() =>
+      expect(dateFilterFixture.personalLoginQueries.at(-1)?.has("from")).toBe(
+        false
+      )
     )
   },
 }

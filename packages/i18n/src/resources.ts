@@ -1,3 +1,21 @@
+import roles0 from "./locales/zh-CN/roles.json" with { type: "json" }
+import roles1 from "./locales/en-US/roles.json" with { type: "json" }
+import roles2 from "./locales/ar/roles.json" with { type: "json" }
+import employees0 from "./locales/zh-CN/employees.json" with { type: "json" }
+import employees1 from "./locales/en-US/employees.json" with { type: "json" }
+import employees2 from "./locales/ar/employees.json" with { type: "json" }
+import platformTasks0 from "./locales/zh-CN/platformTasks.json" with { type: "json" }
+import platformTasks1 from "./locales/en-US/platformTasks.json" with { type: "json" }
+import platformTasks2 from "./locales/ar/platformTasks.json" with { type: "json" }
+import announcements0 from "./locales/zh-CN/announcements.json" with { type: "json" }
+import announcements1 from "./locales/en-US/announcements.json" with { type: "json" }
+import announcements2 from "./locales/ar/announcements.json" with { type: "json" }
+import catalogs0 from "./locales/zh-CN/catalogs.json" with { type: "json" }
+import catalogs1 from "./locales/en-US/catalogs.json" with { type: "json" }
+import catalogs2 from "./locales/ar/catalogs.json" with { type: "json" }
+import system0 from "./locales/zh-CN/system.json" with { type: "json" }
+import system1 from "./locales/en-US/system.json" with { type: "json" }
+import system2 from "./locales/ar/system.json" with { type: "json" }
 import webhooks2 from "./locales/ar/webhooks.json" with { type: "json" }
 import webhooks1 from "./locales/en-US/webhooks.json" with { type: "json" }
 import webhooks0 from "./locales/zh-CN/webhooks.json" with { type: "json" }
@@ -53,6 +71,12 @@ export const resources = {
     webhooks: webhooks0,
     credentials: credentials0,
     identity: identity0,
+    roles: roles0,
+    employees: employees0,
+    platformTasks: platformTasks0,
+    announcements: announcements0,
+    catalogs: catalogs0,
+    system: system0,
   },
   "en-US": {
     common: common1,
@@ -68,6 +92,12 @@ export const resources = {
     webhooks: webhooks1,
     credentials: credentials1,
     identity: identity1,
+    roles: roles1,
+    employees: employees1,
+    platformTasks: platformTasks1,
+    announcements: announcements1,
+    catalogs: catalogs1,
+    system: system1,
   },
   ar: {
     common: common2,
@@ -83,5 +113,11 @@ export const resources = {
     webhooks: webhooks2,
     credentials: credentials2,
     identity: identity2,
+    roles: roles2,
+    employees: employees2,
+    platformTasks: platformTasks2,
+    announcements: announcements2,
+    catalogs: catalogs2,
+    system: system2,
   },
 }

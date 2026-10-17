@@ -58,21 +58,17 @@ const localeLabels = {
 async function load(canvasElement: HTMLElement) {
   return within(canvasElement)
 }
-async function filters(canvasElement: HTMLElement) {
-  const canvas = within(canvasElement)
-  const trigger = await canvas.findByRole("button", {
-    name: /^Advanced filters/,
+async function filters(
+  canvasElement: HTMLElement,
+  locale: keyof typeof localeLabels = "en"
+) {
+  const form = await within(canvasElement).findByRole("form", {
+    name: localeLabels[locale].filters,
   })
-  await waitFor(() => expect(trigger).toBeEnabled())
-  await userEvent.click(trigger)
-  const dialog = await within(canvasElement.ownerDocument.body).findByRole(
-    "dialog",
-    {
-      name: "Advanced filters",
-    }
-  )
-  await waitFor(() => expect(dialog).toBeVisible())
-  return within(dialog)
+  await waitFor(() => expect(form).toBeVisible())
+  const panel = within(form)
+  await waitFor(() => expect(panel.getAllByRole("combobox")[0]).toBeEnabled())
+  return panel
 }
 async function details(
   canvasElement: HTMLElement,
@@ -149,7 +145,18 @@ export const StandardToolbar: Story = {
     ).toBeVisible()
     await expect(canvas.getByRole("button", { name: "Search" })).toBeVisible()
     await expect(canvas.getByRole("button", { name: "Result" })).toBeVisible()
+    await expect(
+      canvas.queryByRole("button", { name: /^Advanced filters/ })
+    ).toBeNull()
+    await expect(
+      canvasElement.querySelector(
+        '[data-slot="data-table-toolbar"] form[aria-label="Filters"]'
+      )
+    ).toBeVisible()
     const panel = await filters(canvasElement)
+    await expect(panel.queryByRole("button", { name: "Close" })).toBeNull()
+    await expect(panel.getByLabelText("From (UTC)")).toBeVisible()
+    await expect(panel.getByLabelText("To (UTC)")).toBeVisible()
     await expect(panel.queryByLabelText(/Purpose/)).toBeNull()
     await expect(
       panel.getByRole("combobox", { name: "Organization" })
@@ -165,15 +172,17 @@ export const StandardToolbar: Story = {
     const trigger = panel.getByRole("combobox", { name: "Organization" })
     await userEvent.click(trigger)
     const screen = within(canvasElement.ownerDocument.body)
+    const search = await screen.findByPlaceholderText(organizationSearch)
     await userEvent.click(
       await screen.findByRole("option", { name: /South workspace/ })
     )
     await waitFor(() => expect(trigger).toHaveTextContent("South workspace"))
+    await directoryClosed(trigger, search)
     await userEvent.keyboard("{Escape}")
-    const reopened = await filters(canvasElement)
+    await expect(trigger).toHaveTextContent("South workspace")
     await expect(
-      reopened.getByRole("combobox", { name: "Organization" })
-    ).toHaveTextContent("South workspace")
+      panel.getByRole("button", { name: "Apply filters" })
+    ).toBeVisible()
   },
 }
 export const Loading: Story = {
@@ -183,8 +192,15 @@ export const Loading: Story = {
     await expect(
       canvasElement.querySelector('[data-slot="data-table"]')
     ).toHaveAttribute("aria-busy", "true")
+    const panel = within(canvas.getByRole("form", { name: "Filters" }))
     await expect(
-      canvas.getByRole("button", { name: /^Advanced filters/ })
+      panel.getByRole("combobox", { name: "Organization" })
+    ).toBeDisabled()
+    await expect(panel.getByRole("combobox", { name: "Actor" })).toBeDisabled()
+    await expect(panel.getByLabelText("From (UTC)")).toBeDisabled()
+    await expect(panel.getByLabelText("To (UTC)")).toBeDisabled()
+    await expect(
+      panel.getByRole("button", { name: "Apply filters" })
     ).toBeDisabled()
   },
 }
@@ -218,7 +234,7 @@ export const PermissionDenied: Story = {
   ...scenario("forbidden"),
   play: async ({ canvasElement }) => {
     const canvas = await load(canvasElement)
-    await canvas.findByRole("heading", { name: "Platform access denied" })
+    await canvas.findByRole("heading", { name: "Access denied" })
     await expect(canvas.queryByRole("table")).toBeNull()
   },
 }
@@ -318,9 +334,12 @@ export const DetailPermissionDenied: Story = {
       )[0]
     )
     const screen = within(canvasElement.ownerDocument.body)
-    await canvas.findByRole("heading", { name: "Platform access denied" })
-    await closed(screen)
-    await expect(canvas.queryByRole("table")).toBeNull()
+    const dialog = within(await screen.findByRole("dialog"))
+    await dialog.findByRole("heading", { name: "Access denied" })
+    await expect(
+      canvas.getByRole("table", { hidden: true })
+    ).toBeInTheDocument()
+    await expect(dialog.queryByText(platformAuditFixture.id)).toBeNull()
   },
 }
 export const DetailSessionExpired: Story = {
@@ -493,8 +512,6 @@ async function openDirectory(
   const search = await screen.findByPlaceholderText(
     entity === "Organization" ? organizationSearch : userSearch
   )
-  const popup = search.closest<HTMLElement>('[data-slot="combobox-content"]')
-  if (popup) await finishFiniteAnimations(popup)
   await waitFor(() => expect(search).toBeVisible())
   return { panel, screen, search, trigger }
 }
@@ -531,6 +548,61 @@ export const DirectorySelectionAppliesOnlyOnSubmit: Story = {
       })
     )
     await expect(canvas.queryByText(platformAuditFixture.eventCode)).toBeNull()
+  },
+}
+
+const precisionDirectory = directoryScenario()
+const preciseFrom = new Date(Date.now() - 2 * 86400000)
+  .toISOString()
+  .replace("Z", "000Z")
+const preciseTo = new Date(Date.now() - 60000)
+  .toISOString()
+  .replace("Z", "000Z")
+export const InlineDateFiltersPreserveUneditedPrecision: Story = {
+  ...precisionDirectory.story,
+  args: {
+    initialEntry: `/platform/audit-events?${new URLSearchParams({
+      from: preciseFrom,
+      to: preciseTo,
+    })}`,
+  },
+  play: async ({ canvasElement }) => {
+    const panel = await filters(canvasElement)
+    const from = panel.getByLabelText("From (UTC)")
+    await expect(from).toHaveValue(preciseFrom.slice(0, 16))
+    await expect(panel.getByLabelText("To (UTC)")).toHaveValue(
+      preciseTo.slice(0, 16)
+    )
+    await userEvent.click(panel.getByRole("combobox", { name: "Organization" }))
+    const screen = within(canvasElement.ownerDocument.body)
+    await userEvent.click(
+      await screen.findByRole("option", { name: /South workspace/ })
+    )
+    await userEvent.click(panel.getByRole("button", { name: "Apply filters" }))
+    await waitFor(() =>
+      expect(precisionDirectory.directory.requests.audit.at(-1)).toMatchObject({
+        from: preciseFrom,
+        to: preciseTo,
+        page: "1",
+      })
+    )
+    const applied = await filters(canvasElement)
+    const changedFrom = new Date(Date.parse(preciseFrom) + 60000)
+      .toISOString()
+      .slice(0, 16)
+    fireEvent.change(applied.getByLabelText("From (UTC)"), {
+      target: { value: changedFrom },
+    })
+    await userEvent.click(
+      applied.getByRole("button", { name: "Apply filters" })
+    )
+    await waitFor(() =>
+      expect(precisionDirectory.directory.requests.audit.at(-1)).toMatchObject({
+        from: `${changedFrom}:00Z`,
+        to: preciseTo,
+        page: "1",
+      })
+    )
   },
 }
 
@@ -677,7 +749,9 @@ export const UrlSelectionSurvivesMissingDirectoryRecord: Story = {
     await expect(
       screen.queryByRole("option", { name: new RegExp(historyId) })
     ).toBeNull()
+    const search = screen.getByPlaceholderText(organizationSearch)
     await userEvent.keyboard("{Escape}")
+    await directoryClosed(trigger, search)
     await userEvent.click(panel.getByRole("button", { name: "Apply filters" }))
     await closed(screen)
     await waitFor(() =>
@@ -776,7 +850,7 @@ export const ImeEnterDoesNotSelectOrSubmit: Story = {
   },
 }
 
-export const NestedEscapeClosesOneLayerAtATime: Story = {
+export const EscapeClosesDirectoryAndKeepsFiltersVisible: Story = {
   play: async ({ canvasElement }) => {
     const { panel, screen, search, trigger } =
       await openDirectory(canvasElement)
@@ -788,6 +862,10 @@ export const NestedEscapeClosesOneLayerAtATime: Story = {
     ).toBeVisible()
     await userEvent.keyboard("{Escape}")
     await closed(screen)
+    await expect(trigger).toBeVisible()
+    await expect(
+      panel.getByRole("button", { name: "Apply filters" })
+    ).toBeVisible()
   },
 }
 
@@ -798,11 +876,12 @@ export const DirectoryPermissionDeniedHidesIdentity: Story = {
     const panel = await filters(canvasElement)
     await userEvent.click(panel.getByRole("combobox", { name: "Organization" }))
     const screen = within(canvasElement.ownerDocument.body)
-    await within(canvasElement).findByRole("heading", {
-      name: "Platform access denied",
-    })
+    await screen.findByRole("heading", { name: "Access denied" })
+    await expect(within(canvasElement).getByRole("table")).toBeVisible()
     await expect(screen.queryByRole("option")).toBeNull()
-    await expect(screen.queryByText("North workspace")).toBeNull()
+    await expect(
+      within(canvasElement).getByText("North workspace")
+    ).toBeVisible()
   },
 }
 const expiredDirectory = directoryScenario("unauthorized")
@@ -828,6 +907,21 @@ export const LongDirectoryLabelsInNarrowContainer: Story = {
     ),
   ],
   play: async ({ canvasElement }) => {
+    const panel = await filters(canvasElement)
+    const toolbar = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="data-table-toolbar"]'
+    )!
+    const bounds = toolbar.getBoundingClientRect()
+    for (const control of [
+      ...panel.getAllByRole("combobox"),
+      panel.getByLabelText("From (UTC)"),
+      panel.getByLabelText("To (UTC)"),
+      panel.getByRole("button", { name: "Apply filters" }),
+    ]) {
+      const rect = control.getBoundingClientRect()
+      await expect(rect.left).toBeGreaterThanOrEqual(bounds.left)
+      await expect(rect.right).toBeLessThanOrEqual(bounds.right + 1)
+    }
     const { screen, search, trigger } = await openDirectory(canvasElement)
     const option = await screen.findByRole("option", {
       name: /International research and compliance workspace/,
@@ -843,13 +937,8 @@ export const DirectoryKeyboardInRtl: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await canvas.findByRole("table")
-    const advanced = canvas.getByRole("button", { name: /^عوامل تصفية متقدمة/ })
-    await waitFor(() => expect(advanced).toBeEnabled())
-    await userEvent.click(advanced)
+    const panel = await filters(canvasElement, "ar")
     const screen = within(canvasElement.ownerDocument.body)
-    const panel = within(
-      await screen.findByRole("dialog", { name: "عوامل تصفية متقدمة" })
-    )
     const trigger = panel.getAllByRole("combobox")[0]
     await userEvent.click(trigger)
     await screen.findByRole("option", { name: /North workspace/ })

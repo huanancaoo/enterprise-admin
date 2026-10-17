@@ -23,6 +23,15 @@ async function attach(context, cookie, origin) {
 
 const clientIp = () => `10.${[...randomBytes(3)].join(".")}`
 
+function navigationPath(items, routeKey) {
+  for (const item of items) {
+    if (item.routeKey === routeKey) return [item]
+    const children = navigationPath(item.children, routeKey)
+    if (children) return [item, ...children]
+  }
+  return null
+}
+
 describe("platform identity management browser flows", () => {
   let environment
   let admin
@@ -170,23 +179,31 @@ describe("platform identity management browser flows", () => {
   })
 
   it("filters and paginates global login records and restores the query after reload", async () => {
+    const target = await signUpVerified(
+      environment.baseURL,
+      environment.platformOrigin,
+      environment.migrator,
+      { name: `Login pagination ${randomUUID()}` }
+    )
+    const signIn = (password) =>
+      fetch(`${environment.baseURL}/api/auth/sign-in/email`, {
+        method: "POST",
+        headers: {
+          origin: environment.platformOrigin,
+          "content-type": "application/json",
+          "x-real-ip": clientIp(),
+        },
+        body: JSON.stringify({ email: target.email, password }),
+      })
     for (let index = 0; index < 21; index += 1) {
-      const response = await fetch(
-        `${environment.baseURL}/api/auth/sign-in/email`,
-        {
-          method: "POST",
-          headers: {
-            origin: environment.platformOrigin,
-            "content-type": "application/json",
-            "x-real-ip": clientIp(),
-          },
-          body: JSON.stringify({
-            email: admin.email,
-            password: `wrong-${randomUUID()}`,
-          }),
-        }
-      )
+      const response = await signIn(`wrong-${randomUUID()}`)
       expect(response.status).toBe(401)
+      // 此场景验证历史分页；真实成功登录清零，避免触发另有覆盖的第五次失败锁定。
+      if ((index + 1) % 4 === 0) {
+        const succeeded = await signIn(target.password)
+        expect(succeeded.status).toBe(200)
+        expect((await succeeded.json()).user.id).toBe(target.user.id)
+      }
     }
 
     const page = await platformPage("/platform/login-events")
@@ -194,7 +211,7 @@ describe("platform identity management browser flows", () => {
       page.getByRole("heading", { name: "Login history", exact: true })
     ).toBeVisible()
     const search = page.getByPlaceholder("Search account, email, or IP")
-    await search.fill(admin.user.name)
+    await search.fill(target.user.name)
     await page.getByRole("button", { name: "Search", exact: true }).click()
     await expectUI(page.locator("tbody tr")).toHaveCount(20)
     await page.getByRole("button", { name: "Result", exact: true }).click()
@@ -203,9 +220,9 @@ describe("platform identity management browser flows", () => {
     await expectUI(page).toHaveURL(/result=failed/)
     await expectUI(page.locator("tbody tr")).toHaveCount(20)
 
-    await page
-      .getByRole("button", { name: "Advanced filters", exact: true })
-      .click()
+    await expectUI(
+      page.getByRole("button", { name: "Advanced filters", exact: true })
+    ).toHaveCount(0)
     const from = new Date().toISOString().slice(0, 10) + "T00:00"
     await page.getByLabel("From (UTC)", { exact: true }).fill(from)
     await page
@@ -219,11 +236,36 @@ describe("platform identity management browser flows", () => {
     await expectUI(page.locator("tbody tr")).toHaveCount(1)
     await page.reload()
     await expectUI(page.locator("tbody tr")).toHaveCount(1)
-    expect(new URL(page.url()).searchParams.get("q")).toBe(admin.user.name)
+    expect(new URL(page.url()).searchParams.get("q")).toBe(target.user.name)
     expect(new URL(page.url()).searchParams.get("result")).toBe("failed")
     expect(new URL(page.url()).searchParams.get("page")).toBe("2")
     await page.screenshot({
       path: "/private/tmp/identity-platform-login-history.png",
+      fullPage: true,
+    })
+    await page
+      .getByRole("button", { name: "Clear filters", exact: true })
+      .click()
+    await expectUI(page.getByLabel("From (UTC)", { exact: true })).toHaveValue(
+      ""
+    )
+    await page.goBack()
+    await expectUI(page.getByLabel("From (UTC)", { exact: true })).toHaveValue(
+      from
+    )
+    await page.goForward()
+    await expectUI(page.getByLabel("From (UTC)", { exact: true })).toHaveValue(
+      ""
+    )
+    await page.setViewportSize({ width: 375, height: 812 })
+    await expectUI(page.getByLabel("From (UTC)", { exact: true })).toBeVisible()
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth
+      )
+    ).toBe(true)
+    await page.screenshot({
+      path: "/private/tmp/identity-inline-filters-mobile.png",
       fullPage: true,
     })
   })
@@ -231,7 +273,7 @@ describe("platform identity management browser flows", () => {
   it("lets auditors read the directory and sessions without account mutation controls", async () => {
     const page = await platformPage("/platform/users", auditor)
     await expectUI(
-      page.getByRole("heading", { name: "Users", exact: true })
+      page.getByRole("heading", { name: "Global accounts", exact: true })
     ).toBeVisible()
     await expectUI(
       page.getByRole("button", { name: "Create account", exact: true })
@@ -251,10 +293,41 @@ describe("platform identity management browser flows", () => {
         page.getByRole("button", { name, exact: true })
       ).toHaveCount(0)
     }
-    await page.goto(`${environment.platformOrigin}/platform/sessions`)
+    const navigationResponse = await fetch(
+      `${environment.baseURL}/api/v1/platform/navigation`,
+      { headers: auditor.headers }
+    )
+    expect(navigationResponse.status).toBe(200)
+    const sessionsPath = navigationPath(
+      (await navigationResponse.json()).items,
+      "sessions"
+    )
+    expect(sessionsPath).toHaveLength(2)
+    const [monitoringItem, sessionsItem] = sessionsPath
+    const navigation = page.getByRole("navigation", { name: "Main navigation" })
+    const monitoring = navigation.getByRole("button", {
+      name: monitoringItem.name,
+      exact: true,
+    })
+    await expectUI(monitoring).toHaveAttribute("aria-expanded", "false")
+    await monitoring.click()
+    const onlineUsers = navigation.getByRole("link", {
+      name: sessionsItem.name,
+      exact: true,
+    })
+    await onlineUsers.click()
+    await expectUI(page).toHaveURL(/\/platform\/sessions\?page=1&pageSize=20$/)
     await expectUI(
-      page.getByRole("heading", { name: "Global sessions", exact: true })
+      page.getByRole("heading", { name: "Online users", exact: true })
     ).toBeVisible()
+    await expectUI(monitoring).toHaveAttribute("aria-expanded", "true")
+    await expectUI(onlineUsers).toHaveAttribute("data-active")
+    await expectUI(
+      page.getByRole("navigation", { name: "breadcrumb" })
+    ).toContainText(monitoringItem.name)
+    await page.reload()
+    await expectUI(monitoring).toHaveAttribute("aria-expanded", "true")
+    await expectUI(onlineUsers).toBeVisible()
     await expectUI(page.locator("tbody tr")).not.toHaveCount(0)
     await expectUI(
       page.getByRole("button", { name: "Revoke session", exact: true })

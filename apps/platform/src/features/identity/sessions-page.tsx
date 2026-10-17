@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react"
+import { PlatformExportButton } from "../tasks/task-actions"
+import { useEffect, useMemo, useState } from "react"
 import { useForm } from "@tanstack/react-form"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate, useRouteContext, useSearch } from "@tanstack/react-router"
@@ -25,17 +26,8 @@ import { usePlatformAccessFailure } from "../../lib/use-platform-access-failure"
 import { UserCombobox } from "../../components/user-combobox"
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
-import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
 import { Field, FieldError, FieldLabel } from "@workspace/ui/components/field"
-import {
-  Popover,
-  PopoverContent,
-  PopoverHeader,
-  PopoverTitle,
-  PopoverTrigger,
-} from "@workspace/ui/components/popover"
-import { FilterIcon } from "lucide-react"
 import {
   Dialog,
   DialogClose,
@@ -59,7 +51,6 @@ export function PlatformSessionsPage() {
   const { platformAccess } = useRouteContext({ from: "/platform" })
   const [selectedSession, setSelectedSession] =
     useState<PlatformSession | null>(null)
-  const [filtersOpen, setFiltersOpen] = useState(false)
   const filterQuery = (value: { userId: string }) => ({
     ...search,
     userId: value.userId || undefined,
@@ -84,9 +75,12 @@ export function PlatformSessionsPage() {
     onSubmit: async ({ value }) => {
       const parsed = PlatformSessionsQuerySchema.parse(filterQuery(value))
       await navigate({ search: parsed })
-      setFiltersOpen(false)
     },
   })
+  // URL 条件变更时回填表单；搜索和翻页不覆盖尚未应用的筛选输入。
+  useEffect(() => {
+    filtersForm.reset({ userId: search.userId ?? "" })
+  }, [filtersForm, search.userId])
   const queryKey = ["platform", session.user.id, "sessions", search] as const
   const query = useQuery({
     queryKey,
@@ -175,7 +169,7 @@ export function PlatformSessionsPage() {
         meta: { label: t("expiresAt") },
         size: 190,
       }),
-      ...(platformAccess.role === "platform_admin"
+      ...(platformAccess.permissions.includes("platform.session:revoke")
         ? [
             sessionColumns.display({
               id: "actions",
@@ -199,7 +193,7 @@ export function PlatformSessionsPage() {
           ]
         : []),
     ])
-  }, [locale, platformAccess.role, resetRevoke, revokePending, t])
+  }, [locale, platformAccess.permissions, resetRevoke, revokePending, t])
   const pagination = { pageIndex: search.page - 1, pageSize: search.pageSize }
   const status: DataTableStatus = query.isError
     ? query.error instanceof ApiClientError && query.error.status === 403
@@ -232,6 +226,11 @@ export function PlatformSessionsPage() {
         status={status}
         error={query.error instanceof Error ? query.error.message : undefined}
         onRetry={() => void query.refetch()}
+        toolbarContent={
+          platformAccess.permissions.includes("platform.session:export") && (
+            <PlatformExportButton resource="session" filters={search} />
+          )
+        }
         manualPagination
         manualFiltering
         manualSorting
@@ -244,103 +243,70 @@ export function PlatformSessionsPage() {
           globalFilter: search.q ?? "",
           columnFilters: filters,
         }}
-        toolbarContent={
-          <Popover
-            open={filtersOpen}
-            onOpenChange={(open) => {
-              if (open) filtersForm.setFieldValue("userId", search.userId ?? "")
-              setFiltersOpen(open)
-            }}
-          >
-            <PopoverTrigger
-              render={
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={query.isFetching}
-                />
-              }
-            >
-              <FilterIcon data-icon="inline-start" />
-              {t("organization:platformOperationAdvancedFilters")}
-              {search.userId && <Badge variant="secondary">1</Badge>}
-            </PopoverTrigger>
-            <PopoverContent
-              align="start"
-              className="max-h-[min(40rem,calc(100dvh-4rem))] w-[min(36rem,calc(100vw-2rem))] overflow-y-auto"
-            >
-              <PopoverHeader>
-                <PopoverTitle>
-                  {t("organization:platformOperationAdvancedFilters")}
-                </PopoverTitle>
-              </PopoverHeader>
-              <filtersForm.Subscribe selector={(state) => state.isSubmitting}>
-                {(busy) => (
-                  <form
-                    noValidate
-                    aria-busy={busy || query.isFetching}
-                    onSubmit={(event) => {
-                      event.preventDefault()
-                      void filtersForm.handleSubmit()
-                    }}
-                  >
-                    <fieldset
-                      disabled={busy || query.isFetching}
-                      className="space-y-4"
-                    >
-                      <filtersForm.Field name="userId">
-                        {(field) => {
-                          const invalid =
-                            field.state.meta.isTouched &&
-                            !field.state.meta.isValid
-                          return (
-                            <Field data-invalid={invalid}>
-                              <FieldLabel htmlFor="platform-sessions-user">
-                                {t("filterUser")}
-                              </FieldLabel>
-                              <UserCombobox
-                                id="platform-sessions-user"
-                                value={field.state.value || null}
-                                placeholder={t("filterUser")}
-                                onValueChange={(userId) =>
-                                  field.handleChange(userId ?? "")
-                                }
-                                onBlur={field.handleBlur}
-                                invalid={invalid}
-                                aria-describedby={
-                                  invalid
-                                    ? "platform-sessions-user-error"
-                                    : undefined
-                                }
-                              />
-                              {invalid && (
-                                <FieldError
-                                  id="platform-sessions-user-error"
-                                  errors={field.state.meta.errors}
-                                />
-                              )}
-                            </Field>
-                          )
-                        }}
-                      </filtersForm.Field>
-                      <div className="flex justify-end gap-2 border-t pt-4">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          onClick={() => setFiltersOpen(false)}
+        toolbarFilters={
+          <filtersForm.Subscribe selector={(state) => state.isSubmitting}>
+            {(busy) => (
+              <form
+                className="w-full max-w-full min-w-0 sm:w-auto"
+                noValidate
+                aria-busy={busy || query.isFetching}
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  void filtersForm.handleSubmit()
+                }}
+              >
+                <fieldset
+                  disabled={busy || query.isFetching}
+                  className="flex min-w-0 flex-wrap items-end gap-2"
+                >
+                  <filtersForm.Field name="userId">
+                    {(field) => {
+                      const invalid =
+                        field.state.meta.isTouched && !field.state.meta.isValid
+                      return (
+                        <Field
+                          data-invalid={invalid}
+                          className="w-full gap-1 sm:w-56"
                         >
-                          {t("common:close")}
-                        </Button>
-                        <Button type="submit">
-                          {t("organization:platformApplyFilters")}
-                        </Button>
-                      </div>
-                    </fieldset>
-                  </form>
-                )}
-              </filtersForm.Subscribe>
-            </PopoverContent>
-          </Popover>
+                          <FieldLabel
+                            className="text-xs text-muted-foreground"
+                            htmlFor="platform-sessions-user"
+                          >
+                            {t("filterUser")}
+                          </FieldLabel>
+                          <UserCombobox
+                            disabled={busy || query.isFetching}
+                            id="platform-sessions-user"
+                            value={field.state.value || null}
+                            placeholder={t("filterUser")}
+                            onValueChange={(userId) =>
+                              field.handleChange(userId ?? "")
+                            }
+                            onBlur={field.handleBlur}
+                            invalid={invalid}
+                            aria-describedby={
+                              invalid
+                                ? "platform-sessions-user-error"
+                                : undefined
+                            }
+                          />
+                          {invalid && (
+                            <FieldError
+                              id="platform-sessions-user-error"
+                              errors={field.state.meta.errors}
+                            />
+                          )}
+                        </Field>
+                      )
+                    }}
+                  </filtersForm.Field>
+                  <Button type="submit" size="sm" className="h-9">
+                    {t("organization:platformApplyFilters")}
+                  </Button>
+                </fieldset>
+              </form>
+            )}
+          </filtersForm.Subscribe>
         }
         onGlobalFilterChange={(updater) => {
           const q =
@@ -394,7 +360,7 @@ export function PlatformSessionsPage() {
               disabled={
                 !selectedSession ||
                 revoke.isPending ||
-                platformAccess.role !== "platform_admin"
+                !platformAccess.permissions.includes("platform.session:revoke")
               }
               onClick={() =>
                 selectedSession && revoke.mutate(selectedSession.sessionId)

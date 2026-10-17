@@ -53,15 +53,22 @@ describe("UI locale and formatting", () => {
   it("ships supported feature namespaces with the same non-empty keys in every locale", () => {
     for (const locale of supportedLocales) {
       expect(Object.keys(resources[locale]).sort()).toEqual([
+        "announcements",
         "auth",
+        "catalogs",
         "common",
         "credentials",
+        "employees",
         "errors",
         "files",
+        "identity",
         "notifications",
         "organization",
+        "platformTasks",
         "projects",
+        "roles",
         "settings",
+        "system",
         "tasks",
         "validation",
         "webhooks",
@@ -70,8 +77,17 @@ describe("UI locale and formatting", () => {
         keyof (typeof resources)["zh-CN"]
       >) {
         const catalog = resources[locale][namespace]
-        expect(Object.keys(catalog).sort()).toEqual(
-          Object.keys(resources["zh-CN"][namespace]).sort()
+        // 同一消息在阿拉伯语有六种复数形式；比较消息身份，具体 CLDR 形式由 i18n 门禁检查。
+        const messageKeys = (messages: Record<string, string>) =>
+          [
+            ...new Set(
+              Object.keys(messages).map((key) =>
+                key.replace(/_(zero|one|two|few|many|other)$/, "")
+              )
+            ),
+          ].sort()
+        expect(messageKeys(catalog)).toEqual(
+          messageKeys(resources["zh-CN"][namespace])
         )
         for (const value of Object.values(catalog))
           expect(value.trim()).not.toBe("")

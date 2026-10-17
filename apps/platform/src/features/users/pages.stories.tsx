@@ -83,7 +83,7 @@ export const PermissionDenied: Story = {
   ...scenario("forbidden"),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await canvas.findByRole("heading", { name: "Platform access denied" })
+    await canvas.findByRole("heading", { name: "Access denied" })
     await expect(canvas.queryByRole("table")).toBeNull()
   },
 }
@@ -109,7 +109,7 @@ export const RTL: Story = {
     const canvas = within(canvasElement)
     await canvas.findByRole("link", { name: platformUserFixture.name })
     await expect(
-      canvas.getByRole("heading", { name: "المستخدمون" })
+      canvas.getByRole("heading", { name: "الحسابات العامة" })
     ).toBeVisible()
     await expect(canvasElement.ownerDocument.documentElement).toHaveAttribute(
       "dir",
@@ -122,7 +122,9 @@ export const Chinese: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await canvas.findByRole("link", { name: platformUserFixture.name })
-    await expect(canvas.getByRole("heading", { name: "用户" })).toBeVisible()
+    await expect(
+      canvas.getByRole("heading", { name: "全局账号" })
+    ).toBeVisible()
   },
 }
 export const SlowNetwork: Story = {
@@ -360,5 +362,106 @@ export const FilterAndPagination: Story = {
     await expect(
       canvas.queryByRole("link", { name: "Directory member 25" })
     ).toBeNull()
+  },
+}
+
+export const PasswordLoginLocked: Story = {
+  ...scenario("locked"),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await canvas.findByRole("table")
+    await expect(
+      canvas.getByRole("columnheader", { name: "Password login lock" })
+    ).toBeVisible()
+    await expect(await canvas.findByText("Locked")).toBeVisible()
+    await expect(
+      canvas.getByRole("button", { name: "Unlock password login" })
+    ).toBeVisible()
+  },
+}
+export const PasswordLoginLockExpired: Story = {
+  ...scenario("lockExpired"),
+  args: { detail: true },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await canvas.findByText("Lock expired")
+    await expect(canvas.getByText(/^Lock expires \(UTC\):/)).toBeVisible()
+    await expect(
+      canvas.queryByRole("button", { name: "Unlock password login" })
+    ).toBeNull()
+  },
+}
+export const PasswordLoginLockReadOnly: Story = {
+  ...scenario("locked"),
+  args: { detail: true, auditor: true },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await canvas.findByText("Locked")
+    await expect(
+      canvas.queryByRole("button", { name: "Unlock password login" })
+    ).toBeNull()
+  },
+}
+export const UnlockPasswordLogin: Story = {
+  ...scenario("locked"),
+  args: { detail: true },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(
+      await canvas.findByRole("button", { name: "Unlock password login" })
+    )
+    const dialog = within(
+      await within(canvasElement.ownerDocument.body).findByRole("dialog")
+    )
+    await waitFor(() => expect(dialog.getByText(/Mina Chen/)).toBeVisible())
+    await userEvent.click(dialog.getByRole("button", { name: "Confirm" }))
+    await canvas.findByText("Password login unlocked.")
+    await expect(canvas.getByText("Not locked")).toBeVisible()
+    const accountStatus = canvas.getByText("Account status").closest("div")!
+    await expect(within(accountStatus).getByText("Active")).toBeVisible()
+    await expect(
+      canvas.queryByRole("button", { name: "Unlock password login" })
+    ).toBeNull()
+  },
+}
+export const UnlockPasswordLoginPending: Story = {
+  ...scenario("unlockSlow"),
+  args: { detail: true },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(
+      await canvas.findByRole("button", { name: "Unlock password login" })
+    )
+    const dialog = within(
+      await within(canvasElement.ownerDocument.body).findByRole("dialog")
+    )
+    await userEvent.click(dialog.getByRole("button", { name: "Confirm" }))
+    await expect(
+      dialog.getByRole("button", { name: "Submitting…" })
+    ).toBeDisabled()
+    await expect(dialog.getByRole("button", { name: "Cancel" })).toBeDisabled()
+  },
+}
+export const UnlockPasswordLoginPermissionDenied: Story = {
+  ...scenario("unlockForbidden"),
+  args: { detail: true },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(
+      await canvas.findByRole("button", { name: "Unlock password login" })
+    )
+    const dialog = within(
+      await within(canvasElement.ownerDocument.body).findByRole("dialog")
+    )
+    await userEvent.click(dialog.getByRole("button", { name: "Confirm" }))
+    await dialog.findByRole("alert")
+    await expect(dialog.getByRole("button", { name: "Confirm" })).toBeEnabled()
+    await expect(
+      canvas.getByRole("heading", {
+        name: platformUserFixture.name,
+        hidden: true,
+      })
+    ).toBeInTheDocument()
+    await expect(canvas.queryByText("Password login unlocked.")).toBeNull()
   },
 }

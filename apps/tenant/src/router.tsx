@@ -1,3 +1,4 @@
+import { AnnouncementInboxQuerySchema } from "@workspace/contracts/platform-announcements"
 import { taskCenterSearchSchema } from "./features/tasks/task-center-search"
 import {
   createRootRouteWithContext,
@@ -92,6 +93,15 @@ const PersonalLoginEventsRoute = lazyRouteComponent(
 const OrganizationLocaleSettingsPage = lazyRouteComponent(
   () => import("./components/locale-settings"),
   "OrganizationLocaleSettingsPage"
+)
+
+const TenantAnnouncementInboxRoute = lazyRouteComponent(
+  () => import("./components/announcement-routes"),
+  "TenantAnnouncementInboxRoute"
+)
+const TenantAnnouncementReadRoute = lazyRouteComponent(
+  () => import("./components/announcement-routes"),
+  "TenantAnnouncementReadRoute"
 )
 
 const rootRoute = createRootRouteWithContext<WorkspaceRouterContext>()({
@@ -327,6 +337,22 @@ const auditEventsRoute = createRoute({
   component: AuditEventsRoute,
 })
 
+const announcementsLayoutRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/announcements",
+  component: AdminLayout,
+})
+const announcementsRoute = createRoute({
+  getParentRoute: () => announcementsLayoutRoute,
+  path: "/$organizationId",
+  validateSearch: (search) => AnnouncementInboxQuerySchema.parse(search),
+  component: TenantAnnouncementInboxRoute,
+})
+const announcementReadRoute = createRoute({
+  getParentRoute: () => announcementsLayoutRoute,
+  path: "/$organizationId/$announcementId",
+  component: TenantAnnouncementReadRoute,
+})
 export const router = createRouter({
   routeTree: rootRoute.addChildren([
     indexRoute,
@@ -345,6 +371,10 @@ export const router = createRouter({
       membersLayoutRoute.addChildren([membersRoute]),
       integrationsLayoutRoute.addChildren([integrationsRoute]),
       tasksLayoutRoute.addChildren([tasksRoute]),
+      announcementsLayoutRoute.addChildren([
+        announcementsRoute,
+        announcementReadRoute,
+      ]),
       notificationsLayoutRoute.addChildren([notificationsRoute]),
       organizationSettingsLayoutRoute.addChildren([
         rolesRoute,

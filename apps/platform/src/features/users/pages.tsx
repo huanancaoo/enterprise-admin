@@ -1,3 +1,4 @@
+import { PlatformExportButton } from "../tasks/task-actions"
 import { useMemo, useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useForm } from "@tanstack/react-form"
@@ -24,7 +25,12 @@ import {
   type PlatformUsersPage,
   type PlatformUserDetail,
 } from "@workspace/contracts/platform"
-import { ErrorState, LoadingState, NotFoundContent } from "@workspace/admin"
+import {
+  ErrorState,
+  LoadingState,
+  NotFoundContent,
+  PermissionDeniedState,
+} from "@workspace/admin"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
@@ -59,6 +65,7 @@ import {
   PlatformAccountActions,
 } from "./account-management"
 import { authClient } from "../../lib/auth-client"
+import { PlatformPasswordLoginLock } from "./password-login-lock"
 
 type UserRow = PlatformUsersPage["items"][number]
 const userColumns = createDataTableColumnHelper<UserRow>()
@@ -133,6 +140,21 @@ export function PlatformUsersPage() {
         ),
         meta: { label: identityText("accountStatus") },
       }),
+      userColumns.accessor("lockedUntil", {
+        header: identityText("passwordLoginLock"),
+        cell: ({ row, getValue }) => (
+          <PlatformPasswordLoginLock
+            userId={row.original.userId}
+            name={row.original.name}
+            lockedUntil={getValue()}
+            canUnlock={platformAccess.permissions.includes(
+              "platform.user:unlock"
+            )}
+          />
+        ),
+        meta: { label: identityText("passwordLoginLock") },
+        size: 220,
+      }),
       userColumns.accessor("createdAt", {
         header: t("platformCreatedAt"),
         cell: ({ getValue }) =>
@@ -149,7 +171,7 @@ export function PlatformUsersPage() {
         meta: { label: t("platformOrganizationCount") },
       }),
     ])
-  }, [locale, t, identityText])
+  }, [locale, t, identityText, platformAccess.permissions])
   const pagination = { pageIndex: search.page - 1, pageSize: search.pageSize }
   const status: DataTableStatus = query.isError
     ? query.error instanceof ApiClientError && query.error.status === 403
@@ -181,23 +203,28 @@ export function PlatformUsersPage() {
         searchPlaceholder={t("platformUsersSearch")}
         searchMaxLength={200}
         toolbarContent={
-          platformAccess.role === "platform_admin" && (
-            <CreatePlatformAccount
-              onCreated={(user) => {
-                queryClient.setQueryData(
-                  ["platform", session.user.id, "user", user.userId],
-                  user
-                )
-                void queryClient.invalidateQueries({
-                  queryKey: ["platform", session.user.id, "users"],
-                })
-                void navigate({
-                  to: "/platform/users/$userId",
-                  params: { userId: user.userId },
-                })
-              }}
-            />
-          )
+          <>
+            {platformAccess.permissions.includes("platform.user:export") && (
+              <PlatformExportButton resource="user" filters={search} />
+            )}
+            {platformAccess.permissions.includes("platform.user:create") && (
+              <CreatePlatformAccount
+                onCreated={(user) => {
+                  queryClient.setQueryData(
+                    ["platform", session.user.id, "user", user.userId],
+                    user
+                  )
+                  void queryClient.invalidateQueries({
+                    queryKey: ["platform", session.user.id, "users"],
+                  })
+                  void navigate({
+                    to: "/platform/users/$userId",
+                    params: { userId: user.userId },
+                  })
+                }}
+              />
+            )}
+          </>
         }
         state={{ globalFilter: search.q ?? "", pagination }}
         onResetFilters={() =>
@@ -345,6 +372,8 @@ export function PlatformUserDetailPage() {
     return query.error instanceof ApiClientError &&
       query.error.status === 404 ? (
       <NotFoundContent />
+    ) : query.error instanceof ApiClientError && query.error.status === 403 ? (
+      <PermissionDeniedState />
     ) : (
       <ErrorState onRetry={() => void query.refetch()} />
     )
@@ -362,10 +391,17 @@ export function PlatformUserDetailPage() {
       <h1 className="font-heading text-2xl font-semibold tracking-tight break-words sm:text-3xl">
         {user.name}
       </h1>
-      {platformAccess.role === "platform_admin" && (
+      {[
+        "platform.user:update",
+        "platform.user:suspend",
+        "platform.user:resetPassword",
+      ].some((permission) =>
+        platformAccess.permissions.includes(permission)
+      ) && (
         <PlatformAccountActions
           key={`${user.userId}-${user.version}`}
           user={user}
+          permissions={platformAccess.permissions}
           onSaved={(result) => {
             queryClient.setQueryData(
               ["platform", session.user.id, "user", userId],
@@ -414,6 +450,20 @@ export function PlatformUserDetailPage() {
               </dd>
             </div>
             <div>
+              <dt>{identityText("passwordLoginLock")}</dt>
+              <dd>
+                <PlatformPasswordLoginLock
+                  userId={user.userId}
+                  name={user.name}
+                  lockedUntil={user.lockedUntil}
+                  canUnlock={platformAccess.permissions.includes(
+                    "platform.user:unlock"
+                  )}
+                  showExpiry
+                />
+              </dd>
+            </div>
+            <div>
               <dt>{t("platformEmailVerified")}</dt>
               <dd>
                 <Badge variant={user.emailVerified ? "secondary" : "outline"}>
@@ -447,7 +497,7 @@ export function PlatformUserDetailPage() {
           </dl>
         </CardContent>
       </Card>
-      {platformAccess.role === "platform_admin" && (
+      {platformAccess.permissions.includes("platform.user:readSensitive") && (
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger render={<Button variant="secondary" />}>
             {t("platformReadFullEmail")}

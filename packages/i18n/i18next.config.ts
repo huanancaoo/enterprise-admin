@@ -15,6 +15,13 @@ export default defineConfig({
     sort: true,
     // 服务端以稳定错误码查找文案，状态来自 Contract；两者属于有限动态键。
     preservePatterns: [
+      // 系统目录、状态和字段标签使用各契约的有限动态枚举。
+      "system:*",
+      "catalogs:*",
+      "employees:*",
+      "roles:*",
+      "announcements:*",
+      "platformTasks:*",
       "errors:*",
       // 平台账号状态由 Contract 枚举动态选择文案。
       "identity:active",

@@ -19,6 +19,7 @@ import {
 } from "@workspace/contracts/identity-management"
 import {
   platformOrganizationActor,
+  createPlatformAccessFixture,
   platformUserFixture,
 } from "@workspace/mocks"
 import { PlatformAccessDeniedPage, PlatformLoginPage } from "../App"
@@ -68,12 +69,10 @@ export function PlatformReadPageStory({
       getParentRoute: () => root,
       path: "platform",
       beforeLoad: () => ({
-        platformAccess: {
-          userId: platformOrganizationActor.id,
-          role: auditor ? "platform_auditor" : "platform_admin",
-          scope: "global",
-          mfaVerifiedAt: "2026-10-02T00:00:00.000Z",
-        },
+        platformAccess: createPlatformAccessFixture(
+          platformOrganizationActor.id,
+          auditor
+        ),
       }),
       component: Outlet,
     })

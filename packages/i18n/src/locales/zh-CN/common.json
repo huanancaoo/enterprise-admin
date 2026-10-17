@@ -98,6 +98,7 @@
   "themeLight": "浅色",
   "themeSystem": "跟随系统",
   "toggleSidebar": "切换侧栏",
+  "toggleSubmenu": "展开或收起「{{title}}」子菜单",
   "unpinned": "不固定",
   "unpinRow": "取消固定行",
   "view": "视图"

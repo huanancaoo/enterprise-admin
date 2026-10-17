@@ -121,3 +121,25 @@ export { createOrganizationAuthorizationScenario } from "./organization-authoriz
 export { fileWorkspaceScenario } from "./handlers/files-workspace"
 
 export { createPlatformEntityComboboxScenario } from "./handlers/platform-entity-combobox"
+
+export {
+  createPlatformCatalogScenario,
+  catalogDictionaryId,
+} from "./handlers/platform-catalogs"
+export type { PlatformCatalogScenario } from "./handlers/platform-catalogs"
+
+export { createPlatformAccessFixture } from "./handlers/platform-access"
+export {
+  createPlatformEmployeesRolesScenario,
+  platformEmployeeFixture,
+  platformRoleFixture,
+} from "./handlers/platform-employees-roles"
+export type { PlatformEmployeesRolesScenario } from "./handlers/platform-employees-roles"
+
+export { createEmptyTenantAnnouncementInboxHandler } from "./handlers/tenant-announcements"
+
+export {
+  createHiddenPlatformFrameHandler,
+  hiddenPlatformFrameId,
+  hiddenPlatformFrameUrl,
+} from "./handlers/platform-navigation"

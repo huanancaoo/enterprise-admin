@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react"
+import { ListTodoIcon } from "lucide-react"
+import { Fragment, lazy, Suspense, useEffect, useRef } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { getMyPreferencesOptions } from "@workspace/api-client"
 import { useTranslation } from "react-i18next"
@@ -11,6 +12,7 @@ import {
   useLocation,
 } from "@tanstack/react-router"
 import { AppShell } from "@workspace/admin"
+import { usePlatformNavigation } from "./features/system/use-platform-navigation"
 import {
   AuthenticatedSessionProvider,
   CredentialsPage,
@@ -33,13 +35,13 @@ import {
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb"
 import { Button } from "@workspace/ui/components/button"
-import {
-  BuildingIcon,
-  ClipboardListIcon,
-  SettingsIcon,
-  UsersIcon,
-} from "lucide-react"
 import { authClient } from "./lib/auth-client"
+
+const PlatformAnnouncementEntry = lazy(() =>
+  import("./features/announcements/pages").then((module) => ({
+    default: module.PlatformAnnouncementEntry,
+  }))
+)
 
 export function App() {
   // 同账号资料变化不会重跑 root route；头像必须跟随原生 Session 的当前 User 投影。
@@ -105,31 +107,40 @@ export function PlatformLayout() {
     "organization",
     "settings",
     "identity",
+    "system",
   ])
-  const location = useLocation()
   const session = useAuthenticatedSession()!
   const { platformAccess } = useRouteContext({ from: "/platform" })
-  const section = location.pathname.startsWith("/platform/organizations")
-    ? { title: t("organization:platformOrganizations"), kind: "organizations" }
-    : location.pathname.startsWith("/platform/users")
-      ? { title: t("organization:platformUsers"), kind: "users" }
-      : location.pathname.startsWith("/platform/audit-events")
-        ? { title: t("organization:platformOperationsLog"), kind: "audit" }
-        : location.pathname.startsWith("/platform/login-events")
-          ? { title: t("identity:loginEvents"), kind: "loginEvents" }
-          : location.pathname.startsWith("/platform/sessions")
-            ? { title: t("identity:sessions"), kind: "sessions" }
-            : location.pathname.startsWith("/platform/settings")
-              ? { title: t("organization:platformSettings"), kind: "settings" }
-              : location.pathname.startsWith("/platform/personal-settings")
-                ? { title: t("settings:personalSettings"), kind: "personal" }
-                : null
-  const detailId =
-    section && ["organizations", "users"].includes(section.kind)
-      ? location.pathname.split("/")[3]
-      : undefined
+  const { items, section, ancestors, error, retry } = usePlatformNavigation()
   return (
     <AppShell
+      actions={
+        <>
+          <Suspense>
+            <PlatformAnnouncementEntry
+              onOpen={() =>
+                void navigate({
+                  to: "/platform/announcement-inbox",
+                  search: { page: 1, pageSize: 20 },
+                })
+              }
+            />
+          </Suspense>
+          {platformAccess.permissions.includes("platform.task:read") && (
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={t("system:taskCenter")}
+              nativeButton={false}
+              render={
+                <Link to="/platform/tasks" search={{ page: 1, pageSize: 20 }} />
+              }
+            >
+              <ListTodoIcon />
+            </Button>
+          )}
+        </>
+      }
       breadcrumb={
         <Breadcrumb>
           <BreadcrumbList>
@@ -142,54 +153,20 @@ export function PlatformLayout() {
                 <BreadcrumbPage>{t("auth:platformTitle")}</BreadcrumbPage>
               )}
             </BreadcrumbItem>
+            {ancestors.map((ancestor) => (
+              <Fragment key={ancestor.id}>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <span>{ancestor.name}</span>
+                </BreadcrumbItem>
+              </Fragment>
+            ))}
             {section && (
               <>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  {detailId && section.kind === "organizations" ? (
-                    <BreadcrumbLink
-                      render={
-                        <Link
-                          to="/platform/organizations"
-                          search={{
-                            page: 1,
-                            pageSize: 20,
-                            sortBy: "createdAt",
-                            sortOrder: "desc",
-                          }}
-                        />
-                      }
-                    >
-                      {section.title}
-                    </BreadcrumbLink>
-                  ) : detailId && section.kind === "users" ? (
-                    <BreadcrumbLink
-                      render={
-                        <Link
-                          to="/platform/users"
-                          search={{ page: 1, pageSize: 20 }}
-                        />
-                      }
-                    >
-                      {section.title}
-                    </BreadcrumbLink>
-                  ) : (
-                    <BreadcrumbPage>{section.title}</BreadcrumbPage>
-                  )}
+                  <BreadcrumbPage>{section.name}</BreadcrumbPage>
                 </BreadcrumbItem>
-                {detailId && (
-                  <>
-                    <BreadcrumbSeparator />
-                    <BreadcrumbItem className="min-w-0">
-                      <BreadcrumbPage
-                        className="max-w-32 truncate sm:max-w-64"
-                        title={detailId}
-                      >
-                        <bdi>{detailId}</bdi>
-                      </BreadcrumbPage>
-                    </BreadcrumbItem>
-                  </>
-                )}
               </>
             )}
           </BreadcrumbList>
@@ -201,7 +178,9 @@ export function PlatformLayout() {
             {
               id: "platform",
               name: t("auth:platformTitle"),
-              description: `${t(platformAccess.role === "platform_admin" ? "auth:platformAdminRole" : "auth:platformAuditorRole")} · ${t("auth:globalScope")}`,
+              description: platformAccess.roles
+                .map((role) => role.name)
+                .join(" · "),
             },
           ],
           value: "platform",
@@ -211,71 +190,7 @@ export function PlatformLayout() {
         },
         navigation: {
           label: t("common:navigation"),
-          items: [
-            {
-              title: t("organization:platformOrganizations"),
-              icon: <BuildingIcon />,
-              isActive: location.pathname.startsWith("/platform/organizations"),
-              render: (
-                <Link
-                  to="/platform/organizations"
-                  search={{
-                    page: 1,
-                    pageSize: 20,
-                    sortBy: "createdAt",
-                    sortOrder: "desc",
-                  }}
-                />
-              ),
-            },
-            {
-              title: t("organization:platformUsers"),
-              icon: <UsersIcon />,
-              isActive: location.pathname.startsWith("/platform/users"),
-              render: (
-                <Link to="/platform/users" search={{ page: 1, pageSize: 20 }} />
-              ),
-            },
-            {
-              title: t("organization:platformOperationsLog"),
-              icon: <ClipboardListIcon />,
-              isActive: location.pathname.startsWith("/platform/audit-events"),
-              render: (
-                <Link
-                  to="/platform/audit-events"
-                  search={{ page: 1, pageSize: 20 }}
-                />
-              ),
-            },
-            {
-              title: t("identity:loginEvents"),
-              icon: <ClipboardListIcon />,
-              isActive: location.pathname.startsWith("/platform/login-events"),
-              render: (
-                <Link
-                  to="/platform/login-events"
-                  search={{ page: 1, pageSize: 20 }}
-                />
-              ),
-            },
-            {
-              title: t("identity:sessions"),
-              icon: <UsersIcon />,
-              isActive: location.pathname.startsWith("/platform/sessions"),
-              render: (
-                <Link
-                  to="/platform/sessions"
-                  search={{ page: 1, pageSize: 20 }}
-                />
-              ),
-            },
-            {
-              title: t("organization:platformSettings"),
-              icon: <SettingsIcon />,
-              isActive: location.pathname.startsWith("/platform/settings"),
-              render: <Link to="/platform/settings" />,
-            },
-          ],
+          items,
         },
         user: {
           user: {
@@ -295,6 +210,17 @@ export function PlatformLayout() {
         },
       }}
     >
+      {error && (
+        <div
+          role="alert"
+          className="flex items-center gap-3 text-sm text-destructive"
+        >
+          <span>{t("system:navigationFailed")}</span>
+          <Button size="sm" variant="outline" onClick={retry}>
+            {t("common:retry")}
+          </Button>
+        </div>
+      )}
       <Outlet />
     </AppShell>
   )

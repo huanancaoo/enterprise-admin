@@ -73,7 +73,7 @@ export const PermissionDenied: Story = {
   ...scenario("forbidden"),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await canvas.findByRole("heading", { name: "Platform access denied" })
+    await canvas.findByRole("heading", { name: "Access denied" })
     await expect(canvas.queryByText("production")).toBeNull()
   },
 }
@@ -90,7 +90,7 @@ export const ReadOnly: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await canvas.findByText(
-      "Your platform auditor role can view these settings."
+      "You can view these settings but do not have permission to change them."
     )
     await expect(canvas.queryByRole("textbox")).toBeNull()
     await expect(canvas.queryByRole("button", { name: "Save" })).toBeNull()
@@ -242,11 +242,15 @@ export const SaveUnavailable: Story = {
 export const SavePermissionDenied: Story = {
   ...scenario("saveForbidden"),
   play: async ({ canvasElement }) => {
-    const { canvas, submit } = await draft(canvasElement)
+    const { canvas, reason, submit } = await draft(canvasElement)
     await userEvent.click(submit)
-    await canvas.findByRole("heading", { name: "Platform access denied" })
-    await expect(canvas.queryByText("production")).toBeNull()
-    await expect(canvas.queryByRole("textbox")).toBeNull()
+    await canvas.findByRole("alert")
+    await expect(canvas.getByText("production")).toBeVisible()
+    await expect(reason).toHaveValue("Review default language setting")
+    await expect(submit).toBeEnabled()
+    await expect(
+      canvas.queryByRole("heading", { name: "Platform access denied" })
+    ).toBeNull()
   },
 }
 export const SaveSessionExpired: Story = {

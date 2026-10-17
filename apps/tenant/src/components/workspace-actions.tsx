@@ -1,4 +1,5 @@
-import { Link, useLocation } from "@tanstack/react-router"
+import { TenantAnnouncementEntry } from "./announcements"
+import { Link, useLocation, useNavigate } from "@tanstack/react-router"
 import { BellIcon, ListTodoIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { Button, buttonVariants } from "@workspace/ui/components/button"
@@ -11,7 +12,8 @@ export function WorkspaceActions({
   organizationId?: string | null
   disabled?: boolean
 }) {
-  const { t } = useTranslation(["tasks", "notifications"])
+  const { t } = useTranslation(["tasks", "notifications", "announcements"])
+  const navigate = useNavigate()
   const pathname = useLocation({ select: (location) => location.pathname })
   const items = [
     {
@@ -32,6 +34,18 @@ export function WorkspaceActions({
       aria-label={`${t("tasks:title")} · ${t("notifications:title")}`}
       className="flex shrink-0 items-center gap-1"
     >
+      {organizationId && !disabled && (
+        <TenantAnnouncementEntry
+          organizationId={organizationId}
+          onOpen={() =>
+            void navigate({
+              to: "/app/announcements/$organizationId",
+              params: { organizationId },
+              search: { page: 1, pageSize: 20 },
+            })
+          }
+        />
+      )}
       {items.map((item) =>
         organizationId && !disabled ? (
           <Link

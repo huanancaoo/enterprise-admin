@@ -6,6 +6,7 @@ import type { SupportedLocale } from "./locale.js"
 // Better Auth 自带文案仍由插件 adapter 合并；这里只是产品错误码。
 const authErrorCodes = [
   "ACCOUNT_SUSPENDED",
+  "PASSWORD_LOGIN_LOCKED",
   "AUTHORIZATION_UNAVAILABLE",
   "AUTHORIZATION_VERSION_CONFLICT",
   "EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION",

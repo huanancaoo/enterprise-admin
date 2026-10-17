@@ -16,7 +16,11 @@ import {
   UpdatePlatformSettingsSchema,
   type PlatformSettings,
 } from "@workspace/contracts/platform"
-import { ErrorState, LoadingState } from "@workspace/admin"
+import {
+  ErrorState,
+  LoadingState,
+  PermissionDeniedState,
+} from "@workspace/admin"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import { localeMeta } from "@workspace/i18n"
 import { Card, CardContent } from "@workspace/ui/components/card"
@@ -71,7 +75,11 @@ export function PlatformSettingsPage() {
       {query.isPending ? (
         <LoadingState />
       ) : query.isError ? (
-        <ErrorState onRetry={() => void query.refetch()} />
+        query.error instanceof ApiClientError && query.error.status === 403 ? (
+          <PermissionDeniedState />
+        ) : (
+          <ErrorState onRetry={() => void query.refetch()} />
+        )
       ) : (
         <>
           <Card>
@@ -130,7 +138,7 @@ export function PlatformSettingsPage() {
               {t("organization:platformSettingsSaved")}
             </p>
           )}
-          {platformAccess.role === "platform_admin" ? (
+          {platformAccess.permissions.includes("platform.settings:update") ? (
             <SettingsForm
               key={query.data.version}
               setting={query.data}

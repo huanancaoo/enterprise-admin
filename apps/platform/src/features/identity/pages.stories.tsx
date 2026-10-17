@@ -57,34 +57,44 @@ export const LoginEvents: Story = {
     await canvas.findByRole("heading", { name: "Login history" })
     await canvas.findByRole("table")
     await canvas.findAllByText("Platform Operator")
+    const search = canvas.getByRole("textbox", {
+      name: "Search account, email, or IP",
+    })
+    const account = canvas.getByRole("combobox", { name: "Filter by account" })
+    await expect(
+      Boolean(
+        search.compareDocumentPosition(account) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+      )
+    ).toBe(true)
     await expect(canvas.getByRole("button", { name: "Method" })).toBeVisible()
     await expect(
-      canvas.getByRole("button", { name: "Advanced filters" })
-    ).toBeVisible()
-    await expect(
-      canvas.queryByRole("button", { name: "Filter by account" })
+      canvas.queryByRole("button", { name: "Advanced filters" })
     ).toBeNull()
+    await expect(
+      canvas.getByRole("combobox", { name: "Filter by account" })
+    ).toBeVisible()
   },
 }
 
 const loginFilterFixture = createScenario("success")
-export const LoginEventsAdvancedFilters: Story = {
+export const LoginEventsInlineFilters: Story = {
   ...loginFilterFixture.story,
   args: { page: "login-events" },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await canvas.findByRole("table")
-    const filterButton = canvas.getByRole("button", {
-      name: "Advanced filters",
-    })
-    await waitFor(() => expect(filterButton).toBeEnabled())
-    await userEvent.click(filterButton)
+    const account = canvas.getByRole("combobox", { name: "Filter by account" })
+    await waitFor(() => expect(account).toBeEnabled())
     const screen = within(canvasElement.ownerDocument.body)
     await userEvent.click(
       await screen.findByRole("combobox", { name: "Filter by account" })
     )
     await userEvent.click(
       (await screen.findAllByRole("option", { name: /Mina Chen/ }))[0]!
+    )
+    await waitFor(() =>
+      expect(screen.queryByRole("listbox", { hidden: true })).toBeNull()
     )
     fireEvent.change(await screen.findByLabelText("From (UTC)"), {
       target: { value: "2026-10-16T10:30" },
@@ -100,13 +110,23 @@ export const LoginEventsAdvancedFilters: Story = {
       expect(params?.get("to")).toBe("2026-10-16T11:30:00Z")
       expect(params?.get("page")).toBe("1")
     })
+    await expect(
+      canvas.getByRole("combobox", { name: "Filter by account" })
+    ).toBeVisible()
+    const apply = canvas.getByRole("button", { name: "Apply filters" })
+    await waitFor(() => expect(apply).toBeEnabled())
+    await userEvent.click(
+      within(
+        canvasElement.querySelector('[data-slot="data-table-toolbar"]')!
+      ).getByRole("button", { name: "Clear filters" })
+    )
     await waitFor(() =>
       expect(
-        canvasElement.ownerDocument.querySelector(
-          '[data-slot="popover-content"]'
-        )
-      ).toBeNull()
+        canvas.getByRole("combobox", { name: "Filter by account" })
+      ).toHaveTextContent("Filter by account")
     )
+    await waitFor(() => expect(apply).toBeEnabled())
+    await userEvent.click(apply)
   },
 }
 
@@ -160,6 +180,65 @@ export const PersonalAccountRows: Story = {
   },
 }
 
+const lockedLoginFixture = createScenario("passwordLoginLocked")
+export const LoginEventPasswordLoginUnlock: Story = {
+  ...lockedLoginFixture.story,
+  args: { page: "login-events" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const unlockButtons = await canvas.findAllByRole("button", {
+      name: "Unlock password login",
+    })
+    const rows = canvas.getAllByRole("row")
+    const anonymous = within(rows[1]!)
+    await expect(anonymous.getByText("Unknown account")).toBeVisible()
+    await expect(anonymous.queryByText("Locked")).toBeNull()
+    await expect(
+      anonymous.queryByRole("button", { name: "Unlock password login" })
+    ).toBeNull()
+    await expect(
+      within(rows[2]!).getByText(/^Lock expires \(UTC\):/)
+    ).toBeVisible()
+    await userEvent.click(unlockButtons[0]!)
+    const dialog = within(
+      await within(canvasElement.ownerDocument.body).findByRole("dialog")
+    )
+    await waitFor(() =>
+      expect(dialog.getByText(/Platform Operator/)).toBeVisible()
+    )
+    await userEvent.click(dialog.getByRole("button", { name: "Confirm" }))
+    await canvas.findByText("Password login unlocked.")
+    await waitFor(() =>
+      expect(lockedLoginFixture.fixture.loginQueries).toHaveLength(2)
+    )
+    await waitFor(() =>
+      expect(
+        canvas.queryByRole("button", { name: "Unlock password login" })
+      ).toBeNull()
+    )
+    await expect(canvas.queryByText("Locked")).toBeNull()
+    await expect(canvas.getAllByText("Not locked").length).toBeGreaterThan(0)
+    await expect(lockedLoginFixture.fixture.unlockedUserIds).toEqual([
+      "c7dd0a27-4f8a-4aef-8d4c-000000001001",
+    ])
+  },
+}
+
+export const LoginEventPasswordLoginReadOnly: Story = {
+  ...createScenario("passwordLoginLocked").story,
+  args: { page: "login-events", auditor: true },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await canvas.findAllByText("Locked")
+    await expect(
+      canvas.getByRole("columnheader", { name: "Password login lock" })
+    ).toBeVisible()
+    await expect(
+      canvas.queryByRole("button", { name: "Unlock password login" })
+    ).toBeNull()
+  },
+}
+
 export const LoginEventsLoading: Story = {
   ...createScenario("loading").story,
   args: { page: "login-events" },
@@ -197,7 +276,7 @@ export const LoginEventsForbidden: Story = {
   args: { page: "login-events" },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await canvas.findByRole("heading", { name: "Platform access denied" })
+    await canvas.findByRole("heading", { name: "Access denied" })
     await expect(canvas.queryByRole("table")).toBeNull()
   },
 }
@@ -208,14 +287,14 @@ export const Sessions: Story = {
   args: { page: "sessions" },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await canvas.findByRole("heading", { name: "Global sessions" })
+    await canvas.findByRole("heading", { name: "Online users" })
     await canvas.findByRole("table")
     await expect(
-      canvas.getByRole("button", { name: "Advanced filters" })
-    ).toBeVisible()
-    await expect(
-      canvas.queryByRole("button", { name: "Filter by account" })
+      canvas.queryByRole("button", { name: "Advanced filters" })
     ).toBeNull()
+    await expect(
+      canvas.getByRole("combobox", { name: "Filter by account" })
+    ).toBeVisible()
     await userEvent.click(
       (await canvas.findAllByRole("button", { name: "Revoke session" }))[0]
     )
@@ -241,11 +320,8 @@ export const SessionsUserFilter: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await canvas.findByRole("table")
-    const filterButton = canvas.getByRole("button", {
-      name: "Advanced filters",
-    })
-    await waitFor(() => expect(filterButton).toBeEnabled())
-    await userEvent.click(filterButton)
+    const account = canvas.getByRole("combobox", { name: "Filter by account" })
+    await waitFor(() => expect(account).toBeEnabled())
     const screen = within(canvasElement.ownerDocument.body)
     await userEvent.click(
       await screen.findByRole("combobox", { name: "Filter by account" })
@@ -253,17 +329,35 @@ export const SessionsUserFilter: Story = {
     await userEvent.click(
       (await screen.findAllByRole("option", { name: /Mina Chen/ }))[0]!
     )
+    await waitFor(() =>
+      expect(screen.queryByRole("listbox", { hidden: true })).toBeNull()
+    )
     await userEvent.click(screen.getByRole("button", { name: "Apply filters" }))
     await waitFor(() => {
       expect(
         sessionFilterFixture.fixture.sessionQueries.at(-1)?.get("userId")
       ).toBe("c7dd0a27-4f8a-4aef-8d4c-000000001001")
     })
+    await expect(
+      canvas.getByRole("combobox", { name: "Filter by account" })
+    ).toBeVisible()
+    const apply = canvas.getByRole("button", { name: "Apply filters" })
+    await waitFor(() => expect(apply).toBeEnabled())
+    await userEvent.click(
+      within(
+        canvasElement.querySelector('[data-slot="data-table-toolbar"]')!
+      ).getByRole("button", { name: "Clear filters" })
+    )
     await waitFor(() =>
       expect(
-        canvasElement.ownerDocument.querySelector(
-          '[data-slot="popover-content"]'
-        )
+        canvas.getByRole("combobox", { name: "Filter by account" })
+      ).toHaveTextContent("Filter by account")
+    )
+    await waitFor(() => expect(apply).toBeEnabled())
+    await userEvent.click(apply)
+    await waitFor(() =>
+      expect(
+        sessionFilterFixture.fixture.sessionQueries.at(-1)?.get("userId")
       ).toBeNull()
     )
   },
@@ -329,7 +423,12 @@ export const IdentityEmpty: Story = {
   ...createScenario("empty").story,
   args: { page: "sessions" },
   play: async ({ canvasElement }) => {
-    await within(canvasElement).findByText("There are no active sessions.")
+    const canvas = within(canvasElement)
+    await canvas.findByText("There are no active sessions.")
+    await expect(
+      canvas.getByRole("combobox", { name: "Filter by account" })
+    ).toBeVisible()
+    await expect(canvas.getByRole("button", { name: "Search" })).toBeVisible()
   },
 }
 
@@ -352,5 +451,28 @@ export const RTL: Story = {
       "dir",
       "rtl"
     )
+  },
+}
+
+export const SessionRevokePermissionDeniedKeepsDialog: Story = {
+  ...createScenario("revokeForbidden").story,
+  args: { page: "sessions" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await canvas.findByRole("table")
+    await userEvent.click(
+      (await canvas.findAllByRole("button", { name: "Revoke session" }))[0]!
+    )
+    const screen = within(canvasElement.ownerDocument.body)
+    const dialog = within(await screen.findByRole("dialog"))
+    await userEvent.click(dialog.getByRole("button", { name: "Confirm" }))
+    await dialog.findByRole("alert")
+    await expect(dialog.getByRole("button", { name: "Confirm" })).toBeEnabled()
+    await expect(
+      canvas.getByRole("table", { hidden: true })
+    ).toBeInTheDocument()
+    await expect(
+      canvas.queryByRole("heading", { name: "Platform access denied" })
+    ).toBeNull()
   },
 }

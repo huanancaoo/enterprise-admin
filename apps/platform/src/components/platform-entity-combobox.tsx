@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
+import { PermissionDeniedState } from "@workspace/admin"
 import { ApiClientError } from "@workspace/api-client"
 import {
   getPlatformOrganization,
@@ -383,6 +384,9 @@ export function PlatformEntityCombobox({
     ? state.exactOrganizationQuery.error
     : state.listQuery.error
   const selectedError = state.selectedQuery.error
+  const resourceForbidden = [activeError, selectedError].some(
+    (error) => error instanceof ApiClientError && error.status === 403
+  )
   const exactNotFound =
     activeError instanceof ApiClientError && activeError.status === 404
   const isNextPageFailure =
@@ -705,6 +709,11 @@ export function PlatformEntityCombobox({
                   : "platformEntityUsersLoading"
               )}
             </p>
+          )}
+          {resourceForbidden && (
+            <div className="p-3">
+              <PermissionDeniedState />
+            </div>
           )}
           {listFailed && !state.accessDenied && (
             <div className="flex items-center justify-between gap-3 border-t px-3 py-2">

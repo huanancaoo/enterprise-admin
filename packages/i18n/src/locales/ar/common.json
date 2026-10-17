@@ -98,6 +98,7 @@
   "themeLight": "فاتح",
   "themeSystem": "النظام",
   "toggleSidebar": "تبديل الشريط الجانبي",
+  "toggleSubmenu": "تبديل القائمة الفرعية {{title}}",
   "unpinned": "غير مثبت",
   "unpinRow": "إلغاء تثبيت الصف",
   "view": "العرض"

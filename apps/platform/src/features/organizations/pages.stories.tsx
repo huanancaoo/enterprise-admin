@@ -16,6 +16,7 @@ import {
   createPlatformOrganizationScenario,
   createWorkspaceSessionHandlers,
   platformOrganizationActor,
+  createPlatformAccessFixture,
   platformOrganizationFixture,
   type PlatformOrganizationsScenario,
 } from "@workspace/mocks"
@@ -57,12 +58,10 @@ function OrganizationsStory({
       getParentRoute: () => root,
       path: "platform",
       beforeLoad: () => ({
-        platformAccess: {
-          userId: platformOrganizationActor.id,
-          role: auditor ? "platform_auditor" : "platform_admin",
-          scope: "global",
-          mfaVerifiedAt: "2026-10-02T00:00:00.000Z",
-        },
+        platformAccess: createPlatformAccessFixture(
+          platformOrganizationActor.id,
+          auditor
+        ),
       }),
       component: Outlet,
     })
@@ -194,7 +193,7 @@ export const PermissionDenied: Story = {
   ...scenario("forbidden"),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await canvas.findByRole("heading", { name: "Platform access denied" })
+    await canvas.findByRole("heading", { name: "Access denied" })
     await expect(canvas.queryByRole("table")).toBeNull()
   },
 }

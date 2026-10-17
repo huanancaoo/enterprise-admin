@@ -43,10 +43,18 @@ export type PlatformIdentityScenario =
   | "unavailable"
   | "revokeSlow"
   | "revokeFailure"
+  | "revokeForbidden"
+  | "passwordLoginLocked"
 
 export function createPlatformIdentityScenario(
   scenario: PlatformIdentityScenario = "success"
 ) {
+  const lockTime = () =>
+    scenario === "passwordLoginLocked"
+      ? new Date(Date.now() + 600_000).toISOString()
+      : null
+  let lockedUntil = lockTime()
+  const unlockedUserIds: string[] = []
   const revokedSessionIds: string[] = []
   const personalLoginQueries: URLSearchParams[] = []
   const loginQueries: URLSearchParams[] = []
@@ -87,16 +95,36 @@ export function createPlatformIdentityScenario(
   })
   return {
     revokedSessionIds,
+    unlockedUserIds,
     personalLoginQueries,
     loginQueries,
     sessionQueries,
     reset: () => {
+      lockedUntil = lockTime()
+      unlockedUserIds.splice(0)
       revokedSessionIds.splice(0)
       personalLoginQueries.splice(0)
       loginQueries.splice(0)
       sessionQueries.splice(0)
     },
     handlers: [
+      ...(scenario === "passwordLoginLocked"
+        ? [
+            http.post(
+              "*/api/v1/platform/users/:userId/password-login/unlock",
+              ({ params }) => {
+                const changed = lockedUntil !== null
+                lockedUntil = null
+                unlockedUserIds.push(String(params.userId))
+                return HttpResponse.json({
+                  userId: String(params.userId),
+                  changed,
+                  lockedUntil: null,
+                })
+              }
+            ),
+          ]
+        : []),
       http.get("*/api/v1/platform/login-events", async ({ request }) => {
         const rejected = await failure()
         if (rejected) return rejected
@@ -121,7 +149,10 @@ export function createPlatformIdentityScenario(
         const offset = (query.page - 1) * query.pageSize
         return HttpResponse.json(
           makePage(
-            matching.slice(offset, offset + query.pageSize),
+            matching.slice(offset, offset + query.pageSize).map((item) => ({
+              ...item,
+              lockedUntil: item.userId === null ? null : lockedUntil,
+            })),
             query.page,
             query.pageSize,
             matching.length
@@ -183,6 +214,16 @@ export function createPlatformIdentityScenario(
         "*/api/v1/platform/sessions/:sessionId",
         async ({ params }) => {
           if (scenario === "revokeSlow") await delay("infinite")
+          if (scenario === "revokeForbidden")
+            return HttpResponse.json(
+              {
+                code: "FORBIDDEN",
+                message: "FORBIDDEN",
+                locale: "en-US",
+                requestId: "storybook-identity",
+              },
+              { status: 403 }
+            )
           if (scenario === "revokeFailure")
             return HttpResponse.json(
               {

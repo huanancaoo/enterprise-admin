@@ -11,6 +11,7 @@ import { useUiLocale } from "@workspace/i18n/react"
 import { AuthGate, type WorkspaceRouterContext } from "@workspace/admin/auth"
 import {
   createWorkspaceSessionHandlers,
+  createEmptyTenantAnnouncementInboxHandler,
   createProjectsHandler,
   createMembersScenario,
   createProjectDetailHandler,
@@ -61,6 +62,8 @@ function AdminLayoutStory() {
   )
 }
 
+const emptyAnnouncements = createEmptyTenantAnnouncementInboxHandler()
+
 const meta = {
   title: "Admin/Application layout",
   component: AdminLayoutStory,
@@ -68,6 +71,7 @@ const meta = {
     layout: "fullscreen",
     msw: {
       handlers: [
+        emptyAnnouncements,
         ...createWorkspaceSessionHandlers(),
         createProjectsHandler(),
         createProjectDetailHandler(),
@@ -173,6 +177,7 @@ export const SuspendedOrganization: Story = {
   parameters: {
     msw: {
       handlers: [
+        emptyAnnouncements,
         ...createWorkspaceSessionHandlers({
           suspendedIds: [organizations[0].id],
           // 访问拒绝先到达时，切换器仍需等待独立的组织目录。
@@ -208,6 +213,7 @@ export const WorkspaceRefreshPending: Story = {
   parameters: {
     msw: {
       handlers: [
+        emptyAnnouncements,
         ...createWorkspaceSessionHandlers({ refreshDelay: "infinite" }),
         createProjectsHandler(),
         createProjectDetailHandler(),
@@ -239,6 +245,7 @@ export const OrganizationNavigationWithoutSettingsPermission: Story = {
   parameters: {
     msw: {
       handlers: [
+        emptyAnnouncements,
         ...createMembersScenario("member").handlers,
         ...createWorkspaceSessionHandlers(),
         createProjectsHandler(),
@@ -251,7 +258,7 @@ export const OrganizationNavigationWithoutSettingsPermission: Story = {
     const main = within(
       await canvas.findByRole("navigation", { name: "Main navigation" })
     )
-    await expect(main.getAllByRole("link")).toHaveLength(3)
+    await expect(main.getAllByRole("link")).toHaveLength(4)
     await expect(
       main.queryByRole("link", { name: "Personal settings" })
     ).toBeNull()
@@ -267,6 +274,15 @@ export const OrganizationNavigationWithoutSettingsPermission: Story = {
       "href",
       expect.stringContaining(`/app/notifications/${organizations[0].id}`)
     )
+    await expect(
+      main.getByRole("link", { name: "Operation logs" })
+    ).toHaveAttribute(
+      "href",
+      expect.stringContaining(`/app/organizations/${organizations[0].id}/audit`)
+    )
+    await expect(
+      canvas.getByRole("button", { name: "Open announcement inbox" })
+    ).toBeVisible()
     await userEvent.click(
       main.getByRole("link", { name: "Organization management" })
     )

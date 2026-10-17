@@ -33,4 +33,4 @@ DataTable 自带文案使用翻译目录。列标题、业务状态与选项由�
 
 Projects 列表示例在 `apps/tenant/src/components/projects-list.stories.tsx`，由公共 Storybook 加载；它以 Router 包装生产 `ProjectsList` 并通过生成客户端调用共享 MSW。ResourceCreate/Edit/Show 随 S7 的真实操作补齐，本阶段没有通用 Resource Engine。
 
-提供 `toolbarContent` 时，即使集合为空，DataTable 也保留工具栏，确保自定义筛选入口始终可用；无权限状态仍不展示工具栏。
+`toolbarContent` 承载搜索之前的业务操作，`toolbarFilters` 承载搜索和列筛选之后的常驻条件。提供任一插槽时，即使集合为空，DataTable 也保留工具栏；无权限状态仍不展示工具栏。
