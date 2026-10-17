@@ -2,6 +2,7 @@ import { z } from "zod"
 import { OrganizationIdSchema, UserIdSchema } from "./identifiers.js"
 import { SupportedLocaleSchema } from "./locale.js"
 import { AuditResultSchema } from "./audit.js"
+import { AccountStatusSchema } from "./identity-management.js"
 import {
   OrganizationStatusSchema,
   OrganizationSummarySchema,
@@ -126,6 +127,8 @@ export const PlatformUserSchema = z
     emailVerified: z.boolean(),
     createdAt: z.iso.datetime({ offset: true }),
     organizationCount: z.number().int().min(0),
+    status: AccountStatusSchema,
+    version: z.number().int().min(1),
   })
   .meta({ id: "PlatformUser" })
 export const PlatformUsersPageSchema = z

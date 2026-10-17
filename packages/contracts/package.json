@@ -75,6 +75,10 @@
     "./project-query": {
       "types": "./dist/project-query.d.ts",
       "default": "./dist/project-query.js"
+    },
+    "./identity-management": {
+      "types": "./dist/identity-management.d.ts",
+      "default": "./dist/identity-management.js"
     }
   },
   "scripts": {
