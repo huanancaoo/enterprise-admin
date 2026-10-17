@@ -107,9 +107,43 @@ MIGRATION_DATABASE_URL='postgresql://app_migrator:...@db/enterprise_admin' pnpm 
 
 停用和恢复要求当前有效会话的平台管理员、理由、预期状态版本及幂等键。函数与租户写入锁定同一组织状态行，在同一事务提交状态、成功审计与 24 小时幂等收据；等锁后再次查权，旧收据不能绕过撤权。目标状态未变时记录私有的 `no_change` 尝试，不增加状态版本或重复生成启停事件。运营读取先写成功审计才返回投影；查询和启停失败的审计独立提交，审计不可用时返回失败。恢复只改变运营状态，不延长邀请或重建已移除的成员和平台任职。
 
-迁移 `0031_platform-user-queries.sql` 提供只读用户目录、详情与显式敏感邮箱读取。目录按创建时间和用户 ID 稳定分页，只检索姓名、用户 ID 和脱敏邮箱；列表与详情对管理员、审计员一律返回脱敏邮箱。详情仅包含组织关联与邮箱验证、双重验证状态，不返回认证记录或业务数据。`platform_executor` 只获得必要的身份列权限，不能读取密码、Session token、2FA secret 或恢复码。
+迁移 `0031_platform-user-queries.sql` 建立用户目录、详情与显式敏感邮箱读取，`0069` 在目录与详情中增加全局账号状态和版本。目录按创建时间和用户 ID 稳定分页，只检索姓名、用户 ID 和脱敏邮箱；列表与详情对管理员、审计员一律返回脱敏邮箱。详情包含组织关联、邮箱验证、双重验证及账号状态，不返回认证秘密或业务数据。`platform_executor` 只获得必要的身份列权限，不能读取密码、Session token、2FA secret 或恢复码。
 
 完整邮箱由独立 `get_platform_sensitive_profile` 固定函数读取，要求当前有效会话的平台管理员，每次携带非空目的。固定函数先提交一次私有敏感读取审计，再返回邮箱；审计失败返回 `AUDIT_UNAVAILABLE`。访问审计只存操作者、目标用户 ID 和输入目的，不存完整邮箱快照。API 响应禁止缓存；前端完整邮箱只保存在本次展开的组件状态中，关闭后销毁，不进入目录 Query Cache。
+
+### 全局账号管理与会话
+
+迁移 [0068_flippant_magma.sql](migrations/0068_flippant_magma.sql) 建立 `user_account_status` 和 `login_events`；[0069_identity-management-access.sql](migrations/0069_identity-management-access.sql) 初始化旧账号状态，并提供触发器、固定函数、RLS 和显式授权。`user_account_status` 是全局账号状态的唯一来源，取值为 `active` / `suspended`。旧账号和新账号都初始化为 `active`、版本 1；新账号由 `user` INSERT 触发器初始化，缺失状态时拒绝授权，返回 `AUTHORIZATION_UNAVAILABLE`。
+
+| 能力                                     | 当前有效会话的平台管理员 | 当前有效会话的平台审计员 |
+| ---------------------------------------- | ------------------------ | ------------------------ |
+| 读取用户目录、详情、登录日志及未过期会话 | 允许                     | 允许                     |
+| 创建普通账号、编辑姓名、暂停或恢复账号   | 允许                     | 拒绝                     |
+| 请求密码重置、撤销单个会话               | 允许                     | 拒绝                     |
+
+这些全局管理权限不由租户成员或角色授予。两张新表均启用并强制 RLS，`app_runtime` 不获得直接读写权限，通过受限 `platform_executor` 所有的固定函数访问；内部投影和审计辅助函数不对 runtime 开放。平台任职仍通过部署 CLI 管理，网页创建账号不创建平台任职或组织成员关系。
+
+用户管理通过 `POST /api/v1/platform/users` 创建账号，通过 `PATCH /api/v1/platform/users/:userId` 编辑姓名。管理员填写姓名、邮箱和 12–128 字符初始密码；API 使用 Better Auth 原生哈希，固定函数在同一事务创建账号、credential 与成功审计。邮箱转为小写并默认已验证，不发送验证邮件；重复邮箱返回 `EMAIL_ALREADY_EXISTS`，不修改已有账号。编辑只允许改姓名；本批不提供修改他人邮箱或硬删除账号。
+
+姓名和状态变更必须提交 `expectedVersion`，不匹配返回 `VERSION_CONFLICT`。原生用户改名也由触发器递增同一版本；平台改名遵循原生写入的 user 行再到状态行的锁顺序。实际值未变时记录 `no_change`，不增加版本。
+
+暂停通过 `/api/v1/platform/users/:userId/status` 修改全局状态并删除该账号全部数据库会话；API 在持有状态锁的同一事务内完成原生会话缓存清理和成功审计，再提交。授权检查读取并锁定账号状态，原生 session INSERT 触发器也在实际写入事务内验证状态，防止暂停后又插入会话；续期与暂停删除在原会话行上串行，不重建被删会话。平台与租户身份、该用户的 API 凭据及任务成员授权均检查全局状态，组织正常运行不能绕过账号暂停。暂停不移除平台任职、租户成员或角色；恢复只把状态改回 `active`，旧会话不恢复，用户须重新登录。
+
+`/api/v1/platform/sessions` 只列出未过期会话，使用 `page/pageSize` 分页，可按姓名、脱敏邮箱、用户 ID 或 IP 筛选。响应仅含 Session ID、用户摘要、创建/更新时间、到期时间、IP 和 User-Agent，不含 token。管理员通过 `DELETE /api/v1/platform/sessions/:sessionId` 撤销指定会话；数据库删除与成功审计同事务提交，原生缓存清理在提交前执行，清理失败回滚数据库事务。目标已不存在时返回 `revoked: false` 并记录 `no_change`。API 仅在服务端使用 token 清理原生缓存；认证会话以数据库中的有效记录为准，Redis 不替代数据库存续检查。
+
+密码重置通过 `POST /api/v1/platform/users/:userId/password-reset` 发起，仅接受处于 `active` 状态的全局账号。准备函数先验证管理员权限，再把完整邮箱交给服务端原生重置流程，HTTP 不返回邮箱或令牌。数据库重置令牌、加密邮件入队记录及 `platform.user_password_reset_requested` 成功审计使用同一 client 事务提交；失败共同回滚，失败审计另行写入。`{ requested: true }` 表示重置请求已提交，SMTP 投递由邮件 Worker 执行，不代表已投递成功；请求本身不撤销现有会话，用户完成原生密码重置后才撤销该账号会话。
+
+创建、改名、暂停、恢复、密码重置请求及会话撤销写入各自的 `platform.*` 操作事实；管理服务的失败尝试通过固定函数独立记录稳定错误码，审计不可用返回 `AUDIT_UNAVAILABLE`。`0069` 将这些事件和会话、登录日志查询事实加入批准的目录，平台操作日志列表和详情均可读取；不公开原始错误消息、密码、完整邮箱或 token。
+
+### 登录日志与本人范围
+
+`login_events` 保存登录时间、用户 ID 与姓名快照、脱敏邮箱、方式、结果、稳定失败原因、IP 和 User-Agent。方式为 `email` / `github` / `totp`，备份码验证归入 `totp`；成功结果的失败原因为空。失败原因限定为 `INVALID_CREDENTIALS`、`EMAIL_NOT_VERIFIED`、`INVALID_OTP`、`ACCOUNT_SUSPENDED`、`AUTHORIZATION_UNAVAILABLE` 或 `AUTHENTICATION_FAILED`，不保存认证实现的任意错误消息。邮箱登录失败按输入邮箱精确关联现有账号，未知邮箱的用户 ID 为空；原始输入邮箱仅用于关联和脱敏，不写入日志。
+
+登录事实按 Better Auth 完整认证流程的最终结果记录；两步验证尚未完成时不记录成功登录。成功日志写入失败会撤销新会话并返回 `AUDIT_UNAVAILABLE`；失败认证的日志写入故障只记录不含认证秘密的运行故障事件。日志表不保存密码、OTP、Cookie、Session token 或 2FA secret。
+
+`GET /api/v1/platform/login-events` 允许平台管理员与审计员分页查看全局登录记录，可按姓名、脱敏邮箱、用户 ID、方式、结果及起止时间筛选。`GET /api/v1/me/login-events` 只返回当前有效会话本人的记录：HTTP Schema 不接受 `userId` 或 `q`，固定函数也始终使用可信 actor ID 筛选，不能读取他人记录。两者均返回 `items/page/pageSize/total`，默认每页 20 条、最多 100 条，时间筛选可选且起点不得晚于终点；不沿用操作日志的默认 30 天与最长 90 天窗口。
+
+平台读取追加 `platform.login_logs_queried`，本人读取追加 scope 为 `user` 的 `user.login_logs_queried`，均在审计写入成功后返回结果。本人读取事实不属于租户操作日志或平台操作日志的批准事件目录；登录记录和公开响应都只保存或返回脱敏邮箱。
 
 ### 租户操作日志
 
