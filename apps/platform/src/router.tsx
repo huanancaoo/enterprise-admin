@@ -1,13 +1,5 @@
-import { z } from "zod"
-import {
-  PlatformScheduleQuerySchema,
-  PlatformScheduleRunsQuerySchema,
-} from "@workspace/contracts/platform-schedules"
-import {
-  AnnouncementQuerySchema,
-  AnnouncementInboxQuerySchema,
-} from "@workspace/contracts/platform-announcements"
-import { PlatformTaskQuerySchema } from "@workspace/contracts/platform-tasks"
+import { PlatformScheduleRunsQuerySchema } from "@workspace/contracts/platform-schedules"
+import { AnnouncementInboxQuerySchema } from "@workspace/contracts/platform-announcements"
 import {
   createRootRouteWithContext,
   createRoute,
@@ -25,15 +17,8 @@ import type { WorkspaceRouterContext } from "@workspace/admin/auth"
 import { apiClient } from "@workspace/api-client"
 import {
   PlatformAccessSchema,
-  PlatformOrganizationQuerySchema,
-  PlatformUsersQuerySchema,
-  PlatformAuditQuerySchema,
   type PlatformAccess,
 } from "@workspace/contracts/platform"
-import {
-  LoginLogsQuerySchema,
-  PlatformSessionsQuerySchema,
-} from "@workspace/contracts/identity-management"
 import {
   App,
   PlatformAuthTitlePage,
@@ -46,10 +31,8 @@ import {
 } from "./App"
 import { authClient } from "./lib/auth-client"
 import { PlatformPermission } from "./features/system/permission"
+import { platformPages } from "./features/system/platform-pages"
 import {
-  PlatformSystemQuerySchema,
-  PlatformSystemTreeQuerySchema,
-  PlatformEmployeesQuerySchema,
   PlatformRoleEmployeesQuerySchema,
   PlatformDictionaryItemsQuerySchema,
 } from "@workspace/contracts/platform-system"
@@ -285,10 +268,10 @@ const platformIndexRoute = createRoute({
 })
 const platformOrganizationsRoute = createRoute({
   getParentRoute: () => platformRoute,
-  path: "organizations",
-  validateSearch: (search) => PlatformOrganizationQuerySchema.parse(search),
+  path: platformPages.organizations.path,
+  validateSearch: platformPages.organizations.validateSearch,
   component: () => (
-    <PlatformPermission action="platform.organization:read">
+    <PlatformPermission action={platformPages.organizations.permission}>
       <PlatformOrganizationsPage />
     </PlatformPermission>
   ),
@@ -304,10 +287,10 @@ const platformOrganizationDetailRoute = createRoute({
 })
 const platformUsersRoute = createRoute({
   getParentRoute: () => platformRoute,
-  path: "users",
-  validateSearch: (search) => PlatformUsersQuerySchema.parse(search),
+  path: platformPages.users.path,
+  validateSearch: platformPages.users.validateSearch,
   component: () => (
-    <PlatformPermission action="platform.user:read">
+    <PlatformPermission action={platformPages.users.permission}>
       <PlatformUsersPage />
     </PlatformPermission>
   ),
@@ -323,49 +306,49 @@ const platformUserDetailRoute = createRoute({
 })
 const platformAuditRoute = createRoute({
   getParentRoute: () => platformRoute,
-  path: "audit-events",
-  validateSearch: (search) => PlatformAuditQuerySchema.parse(search),
+  path: platformPages["audit-events"].path,
+  validateSearch: platformPages["audit-events"].validateSearch,
   component: () => (
-    <PlatformPermission action="platform.audit:read">
+    <PlatformPermission action={platformPages["audit-events"].permission}>
       <PlatformAuditPage />
     </PlatformPermission>
   ),
 })
 const platformLoginEventsRoute = createRoute({
   getParentRoute: () => platformRoute,
-  path: "login-events",
-  validateSearch: (search) => LoginLogsQuerySchema.parse(search),
+  path: platformPages["login-events"].path,
+  validateSearch: platformPages["login-events"].validateSearch,
   component: () => (
-    <PlatformPermission action="platform.login:read">
+    <PlatformPermission action={platformPages["login-events"].permission}>
       <PlatformLoginEventsPage />
     </PlatformPermission>
   ),
 })
 const platformSessionsRoute = createRoute({
   getParentRoute: () => platformRoute,
-  path: "sessions",
-  validateSearch: (search) => PlatformSessionsQuerySchema.parse(search),
+  path: platformPages.sessions.path,
+  validateSearch: platformPages.sessions.validateSearch,
   component: () => (
-    <PlatformPermission action="platform.session:read">
+    <PlatformPermission action={platformPages.sessions.permission}>
       <PlatformSessionsPage />
     </PlatformPermission>
   ),
 })
 const platformMonitorRoute = createRoute({
   getParentRoute: () => platformRoute,
-  path: "monitor",
+  path: platformPages.monitor.path,
   component: () => (
-    <PlatformPermission action="platform.monitor:read">
+    <PlatformPermission action={platformPages.monitor.permission}>
       <PlatformMonitorPage />
     </PlatformPermission>
   ),
 })
 const platformSchedulesRoute = createRoute({
   getParentRoute: () => platformRoute,
-  path: "schedules",
-  validateSearch: (search) => PlatformScheduleQuerySchema.parse(search),
+  path: platformPages.schedules.path,
+  validateSearch: platformPages.schedules.validateSearch,
   component: () => (
-    <PlatformPermission action="platform.schedule:read">
+    <PlatformPermission action={platformPages.schedules.permission}>
       <PlatformSchedulesPage />
     </PlatformPermission>
   ),
@@ -389,19 +372,19 @@ const personalSettingsRoute = createRoute({
 })
 const platformSettingsRoute = createRoute({
   getParentRoute: () => platformRoute,
-  path: "settings",
+  path: platformPages.settings.path,
   component: () => (
-    <PlatformPermission action="platform.settings:read">
+    <PlatformPermission action={platformPages.settings.permission}>
       <PlatformSettingsPage />
     </PlatformPermission>
   ),
 })
 const employeesRoute = createRoute({
   getParentRoute: () => platformRoute,
-  path: "employees",
-  validateSearch: (search) => PlatformEmployeesQuerySchema.parse(search),
+  path: platformPages.employees.path,
+  validateSearch: platformPages.employees.validateSearch,
   component: () => (
-    <PlatformPermission action="platform.employee:read">
+    <PlatformPermission action={platformPages.employees.permission}>
       <PlatformEmployeesPage />
     </PlatformPermission>
   ),
@@ -439,10 +422,10 @@ const employeeDetailRoute = createRoute({
 
 const rolesRoute = createRoute({
   getParentRoute: () => platformRoute,
-  path: "roles",
-  validateSearch: (search) => PlatformSystemQuerySchema.parse(search),
+  path: platformPages.roles.path,
+  validateSearch: platformPages.roles.validateSearch,
   component: () => (
-    <PlatformPermission action="platform.role:read">
+    <PlatformPermission action={platformPages.roles.permission}>
       <PlatformRolesPage />
     </PlatformPermission>
   ),
@@ -475,10 +458,10 @@ const roleEmployeesRoute = createRoute({
 
 const menusRoute = createRoute({
   getParentRoute: () => platformRoute,
-  path: "menus",
-  validateSearch: (search) => PlatformSystemTreeQuerySchema.parse(search),
+  path: platformPages.menus.path,
+  validateSearch: platformPages.menus.validateSearch,
   component: () => (
-    <PlatformPermission action="platform.menu:read">
+    <PlatformPermission action={platformPages.menus.permission}>
       <PlatformMenusPage />
     </PlatformPermission>
   ),
@@ -486,10 +469,10 @@ const menusRoute = createRoute({
 
 const departmentsRoute = createRoute({
   getParentRoute: () => platformRoute,
-  path: "departments",
-  validateSearch: (search) => PlatformSystemTreeQuerySchema.parse(search),
+  path: platformPages.departments.path,
+  validateSearch: platformPages.departments.validateSearch,
   component: () => (
-    <PlatformPermission action="platform.department:read">
+    <PlatformPermission action={platformPages.departments.permission}>
       <PlatformDepartmentsPage />
     </PlatformPermission>
   ),
@@ -497,10 +480,10 @@ const departmentsRoute = createRoute({
 
 const postsRoute = createRoute({
   getParentRoute: () => platformRoute,
-  path: "posts",
-  validateSearch: (search) => PlatformSystemQuerySchema.parse(search),
+  path: platformPages.posts.path,
+  validateSearch: platformPages.posts.validateSearch,
   component: () => (
-    <PlatformPermission action="platform.post:read">
+    <PlatformPermission action={platformPages.posts.permission}>
       <PlatformPostsPage />
     </PlatformPermission>
   ),
@@ -508,10 +491,10 @@ const postsRoute = createRoute({
 
 const dictionariesRoute = createRoute({
   getParentRoute: () => platformRoute,
-  path: "dictionaries",
-  validateSearch: (search) => PlatformSystemQuerySchema.parse(search),
+  path: platformPages.dictionaries.path,
+  validateSearch: platformPages.dictionaries.validateSearch,
   component: () => (
-    <PlatformPermission action="platform.dictionary:read">
+    <PlatformPermission action={platformPages.dictionaries.permission}>
       <PlatformDictionariesPage />
     </PlatformPermission>
   ),
@@ -530,10 +513,10 @@ const dictionaryItemsRoute = createRoute({
 
 const parametersRoute = createRoute({
   getParentRoute: () => platformRoute,
-  path: "parameters",
-  validateSearch: (search) => PlatformSystemQuerySchema.parse(search),
+  path: platformPages.parameters.path,
+  validateSearch: platformPages.parameters.validateSearch,
   component: () => (
-    <PlatformPermission action="platform.parameter:read">
+    <PlatformPermission action={platformPages.parameters.permission}>
       <PlatformParametersPage />
     </PlatformPermission>
   ),
@@ -547,10 +530,10 @@ const embeddedRoute = createRoute({
 
 const announcementsRoute = createRoute({
   getParentRoute: () => platformRoute,
-  path: "announcements",
-  validateSearch: (search) => AnnouncementQuerySchema.parse(search),
+  path: platformPages.announcements.path,
+  validateSearch: platformPages.announcements.validateSearch,
   component: () => (
-    <PlatformPermission action="platform.announcement:read">
+    <PlatformPermission action={platformPages.announcements.permission}>
       <PlatformAnnouncementsRoute />
     </PlatformPermission>
   ),
@@ -614,13 +597,10 @@ const announcementReadRoute = createRoute({
 
 const tasksRoute = createRoute({
   getParentRoute: () => platformRoute,
-  path: "tasks",
-  validateSearch: (search) =>
-    PlatformTaskQuerySchema.extend({ taskId: z.uuid().optional() }).parse(
-      search
-    ),
+  path: platformPages.tasks.path,
+  validateSearch: platformPages.tasks.validateSearch,
   component: () => (
-    <PlatformPermission action="platform.task:read">
+    <PlatformPermission action={platformPages.tasks.permission}>
       <PlatformTasksRoute />
     </PlatformPermission>
   ),

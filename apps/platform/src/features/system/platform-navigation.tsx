@@ -6,10 +6,9 @@ import {
   NotFoundContent,
   PermissionDeniedState,
 } from "@workspace/admin"
-import {
-  platformPagePath,
-  usePlatformNavigationQuery,
-} from "./use-platform-navigation"
+import { useTranslation } from "react-i18next"
+import { usePlatformNavigationQuery } from "./use-platform-navigation"
+import { platformNavigationModel } from "./platform-pages"
 
 export function PlatformEmbeddedPage() {
   const { menuId } = useParams({ from: "/platform/embedded/$menuId" })
@@ -39,36 +38,13 @@ export function PlatformEmbeddedPage() {
 }
 export function PlatformHomePage() {
   const query = usePlatformNavigationQuery()
-  const find = (
-    nodes: PlatformNavigationItem[]
-  ): PlatformNavigationItem | undefined => {
-    for (const node of nodes) {
-      if (node.hidden) continue
-      if (
-        (node.kind === "page" && platformPagePath(node.routeKey)) ||
-        node.kind === "iframe"
-      )
-        return node
-      const child = find(node.children)
-      if (child) return child
-    }
-  }
+  const { t } = useTranslation("monitor")
   if (query.isPending) return <LoadingState />
   if (query.isError) return <ErrorState onRetry={() => void query.refetch()} />
-  const first = find(query.data.items)
-  if (!first) return <PermissionDeniedState />
-  if (first.kind === "iframe")
-    return (
-      <Navigate
-        to="/platform/embedded/$menuId"
-        params={{ menuId: first.id }}
-        replace
-      />
-    )
-  const path = platformPagePath(first.routeKey)!
-  if (path === "/platform/menus" || path === "/platform/departments")
-    return <Navigate to={path} search={{}} replace />
-  if (path === "/platform/settings" || path === "/platform/monitor")
-    return <Navigate to={path} replace />
-  return <Navigate to={path} search={{ page: 1, pageSize: 20 }} replace />
+  const { home } = platformNavigationModel(query.data.items, "/platform", {
+    monitor: t("title"),
+    schedules: t("schedulesTitle"),
+  })
+  if (!home) return <PermissionDeniedState />
+  return <Navigate {...home} replace />
 }
