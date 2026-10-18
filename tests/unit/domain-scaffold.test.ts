@@ -12,7 +12,7 @@ import {
 } from "node:fs/promises"
 import { dirname, join, resolve } from "node:path"
 import { tmpdir } from "node:os"
-import { fileURLToPath } from "node:url"
+import { fileURLToPath, pathToFileURL } from "node:url"
 import * as prettier from "prettier"
 import { parseConfig } from "../../scripts/domain-scaffold/config.mjs"
 import {
@@ -122,8 +122,28 @@ describe("business domain scaffold", { timeout: 30_000 }, () => {
       "labelsLayoutRoute.addChildren([labelsRoute])"
     )
     const layout = await read("apps/tenant/src/components/admin-layout.tsx")
-    expect(layout).toContain('to: "/app/labels/$organizationId"')
-    expect(layout).toMatch(/onLabels\s*\?\s*t\("labels:title"\)/)
+    expect(layout).toContain('location.link("labels", currentOrganizationId)')
+    const { getOrganizationLocation } = await import(
+      /* @vite-ignore */ pathToFileURL(
+        join(directory, "apps/tenant/src/lib/organization-location.ts")
+      ).href
+    )
+    const location = getOrganizationLocation({
+      pathname: "/app/labels/original",
+      params: {},
+      search: { page: 3, name: "prior organization", sortBy: "createdAt" },
+    })
+    expect(location.titleKey).toBe("labels:title")
+    expect(location.switchTarget("next")).toEqual({
+      to: "/app/labels/$organizationId",
+      params: { organizationId: "next" },
+      search: { page: 1, pageSize: 20, sortBy: "createdAt", sortOrder: "desc" },
+    })
+    expect(location.createdTarget("created")).toEqual({
+      to: "/app/labels/$organizationId",
+      params: { organizationId: "created" },
+    })
+    expect(location.link("projects", "next").search).toEqual({})
     expect(await read("packages/i18n/scripts/check-catalogs.mjs")).toContain(
       '"labels"'
     )

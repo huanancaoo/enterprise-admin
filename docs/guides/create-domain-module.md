@@ -47,7 +47,7 @@ pnpm typecheck
 | 契约       | `packages/contracts/src/<domain>.ts` 与 `src/index.ts`                                                                                                         | 输入、响应和 ID 由正式 Zod Schema 定义并导出                                      |
 | HTTP       | `apps/api/src/<domain>` 的业务实现、Controller、Nest Module，以及 `AppModule.forRoot`                                                                          | Controller 声明授权；Module 导入 `TenancyModule`；领域进入真实应用和 OpenAPI 导出 |
 | 客户端     | `apps/api/openapi/openapi.json`、Orval 生成目录、`packages/api-client/src/index.ts`                                                                            | 生成请求与响应类型；包入口导出正式 SDK，生成文件不手写                            |
-| 页面       | `apps/tenant/src/features/<domain>`、`src/router.tsx`、`components/admin-layout.tsx`                                                                           | 正式路由、导航、面包屑和组织切换指向同一 Feature                                  |
+| 页面       | `apps/tenant/src/features/<domain>`、`src/router.tsx`、`components/admin-layout.tsx`、`lib/organization-location.ts`                                           | 正式路由、导航、面包屑和组织切换指向同一 Feature                                  |
 | 文案       | 三个 `packages/i18n/src/locales/<locale>/<domain>.json`、`src/resources.ts`、`scripts/check-catalogs.mjs`                                                      | namespace 注册完整；类型、三语言键和插值参数一致；Arabic 使用既有 RTL Provider    |
 | 展示与验收 | 同一 Feature 的 Storybook、`packages/mocks` fixtures、`tests/api`、`tests/e2e`；新增表还更新数据库测试的正式表目录                                             | 展示状态有交互证据；业务事实、授权及隔离另有真实 HTTP/浏览器证据                  |
 
@@ -111,7 +111,7 @@ pnpm api:check
 
 ## 页面与单一状态来源
 
-领域代码留在 `apps/tenant`，业务无关组合与公共 UI 分别留在 `packages/admin` 和 `packages/ui`。注册 Router、侧栏和组织切换时保留现有 AuthGate 及 QueryClient；页面使用应用已有的 `authClient` 查询领域动作，不重新创建认证客户端。
+领域代码留在 `apps/tenant`，业务无关组合与公共 UI 分别留在 `packages/admin` 和 `packages/ui`。在 `lib/organization-location.ts` 的页面登记中定义标题、组织切换的初始筛选及创建组织落点；布局侧栏从同一登记取得链接，不再追加 pathname 判断或切换分支。注册 Router 与侧栏时保留现有 AuthGate 及 QueryClient；页面使用应用已有的 `authClient` 查询领域动作，不重新创建认证客户端。
 
 已应用筛选、分页和排序由 Router Search Params 持有；没有这些能力的最小列表无需添加无意义的 Search Params。服务端事实只放 TanStack Query；Query Key 以 `organizationKeys.scope` 为前缀，包含影响结果的语言。组织切换沿用现有组织缓存清理；当前读取授权失效后清掉不可再读的领域数据。
 

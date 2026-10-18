@@ -1,12 +1,5 @@
 import { cloneElement, useEffect, useState } from "react"
-import {
-  Link,
-  Outlet,
-  useLocation,
-  useNavigate,
-  useParams,
-  useSearch,
-} from "@tanstack/react-router"
+import { Link, Outlet, useNavigate, useParams } from "@tanstack/react-router"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@workspace/admin"
 import { buttonVariants } from "@workspace/ui/components/button"
@@ -47,10 +40,8 @@ import {
   useOrganizationWorkspace,
 } from "@/hooks/use-organization-workspace"
 import { authClient } from "@/lib/auth-client"
-import { isOrganizationRolesPath } from "@/lib/organization-route"
+import { useOrganizationNavigation } from "@/hooks/use-organization-navigation"
 import {
-  cancelOrganizationSwitchLocale,
-  preserveLocaleOnOrganizationSwitch,
   preserveLocaleOnManualSelection,
   shouldApplyOrganizationLocale,
 } from "@/lib/organization-locale-sync"
@@ -81,8 +72,6 @@ export function AdminLayout() {
   const workspace = useOrganizationWorkspace()
   const queryClient = useQueryClient()
   const params = useParams({ strict: false })
-  const search = useSearch({ strict: false })
-  const pathname = useLocation({ select: (location) => location.pathname })
   const navigate = useNavigate()
   const [createOpen, setCreateOpen] = useState(false)
   const organizationId = params.organizationId
@@ -101,21 +90,7 @@ export function AdminLayout() {
   const organizationContextPending =
     !organizationId && activeOrganization.isPending
   const organizations = workspace.workspace.data ?? []
-  const onMembers = pathname.startsWith("/app/members/")
-  const onAnnouncements = pathname.startsWith("/app/announcements/")
-  const onNotifications = pathname.startsWith("/app/notifications/")
-  const onTasks = pathname.startsWith("/app/tasks/")
-  const onIntegrations = pathname.startsWith("/app/integrations/")
-  const onFiles = pathname.startsWith("/app/files/")
-  const onRoles = isOrganizationRolesPath(pathname)
-  const onOrganizationSettings =
-    pathname.startsWith("/app/organizations/") && pathname.endsWith("/settings")
-  const onPersonalLoginEvents = pathname === "/app/settings/login-events"
-  const onPersonalSettings = pathname.startsWith("/app/settings/")
-  const onAudit =
-    pathname.startsWith("/app/organizations/") && pathname.endsWith("/audit")
-  const onManagement =
-    onMembers || onRoles || onIntegrations || onOrganizationSettings
+  const location = useOrganizationNavigation(workspace, currentOrganizationId)
   useDropStaleOrganizationQueries(currentOrganizationId ?? undefined)
   const access = useQuery({
     ...getOrganizationAccessOptions(currentOrganizationId ?? ""),
@@ -192,64 +167,26 @@ export function AdminLayout() {
     void queryClient.cancelQueries(filters)
     queryClient.removeQueries(filters)
   }, [access.error, currentOrganizationId, queryClient])
-  const projectListSearch =
-    !onFiles &&
-    !onMembers &&
-    !onRoles &&
-    !onAudit &&
-    (search.sortBy === "createdAt" || search.sortBy === "updatedAt")
-      ? {
-          page: search.page,
-          pageSize: search.pageSize,
-          status: search.status,
-          name: search.name,
-          sortBy: search.sortBy,
-          sortOrder: search.sortOrder,
-        }
-      : {}
   const projectLink = currentOrganizationId ? (
-    <Link
-      to="/app/projects/$organizationId"
-      params={{ organizationId: currentOrganizationId }}
-      search={params.projectId ? {} : projectListSearch}
-    />
+    <Link {...location.link("projects", currentOrganizationId)} />
   ) : undefined
   const filesLink = currentOrganizationId ? (
-    <Link
-      to="/app/files/$organizationId"
-      params={{ organizationId: currentOrganizationId }}
-    />
+    <Link {...location.link("files", currentOrganizationId)} />
   ) : undefined
   const integrationsLink = currentOrganizationId ? (
-    <Link
-      to="/app/integrations/$organizationId"
-      params={{ organizationId: currentOrganizationId }}
-    />
+    <Link {...location.link("integrations", currentOrganizationId)} />
   ) : undefined
   const membersLink = currentOrganizationId ? (
-    <Link
-      to="/app/members/$organizationId"
-      params={{ organizationId: currentOrganizationId }}
-    />
+    <Link {...location.link("members", currentOrganizationId)} />
   ) : undefined
   const organizationSettingsLink = currentOrganizationId ? (
-    <Link
-      to="/app/organizations/$organizationId/settings"
-      params={{ organizationId: currentOrganizationId }}
-    />
+    <Link {...location.link("organizationSettings", currentOrganizationId)} />
   ) : undefined
   const rolesLink = currentOrganizationId ? (
-    <Link
-      to="/app/organizations/$organizationId/roles"
-      params={{ organizationId: currentOrganizationId }}
-    />
+    <Link {...location.link("roles", currentOrganizationId)} />
   ) : undefined
   const auditLink = currentOrganizationId ? (
-    <Link
-      to="/app/organizations/$organizationId/audit"
-      params={{ organizationId: currentOrganizationId }}
-      search={{ page: 1, pageSize: 20 }}
-    />
+    <Link {...location.link("audit", currentOrganizationId)} />
   ) : undefined
   const suspended =
     access.error instanceof ApiClientError &&
@@ -260,19 +197,19 @@ export function AdminLayout() {
     {
       title: t("organization:membersAndInvitations"),
       icon: <UsersIcon />,
-      active: onMembers,
+      active: location.page === "members",
       render: membersLink,
     },
     {
       title: t("organization:rolesAndPermissions"),
       icon: <ShieldCheckIcon />,
-      active: onRoles,
+      active: location.page === "roles",
       render: rolesLink,
     },
     {
       title: t("webhooks:integrations"),
       icon: <PlugIcon />,
-      active: onIntegrations,
+      active: location.page === "integrations",
       render: integrationsLink,
     },
     ...(settingsPermissions.data?.canRead
@@ -280,120 +217,16 @@ export function AdminLayout() {
           {
             title: t("settings:generalSettings"),
             icon: <SettingsIcon />,
-            active: onOrganizationSettings,
+            active: location.page === "organizationSettings",
             render: organizationSettingsLink,
           },
         ]
       : []),
   ]
 
-  async function selectOrganization(nextOrganizationId: string) {
-    const nextLocaleSnapshot = {
-      userId: session.user.id,
-      organizationId: nextOrganizationId,
-      locale: uiLocale,
-    }
-    if (nextOrganizationId !== currentOrganizationId)
-      preserveLocaleOnOrganizationSwitch(nextLocaleSnapshot)
-    const target = organizations.find((item) => item.id === nextOrganizationId)
-    if (target?.status === "ACTIVE") {
-      if (!(await workspace.selectOrganization(nextOrganizationId))) {
-        cancelOrganizationSwitchLocale(nextLocaleSnapshot)
-        return
-      }
-    } else {
-      cancelOrganizationSwitchLocale(nextLocaleSnapshot)
-    }
-    if (onAnnouncements) {
-      await navigate({
-        to: "/app/announcements/$organizationId",
-        params: { organizationId: nextOrganizationId },
-        search: { page: 1, pageSize: 20 },
-      })
-      return
-    }
-    if (onNotifications) {
-      await navigate({
-        to: "/app/notifications/$organizationId",
-        params: { organizationId: nextOrganizationId },
-        search: { page: 1, pageSize: 20 },
-      })
-      return
-    }
-    if (onTasks) {
-      await navigate({
-        to: "/app/tasks/$organizationId",
-        params: { organizationId: nextOrganizationId },
-        search: { page: 1, pageSize: 20 },
-      })
-      return
-    }
-    if (onIntegrations) {
-      await navigate({
-        to: "/app/integrations/$organizationId",
-        params: { organizationId: nextOrganizationId },
-      })
-      return
-    }
-    if (onFiles) {
-      await navigate({
-        to: "/app/files/$organizationId",
-        params: { organizationId: nextOrganizationId },
-        search: {},
-      })
-      return
-    }
-    if (onRoles) {
-      await navigate({
-        to: "/app/organizations/$organizationId/roles",
-        params: { organizationId: nextOrganizationId },
-      })
-      return
-    }
-    if (onMembers) {
-      await navigate({
-        to: "/app/members/$organizationId",
-        params: { organizationId: nextOrganizationId },
-      })
-      return
-    }
-    if (onOrganizationSettings) {
-      await navigate({
-        to: "/app/organizations/$organizationId/settings",
-        params: { organizationId: nextOrganizationId },
-      })
-      return
-    }
-    if (onAudit) {
-      await navigate({
-        to: "/app/organizations/$organizationId/audit",
-        params: { organizationId: nextOrganizationId },
-        search: { page: 1, pageSize: 20 },
-      })
-      return
-    }
-    await navigate({
-      to: "/app/projects/$organizationId",
-      params: { organizationId: nextOrganizationId },
-      search: params.projectId ? {} : { ...projectListSearch, page: 1 },
-    })
-  }
-
-  async function createOrganization(input: { name: string; slug: string }) {
-    const nextOrganizationId = await workspace.createOrganization(input)
-    if (nextOrganizationId) {
-      preserveLocaleOnOrganizationSwitch({
-        userId: session.user.id,
-        organizationId: nextOrganizationId,
-        locale: uiLocale,
-      })
-    }
-    return nextOrganizationId
-  }
-
   return (
     <AppShell
-      layout={onFiles && !params.entryId ? "workspace" : "page"}
+      layout={location.layout}
       actions={
         <WorkspaceActions
           organizationId={currentOrganizationId}
@@ -403,7 +236,7 @@ export function AdminLayout() {
       breadcrumb={
         <Breadcrumb>
           <BreadcrumbList>
-            {onManagement && (
+            {location.management && (
               <>
                 <BreadcrumbItem className="hidden md:block">
                   <BreadcrumbLink render={membersLink}>
@@ -413,7 +246,7 @@ export function AdminLayout() {
                 <BreadcrumbSeparator className="hidden md:block" />
               </>
             )}
-            {params.projectId && (
+            {location.projectDetail && (
               <>
                 <BreadcrumbItem className="hidden md:block">
                   <BreadcrumbLink render={projectLink}>
@@ -424,35 +257,7 @@ export function AdminLayout() {
               </>
             )}
             <BreadcrumbItem>
-              <BreadcrumbPage>
-                {onAnnouncements
-                  ? t("announcements:title")
-                  : onNotifications
-                    ? t("notifications:title")
-                    : onTasks
-                      ? t("tasks:title")
-                      : onIntegrations
-                        ? t("webhooks:integrations")
-                        : onFiles
-                          ? params.entryId
-                            ? t("files:detail")
-                            : t("files:title")
-                          : onAudit
-                            ? t("organization:audit")
-                            : onMembers
-                              ? t("organization:members")
-                              : onRoles
-                                ? t("organization:roles")
-                                : onOrganizationSettings
-                                  ? t("settings:organizationSettings")
-                                  : onPersonalSettings
-                                    ? onPersonalLoginEvents
-                                      ? t("identity:personalLoginEvents")
-                                      : t("settings:personalSettings")
-                                    : params.projectId
-                                      ? t("projects:detail")
-                                      : t("projects:title")}
-              </BreadcrumbPage>
+              <BreadcrumbPage>{t(location.titleKey)}</BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
@@ -467,7 +272,7 @@ export function AdminLayout() {
           label: t("organization:select"),
           disabled: workspace.pending,
           createLabel: t("organization:create"),
-          onSelect: (id) => void selectOrganization(id),
+          onSelect: (id) => void location.selectOrganization(id),
           onCreate: () => setCreateOpen(true),
         },
         navigation: {
@@ -476,28 +281,28 @@ export function AdminLayout() {
             {
               title: t("projects:title"),
               icon: <FolderKanbanIcon />,
-              isActive: pathname.startsWith("/app/projects/"),
+              isActive: location.page === "projects" && !location.personal,
               disabled: !currentOrganizationId || suspended,
               render: projectLink,
             },
             {
               title: t("files:title"),
               icon: <FolderOpenIcon />,
-              isActive: onFiles,
+              isActive: location.page === "files",
               disabled: !currentOrganizationId || suspended,
               render: filesLink,
             },
             {
               title: t("organization:audit"),
               icon: <ClipboardListIcon />,
-              isActive: onAudit,
+              isActive: location.page === "audit",
               disabled: !currentOrganizationId || suspended,
               render: auditLink,
             },
             {
               title: t("organization:management"),
               icon: <BuildingIcon />,
-              isActive: onManagement,
+              isActive: location.management,
               disabled: !currentOrganizationId || suspended,
               render: membersLink,
             },
@@ -549,31 +354,16 @@ export function AdminLayout() {
       <CreateOrganizationDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
-        createOrganization={createOrganization}
+        createOrganization={location.createOrganization}
         pending={workspace.pending}
         error={workspace.error}
-        onCreated={(nextOrganizationId) => {
-          void navigate({
-            to: onFiles
-              ? "/app/files/$organizationId"
-              : onAudit
-                ? "/app/organizations/$organizationId/audit"
-                : onMembers
-                  ? "/app/members/$organizationId"
-                  : onRoles
-                    ? "/app/organizations/$organizationId/roles"
-                    : onOrganizationSettings
-                      ? "/app/organizations/$organizationId/settings"
-                      : "/app/projects/$organizationId",
-            params: { organizationId: nextOrganizationId },
-          })
-        }}
+        onCreated={location.onCreated}
       />
-      {onPersonalSettings ||
+      {location.personal ||
       (!organizationContextPending &&
         (!currentOrganizationId || access.isSuccess)) ? (
         <>
-          {onManagement && (
+          {location.management && (
             <nav
               aria-label={t("organization:management")}
               className="flex flex-wrap gap-1 border-b pb-4"

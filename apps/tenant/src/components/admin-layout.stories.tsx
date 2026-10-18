@@ -6,7 +6,7 @@ import {
   RouterProvider,
 } from "@tanstack/react-router"
 import type { Meta, StoryObj } from "@storybook/react-vite"
-import { expect, userEvent, waitFor, within } from "storybook/test"
+import { expect, fn, userEvent, waitFor, within } from "storybook/test"
 import { useUiLocale } from "@workspace/i18n/react"
 import { AuthGate, type WorkspaceRouterContext } from "@workspace/admin/auth"
 import {
@@ -237,6 +237,12 @@ export const WorkspaceRefreshPending: Story = {
     const switcher = canvas.getByRole("button", { name: /workspace/ })
     await waitFor(() => expect(switcher).toHaveAttribute("data-disabled", ""))
     await expect(switcher).toBeDisabled()
+    await expect(
+      canvas.getByRole("link", { name: "办公空间 1-26" })
+    ).toBeVisible()
+    await expect(
+      canvas.queryByRole("link", { name: "办公空间 2-26" })
+    ).toBeNull()
     await waitFor(() =>
       expect(
         screen.queryByRole("menu", { hidden: true })
@@ -308,5 +314,129 @@ export const OrganizationNavigationWithoutSettingsPermission: Story = {
     await expect(
       management.getByRole("link", { name: "Roles & permissions" })
     ).toHaveAttribute("href", `/app/organizations/${organizations[0].id}/roles`)
+  },
+}
+
+const rejectedSwitch = fn()
+export const OrganizationSwitchRejected: Story = {
+  beforeEach: () => {
+    rejectedSwitch.mockClear()
+  },
+  parameters: {
+    msw: {
+      handlers: [
+        emptyAnnouncements,
+        ...createWorkspaceSessionHandlers({
+          selectError: "Switch denied",
+          onSelect: rejectedSwitch,
+        }),
+        createProjectsHandler(),
+        createProjectDetailHandler(),
+      ],
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const screen = within(canvasElement.ownerDocument.body)
+    await canvas.findByRole("link", { name: "办公空间 1-26" })
+    await userEvent.click(
+      canvas.getByRole("button", { name: /North workspace/ })
+    )
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: /South workspace/ })
+    )
+    await expect(await canvas.findByRole("alert")).toHaveTextContent(
+      "Switch denied"
+    )
+    await expect(rejectedSwitch).toHaveBeenCalledTimes(1)
+    await expect(
+      canvas.getByRole("link", { name: "办公空间 1-26" })
+    ).toBeVisible()
+    await expect(
+      canvas.queryByRole("link", { name: "办公空间 2-26" })
+    ).toBeNull()
+    await expect(
+      canvas.getByRole("button", { name: /North workspace/ })
+    ).not.toBeDisabled()
+    await waitFor(() =>
+      expect(screen.queryAllByRole("menu", { hidden: true })).toHaveLength(0)
+    )
+  },
+}
+
+const suspendedSwitch = fn()
+export const SelectSuspendedOrganization: Story = {
+  beforeEach: () => {
+    suspendedSwitch.mockClear()
+  },
+  parameters: {
+    msw: {
+      handlers: [
+        emptyAnnouncements,
+        ...createWorkspaceSessionHandlers({
+          suspendedIds: [organizations[1].id],
+          onSelect: suspendedSwitch,
+        }),
+        createProjectsHandler(),
+        createProjectDetailHandler(),
+      ],
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const screen = within(canvasElement.ownerDocument.body)
+    await canvas.findByRole("link", { name: "办公空间 1-26" })
+    await userEvent.click(
+      canvas.getByRole("button", { name: /North workspace/ })
+    )
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: /South workspace/ })
+    )
+    await expect(await canvas.findByRole("alert")).toHaveTextContent(
+      "该组织已停用"
+    )
+    await expect(suspendedSwitch).not.toHaveBeenCalled()
+    await expect(
+      canvas.getByRole("button", { name: /South workspace/ })
+    ).toBeVisible()
+    await expect(canvas.queryByRole("table")).toBeNull()
+    await waitFor(() =>
+      expect(screen.queryAllByRole("menu", { hidden: true })).toHaveLength(0)
+    )
+  },
+}
+
+export const OrganizationSwitchPreservesSelectedLocale: Story = {
+  parameters: {
+    msw: {
+      handlers: [
+        emptyAnnouncements,
+        ...createWorkspaceSessionHandlers({
+          organizationLocales: { [organizations[1].id]: "en-US" },
+        }),
+        createProjectsHandler(),
+        createProjectDetailHandler(),
+      ],
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const screen = within(canvasElement.ownerDocument.body)
+    await canvas.findByRole("link", { name: "办公空间 1-26" })
+    await userEvent.click(
+      canvas.getByRole("button", { name: /North workspace/ })
+    )
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: /South workspace/ })
+    )
+    await expect(
+      await canvas.findByRole("link", { name: "办公空间 2-26" })
+    ).toBeVisible()
+    await expect(
+      canvas.getByRole("navigation", { name: "主导航" })
+    ).toBeVisible()
+    await waitFor(() =>
+      expect(screen.queryAllByRole("menu", { hidden: true })).toHaveLength(0)
+    )
   },
 }

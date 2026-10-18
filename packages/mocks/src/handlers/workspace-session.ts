@@ -1,11 +1,18 @@
 import { delay, http, HttpResponse } from "msw"
 import { organizations } from "../fixtures/projects"
-import type { MyPreferences, OrganizationStatus } from "@workspace/contracts"
+import type {
+  MyPreferences,
+  OrganizationStatus,
+  SupportedLocale,
+} from "@workspace/contracts"
 
 export function createWorkspaceSessionHandlers(options?: {
   suspendedIds?: readonly string[]
   refreshDelay?: number | "infinite"
   listDelay?: number
+  selectError?: string
+  onSelect?: (organizationId: string) => void
+  organizationLocales?: Record<string, SupportedLocale>
 }) {
   const suspended = new Set(options?.suspendedIds ?? [])
   let activeId: string = organizations[0].id
@@ -77,11 +84,18 @@ export function createWorkspaceSessionHandlers(options?: {
         organizationId,
         status: "ACTIVE",
         authorizationVersion: 1,
-        effectiveLocale: "zh-CN",
+        effectiveLocale:
+          options?.organizationLocales?.[organizationId] ?? "zh-CN",
       })
     }),
     http.post("*/api/auth/organization/set-active", async ({ request }) => {
       const body = (await request.json()) as { organizationId: string }
+      options?.onSelect?.(body.organizationId)
+      if (options?.selectError)
+        return HttpResponse.json(
+          { code: "FORBIDDEN", message: options.selectError },
+          { status: 403 }
+        )
       const team = teams.find((item) => item.id === body.organizationId)
       if (!team || team.status === "SUSPENDED")
         return error("ORGANIZATION_SUSPENDED")

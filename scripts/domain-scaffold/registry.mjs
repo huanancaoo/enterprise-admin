@@ -134,59 +134,6 @@ export function register(path, text, input) {
       "AdminLayout translation"
     )
     add(trans.arguments[0], JSON.stringify(d) + ",")
-    const onFiles = one(
-      descendants(
-        ast,
-        (node) =>
-          ts.isVariableDeclaration(node) && node.name.getText(ast) === "onFiles"
-      ),
-      "onFiles"
-    )
-    edits.push({
-      start: onFiles.parent.parent.end,
-      end: onFiles.parent.parent.end,
-      value: `\nconst on${D} = pathname.startsWith("/app/${d}/")\nconst ${e}Link = currentOrganizationId ? <Link to="/app/${d}/$organizationId" params={{ organizationId: currentOrganizationId }} search={{ page: 1, pageSize: 20, sortBy: "createdAt", sortOrder: "desc" }} /> : undefined\n`,
-    })
-    const select = one(
-      descendants(
-        ast,
-        (node) =>
-          ts.isFunctionDeclaration(node) &&
-          node.name?.text === "selectOrganization"
-      ),
-      "selectOrganization"
-    )
-    const before = one(
-      select.body.statements.filter(
-        (node) =>
-          ts.isIfStatement(node) &&
-          node.expression.getText(ast) === "onAnnouncements"
-      ),
-      "organization switch"
-    )
-    edits.push({
-      start: before.getStart(ast),
-      end: before.getStart(ast),
-      value: `if (on${D}) { await navigate({ to: "/app/${d}/$organizationId", params: { organizationId: nextOrganizationId }, search: { page: 1, pageSize: 20, sortBy: "createdAt", sortOrder: "desc" } }); return }\n`,
-    })
-    const breadcrumb = one(
-      descendants(
-        ast,
-        (node) =>
-          ts.isJsxElement(node) &&
-          node.openingElement.tagName.getText(ast) === "BreadcrumbPage"
-      ),
-      "BreadcrumbPage"
-    )
-    const expression = one(
-      breadcrumb.children.filter(ts.isJsxExpression),
-      "breadcrumb expression"
-    ).expression
-    edits.push({
-      start: expression.getStart(ast),
-      end: expression.end,
-      value: `on${D} ? t("${d}:title") : (${expression.getText(ast)})`,
-    })
     const sidebar = one(
       descendants(
         ast,
@@ -201,37 +148,13 @@ export function register(path, text, input) {
         "items",
         ast
       ).initializer,
-      `{ title: t("${d}:title"), icon: <FolderKanbanIcon />, isActive: on${D}, disabled: !currentOrganizationId || suspended, render: ${e}Link },`
+      `{ title: t("${d}:title"), icon: <FolderKanbanIcon />, isActive: location.page === "${d}", disabled: !currentOrganizationId || suspended, render: currentOrganizationId ? <Link {...location.link("${d}", currentOrganizationId)} /> : undefined },`
     )
-    const created = one(
-      descendants(
-        ast,
-        (node) =>
-          ts.isJsxAttribute(node) && node.name.getText(ast) === "onCreated"
-      ),
-      "organization onCreated"
+  } else if (path === "apps/tenant/src/lib/organization-location.ts") {
+    add(
+      variable("organizationPages"),
+      `${d}: { to: "/app/${d}/$organizationId", matches: /^\\/app\\/${d}\\//, titleKey: "${d}:title", preserveOnCreate: true, discardProjectSearch: true, search: { page: 1, pageSize: 20, sortBy: "createdAt", sortOrder: "desc" } },`
     )
-    const target = one(
-      descendants(
-        created,
-        (node) =>
-          ts.isPropertyAssignment(node) && node.name.getText(ast) === "to"
-      ),
-      "onCreated target"
-    ).initializer
-    edits.push({
-      start: target.getStart(ast),
-      end: target.end,
-      value: `on${D} ? "/app/${d}/$organizationId" : (${target.getText(ast)})`,
-    })
-    const projectSearch = variable("projectListSearch")
-    if (!ts.isConditionalExpression(projectSearch))
-      throw new Error("projectListSearch must have an explicit condition")
-    edits.push({
-      start: projectSearch.condition.getStart(ast),
-      end: projectSearch.condition.end,
-      value: `!on${D} && (${projectSearch.condition.getText(ast)})`,
-    })
   } else if (path === "apps/tenant/src/components/roles-route.tsx") {
     add(
       variable("permissionLabelKeys"),
@@ -266,6 +189,7 @@ export const integrationPaths = [
   "packages/i18n/scripts/check-catalogs.mjs",
   "apps/tenant/src/router.tsx",
   "apps/tenant/src/components/admin-layout.tsx",
+  "apps/tenant/src/lib/organization-location.ts",
   "apps/tenant/src/components/roles-route.tsx",
   "packages/database/test/database.test.ts",
   "packages/contracts/src/index.ts",
