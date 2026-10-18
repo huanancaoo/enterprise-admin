@@ -522,6 +522,7 @@ export function PlatformEntityCombobox({
             const clearable = isSelected && !disabled && !state.accessDenied
             return (
               <div className="relative w-full">
+                {/* 有色按钮底上沿用正文色，次级信息通过字号区分以满足对比度。 */}
                 <ComboboxTrigger
                   ref={triggerRef}
                   render={<Button type="button" variant="outline" />}
@@ -539,9 +540,8 @@ export function PlatformEntityCombobox({
                       .join(" ") || undefined
                   }
                   className={[
-                    "relative h-9 w-full justify-start text-start font-normal",
+                    "relative h-9 w-full justify-start text-start font-normal text-foreground",
                     clearable ? "pe-14" : "pe-9",
-                    !isSelected && "text-muted-foreground",
                     invalid &&
                       "border-destructive focus-visible:ring-destructive/20",
                   ]
@@ -555,15 +555,12 @@ export function PlatformEntityCombobox({
                     {isSelected &&
                       state.selectedEntity?.secondary &&
                       kind === "user" && (
-                        <span className="w-full truncate text-xs text-muted-foreground">
+                        <span className="w-full truncate text-xs">
                           {state.selectedEntity.secondary}
                         </span>
                       )}
                     {selectedFailed && !state.accessDenied && value && (
-                      <span
-                        className="w-full truncate text-xs text-muted-foreground"
-                        title={value}
-                      >
+                      <span className="w-full truncate text-xs" title={value}>
                         {value}
                       </span>
                     )}
