@@ -63,10 +63,11 @@ describe("platform settings browser workflow", () => {
     await page.getByRole("option", { name: option, exact: true }).click()
   }
   async function axe() {
+    // 保存后的状态更新可能取消过渡；动画完成或取消后，再检查当前 DOM 的无障碍规则。
     await page
       .locator("main")
       .evaluate(async (element) =>
-        Promise.all(
+        Promise.allSettled(
           element
             .getAnimations({ subtree: true })
             .map((animation) => animation.finished)
