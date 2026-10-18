@@ -62,6 +62,7 @@ describe("UI locale and formatting", () => {
         "errors",
         "files",
         "identity",
+        "monitor",
         "notifications",
         "organization",
         "platformTasks",

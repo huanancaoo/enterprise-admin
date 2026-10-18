@@ -68,6 +68,7 @@ export function PlatformHomePage() {
   const path = platformPagePath(first.routeKey)!
   if (path === "/platform/menus" || path === "/platform/departments")
     return <Navigate to={path} search={{}} replace />
-  if (path === "/platform/settings") return <Navigate to={path} replace />
+  if (path === "/platform/settings" || path === "/platform/monitor")
+    return <Navigate to={path} replace />
   return <Navigate to={path} search={{ page: 1, pageSize: 20 }} replace />
 }

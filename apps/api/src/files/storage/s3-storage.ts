@@ -85,6 +85,18 @@ export class S3FileStorage implements FileStorage {
     }
   }
 
+  async probe(signal?: AbortSignal): Promise<void> {
+    try {
+      signal?.throwIfAborted();
+      await this.client.send(
+        new HeadBucketCommand({ Bucket: this.config.bucket }),
+        { abortSignal: signal },
+      );
+    } catch (error) {
+      storageFailure(error);
+    }
+  }
+
   private key(address: StorageAddress, directory = false): string {
     const key = storageKey(address, directory);
     return this.config.prefix ? `${this.config.prefix}/${key}` : key;

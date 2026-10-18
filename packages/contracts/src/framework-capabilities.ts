@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { InvitationImportSummarySchema } from "./organization-invitations.js"
 import { ProjectListQuerySchema } from "./project-query.js"
 
 export const ExchangeFormatSchema = z.enum(["csv", "xlsx"])
@@ -57,12 +58,14 @@ export const BusinessTaskResultSchema = z
   .strictObject({
     count: z.number().int().min(0),
     issues: z.array(ImportIssueSchema),
+    invitationImport: InvitationImportSummarySchema.optional(),
   })
   .meta({ id: "BusinessTaskResult" })
 export type BusinessTaskResult = z.infer<typeof BusinessTaskResultSchema>
 export type ImportIssue = z.infer<typeof ImportIssueSchema>
 export const BusinessTaskIdSchema = z.uuid()
 export const BusinessTaskErrorCodeSchema = z.enum([
+  "TOO_MANY_ROWS",
   "IMPORT_VALIDATION_FAILED",
   "MEMBERSHIP_REQUIRED",
   "PERMISSION_DENIED",
@@ -75,7 +78,13 @@ export const BusinessTaskSchema = z
     id: z.uuid(),
     organizationId: z.uuid(),
     actorId: z.uuid(),
-    type: z.enum(["projects.import", "projects.export"]),
+    type: z.enum([
+      "projects.import",
+      "projects.export",
+      "members.export",
+      "audit.export",
+      "invitations.import",
+    ]),
     status: z.enum([
       "submitted",
       "queued",
@@ -136,7 +145,13 @@ export const NotificationSchema = z
     recipientId: z.uuid(),
     type: z.enum(["task.completed", "task.failed"]),
     taskId: z.uuid(),
-    taskType: z.enum(["projects.import", "projects.export"]),
+    taskType: z.enum([
+      "projects.import",
+      "projects.export",
+      "members.export",
+      "audit.export",
+      "invitations.import",
+    ]),
     createdAt: z.iso.datetime(),
     readAt: z.iso.datetime().nullable(),
   })

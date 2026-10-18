@@ -24,6 +24,7 @@ const namespaces = [
   "roles",
   "announcements",
   "platformTasks",
+  "monitor",
 ]
 const errors = []
 const pluralSuffix = /_(zero|one|two|few|many|other)$/

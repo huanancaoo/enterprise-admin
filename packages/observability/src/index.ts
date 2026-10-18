@@ -81,7 +81,16 @@ export function beginHttpRequest(requestId: string, method: string) {
         span.setStatus({ code: SpanStatusCode.ERROR })
       metrics
         .getMeter("enterprise-admin.http")
-        .createHistogram("http.server.request.duration", { unit: "s" })
+        .createHistogram("http.server.request.duration", {
+          unit: "s",
+          // 记录值是秒；SDK 默认的 5/10/... 桶会把毫秒请求的分位数估成数秒。
+          advice: {
+            explicitBucketBoundaries: [
+              0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5,
+              7.5, 10,
+            ],
+          },
+        })
         .record((performance.now() - started) / 1000, attributes)
       span.end()
       return {

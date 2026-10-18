@@ -1,5 +1,9 @@
 import { z } from "zod"
 import {
+  PlatformScheduleQuerySchema,
+  PlatformScheduleRunsQuerySchema,
+} from "@workspace/contracts/platform-schedules"
+import {
   AnnouncementQuerySchema,
   AnnouncementInboxQuerySchema,
 } from "@workspace/contracts/platform-announcements"
@@ -52,6 +56,18 @@ import {
 
 import { rejectPlatformAccess } from "./lib/platform-access-failure"
 
+const PlatformSchedulesPage = lazyRouteComponent(
+  () => import("./features/schedules/pages"),
+  "PlatformSchedulesPage"
+)
+const PlatformScheduleRunsPage = lazyRouteComponent(
+  () => import("./features/schedules/pages"),
+  "PlatformScheduleRunsPage"
+)
+const PlatformMonitorPage = lazyRouteComponent(
+  () => import("./features/monitor/page"),
+  "PlatformMonitorPage"
+)
 const PlatformSettingsPage = lazyRouteComponent(
   () => import("./features/settings-page"),
   "PlatformSettingsPage"
@@ -335,6 +351,37 @@ const platformSessionsRoute = createRoute({
     </PlatformPermission>
   ),
 })
+const platformMonitorRoute = createRoute({
+  getParentRoute: () => platformRoute,
+  path: "monitor",
+  component: () => (
+    <PlatformPermission action="platform.monitor:read">
+      <PlatformMonitorPage />
+    </PlatformPermission>
+  ),
+})
+const platformSchedulesRoute = createRoute({
+  getParentRoute: () => platformRoute,
+  path: "schedules",
+  validateSearch: (search) => PlatformScheduleQuerySchema.parse(search),
+  component: () => (
+    <PlatformPermission action="platform.schedule:read">
+      <PlatformSchedulesPage />
+    </PlatformPermission>
+  ),
+})
+const platformScheduleRunsRoute = createRoute({
+  getParentRoute: () => platformRoute,
+  path: "schedules/$scheduleId/runs",
+  validateSearch: (search) => PlatformScheduleRunsQuerySchema.parse(search),
+  component: () => (
+    <PlatformPermission action="platform.schedule:read">
+      <PlatformPermission action="platform.monitor:read">
+        <PlatformScheduleRunsPage />
+      </PlatformPermission>
+    </PlatformPermission>
+  ),
+})
 const personalSettingsRoute = createRoute({
   getParentRoute: () => platformRoute,
   path: "personal-settings",
@@ -606,6 +653,9 @@ export const router = createRouter({
       platformAuditRoute,
       platformLoginEventsRoute,
       platformSessionsRoute,
+      platformMonitorRoute,
+      platformSchedulesRoute,
+      platformScheduleRunsRoute,
       platformSettingsRoute,
       personalSettingsRoute,
       announcementsRoute,

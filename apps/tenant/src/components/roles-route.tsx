@@ -1,11 +1,23 @@
-import { useRef, useState } from "react"
-import { useParams } from "@tanstack/react-router"
+import {
+  DataTable,
+  createDataTableColumnHelper,
+  getDataTableQueryStatus,
+} from "@workspace/admin/data-table"
+import type { OrganizationRoleDirectoryItem } from "@workspace/contracts"
+import { getRoleDirectoryOptions } from "@/query/organization-directories"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { useParams, useSearch, useNavigate } from "@tanstack/react-router"
 import { useForm } from "@tanstack/react-form"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import type { TFunction } from "@workspace/i18n"
 import * as z from "zod"
-import { ErrorState, PageHeader, PermissionDeniedState } from "@workspace/admin"
+import {
+  ErrorState,
+  FormDialog,
+  PageHeader,
+  PermissionDeniedState,
+} from "@workspace/admin"
 import { ApiClientError } from "@workspace/api-client"
 import { authErrorMessage } from "@workspace/admin/auth"
 import { Badge } from "@workspace/ui/components/badge"
@@ -19,17 +31,12 @@ import {
   FieldLabel,
 } from "@workspace/ui/components/field"
 import { Input } from "@workspace/ui/components/input"
-import {
-  builtInOrganizationRoleKeys,
-  builtInOrganizationRolePermissions,
-} from "@workspace/permissions"
+import { builtInOrganizationRoleKeys } from "@workspace/permissions"
 import { authClient } from "@/lib/auth-client"
 import { RoleActionDialog, type RoleAction } from "./role-action-dialog"
 import {
   getOrganizationRoleAccessOptions,
-  getOrganizationRolesOptions,
   organizationRolesKey,
-  type OrganizationRole,
 } from "@/query/organization-roles"
 
 const rolesPath = "/app/organizations/$organizationId/roles"
@@ -52,6 +59,8 @@ const permissionLabelKeys = {
   "project:delete": "rolePermission_project_delete",
   "project:export": "rolePermission_project_export",
   "project:translate": "rolePermission_project_translate",
+  "member:export": "rolePermission_member_export",
+  "audit:export": "rolePermission_audit_export",
   "member:read": "rolePermission_member_read",
   "member:create": "rolePermission_member_create",
   "member:update": "rolePermission_member_update",
@@ -124,19 +133,38 @@ function RolePermissions({
   )
 }
 
+const roleColumns = createDataTableColumnHelper<OrganizationRoleDirectoryItem>()
+const EMPTY_ROLES: OrganizationRoleDirectoryItem[] = []
+
 export function RolesRoute() {
   const { organizationId } = useParams({ from: rolesPath })
+  const search = useSearch({ from: rolesPath })
+  const navigate = useNavigate({ from: rolesPath })
   const { t } = useTranslation(["organization", "common", "auth"])
   const queryClient = useQueryClient()
   const [action, setAction] = useState<RoleAction | null>(null)
-  const rolesTitle = useRef<HTMLHeadingElement>(null)
+  const [creating, setCreating] = useState(false)
+  const rolesTitle = useRef<HTMLDivElement>(null)
   const access = useQuery(getOrganizationRoleAccessOptions(organizationId))
   const roles = useQuery({
-    ...getOrganizationRolesOptions(organizationId),
+    ...getRoleDirectoryOptions(organizationId, search),
     enabled: access.data?.canRead === true,
   })
+  const forbidden =
+    roles.error instanceof ApiClientError && roles.error.status === 403
+  useEffect(() => {
+    if (!forbidden) return
+    const filters = {
+      queryKey: organizationRolesKey(organizationId),
+      predicate: (query: { queryKey: readonly unknown[] }) =>
+        query.queryKey.at(-1) !== "access",
+    }
+    if (
+      queryClient.getQueriesData(filters).some(([, data]) => data !== undefined)
+    )
+      void queryClient.resetQueries(filters)
+  }, [forbidden, organizationId, queryClient])
   const [formError, setFormError] = useState<string | null>(null)
-  const [selectedPermissions, setSelectedPermissions] = useState<string[]>([])
   const createRole = useMutation({
     mutationFn: async (input: {
       role: string
@@ -148,12 +176,11 @@ export function RolesRoute() {
         permission: input.permission as never,
       })
       if (result.error) {
-        const code = result.error.code
-        if (code === "ROLE_NAME_INVALID")
+        if (result.error.code === "ROLE_NAME_INVALID")
           throw new Error(t("organization:roleNameInvalid"))
-        if (code === "ROLE_NAME_IS_ALREADY_TAKEN")
+        if (result.error.code === "ROLE_NAME_IS_ALREADY_TAKEN")
           throw new Error(t("organization:roleNameAlreadyTaken"))
-        if (code === "ROLE_PERMISSION_NOT_DELEGABLE")
+        if (result.error.code === "ROLE_PERMISSION_NOT_DELEGABLE")
           throw new Error(t("organization:rolePermissionDenied"))
         throw new Error(
           authErrorMessage(result.error, t("common:operationFailed"))
@@ -169,30 +196,153 @@ export function RolesRoute() {
     onError: (error) => setFormError(error.message),
   })
   const form = useForm({
-    defaultValues: { role: "" },
-    validators: { onSubmit: createRoleSchema(t) },
+    defaultValues: { role: "", permissions: [] as string[] },
+    validators: {
+      onSubmit: createRoleSchema(t).extend({
+        permissions: z.array(z.string()),
+      }),
+    },
     onSubmit: async ({ value, formApi }) => {
       setFormError(null)
       const permission: Record<string, string[]> = {}
-      for (const selected of selectedPermissions) {
+      for (const selected of value.permissions) {
         const separator = selected.lastIndexOf(":")
         const resource = selected.slice(0, separator)
-        const action = selected.slice(separator + 1)
-        permission[resource] = [...(permission[resource] ?? []), action]
+        permission[resource] = [
+          ...(permission[resource] ?? []),
+          selected.slice(separator + 1),
+        ]
       }
       try {
-        await createRole.mutateAsync({
-          role: value.role,
-          permission,
-        })
+        await createRole.mutateAsync({ role: value.role, permission })
       } catch {
-        // mutation 已保存服务端错误；失败提交结束后保留角色名与权限草稿。
         return
       }
       formApi.reset()
-      setSelectedPermissions([])
+      setCreating(false)
     },
   })
+  const columns = useMemo(
+    () =>
+      roleColumns.columns([
+        roleColumns.accessor("role", {
+          header: t("organization:role"),
+          cell: ({ row }) => (
+            <span className="font-medium wrap-anywhere">
+              {row.original.builtIn
+                ? t(
+                    `organization:role_${row.original.role as "owner" | "admin" | "member"}`
+                  )
+                : row.original.role}
+            </span>
+          ),
+          size: 180,
+          meta: { label: t("organization:role") },
+        }),
+        roleColumns.accessor("builtIn", {
+          header: t("organization:roleKind"),
+          enableSorting: false,
+          cell: ({ getValue }) => (
+            <Badge variant={getValue() ? "secondary" : "outline"}>
+              {t(
+                getValue()
+                  ? "organization:roleReadOnly"
+                  : "organization:roleCustom"
+              )}
+            </Badge>
+          ),
+          size: 150,
+          meta: {
+            label: t("organization:roleKind"),
+            facetMode: "single",
+            facetOptions: [
+              { value: "built-in", label: t("organization:builtInRoles") },
+              { value: "custom", label: t("organization:customRoles") },
+            ],
+          },
+        }),
+        roleColumns.accessor("permission", {
+          header: t("organization:rolePermissions"),
+          enableSorting: false,
+          cell: ({ getValue }) => (
+            <details className="min-w-40">
+              <summary className="cursor-pointer text-sm">
+                {t("organization:directoryPermissionCount", {
+                  count: Object.values(getValue()).reduce(
+                    (count, actions) => count + actions.length,
+                    0
+                  ),
+                })}
+              </summary>
+              <div className="mt-2">
+                <RolePermissions permission={getValue()} t={t} />
+              </div>
+            </details>
+          ),
+          size: 300,
+          meta: { label: t("organization:rolePermissions") },
+        }),
+        roleColumns.accessor("memberCount", {
+          header: t("organization:roleMembers"),
+          enableSorting: false,
+          size: 110,
+          meta: { label: t("organization:roleMembers") },
+        }),
+        roleColumns.accessor("invitationCount", {
+          header: t("organization:roleInvitations"),
+          enableSorting: false,
+          size: 130,
+          meta: { label: t("organization:roleInvitations") },
+        }),
+        roleColumns.display({
+          id: "actions",
+          header: t("organization:directoryActions"),
+          cell: ({ row }) =>
+            row.original.builtIn ? (
+              <span className="text-xs text-muted-foreground">
+                {t("organization:roleReadOnly")}
+              </span>
+            ) : (
+              <div className="flex flex-wrap gap-1">
+                {access.data?.canUpdate && (
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    onClick={(event) =>
+                      setAction({
+                        kind: "update",
+                        role: row.original,
+                        grantablePermissions: access.data!.grantablePermissions,
+                        trigger: event.currentTarget,
+                      })
+                    }
+                  >
+                    {t("organization:editRolePermissions")}
+                  </Button>
+                )}
+                {access.data?.canDelete && (
+                  <Button
+                    size="xs"
+                    variant="destructive"
+                    onClick={(event) =>
+                      setAction({
+                        kind: "delete",
+                        role: row.original,
+                        grantablePermissions: access.data!.grantablePermissions,
+                        trigger: event.currentTarget,
+                      })
+                    }
+                  >
+                    {t("organization:deleteCustomRole")}
+                  </Button>
+                )}
+              </div>
+            ),
+          size: 240,
+        }),
+      ]),
+    [access.data, t]
+  )
   if (access.isPending) return <div role="status">{t("common:loading")}</div>
   if (access.error)
     return access.error instanceof ApiClientError &&
@@ -202,114 +352,101 @@ export function RolesRoute() {
       <ErrorState onRetry={() => void access.refetch()} />
     )
   if (!access.data?.canRead) return <PermissionDeniedState />
-
+  const pagination = { pageIndex: search.page - 1, pageSize: search.pageSize }
+  const sorting = [{ id: search.sortBy, desc: search.sortOrder === "desc" }]
+  const columnFilters = search.kind
+    ? [{ id: "builtIn", value: search.kind }]
+    : []
   return (
-    <div className="min-w-0 space-y-6">
-      <PageHeader
-        title={t("organization:roles")}
-        description={t("organization:rolesDescription")}
+    <section className="min-w-0 space-y-6">
+      <div ref={rolesTitle} tabIndex={-1}>
+        <PageHeader
+          title={t("organization:roles")}
+          description={t("organization:rolesDescription")}
+        />
+      </div>
+      <DataTable
+        empty={<p>{t("organization:rolesEmpty")}</p>}
+        columns={columns}
+        data={forbidden ? EMPTY_ROLES : (roles.data?.items ?? EMPTY_ROLES)}
+        getRowId={(row) => row.id}
+        rowCount={forbidden ? 0 : (roles.data?.total ?? 0)}
+        status={forbidden ? "forbidden" : getDataTableQueryStatus(roles)}
+        error={roles.error?.message}
+        onRetry={() => void roles.refetch()}
+        manualPagination
+        manualFiltering
+        manualSorting
+        enableRowSelection={false}
+        enableMultiSort={false}
+        state={{
+          pagination,
+          sorting,
+          columnFilters,
+          globalFilter: search.q ?? "",
+        }}
+        searchPlaceholder={t("organization:searchRoles")}
+        searchMaxLength={120}
+        toolbarContent={
+          access.data.canCreate && (
+            <Button
+              size="sm"
+              onClick={() => {
+                setFormError(null)
+                setCreating(true)
+              }}
+            >
+              {t("organization:createRole")}
+            </Button>
+          )
+        }
+        onGlobalFilterChange={(updater) => {
+          const q =
+            typeof updater === "function" ? updater(search.q ?? "") : updater
+          void navigate({ search: { ...search, page: 1, q: q || undefined } })
+        }}
+        onColumnFiltersChange={(updater) => {
+          const next =
+            typeof updater === "function" ? updater(columnFilters) : updater
+          const kind = next.find((filter) => filter.id === "builtIn")?.value
+          void navigate({
+            search: {
+              ...search,
+              page: 1,
+              kind: kind === "built-in" || kind === "custom" ? kind : undefined,
+            },
+          })
+        }}
+        onSortingChange={(updater) => {
+          const next = (
+            typeof updater === "function" ? updater(sorting) : updater
+          )[0]
+          void navigate({
+            search: {
+              ...search,
+              page: 1,
+              sortBy: next?.id === "createdAt" ? "createdAt" : "role",
+              sortOrder: next?.desc ? "desc" : "asc",
+            },
+          })
+        }}
+        onPaginationChange={(updater) => {
+          const next =
+            typeof updater === "function" ? updater(pagination) : updater
+          void navigate({
+            search: {
+              ...search,
+              page: next.pageIndex + 1,
+              pageSize: next.pageSize,
+            },
+          })
+        }}
+        onResetFilters={() =>
+          void navigate({
+            search: { ...search, page: 1, q: undefined, kind: undefined },
+          })
+        }
       />
-
-      <section aria-labelledby="built-in-roles-title" className="space-y-3">
-        <h2 id="built-in-roles-title" className="text-lg font-semibold">
-          {t("organization:builtInRoles")}
-        </h2>
-        <ul className="divide-y overflow-hidden rounded-xl border bg-card shadow-sm">
-          {builtInOrganizationRoleKeys.map((role) => (
-            <li key={role} className="min-w-0 space-y-3 p-4 sm:p-5">
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="font-medium wrap-anywhere">
-                  {t(`organization:role_${role}`)}
-                </span>
-                <Badge variant="secondary">
-                  {t("organization:roleReadOnly")}
-                </Badge>
-              </div>
-              <RolePermissions
-                permission={builtInOrganizationRolePermissions[role]}
-                t={t}
-              />
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section aria-labelledby="custom-roles-title" className="space-y-3">
-        <h2
-          id="custom-roles-title"
-          ref={rolesTitle}
-          tabIndex={-1}
-          className="text-lg font-semibold"
-        >
-          {t("organization:customRoles")}
-        </h2>
-        {roles.isPending ? (
-          <div role="status">{t("common:loading")}</div>
-        ) : roles.error ? (
-          <p role="alert" className="text-sm text-destructive">
-            {authErrorMessage(roles.error, t("common:operationFailed"))}
-          </p>
-        ) : roles.data.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            {t("organization:rolesEmpty")}
-          </p>
-        ) : (
-          <ul className="divide-y overflow-hidden rounded-xl border bg-card shadow-sm">
-            {roles.data.map((role: OrganizationRole) => (
-              <li key={role.id} className="min-w-0 space-y-3 p-4 sm:p-5">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium wrap-anywhere">{role.role}</span>
-                  <Badge variant="outline">
-                    {t("organization:roleCustom")}
-                  </Badge>
-                </div>
-                <RolePermissions permission={role.permission} t={t} />
-                <p className="text-sm text-muted-foreground">
-                  {t("organization:roleReferenceCounts", {
-                    memberCount: role.memberCount,
-                    invitationCount: role.invitationCount,
-                  })}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {access.data.canUpdate && (
-                    <Button
-                      variant="outline"
-                      onClick={(event) =>
-                        setAction({
-                          kind: "update",
-                          role,
-                          grantablePermissions:
-                            access.data.grantablePermissions,
-                          trigger: event.currentTarget,
-                        })
-                      }
-                    >
-                      {t("organization:editRolePermissions")}
-                    </Button>
-                  )}
-                  {access.data.canDelete && (
-                    <Button
-                      variant="destructive"
-                      onClick={(event) =>
-                        setAction({
-                          kind: "delete",
-                          role,
-                          grantablePermissions:
-                            access.data.grantablePermissions,
-                          trigger: event.currentTarget,
-                        })
-                      }
-                    >
-                      {t("organization:deleteCustomRole")}
-                    </Button>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
       {action && (
         <RoleActionDialog
           key={action.role.id + action.kind}
@@ -322,112 +459,99 @@ export function RolesRoute() {
           }
         />
       )}
-      {access.data.canCreate && (
-        <section
-          aria-labelledby="create-role-title"
-          className="space-y-5 rounded-xl border bg-card p-4 shadow-sm sm:p-6"
-        >
-          <h2 id="create-role-title" className="text-lg font-semibold">
-            {t("organization:createRole")}
-          </h2>
-          {/* 提交包含列表读回与表单重置；期间不可编辑，避免后续输入被迟到的重置清掉。 */}
-          <form.Subscribe selector={(state) => state.isSubmitting}>
-            {(submitting) => (
-              <form
-                className="max-w-2xl space-y-5"
-                aria-busy={submitting}
-                onSubmit={(event) => {
-                  event.preventDefault()
-                  event.stopPropagation()
-                  void form.handleSubmit()
+      <form.Subscribe selector={(state) => state.isSubmitting}>
+        {(submitting) => (
+          <FormDialog
+            open={creating}
+            onOpenChange={setCreating}
+            title={t("organization:createRole")}
+            description={t("organization:roleKeyDescription")}
+            onSubmit={() => void form.handleSubmit()}
+            pending={submitting}
+            error={formError ?? undefined}
+            submitLabel={t("organization:createRole")}
+            contentClassName="max-h-[calc(100dvh-2rem)] overflow-y-auto"
+            contentTabIndex={0}
+          >
+            <FieldGroup>
+              <form.Field name="role">
+                {(field) => {
+                  const invalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid
+                  return (
+                    <Field data-invalid={invalid}>
+                      <FieldLabel htmlFor="custom-role-key">
+                        {t("organization:roleKey")}
+                      </FieldLabel>
+                      <Input
+                        id="custom-role-key"
+                        value={field.state.value}
+                        onChange={(event) =>
+                          field.handleChange(event.target.value)
+                        }
+                        onBlur={field.handleBlur}
+                        minLength={3}
+                        maxLength={48}
+                        autoComplete="off"
+                        required
+                        aria-invalid={invalid}
+                      />
+                      <FieldDescription>
+                        {t("organization:roleKeyDescription")}
+                      </FieldDescription>
+                      {invalid && (
+                        <FieldError errors={field.state.meta.errors} />
+                      )}
+                    </Field>
+                  )
                 }}
-              >
-                <fieldset disabled={submitting} className="space-y-5">
-                  <FieldGroup>
-                    <form.Field name="role">
-                      {(field) => {
-                        const invalid =
-                          field.state.meta.isTouched &&
-                          !field.state.meta.isValid
-                        return (
-                          <Field data-invalid={invalid}>
-                            <FieldLabel htmlFor="custom-role-key">
-                              {t("organization:roleKey")}
-                            </FieldLabel>
-                            <Input
-                              id="custom-role-key"
-                              value={field.state.value}
-                              onChange={(event) =>
-                                field.handleChange(event.target.value)
-                              }
-                              onBlur={field.handleBlur}
-                              minLength={3}
-                              maxLength={48}
-                              autoComplete="off"
-                              aria-invalid={invalid}
-                              required
-                            />
-                            <FieldDescription>
-                              {t("organization:roleKeyDescription")}
-                            </FieldDescription>
-                            {invalid && (
-                              <FieldError errors={field.state.meta.errors} />
-                            )}
-                          </Field>
-                        )
-                      }}
-                    </form.Field>
-
-                    <Field data-slot="checkbox-group">
+              </form.Field>
+              <form.Field name="permissions" mode="array">
+                {(field) => {
+                  const invalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid
+                  return (
+                    <Field data-invalid={invalid}>
                       <FieldLabel>
                         {t("organization:rolePermissions")}
                       </FieldLabel>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        {(access.data?.grantablePermissions ?? []).map(
+                      <FieldGroup data-slot="checkbox-group">
+                        {access.data?.grantablePermissions.map(
                           ({ resource, action }) => {
                             const key = `${resource}:${action}`
-                            const checked = selectedPermissions.includes(key)
+                            const index = field.state.value.indexOf(key)
                             return (
                               <label
                                 key={key}
-                                className="flex min-w-0 cursor-pointer items-start gap-3 rounded-lg border bg-muted/20 p-3 text-sm leading-relaxed wrap-anywhere transition-colors hover:bg-muted/50"
+                                className="flex items-start gap-2 text-sm"
                               >
                                 <Checkbox
-                                  checked={checked}
+                                  checked={index >= 0}
                                   disabled={submitting}
-                                  onCheckedChange={(value) =>
-                                    setSelectedPermissions((current) =>
-                                      value === true
-                                        ? [...current, key]
-                                        : current.filter((item) => item !== key)
-                                    )
-                                  }
+                                  aria-invalid={invalid}
+                                  onBlur={field.handleBlur}
+                                  onCheckedChange={(checked) => {
+                                    if (checked === true) field.pushValue(key)
+                                    else field.removeValue(index)
+                                  }}
                                 />
                                 {permissionLabel(resource, action, t)}
                               </label>
                             )
                           }
                         )}
-                      </div>
+                      </FieldGroup>
+                      {invalid && (
+                        <FieldError errors={field.state.meta.errors} />
+                      )}
                     </Field>
-                  </FieldGroup>
-
-                  {formError && (
-                    <p role="alert" className="text-sm text-destructive">
-                      {formError}
-                    </p>
-                  )}
-                  <Button type="submit" disabled={submitting}>
-                    {submitting
-                      ? t("common:loading")
-                      : t("organization:createRole")}
-                  </Button>
-                </fieldset>
-              </form>
-            )}
-          </form.Subscribe>
-        </section>
-      )}
-    </div>
+                  )
+                }}
+              </form.Field>
+            </FieldGroup>
+          </FormDialog>
+        )}
+      </form.Subscribe>
+    </section>
   )
 }

@@ -40,9 +40,14 @@ async function main() {
     const closeObserver = observeBusinessTasks(
       runtime.worker,
       pool,
-      config.attempts
+      config.attempts,
+      taskRegistry
     )
-    const closeDispatcher = startBusinessTaskDispatch(pool, config)
+    const closeDispatcher = startBusinessTaskDispatch(
+      pool,
+      config,
+      taskRegistry
+    )
     let closing = false
     const stop = () => {
       if (closing) return

@@ -25,6 +25,8 @@ export const platformPermissionStatements = {
   parameter: ["read", "create", "update", "delete", "export", "refresh"],
   announcement: ["read", "create", "update", "delete", "publish", "readers"],
   task: ["read", "download"],
+  monitor: ["read"],
+  schedule: ["read", "manage", "run"],
 } as const
 
 type Statements = typeof platformPermissionStatements

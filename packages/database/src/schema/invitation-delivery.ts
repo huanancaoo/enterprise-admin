@@ -17,6 +17,8 @@ export const invitationDeliveryAttempts = pgTable(
     organizationId: uuid("organization_id").notNull(),
     status: text("status").notNull().default("pending"),
     errorCode: text("error_code"),
+    actorId: uuid("actor_id"),
+    requestId: text("request_id"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

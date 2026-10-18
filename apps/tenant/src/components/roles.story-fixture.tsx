@@ -1,3 +1,4 @@
+import { OrganizationRoleDirectoryQuerySchema } from "@workspace/contracts"
 import { useState } from "react"
 import {
   createMemoryHistory,
@@ -10,7 +11,7 @@ import {
 import { organizations } from "@workspace/mocks"
 import { RolesRoute } from "./roles-route"
 
-export function RolesStory() {
+export function RolesStory({ search = "" }: { search?: string }) {
   const [router] = useState(() => {
     const root = createRootRoute({
       component: () => (
@@ -23,11 +24,14 @@ export function RolesStory() {
       getParentRoute: () => root,
       path: "/app/organizations/$organizationId/roles",
       component: RolesRoute,
+      validateSearch: OrganizationRoleDirectoryQuerySchema,
     })
     return createRouter({
       routeTree: root.addChildren([roles]),
       history: createMemoryHistory({
-        initialEntries: [`/app/organizations/${organizations[0].id}/roles`],
+        initialEntries: [
+          `/app/organizations/${organizations[0].id}/roles${search}`,
+        ],
       }),
     })
   })

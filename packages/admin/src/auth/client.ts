@@ -14,7 +14,7 @@ import { requestLanguageHeader, requestLocale } from "@workspace/api-client"
 const accessControl = createAccessControl({
   ...defaultStatements,
   ...permissionStatements,
-  member: [...defaultStatements.member, "read"],
+  member: [...defaultStatements.member, ...permissionStatements.member],
 })
 
 export function createWorkspaceAuthClient() {

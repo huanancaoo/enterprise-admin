@@ -67,6 +67,14 @@
     "./repositories/announcements": {
       "types": "./dist/repositories/announcements.d.ts",
       "default": "./dist/repositories/announcements.js"
+    },
+    "./repositories/organization-exchange": {
+      "types": "./dist/repositories/organization-exchange.d.ts",
+      "default": "./dist/repositories/organization-exchange.js"
+    },
+    "./invitation-command": {
+      "types": "./dist/invitation-command.d.ts",
+      "default": "./dist/invitation-command.js"
     }
   },
   "scripts": {
@@ -101,6 +109,7 @@
     "@workspace/permissions": "workspace:*",
     "better-auth": "1.7.5",
     "drizzle-orm": "0.45.2",
-    "pg": "8.23.0"
+    "pg": "8.23.0",
+    "zod": "4.6.5"
   }
 }

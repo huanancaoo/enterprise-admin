@@ -1,5 +1,9 @@
 import { delay, http, HttpResponse } from "msw"
-import { AuditEventsQuerySchema, type AuditEvent } from "@workspace/contracts"
+import {
+  AuditEventsQuerySchema,
+  type AuditEvent,
+  type AuditEventsQuery,
+} from "@workspace/contracts"
 import { organizations } from "../fixtures/projects"
 
 export const organizationAuditFixture: AuditEvent = {
@@ -39,7 +43,8 @@ export type OrganizationAuditScenario =
   | "detailRevoked"
 
 export function createOrganizationAuditScenario(
-  scenario: OrganizationAuditScenario = "success"
+  scenario: OrganizationAuditScenario = "success",
+  options?: { window?: { from: string; to: string } }
 ) {
   // 保持默认时间窗口真实有效，筛选和页码作用于同一批租户可见事实。
   const at = Date.now() - 60_000
@@ -66,6 +71,7 @@ export function createOrganizationAuditScenario(
   }
   if (scenario === "systemActor")
     Object.assign(records[0], { actorType: "system", actorId: null })
+  const requests: AuditEventsQuery[] = []
   let failed = false
   let detailReads = 0
   const failure = (status: number, code: string) =>
@@ -82,7 +88,9 @@ export function createOrganizationAuditScenario(
     reset: () => {
       failed = false
       detailReads = 0
+      requests.length = 0
     },
+    requests: () => structuredClone(requests),
     handlers: [
       http.get(
         "*/api/v1/organizations/:organizationId/audit-events",
@@ -92,6 +100,7 @@ export function createOrganizationAuditScenario(
           const query = AuditEventsQuerySchema.parse(
             Object.fromEntries(new URL(request.url).searchParams)
           )
+          requests.push(query)
           if (scenario === "loading") await delay("infinite")
           if (scenario === "slow") await delay(700)
           if (scenario === "forbidden") return failure(403, "FORBIDDEN")
@@ -104,10 +113,10 @@ export function createOrganizationAuditScenario(
             failed = true
             return failure(503, "AUDIT_UNAVAILABLE")
           }
-          const upper = query.to ? Date.parse(query.to) : Date.now()
-          const lower = query.from
-            ? Date.parse(query.from)
-            : upper - 30 * 86400000
+          const to = query.to ?? options?.window?.to
+          const from = query.from ?? options?.window?.from
+          const upper = to ? Date.parse(to) : Date.now()
+          const lower = from ? Date.parse(from) : upper - 30 * 86400000
           const matching = (scenario === "empty" ? [] : records).filter(
             (record) =>
               Date.parse(record.occurredAt) >= lower &&
@@ -126,8 +135,8 @@ export function createOrganizationAuditScenario(
             pageSize: query.pageSize,
             total: matching.length,
             window: {
-              from: query.from ?? new Date(lower).toISOString(),
-              to: query.to ?? new Date(upper).toISOString(),
+              from: from ?? new Date(lower).toISOString(),
+              to: to ?? new Date(upper).toISOString(),
             },
           })
         }

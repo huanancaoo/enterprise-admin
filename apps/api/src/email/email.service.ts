@@ -113,6 +113,29 @@ export class EmailService {
   async sendInvitation(
     data: Parameters<AuthEmailHooks['sendInvitationEmail']>[0],
   ): Promise<void> {
+    const claimed = await this.claimInvitation(data.attemptId);
+    if (claimed) await this.deliverInvitation(claimed);
+  }
+
+  async dispatchInvitation(): Promise<boolean> {
+    const claimed = await this.claimInvitation(null);
+    if (!claimed) return false;
+    await this.deliverInvitation(claimed);
+    return true;
+  }
+
+  private async claimInvitation(attemptId: string | null) {
+    const result = await this.pool.query<{
+      delivery: Parameters<AuthEmailHooks['sendInvitationEmail']>[0] | null;
+    }>('SELECT public.claim_invitation_delivery($1::uuid) AS delivery', [
+      attemptId,
+    ]);
+    return result.rows[0]?.delivery ?? null;
+  }
+
+  private async deliverInvitation(
+    data: Parameters<AuthEmailHooks['sendInvitationEmail']>[0],
+  ): Promise<void> {
     const acceptUrl = assertAllowedEmailUrl(
       `${this.config.linkOrigin}/accept-invitation/${data.invitation.id}`,
       this.allowedOrigins,
@@ -132,11 +155,7 @@ export class EmailService {
       organizationName: data.organization.name,
       acceptUrl: acceptUrl.href,
     });
-    // 先记录“发送开始但结果未知”；进程中断也不能把已尝试的 SMTP 当成未发送。
-    await this.pool.query(
-      "UPDATE invitation_delivery_attempts SET status = 'unknown', started_at = clock_timestamp() WHERE id = $1",
-      [data.attemptId],
-    );
+    // 领取已经持久化 unknown；即时发送与后台领取共用一次性意图，未知结果不会自动重发。
     let status = 'smtp_accepted';
     let errorCode: string | null = null;
     try {
@@ -176,14 +195,14 @@ export class EmailService {
       await client.query("SELECT set_config('app.organization_id', $1, true)", [
         data.organization.id,
       ]);
-      // SMTP 结果与对应成功审计共同提交，审计仅保存状态和稳定错误码。
+      // SMTP 结果与投递留痕共同提交；未知结果不能在操作日志中显示为投递成功。
       await client.query(
         'UPDATE invitation_delivery_attempts SET status = $2, error_code = $3, completed_at = clock_timestamp() WHERE id = $1',
         [data.attemptId, status, errorCode],
       );
       await client.query(
-        `INSERT INTO audit_events (organization_id, actor_id, event_code, resource_type, resource_id, request_id, tenant_visible, fields)
-         VALUES ($1, $2, $3, 'invitation', $4, $5, true, $6::jsonb)`,
+        `INSERT INTO audit_events (organization_id, actor_id, event_code, resource_type, resource_id, request_id, tenant_visible, fields, result)
+         VALUES ($1, $2, $3, 'invitation', $4, $5, true, $6::jsonb, $7)`,
         [
           data.organization.id,
           data.actorId,
@@ -191,6 +210,7 @@ export class EmailService {
           data.invitation.id,
           data.requestId,
           JSON.stringify({ status, errorCode }),
+          status === 'smtp_accepted' ? 'succeeded' : 'failed',
         ],
       );
       await client.query('COMMIT');

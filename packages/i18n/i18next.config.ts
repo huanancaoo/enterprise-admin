@@ -22,6 +22,7 @@ export default defineConfig({
       "roles:*",
       "announcements:*",
       "platformTasks:*",
+      "monitor:*",
       "errors:*",
       // 平台账号状态由 Contract 枚举动态选择文案。
       "identity:active",

@@ -402,6 +402,93 @@ describe("平台系统管理固定函数", { concurrent: false }, () => {
     )
   })
 
+  test("运行监控动作可独立授权，导航跟随当前权限且撤权立即移除", async () => {
+    const target = await seed("Monitor operator")
+    await tenantMembership(target)
+    const monitorRole = await role("Monitor reader")
+    await identity("role", "set-permissions", monitorRole.id, {
+      permissions: ["platform.monitor:read"],
+    })
+    await assign(target, [monitorRole.id])
+    const access = async (actor: Identity) =>
+      (
+        await runtime.query<{ permissions: string[] }>(
+          "SELECT permissions FROM public.read_platform_access($1,$2)",
+          [actor.id, actor.session]
+        )
+      ).rows[0].permissions
+    const flatten = (nodes: MenuNode[]): MenuNode[] =>
+      nodes.flatMap((node) => [node, ...flatten(node.children)])
+    const navigation = async (actor: Identity) =>
+      flatten(
+        (
+          await catalog<{ items: MenuNode[] }>(
+            "menu",
+            "navigation",
+            null,
+            {},
+            actor
+          )
+        ).items
+      )
+    assert.ok((await access(admin)).includes("platform.monitor:read"))
+    assert.ok(!(await access(auditor)).includes("platform.monitor:read"))
+    assert.ok((await access(target)).includes("platform.monitor:read"))
+    assert.ok(
+      (await navigation(target)).some(
+        (node) => node.id === "819f87dd-6ca3-4493-8a08-986d6a45fd73"
+      )
+    )
+    await identity("role", "set-permissions", monitorRole.id, {
+      permissions: [],
+    })
+    assert.ok(!(await access(target)).includes("platform.monitor:read"))
+    assert.ok(
+      !(await navigation(target)).some(
+        (node) => node.id === "819f87dd-6ca3-4493-8a08-986d6a45fd73"
+      )
+    )
+  })
+
+  test("定时任务目录与三个独立动作进入唯一平台权限和导航来源", async () => {
+    const registry = await catalog<{ pages: { key: string }[] }>(
+      "menu",
+      "registry",
+      null,
+      {},
+      admin
+    )
+    assert.ok(registry.pages.some((page) => page.key === "schedules"))
+    const actions = (
+      await runtime.query<{ permissions: string[] }>(
+        "SELECT permissions FROM public.read_platform_access($1,$2)",
+        [admin.id, admin.session]
+      )
+    ).rows[0].permissions
+    for (const action of ["read", "manage", "run"])
+      assert.ok(actions.includes(`platform.schedule:${action}`))
+    const target = await seed("Schedule reader")
+    const scheduleRole = await role("Schedule read only")
+    await identity("role", "set-permissions", scheduleRole.id, {
+      permissions: ["platform.schedule:read"],
+    })
+    await assign(target, [scheduleRole.id])
+    const flatten = (nodes: MenuNode[]): MenuNode[] =>
+      nodes.flatMap((node) => [node, ...flatten(node.children)])
+    const navigation = await catalog<{ items: MenuNode[] }>(
+      "menu",
+      "navigation",
+      null,
+      {},
+      target
+    )
+    assert.ok(
+      flatten(navigation.items).some(
+        (node) => node.id === "f477a279-ff18-4f11-b6a0-b50bb2d2a810"
+      )
+    )
+  })
+
   test("创建员工原子建立已验证原生账号、密码和任职，不创建租户成员且响应不含秘密", async () => {
     const department = await catalog(
       "department",

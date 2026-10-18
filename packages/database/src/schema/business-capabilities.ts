@@ -62,7 +62,7 @@ export const businessTasks = pgTable(
     ),
     check(
       "business_tasks_type_check",
-      sql`${table.type} IN ('projects.import', 'projects.export')`
+      sql`${table.type} IN ('projects.import', 'projects.export', 'members.export', 'audit.export', 'invitations.import')`
     ),
     check(
       "business_tasks_status_check",

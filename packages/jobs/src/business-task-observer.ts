@@ -1,13 +1,17 @@
 import { BusinessTaskErrorCodeSchema } from "@workspace/contracts"
 import type { Worker, Job } from "bullmq"
 import { recordBusinessTaskAttempt } from "@workspace/database/business-task-control"
-import { readTaskEnvelope, type TaskEnvelope } from "./contract.ts"
-import { projectExchangeTasks } from "./project-exchange.ts"
+import {
+  readTaskEnvelope,
+  type RegisteredTask,
+  type TaskEnvelope,
+} from "./contract.ts"
 
 export function observeBusinessTasks(
   worker: Worker<TaskEnvelope>,
   pool: Parameters<typeof recordBusinessTaskAttempt>[0],
-  attempts: number
+  attempts: number,
+  registry: readonly RegisteredTask[]
 ) {
   const pending = new Set<Promise<void>>()
   const record = (
@@ -15,16 +19,10 @@ export function observeBusinessTasks(
     status: "running" | "failed" | "rejected",
     code: string | null
   ) => {
-    if (!job || !projectExchangeTasks.some((task) => task.type === job.name))
-      return
+    if (!job || !registry.some((task) => task.type === job.name)) return
     let task: ReturnType<typeof readTaskEnvelope>
     try {
-      task = readTaskEnvelope(
-        projectExchangeTasks,
-        job.data,
-        job.id ?? "",
-        job.name
-      )
+      task = readTaskEnvelope(registry, job.data, job.id ?? "", job.name)
     } catch {
       console.error(
         JSON.stringify({

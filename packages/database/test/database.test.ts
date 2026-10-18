@@ -322,6 +322,8 @@ describe(suiteName, { concurrent: false }, () => {
         "platform_system_cache_revision",
         "platform_task_rows",
         "platform_tasks",
+        "platform_schedules",
+        "platform_schedule_runs",
         "user_account_status",
         "login_events",
         "project_file_contents",

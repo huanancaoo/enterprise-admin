@@ -1,3 +1,6 @@
+import monitor0 from "./locales/zh-CN/monitor.json" with { type: "json" }
+import monitor1 from "./locales/en-US/monitor.json" with { type: "json" }
+import monitor2 from "./locales/ar/monitor.json" with { type: "json" }
 import roles0 from "./locales/zh-CN/roles.json" with { type: "json" }
 import roles1 from "./locales/en-US/roles.json" with { type: "json" }
 import roles2 from "./locales/ar/roles.json" with { type: "json" }
@@ -77,6 +80,7 @@ export const resources = {
     announcements: announcements0,
     catalogs: catalogs0,
     system: system0,
+    monitor: monitor0,
   },
   "en-US": {
     common: common1,
@@ -98,6 +102,7 @@ export const resources = {
     announcements: announcements1,
     catalogs: catalogs1,
     system: system1,
+    monitor: monitor1,
   },
   ar: {
     common: common2,
@@ -119,5 +124,6 @@ export const resources = {
     announcements: announcements2,
     catalogs: catalogs2,
     system: system2,
+    monitor: monitor2,
   },
 }

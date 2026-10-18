@@ -42,6 +42,12 @@ export default defineConfig({
               name: "binaryApiClient",
             },
           },
+          getOrganizationInvitationImportTemplate: {
+            mutator: {
+              path: "./packages/api-client/src/http/client.ts",
+              name: "binaryApiClient",
+            },
+          },
           getPlatformTaskResult: {
             mutator: {
               path: "./packages/api-client/src/http/client.ts",

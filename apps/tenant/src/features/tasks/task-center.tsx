@@ -102,6 +102,9 @@ export function TaskCenter({
   const types: Record<string, string> = {
     "projects.import": t("tasks:importProjects"),
     "projects.export": t("tasks:exportProjects"),
+    "members.export": t("tasks:exportMembers"),
+    "invitations.import": t("tasks:importInvitations"),
+    "audit.export": t("tasks:exportAudit"),
     upload: t("tasks:fileUpload"),
     overwrite: t("tasks:fileOverwrite"),
     "create-folder": t("tasks:createFolder"),

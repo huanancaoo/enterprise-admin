@@ -263,6 +263,9 @@ export const OrganizationNavigationWithoutSettingsPermission: Story = {
       await canvas.findByRole("navigation", { name: "Main navigation" })
     )
     await expect(main.getAllByRole("link")).toHaveLength(4)
+    for (const link of main.getAllByRole("link")) {
+      await expect(link.querySelector("svg")).toBeVisible()
+    }
     await expect(
       main.queryByRole("link", { name: "Personal settings" })
     ).toBeNull()
@@ -300,7 +303,7 @@ export const OrganizationNavigationWithoutSettingsPermission: Story = {
       management.queryByRole("link", { name: "General settings" })
     ).toBeNull()
     await expect(
-      await canvas.findByRole("list", { name: "Members" })
+      await canvas.findByRole("columnheader", { name: "Member account" })
     ).toBeVisible()
     await expect(
       management.getByRole("link", { name: "Roles & permissions" })

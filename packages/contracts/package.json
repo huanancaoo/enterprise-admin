@@ -91,6 +91,18 @@
     "./platform-announcements": {
       "types": "./dist/platform-announcements.d.ts",
       "default": "./dist/platform-announcements.js"
+    },
+    "./platform-monitor": {
+      "types": "./dist/platform-monitor.d.ts",
+      "default": "./dist/platform-monitor.js"
+    },
+    "./platform-schedules": {
+      "types": "./dist/platform-schedules.d.ts",
+      "default": "./dist/platform-schedules.js"
+    },
+    "./organization-invitations": {
+      "types": "./dist/organization-invitations.d.ts",
+      "default": "./dist/organization-invitations.js"
     }
   },
   "scripts": {

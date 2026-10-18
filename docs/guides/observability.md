@@ -32,3 +32,36 @@ node infra/observability/check-alerts.mjs
 ```sh
 pnpm exec vitest run --config vitest.config.mjs --project release tests/release/alerts.test.mjs tests/release/telemetry-stack.test.mjs tests/release/telemetry-failure.test.mjs
 ```
+
+## 平台运行监控
+
+“系统监控 → 运行监控”要求独立的 `platform.monitor:read` 权限，页面每 30 秒读取一次服务端聚合结果。PostgreSQL、Redis 和文件存储分别进行只读探测；存储未启用时明确显示“未启用”。组织任务队列与平台任务队列分别展示，平台任务执行器位于 API 进程内，组织任务 Worker 是独立进程。队列计数不包含任务输入、结果或失败诊断。
+
+API 的 `MONITOR_PROMETHEUS_URL` 由部署指定，发行 Compose 使用内部 Prometheus 地址。`MONITOR_TIMEOUT_MS` 限制单次探测等待，默认 3000 毫秒。浏览器不能传入查询地址、PromQL 或部署连接信息。查询源未配置、不可访问、没有样本时分别显示相应状态；不会把缺少数据视为正常。组织 Worker 超过 90 秒未产生运行指标时显示信号过期。HTTP 指标使用最近 5 分钟的 API 请求样本，提供请求速率、5xx 比例、平均耗时和 P95 耗时。
+
+## 本机开发接入
+
+`compose.observability.yaml` 只包含 Collector、Prometheus 和 Jaeger，复用发行镜像配方与观测配置。使用当前 PostgreSQL、Redis、存储所在的 Compose 项目名启动这三个服务，不重建业务底座。以下命令中的 `enterprise-admin` 应与当前本机项目名一致；不要附加 `--remove-orphans`。
+
+```sh
+docker compose -p enterprise-admin -f compose.observability.yaml up -d otel-collector prometheus tracing
+```
+
+首次使用且本机尚无三个发行观测镜像时，先构建对应目标：
+
+```sh
+docker compose -p enterprise-admin -f compose.observability.yaml build otel-collector prometheus tracing
+```
+
+API 与独立 Worker 均需设置 `OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318`，API 另需设置 `MONITOR_PROMETHEUS_URL=http://127.0.0.1:9090`。这些仅是本机进程连接配置，不进入前端环境变量。沿用各应用现有 `.env` 中的数据库、Redis 和存储配置启动：
+
+```sh
+OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318 MONITOR_PROMETHEUS_URL=http://127.0.0.1:9090 pnpm --filter api dev
+OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318 pnpm --filter worker dev
+```
+
+默认指标每 10 秒导出，Prometheus 每 15 秒采集。首次启动需要等待实际采样；HTTP 速率与耗时需要请求和多个采样点，页面在此前显示“暂无数据”。`http://127.0.0.1:9090/-/ready` 可检查 Prometheus 就绪，Jaeger 查询界面位于 `http://127.0.0.1:16686`。停止开发观测时只停止这三个服务：
+
+```sh
+docker compose -p enterprise-admin -f compose.observability.yaml stop otel-collector prometheus tracing
+```

@@ -29,8 +29,12 @@ import {
   CapabilityPageQuerySchema,
   CreateProjectExportSchema,
   CreateProjectImportSchema,
+  CreateMemberExportSchema,
+  CreateAuditExportSchema,
   type CreateProjectExport,
   type CreateProjectImport,
+  type CreateMemberExport,
+  type CreateAuditExport,
   type CapabilityPageQuery,
 } from '@workspace/contracts';
 import type { TenantContext } from '@workspace/database/tenant';
@@ -106,7 +110,7 @@ export class BusinessController {
     );
     response.setHeader(
       'Content-Disposition',
-      `attachment; filename="projects-${id}.${result.format}"`,
+      `attachment; filename="task-${id}.${result.format}"`,
     );
     response.setHeader('Cache-Control', 'private, no-store');
     return new StreamableFile(result.bytes);
@@ -127,6 +131,41 @@ export class BusinessController {
     @Headers('idempotency-key') key: string,
   ) {
     return this.tasks.export(context, input, key);
+  }
+  @Post('members/exports')
+  @HttpCode(202)
+  @RequireTenant({ member: ['export'] })
+  @ApiOperation({ operationId: 'createOrganizationMemberExport' })
+  @ApiHeader({
+    name: 'Idempotency-Key',
+    required: true,
+    schema: { type: 'string' },
+  })
+  @ApiResponse({ status: 202, standardSchema: BusinessTaskSchema })
+  exportMembers(
+    @CurrentTenant() context: TenantContext,
+    @Body({ schema: CreateMemberExportSchema }) input: CreateMemberExport,
+    @Headers('idempotency-key') key: string,
+  ) {
+    return this.tasks.exportMembers(context, input, key);
+  }
+
+  @Post('audit-events/exports')
+  @HttpCode(202)
+  @RequireTenant({ audit: ['export'] })
+  @ApiOperation({ operationId: 'createOrganizationAuditExport' })
+  @ApiHeader({
+    name: 'Idempotency-Key',
+    required: true,
+    schema: { type: 'string' },
+  })
+  @ApiResponse({ status: 202, standardSchema: BusinessTaskSchema })
+  exportAudit(
+    @CurrentTenant() context: TenantContext,
+    @Body({ schema: CreateAuditExportSchema }) input: CreateAuditExport,
+    @Headers('idempotency-key') key: string,
+  ) {
+    return this.tasks.exportAudit(context, input, key);
   }
   @Get('tasks/:taskId')
   @UseGuards(BusinessTaskReadGuard)

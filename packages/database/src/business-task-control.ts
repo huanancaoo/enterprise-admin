@@ -4,7 +4,12 @@ export type BusinessTaskScope = {
   id: string
   organization_id: string
   actor_id: string
-  type: "projects.import" | "projects.export"
+  type:
+    | "projects.import"
+    | "projects.export"
+    | "members.export"
+    | "audit.export"
+    | "invitations.import"
   locale: "zh-CN" | "en-US" | "ar"
   request_id: string
   intent_fingerprint: string

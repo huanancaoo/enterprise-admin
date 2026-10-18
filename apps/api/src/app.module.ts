@@ -58,7 +58,7 @@ export class AppModule {
         AccessCredentialsModule,
         FilesModule.forRoot(files),
         PlatformResourcesModule.forRoot(files),
-        PlatformTasksModule.forRoot(jobs, emailConfig.encryptionKey),
+        PlatformTasksModule.forRoot(jobs, emailConfig.encryptionKey, files),
         PersonalMediaModule.forRoot(files),
         PlatformModule.forRoot(
           deployment,

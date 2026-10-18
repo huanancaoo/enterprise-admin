@@ -11,4 +11,7 @@ export type NotificationTaskType =
 export const NotificationTaskType = {
   projectsimport: "projects.import",
   projectsexport: "projects.export",
+  membersexport: "members.export",
+  auditexport: "audit.export",
+  invitationsimport: "invitations.import",
 } as const

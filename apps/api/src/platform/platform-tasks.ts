@@ -154,6 +154,11 @@ export class PlatformTasks implements OnApplicationShutdown {
         }),
     });
   }
+  get executorRunning(): boolean {
+    return (
+      this.queueRuntime !== undefined && this.queueRuntime.worker.isRunning()
+    );
+  }
   async onApplicationShutdown(): Promise<void> {
     await this.queueRuntime?.close();
   }

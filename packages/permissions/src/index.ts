@@ -27,10 +27,10 @@ export const delegableRolePermissions = {
   project: projectActions,
   file: fileActions,
   folder: folderActions,
-  member: ["read", "update", "delete"],
+  member: ["read", "update", "delete", "export"],
   invitation: ["create", "cancel"],
   tenantSettings: ["read"],
-  audit: ["read"],
+  audit: ["read", "export"],
   integration: integrationActions,
 } as const
 
@@ -48,22 +48,22 @@ export const builtInOrganizationRoleKeys = ["owner", "admin", "member"] as const
 export const builtInOrganizationRolePermissions = {
   owner: {
     ...ownerAc.statements,
-    member: [...ownerAc.statements.member, "read"],
+    member: [...ownerAc.statements.member, "read", "export"],
     project: [...projectActions],
     file: [...fileActions],
     folder: [...folderActions],
     tenantSettings: ["read", "update"],
-    audit: ["read"],
+    audit: ["read", "export"],
     integration: [...integrationActions],
   },
   admin: {
     ...adminAc.statements,
-    member: [...adminAc.statements.member, "read"],
+    member: [...adminAc.statements.member, "read", "export"],
     project: [...projectActions],
     file: [...fileActions],
     folder: [...folderActions],
     tenantSettings: ["read", "update"],
-    audit: ["read"],
+    audit: ["read", "export"],
     integration: [...integrationActions],
   },
   member: {
@@ -76,11 +76,11 @@ export const builtInOrganizationRolePermissions = {
 } as const
 
 // 只声明固定动作；角色及成员的实际授予仍由 Better Auth 管理。
-export const auditActions = ["read"] as const
+export const auditActions = ["read", "export"] as const
 export type AuditAction = (typeof auditActions)[number]
 
 export const permissionStatements = {
-  member: ["read"],
+  member: ["read", "export"],
   project: projectActions,
   file: fileActions,
   folder: folderActions,
@@ -89,6 +89,8 @@ export const permissionStatements = {
   integration: integrationActions,
 } as const
 export type PermissionRequest = {
+  ac?: "read"[]
+  invitation?: ("create" | "cancel")[]
   member?: (typeof permissionStatements.member)[number][]
   project?: ProjectAction[]
   file?: FileAction[]

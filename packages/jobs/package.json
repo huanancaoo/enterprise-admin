@@ -55,6 +55,18 @@
     "./platform-exchange": {
       "types": "./dist/platform-exchange.d.ts",
       "default": "./dist/platform-exchange.js"
+    },
+    "./tenant-exchange": {
+      "types": "./dist/tenant-exchange.d.ts",
+      "default": "./dist/tenant-exchange.js"
+    },
+    "./invitation-import-workbook": {
+      "types": "./dist/invitation-import-workbook.d.ts",
+      "default": "./dist/invitation-import-workbook.js"
+    },
+    "./organization-invitation-import": {
+      "types": "./dist/organization-invitation-import.d.ts",
+      "default": "./dist/organization-invitation-import.js"
     }
   }
 }

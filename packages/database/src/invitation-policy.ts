@@ -1,3 +1,4 @@
+import { z } from "zod"
 import { APIError } from "better-auth/api"
 import type { QueryExecutor } from "./organization-status.ts"
 
@@ -10,6 +11,26 @@ export const defaultInvitationLimits: InvitationLimits = {
   organization: 100,
   actor: 50,
   ip: 100,
+}
+
+export function readInvitationLimits(env: NodeJS.ProcessEnv): InvitationLimits {
+  const positive = z.coerce.number().int().positive()
+  const input = z
+    .object({
+      INVITATION_ORGANIZATION_HOURLY_LIMIT: positive.default(
+        defaultInvitationLimits.organization
+      ),
+      INVITATION_ACTOR_HOURLY_LIMIT: positive.default(
+        defaultInvitationLimits.actor
+      ),
+      INVITATION_IP_HOURLY_LIMIT: positive.default(defaultInvitationLimits.ip),
+    })
+    .parse(env)
+  return {
+    organization: input.INVITATION_ORGANIZATION_HOURLY_LIMIT,
+    actor: input.INVITATION_ACTOR_HOURLY_LIMIT,
+    ip: input.INVITATION_IP_HOURLY_LIMIT,
+  }
 }
 
 export function invitationError(

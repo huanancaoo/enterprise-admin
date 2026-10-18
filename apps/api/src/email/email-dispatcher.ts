@@ -21,6 +21,7 @@ export class EmailDispatcher {
     private readonly pool: RuntimePool,
     private readonly provider: EmailProvider,
     private readonly config: EmailConfig,
+    private readonly dispatchInvitation: () => Promise<boolean>,
   ) {}
 
   start(): void {
@@ -38,6 +39,7 @@ export class EmailDispatcher {
   private async tick(): Promise<void> {
     if (this.stopped) return;
     try {
+      await this.dispatchInvitation();
       await this.dispatchOne();
     } catch (error) {
       console.error({

@@ -5,6 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { BusinessTaskResultIssuesItem } from "./businessTaskResultIssuesItem"
+import type { InvitationImportSummary } from "./invitationImportSummary"
 
 export interface BusinessTaskResult {
   /**
@@ -13,4 +14,5 @@ export interface BusinessTaskResult {
    */
   count: number
   issues: BusinessTaskResultIssuesItem[]
+  invitationImport?: InvitationImportSummary
 }

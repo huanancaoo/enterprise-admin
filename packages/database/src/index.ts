@@ -15,3 +15,8 @@ export { schema }
 export { authPasswordPolicy } from "./auth-password-policy.ts"
 export { readPlatformDefaultLocale } from "./platform-locale.ts"
 export type { OrganizationStatus } from "./organization-status.ts"
+
+export {
+  listOrganizationRoleDirectory,
+  listOrganizationInvitationDirectory,
+} from "./organization-directories.ts"

@@ -6,18 +6,44 @@ import {
   createRouter,
   Outlet,
   RouterProvider,
+  useParams,
+  useSearch,
 } from "@tanstack/react-router"
 import type { Meta, StoryObj } from "@storybook/react-vite"
 import { expect, fireEvent, userEvent, waitFor, within } from "storybook/test"
 import { AuditEventsQuerySchema } from "@workspace/contracts/audit"
 import {
+  AuthenticatedSessionProvider,
+  createWorkspaceAuthClient,
+} from "@workspace/admin/auth"
+import {
   createOrganizationAuditScenario,
+  createOrganizationAuditControlsScenario,
+  organizationAuditUser,
+  organizationAuditExportTask,
   organizationAuditFixture,
   organizationAuditSummary,
   organizations,
   type OrganizationAuditScenario,
 } from "@workspace/mocks"
 import { AuditEventsRoute } from "./audit-events-route"
+
+const authClient = createWorkspaceAuthClient()
+
+function TaskCenterTarget() {
+  const search = useSearch({ strict: false })
+  const params = useParams({ strict: false })
+  // 任务中心载体只输出跳转参数供断言，不属于产品文案。
+  // i18next-instrument-ignore
+  return (
+    <section>
+      <h1>Task center</h1>
+      <output aria-label="Task center destination">
+        {JSON.stringify({ ...params, ...search })}
+      </output>
+    </section>
+  )
+}
 
 function AuditStory({ initialSearch = "" }: { initialSearch?: string }) {
   const [router] = useState(() => {
@@ -34,8 +60,14 @@ function AuditStory({ initialSearch = "" }: { initialSearch?: string }) {
       validateSearch: (search) => AuditEventsQuerySchema.parse(search),
       component: AuditEventsRoute,
     })
+    const tasks = createRoute({
+      getParentRoute: () => root,
+      path: "/app/tasks/$organizationId",
+      validateSearch: (search) => search,
+      component: TaskCenterTarget,
+    })
     return createRouter({
-      routeTree: root.addChildren([audit]),
+      routeTree: root.addChildren([audit, tasks]),
       history: createMemoryHistory({
         initialEntries: [
           "/app/organizations/" +
@@ -47,15 +79,32 @@ function AuditStory({ initialSearch = "" }: { initialSearch?: string }) {
     })
   })
   // 只运行审计 Feature：内容查询、筛选和弹层使用正式组件，身份与隔离由真实链路验收。
-  return <RouterProvider router={router} />
+  return (
+    <AuthenticatedSessionProvider
+      client={authClient}
+      user={organizationAuditUser}
+    >
+      <RouterProvider router={router} />
+    </AuthenticatedSessionProvider>
+  )
 }
-const scenario = (name: OrganizationAuditScenario = "success") => {
-  const fixture = createOrganizationAuditScenario(name)
+function composeScenario(
+  fixture: ReturnType<typeof createOrganizationAuditScenario>,
+  controls = createOrganizationAuditControlsScenario()
+) {
   return {
-    beforeEach: fixture.reset,
-    parameters: { layout: "fullscreen", msw: { handlers: fixture.handlers } },
+    beforeEach: () => {
+      fixture.reset()
+      controls.reset()
+    },
+    parameters: {
+      layout: "fullscreen",
+      msw: { handlers: [...fixture.handlers, ...controls.handlers] },
+    },
   }
 }
+const scenario = (name: OrganizationAuditScenario = "success") =>
+  composeScenario(createOrganizationAuditScenario(name))
 const meta = {
   title: "Admin/Organization operation logs",
   component: AuditStory,
@@ -125,9 +174,7 @@ export const Empty: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await canvas.findByText("No data yet")
-    await expect(
-      canvas.getByRole("button", { name: "Advanced filters" })
-    ).toBeVisible()
+    await expect(canvas.getByLabelText("From date")).toBeVisible()
   },
 }
 export const Error: Story = { ...scenario("unavailable"), play: error }
@@ -315,9 +362,6 @@ export const FilterAndPagination: Story = {
       await screen.findByRole("option", { name: "Succeeded" })
     )
     await userEvent.keyboard("{Escape}")
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Advanced filters" })
-    )
     await userEvent.type(
       await screen.findByRole("textbox", { name: "Resource type" }),
       "project"
@@ -337,23 +381,20 @@ export const FilterAndPagination: Story = {
     await waitFor(() => expect(canvas.getByText("25 rows")).toBeVisible())
   },
 }
-export const InvalidActor: Story = {
+export const InvalidResourceId: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await canvas.findAllByRole("button", { name: "Project updated" })
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Advanced filters" })
-    )
     const screen = within(canvasElement.ownerDocument.body)
     await userEvent.type(
-      screen.getByRole("textbox", { name: "Actor ID" }),
+      screen.getByRole("textbox", { name: "Resource ID" }),
       "invalid-id"
     )
     await userEvent.click(screen.getByRole("button", { name: "Apply filters" }))
     await screen.findByText("Enter a valid UUID.")
-    await expect(screen.getByRole("textbox", { name: "Actor ID" })).toHaveValue(
-      "invalid-id"
-    )
+    await expect(
+      screen.getByRole("textbox", { name: "Resource ID" })
+    ).toHaveValue("invalid-id")
     await expect(canvas.getAllByRole("row")).toHaveLength(3)
   },
 }
@@ -361,9 +402,6 @@ export const ReversedDateRange: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await canvas.findAllByRole("button", { name: "Project updated" })
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Advanced filters" })
-    )
     const screen = within(canvasElement.ownerDocument.body)
     fireEvent.change(screen.getByLabelText("From date"), {
       target: { value: "2026-10-02" },
@@ -380,9 +418,6 @@ export const RangeTooLong: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await canvas.findAllByRole("button", { name: "Project updated" })
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Advanced filters" })
-    )
     const screen = within(canvasElement.ownerDocument.body)
     fireEvent.change(screen.getByLabelText("From date"), {
       target: { value: "2026-01-01" },
@@ -421,7 +456,9 @@ const preciseTo = new Date().toISOString().replace("Z", "123Z")
 const preciseFrom = new Date(Date.parse(preciseTo) - 90 * 86400000)
   .toISOString()
   .replace("Z", "123Z")
+const preciseAudit = createOrganizationAuditScenario()
 export const PreserveExactWindowWhenApplyingFilters: Story = {
+  ...composeScenario(preciseAudit),
   args: {
     initialSearch: `?from=${encodeURIComponent(preciseFrom)}&to=${encodeURIComponent(preciseTo)}`,
   },
@@ -430,16 +467,207 @@ export const PreserveExactWindowWhenApplyingFilters: Story = {
     const screen = within(canvasElement.ownerDocument.body)
     await canvas.findAllByRole("button", { name: "Project updated" })
     await userEvent.click(
-      canvas.getByRole("button", { name: /^Advanced filters/ })
-    )
-    await userEvent.click(
       await screen.findByRole("button", { name: "Apply filters" })
     )
+    await expect(
+      canvas.getByRole("button", { name: "Apply filters" })
+    ).toBeVisible()
+    await expect(
+      canvas.getByRole("button", { name: "Project updated" })
+    ).toBeVisible()
+    await expect(preciseAudit.requests().at(-1)).toMatchObject({
+      from: preciseFrom,
+      to: preciseTo,
+    })
+  },
+}
+
+const actorFilterAudit = createOrganizationAuditScenario()
+const actorFilterControls = createOrganizationAuditControlsScenario()
+export const FilterByCurrentMember: Story = {
+  ...composeScenario(actorFilterAudit, actorFilterControls),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const screen = within(canvasElement.ownerDocument.body)
+    await canvas.findAllByRole("button", { name: "Project updated" })
+    await expect(
+      canvas.queryByRole("button", { name: /Advanced filters/ })
+    ).toBeNull()
+    await userEvent.click(canvas.getByRole("combobox", { name: "Actor" }))
+    await userEvent.click(
+      await screen.findByRole("option", {
+        name: "Morgan Audit",
+      })
+    )
+    await userEvent.click(canvas.getByRole("button", { name: "Apply filters" }))
+    await waitFor(() => expect(canvas.getByText("1 rows")).toBeVisible())
+    await expect(actorFilterAudit.requests().at(-1)).toMatchObject({
+      actorId: organizationAuditUser.id,
+      page: 1,
+    })
+    await expect(
+      actorFilterControls
+        .memberRequests()
+        .every((request) => request.organizationId === organizations[0].id)
+    ).toBe(true)
+    await expect(
+      canvas.queryByRole("button", {
+        name: "Organization suspended by platform",
+      })
+    ).toBeNull()
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Clear selection" })
+    )
+    await userEvent.click(canvas.getByRole("button", { name: "Apply filters" }))
+    await waitFor(() => expect(canvas.getByText("2 rows")).toBeVisible())
+    await expect(actorFilterAudit.requests().at(-1)?.actorId).toBeUndefined()
+  },
+}
+
+const memberDeniedControls = createOrganizationAuditControlsScenario({
+  members: "forbidden",
+})
+export const MemberLookupDeniedKeepsLogsReadable: Story = {
+  ...composeScenario(createOrganizationAuditScenario(), memberDeniedControls),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const screen = within(canvasElement.ownerDocument.body)
+    await canvas.findAllByRole("button", { name: "Project updated" })
+    await userEvent.click(canvas.getByRole("combobox", { name: "Actor" }))
+    await screen.findByText("Could not load members. Please retry.")
+    await expect(screen.queryByRole("option")).toBeNull()
+    await userEvent.keyboard("{Escape}")
     await waitFor(() =>
-      expect(screen.queryByRole("button", { name: "Apply filters" })).toBeNull()
+      expect(
+        screen.queryByRole("dialog", { hidden: true })
+      ).not.toBeInTheDocument()
     )
     await expect(
       canvas.getByRole("button", { name: "Project updated" })
     ).toBeVisible()
+    await expect(
+      canvas.getByRole("button", { name: "Apply filters" })
+    ).toBeVisible()
+  },
+}
+
+const exportWindow = { from: preciseFrom, to: preciseTo }
+const exportAudit = createOrganizationAuditScenario("success", {
+  window: exportWindow,
+})
+const exportControls = createOrganizationAuditControlsScenario({
+  canExport: true,
+})
+const matchingExportFilter = {
+  eventCode: "project.updated",
+  actorId: organizationAuditUser.id,
+  resourceType: "project",
+  resourceId: organizationAuditFixture.resourceId!,
+  result: "succeeded",
+}
+export const ExportMatchingWindowToTaskCenter: Story = {
+  ...composeScenario(exportAudit, exportControls),
+  args: {
+    initialSearch: `?${new URLSearchParams({ page: "1", pageSize: "20", ...matchingExportFilter })}`,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await canvas.findByRole("button", { name: "Project updated" })
+    const button = await canvas.findByRole("button", {
+      name: "Export matching results",
+    })
+    await waitFor(() => expect(button).toBeEnabled())
+    await userEvent.click(button)
+    await canvas.findByRole("heading", { name: "Task center" })
+    await expect(exportControls.exportRequests()).toHaveLength(1)
+    await expect(exportControls.exportRequests()[0]).toEqual({
+      organizationId: organizations[0].id,
+      body: {
+        format: "xlsx",
+        filter: { ...matchingExportFilter, ...exportWindow },
+      },
+      idempotencyKey: expect.stringMatching(/^[0-9a-f-]{36}$/),
+    })
+    await expect(
+      JSON.parse(canvas.getByLabelText("Task center destination").textContent!)
+    ).toEqual({
+      organizationId: organizations[0].id,
+      page: 1,
+      pageSize: 20,
+      source: "business",
+      taskId: organizationAuditExportTask.id,
+    })
+  },
+}
+
+const loadingExportControls = createOrganizationAuditControlsScenario({
+  canExport: true,
+})
+export const ExportDisabledUntilWindowIsKnown: Story = {
+  ...composeScenario(
+    createOrganizationAuditScenario("loading"),
+    loadingExportControls
+  ),
+  play: async ({ canvasElement }) => {
+    const button = await within(canvasElement).findByRole("button", {
+      name: "Export matching results",
+    })
+    await expect(button).toBeDisabled()
+    await expect(loadingExportControls.exportRequests()).toHaveLength(0)
+  },
+}
+export const AuditReadDoesNotGrantExport: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await canvas.findAllByRole("button", { name: "Project updated" })
+    await expect(
+      canvas.queryByRole("button", { name: "Export matching results" })
+    ).toBeNull()
+  },
+}
+const revokedExportControls = createOrganizationAuditControlsScenario({
+  canExport: true,
+})
+export const ExportRevokedBeforeSubmission: Story = {
+  ...composeScenario(createOrganizationAuditScenario(), revokedExportControls),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await canvas.findAllByRole("button", { name: "Project updated" })
+    const button = await canvas.findByRole("button", {
+      name: "Export matching results",
+    })
+    await waitFor(() => expect(button).toBeEnabled())
+    revokedExportControls.revoke()
+    await userEvent.click(button)
+    await canvas.findByRole("alert")
+    await expect(
+      canvas.queryByRole("heading", { name: "Task center" })
+    ).toBeNull()
+    await expect(
+      canvas.getByRole("button", { name: "Project updated" })
+    ).toBeVisible()
+  },
+}
+const retryExportControls = createOrganizationAuditControlsScenario({
+  canExport: true,
+  export: "retryable",
+})
+export const RetryUnknownExportKeepsIdempotencyKey: Story = {
+  ...composeScenario(createOrganizationAuditScenario(), retryExportControls),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await canvas.findAllByRole("button", { name: "Project updated" })
+    const button = await canvas.findByRole("button", {
+      name: "Export matching results",
+    })
+    await waitFor(() => expect(button).toBeEnabled())
+    await userEvent.click(button)
+    await canvas.findByRole("alert")
+    await userEvent.click(button)
+    await canvas.findByRole("heading", { name: "Task center" })
+    const requests = retryExportControls.exportRequests()
+    await expect(requests).toHaveLength(2)
+    await expect(requests[1].body).toEqual(requests[0].body)
+    await expect(requests[1].idempotencyKey).toBe(requests[0].idempotencyKey)
   },
 }

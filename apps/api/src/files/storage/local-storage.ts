@@ -1,5 +1,13 @@
 import { constants } from 'node:fs';
-import { lstat, mkdir, open, rm, rmdir, unlink } from 'node:fs/promises';
+import {
+  access,
+  lstat,
+  mkdir,
+  open,
+  rm,
+  rmdir,
+  unlink,
+} from 'node:fs/promises';
 import { Readable, addAbortSignal } from 'node:stream';
 import { dirname, isAbsolute, join, parse, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -57,6 +65,20 @@ export class LocalFileStorage implements FileStorage {
     }
     await LocalFileStorage.assertPathCapacity(canonical);
     return new LocalFileStorage(canonical);
+  }
+
+  async probe(signal?: AbortSignal): Promise<void> {
+    try {
+      signal?.throwIfAborted();
+      await LocalFileStorage.assertNoLinks(this.root, false);
+      const info = await lstat(this.root);
+      if (!info.isDirectory() || (info.mode & 0o077) !== 0)
+        throw new StorageError('STORAGE_UNSAFE_PATH');
+      await access(this.root, constants.R_OK | constants.W_OK | constants.X_OK);
+      signal?.throwIfAborted();
+    } catch (error) {
+      storageFailure(error);
+    }
   }
 
   private static async assertPathCapacity(root: string): Promise<void> {

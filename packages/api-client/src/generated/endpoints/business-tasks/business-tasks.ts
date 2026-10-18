@@ -23,6 +23,12 @@ import type {
 import type {
   BusinessTask,
   BusinessTaskPage,
+  CreateAuditExport,
+  CreateMemberExport,
+  CreateOrganizationAuditExportHeaders,
+  CreateOrganizationInvitationImport,
+  CreateOrganizationInvitationImportHeaders,
+  CreateOrganizationMemberExportHeaders,
   CreateProjectExport,
   CreateProjectExportHeaders,
   CreateProjectImport,
@@ -704,6 +710,282 @@ export const useCreateProjectExport = <
     queryClient
   )
 }
+export type createOrganizationMemberExportResponse202 = {
+  data: BusinessTask
+  status: 202
+}
+
+export type createOrganizationMemberExportResponseSuccess =
+  createOrganizationMemberExportResponse202 & {
+    headers: Headers
+  }
+export const getCreateOrganizationMemberExportUrl = (
+  organizationId: string
+) => {
+  return `/api/v1/organizations/${organizationId}/members/exports`
+}
+
+export const createOrganizationMemberExport = async (
+  organizationId: string,
+  createMemberExport: CreateMemberExport,
+  headers: CreateOrganizationMemberExportHeaders,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<createOrganizationMemberExportResponseSuccess> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {}
+    if (h instanceof Headers) return Object.fromEntries(h.entries())
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string]
+        )
+      )
+    }
+    const headers: Record<string, string | readonly string[]> = {}
+    for (const [name, value] of Object.entries<
+      string | readonly string[] | undefined
+    >(h)) {
+      if (value !== undefined) headers[name] = value
+    }
+    return headers
+  }
+  return apiClient<createOrganizationMemberExportResponseSuccess>(
+    getCreateOrganizationMemberExportUrl(organizationId),
+    {
+      ...options,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...headers,
+        ...getHeaders(options?.headers),
+      },
+      body: JSON.stringify(createMemberExport),
+    }
+  )
+}
+
+export const getCreateOrganizationMemberExportMutationKey = () =>
+  ["createOrganizationMemberExport"] as const
+
+export const getCreateOrganizationMemberExportMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createOrganizationMemberExport>>,
+    TError,
+    CreateOrganizationMemberExportMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createOrganizationMemberExport>>,
+  TError,
+  CreateOrganizationMemberExportMutationVariables,
+  TContext
+> => {
+  const mutationKey = getCreateOrganizationMemberExportMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createOrganizationMemberExport>>,
+    CreateOrganizationMemberExportMutationVariables
+  > = (props) => {
+    const { organizationId, data, headers } = props ?? {}
+
+    return createOrganizationMemberExport(
+      organizationId,
+      data,
+      headers,
+      requestOptions
+    )
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type CreateOrganizationMemberExportMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createOrganizationMemberExport>>
+>
+export type CreateOrganizationMemberExportMutationBody = CreateMemberExport
+export type CreateOrganizationMemberExportMutationError = ErrorType<unknown>
+export type CreateOrganizationMemberExportMutationVariables = {
+  organizationId: string
+  data: CreateMemberExport
+  headers: CreateOrganizationMemberExportHeaders
+}
+
+export const useCreateOrganizationMemberExport = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createOrganizationMemberExport>>,
+      TError,
+      CreateOrganizationMemberExportMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof createOrganizationMemberExport>>,
+  TError,
+  CreateOrganizationMemberExportMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getCreateOrganizationMemberExportMutationOptions(options),
+    queryClient
+  )
+}
+export type createOrganizationAuditExportResponse202 = {
+  data: BusinessTask
+  status: 202
+}
+
+export type createOrganizationAuditExportResponseSuccess =
+  createOrganizationAuditExportResponse202 & {
+    headers: Headers
+  }
+export const getCreateOrganizationAuditExportUrl = (organizationId: string) => {
+  return `/api/v1/organizations/${organizationId}/audit-events/exports`
+}
+
+export const createOrganizationAuditExport = async (
+  organizationId: string,
+  createAuditExport: CreateAuditExport,
+  headers: CreateOrganizationAuditExportHeaders,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<createOrganizationAuditExportResponseSuccess> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {}
+    if (h instanceof Headers) return Object.fromEntries(h.entries())
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string]
+        )
+      )
+    }
+    const headers: Record<string, string | readonly string[]> = {}
+    for (const [name, value] of Object.entries<
+      string | readonly string[] | undefined
+    >(h)) {
+      if (value !== undefined) headers[name] = value
+    }
+    return headers
+  }
+  return apiClient<createOrganizationAuditExportResponseSuccess>(
+    getCreateOrganizationAuditExportUrl(organizationId),
+    {
+      ...options,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...headers,
+        ...getHeaders(options?.headers),
+      },
+      body: JSON.stringify(createAuditExport),
+    }
+  )
+}
+
+export const getCreateOrganizationAuditExportMutationKey = () =>
+  ["createOrganizationAuditExport"] as const
+
+export const getCreateOrganizationAuditExportMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createOrganizationAuditExport>>,
+    TError,
+    CreateOrganizationAuditExportMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createOrganizationAuditExport>>,
+  TError,
+  CreateOrganizationAuditExportMutationVariables,
+  TContext
+> => {
+  const mutationKey = getCreateOrganizationAuditExportMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createOrganizationAuditExport>>,
+    CreateOrganizationAuditExportMutationVariables
+  > = (props) => {
+    const { organizationId, data, headers } = props ?? {}
+
+    return createOrganizationAuditExport(
+      organizationId,
+      data,
+      headers,
+      requestOptions
+    )
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type CreateOrganizationAuditExportMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createOrganizationAuditExport>>
+>
+export type CreateOrganizationAuditExportMutationBody = CreateAuditExport
+export type CreateOrganizationAuditExportMutationError = ErrorType<unknown>
+export type CreateOrganizationAuditExportMutationVariables = {
+  organizationId: string
+  data: CreateAuditExport
+  headers: CreateOrganizationAuditExportHeaders
+}
+
+export const useCreateOrganizationAuditExport = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createOrganizationAuditExport>>,
+      TError,
+      CreateOrganizationAuditExportMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof createOrganizationAuditExport>>,
+  TError,
+  CreateOrganizationAuditExportMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getCreateOrganizationAuditExportMutationOptions(options),
+    queryClient
+  )
+}
 export type getBusinessTaskResponse200 = {
   data: BusinessTask
   status: 200
@@ -1103,4 +1385,335 @@ export function useListBusinessTasks<
   > & { queryKey: DataTag<QueryKey, TData, TError> }
 
   return withQueryKey(query, queryOptions.queryKey)
+}
+
+export type getOrganizationInvitationImportTemplateResponse200 = {
+  data: Blob
+  status: 200
+}
+
+export type getOrganizationInvitationImportTemplateResponseSuccess =
+  getOrganizationInvitationImportTemplateResponse200 & {
+    headers: Headers
+  }
+export const getGetOrganizationInvitationImportTemplateUrl = (
+  organizationId: string
+) => {
+  return `/api/v1/organizations/${organizationId}/invitations/import-template`
+}
+
+export const getOrganizationInvitationImportTemplate = async (
+  organizationId: string,
+  options?: Parameters<typeof binaryApiClient>[1]
+): Promise<getOrganizationInvitationImportTemplateResponseSuccess> => {
+  return binaryApiClient<getOrganizationInvitationImportTemplateResponseSuccess>(
+    getGetOrganizationInvitationImportTemplateUrl(organizationId),
+    {
+      ...options,
+      method: "GET",
+    }
+  )
+}
+
+export const getGetOrganizationInvitationImportTemplateQueryKey = (
+  organizationId: string
+) => {
+  return [
+    `/api/v1/organizations/${organizationId}/invitations/import-template`,
+  ] as const
+}
+
+export const getGetOrganizationInvitationImportTemplateQueryOptions = <
+  TData = Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
+  TError = ErrorType<unknown>,
+>(
+  organizationId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof binaryApiClient>
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetOrganizationInvitationImportTemplateQueryKey(organizationId)
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>
+  > = ({ signal }) =>
+    getOrganizationInvitationImportTemplate(organizationId, {
+      signal,
+      ...requestOptions,
+    })
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: organizationId !== null && organizationId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetOrganizationInvitationImportTemplateQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>
+>
+export type GetOrganizationInvitationImportTemplateQueryError =
+  ErrorType<unknown>
+
+export function useGetOrganizationInvitationImportTemplate<
+  TData = Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
+  TError = ErrorType<unknown>,
+>(
+  organizationId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
+          TError,
+          Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof binaryApiClient>
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetOrganizationInvitationImportTemplate<
+  TData = Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
+  TError = ErrorType<unknown>,
+>(
+  organizationId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
+          TError,
+          Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof binaryApiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetOrganizationInvitationImportTemplate<
+  TData = Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
+  TError = ErrorType<unknown>,
+>(
+  organizationId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof binaryApiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+
+export function useGetOrganizationInvitationImportTemplate<
+  TData = Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
+  TError = ErrorType<unknown>,
+>(
+  organizationId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof binaryApiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+} {
+  const queryOptions = getGetOrganizationInvitationImportTemplateQueryOptions(
+    organizationId,
+    options
+  )
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+
+  return withQueryKey(query, queryOptions.queryKey)
+}
+
+export type createOrganizationInvitationImportResponse202 = {
+  data: BusinessTask
+  status: 202
+}
+
+export type createOrganizationInvitationImportResponseSuccess =
+  createOrganizationInvitationImportResponse202 & {
+    headers: Headers
+  }
+export const getCreateOrganizationInvitationImportUrl = (
+  organizationId: string
+) => {
+  return `/api/v1/organizations/${organizationId}/invitations/imports`
+}
+
+export const createOrganizationInvitationImport = async (
+  organizationId: string,
+  createOrganizationInvitationImportBody: CreateOrganizationInvitationImport,
+  headers: CreateOrganizationInvitationImportHeaders,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<createOrganizationInvitationImportResponseSuccess> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {}
+    if (h instanceof Headers) return Object.fromEntries(h.entries())
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string]
+        )
+      )
+    }
+    const headers: Record<string, string | readonly string[]> = {}
+    for (const [name, value] of Object.entries<
+      string | readonly string[] | undefined
+    >(h)) {
+      if (value !== undefined) headers[name] = value
+    }
+    return headers
+  }
+  return apiClient<createOrganizationInvitationImportResponseSuccess>(
+    getCreateOrganizationInvitationImportUrl(organizationId),
+    {
+      ...options,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...headers,
+        ...getHeaders(options?.headers),
+      },
+      body: JSON.stringify(createOrganizationInvitationImportBody),
+    }
+  )
+}
+
+export const getCreateOrganizationInvitationImportMutationKey = () =>
+  ["createOrganizationInvitationImport"] as const
+
+export const getCreateOrganizationInvitationImportMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createOrganizationInvitationImport>>,
+    TError,
+    CreateOrganizationInvitationImportMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createOrganizationInvitationImport>>,
+  TError,
+  CreateOrganizationInvitationImportMutationVariables,
+  TContext
+> => {
+  const mutationKey = getCreateOrganizationInvitationImportMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createOrganizationInvitationImport>>,
+    CreateOrganizationInvitationImportMutationVariables
+  > = (props) => {
+    const { organizationId, data, headers } = props ?? {}
+
+    return createOrganizationInvitationImport(
+      organizationId,
+      data,
+      headers,
+      requestOptions
+    )
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type CreateOrganizationInvitationImportMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createOrganizationInvitationImport>>
+>
+export type CreateOrganizationInvitationImportMutationBody =
+  CreateOrganizationInvitationImport
+export type CreateOrganizationInvitationImportMutationError = ErrorType<unknown>
+export type CreateOrganizationInvitationImportMutationVariables = {
+  organizationId: string
+  data: CreateOrganizationInvitationImport
+  headers: CreateOrganizationInvitationImportHeaders
+}
+
+export const useCreateOrganizationInvitationImport = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createOrganizationInvitationImport>>,
+      TError,
+      CreateOrganizationInvitationImportMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof createOrganizationInvitationImport>>,
+  TError,
+  CreateOrganizationInvitationImportMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getCreateOrganizationInvitationImportMutationOptions(options),
+    queryClient
+  )
 }

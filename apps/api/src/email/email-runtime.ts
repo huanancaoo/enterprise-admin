@@ -18,13 +18,16 @@ export class EmailRuntime implements OnModuleDestroy {
       config.trustedOrigins,
     );
     this.smtp = new SmtpEmailProvider(config.email.smtp, config.email.from);
-    this.hooks = new EmailService(
+    const service = new EmailService(
       pool,
       config.email,
       allowedOrigins,
       this.smtp,
-    ).hooks();
-    this.dispatcher = new EmailDispatcher(pool, this.smtp, config.email);
+    );
+    this.hooks = service.hooks();
+    this.dispatcher = new EmailDispatcher(pool, this.smtp, config.email, () =>
+      service.dispatchInvitation(),
+    );
   }
 
   start(): void {

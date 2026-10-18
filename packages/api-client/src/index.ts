@@ -13,6 +13,7 @@ export {
   getOrganizationAuditEvent,
   getListOrganizationAuditEventsQueryOptions,
   getGetOrganizationAuditEventQueryOptions,
+  listOrganizationMemberOptions,
 } from "./generated/endpoints/organizations/organizations"
 export { getOrganizationAccessOptions } from "./query/organization-access"
 export {
@@ -96,6 +97,10 @@ export {
   useCreateProjectImport,
   useListTaskCenter,
   createProjectExport,
+  createOrganizationMemberExport,
+  createOrganizationAuditExport,
+  createOrganizationInvitationImport,
+  getOrganizationInvitationImportTemplate,
   getBusinessTask,
   getBusinessTaskResult,
   listBusinessTasks,
@@ -182,3 +187,9 @@ export * from "./generated/endpoints/platform-announcement-inbox/platform-announ
 export * from "./generated/endpoints/tenant-announcements/tenant-announcements"
 
 export { unlockPlatformUserPasswordLogin } from "./generated/endpoints/platform-identity-management/platform-identity-management"
+export { getPlatformMonitor } from "./generated/endpoints/platform-monitor/platform-monitor"
+export * from "./generated/endpoints/platform-schedules/platform-schedules"
+export {
+  listOrganizationRoleDirectory,
+  listOrganizationInvitationDirectory,
+} from "./generated/endpoints/organization-directories/organization-directories"

@@ -259,6 +259,10 @@ export function createMembersScenario(scenario: MembersScenario = "success") {
           })
         }
       ),
+      http.get(
+        "*/api/v1/organizations/:organizationId/invitations-directory",
+        () => HttpResponse.json({ items: [], total: 0, page: 1, pageSize: 20 })
+      ),
       http.get("*/api/auth/organization/list-invitations", () =>
         HttpResponse.json([])
       ),

@@ -5,19 +5,19 @@ import {
   recordBusinessTaskAttempt,
 } from "@workspace/database/business-task-control"
 import { businessTaskRepository } from "@workspace/database/repositories/business-tasks"
-import { getTask, type TaskRequest } from "./contract.ts"
+import { getTask, type RegisteredTask, type TaskRequest } from "./contract.ts"
 import { createTaskProducer, taskErrorCode } from "./runtime.ts"
-import { projectExchangeTasks } from "./project-exchange.ts"
 import type { WorkerConfig } from "./config.ts"
 
 export function startBusinessTaskDispatch(
   pool: Parameters<typeof createTaskTenantRunner>[0],
-  config: WorkerConfig
+  config: WorkerConfig,
+  registry: readonly RegisteredTask[]
 ) {
   const runInTenant = createTaskTenantRunner(pool)
   const producer = createTaskProducer({
     config,
-    registry: projectExchangeTasks,
+    registry,
     runInTenant,
   })
   let stopped = false
@@ -40,7 +40,7 @@ export function startBusinessTaskDispatch(
           // 系统枚举只提供身份；当前成员与动作检查后才能读取业务输入并派发。
           const request = await runInTenant(
             identity,
-            getTask(projectExchangeTasks, scope.type).permissions,
+            getTask(registry, scope.type).permissions,
             async (tx): Promise<TaskRequest | null> => {
               const row = await businessTaskRepository.find(tx, scope.id)
               return row &&
@@ -78,6 +78,7 @@ export function startBusinessTaskDispatch(
                   "MEMBERSHIP_REQUIRED",
                   "ORGANIZATION_SUSPENDED",
                   "RESOURCE_DENIED",
+                  "TOO_MANY_ROWS",
                 ].includes(code)
                   ? "rejected"
                   : "failed",

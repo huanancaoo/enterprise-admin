@@ -1,3 +1,9 @@
+import { rethrowTaskAuthorizationError } from '../tenancy/task-authorization-error';
+import { APIError } from 'better-auth/api';
+import {
+  assertInvitationRole,
+  invitationTenantExecutor,
+} from '@workspace/database/invitation-command';
 import { Inject, Injectable, type OnApplicationShutdown } from '@nestjs/common';
 import {
   createTaskEnvelope,
@@ -6,11 +12,11 @@ import {
   TaskPermanentError,
   type WorkerConfig,
 } from '@workspace/jobs';
-import { projectExchangeTasks } from '@workspace/jobs/project-exchange';
 import {
-  createTaskTenantRunner,
-  TaskAuthorizationError,
-} from '@workspace/database/task-tenant';
+  createTenantExchangeTasks,
+  tenantTaskPermissions,
+} from '@workspace/jobs/tenant-exchange';
+import { createTaskTenantRunner } from '@workspace/database/task-tenant';
 import { recordBusinessTaskAttempt } from '@workspace/database/business-task-control';
 import { AuthorizationService } from '../authorization/authorization.service';
 import { businessWorkerConfig } from './business-config';
@@ -20,6 +26,9 @@ import {
   TaskCenterPageSchema,
   type CreateProjectExport,
   type CreateProjectImport,
+  type CreateMemberExport,
+  type CreateAuditExport,
+  type CreateOrganizationInvitationImport,
   type CapabilityPageQuery,
 } from '@workspace/contracts';
 import {
@@ -29,15 +38,19 @@ import {
 import { businessTaskRepository } from '@workspace/database/repositories/business-tasks';
 import { AuthRuntime } from '../identity/auth-runtime';
 import { ApiException } from '../http/api-exception';
+import { normalizeAuditFilters } from '../organizations/audit-query';
 
 @Injectable()
 export class BusinessTasks implements OnApplicationShutdown {
+  private readonly registry: ReturnType<typeof createTenantExchangeTasks>;
   private producer?: ReturnType<typeof createTaskProducer>;
   constructor(
     private readonly runtime: AuthRuntime,
     private readonly authorization: AuthorizationService,
     @Inject(businessWorkerConfig) private readonly config: WorkerConfig,
-  ) {}
+  ) {
+    this.registry = createTenantExchangeTasks(runtime.invitationLimits);
+  }
   async onApplicationShutdown() {
     await this.producer?.close();
   }
@@ -73,11 +86,55 @@ export class BusinessTasks implements OnApplicationShutdown {
   ) {
     return this.submit(context, input, idempotencyKey, 'projects.import');
   }
+  async exportMembers(
+    context: TenantContext,
+    input: CreateMemberExport,
+    key: string,
+  ) {
+    return this.submit(context, input, key, 'members.export');
+  }
+  async exportAudit(
+    context: TenantContext,
+    input: CreateAuditExport,
+    key: string,
+  ) {
+    normalizeAuditFilters(
+      { ...input.filter, page: 1, pageSize: 20 },
+      new Date(),
+    );
+    return this.submit(context, input, key, 'audit.export');
+  }
+  async importInvitations(
+    context: TenantContext,
+    input: CreateOrganizationInvitationImport,
+    key: string,
+    sourceIp?: string,
+  ) {
+    return this.submit(
+      context,
+      {
+        ...input,
+        sourceIpHash: this.runtime.invitationIpHash(sourceIp),
+      },
+      key,
+      'invitations.import',
+    );
+  }
   private async submit(
     context: TenantContext,
-    input: CreateProjectExport | CreateProjectImport,
+    input:
+      | CreateProjectExport
+      | CreateProjectImport
+      | CreateMemberExport
+      | CreateAuditExport
+      | (CreateOrganizationInvitationImport & { sourceIpHash: string }),
     idempotencyKey: string,
-    type: 'projects.export' | 'projects.import',
+    type:
+      | 'projects.export'
+      | 'projects.import'
+      | 'members.export'
+      | 'audit.export'
+      | 'invitations.import',
   ) {
     if (!idempotencyKey?.trim() || idempotencyKey.length > 200)
       throw new ApiException(400, 'VALIDATION_ERROR');
@@ -104,14 +161,36 @@ export class BusinessTasks implements OnApplicationShutdown {
       idempotencyKey,
       input,
     };
-    const { intentFingerprint } = createTaskEnvelope(
-      projectExchangeTasks,
-      request,
-    );
+    const { intentFingerprint } = createTaskEnvelope(this.registry, request);
     const persisted = await createTaskTenantRunner(this.runtime.pool)(
       identity,
-      { project: [type === 'projects.export' ? 'export' : 'create'] },
+      tenantTaskPermissions(this.registry, type),
       async (tx) => {
+        if (type === 'invitations.import') {
+          const invitation = input as CreateOrganizationInvitationImport;
+          try {
+            await assertInvitationRole(
+              invitationTenantExecutor(tx),
+              context.organizationId,
+              context.userId,
+              invitation.role,
+            );
+          } catch (error) {
+            if (error instanceof APIError) {
+              if (
+                error.body?.code === 'FORBIDDEN' ||
+                error.body?.code === 'INVITATION_ROLE_FORBIDDEN'
+              )
+                throw new ApiException(403, 'FORBIDDEN');
+              if (
+                error.body?.code === 'ROLE_NOT_FOUND' ||
+                error.body?.code === 'SINGLE_ROLE_REQUIRED'
+              )
+                throw new ApiException(400, 'VALIDATION_ERROR');
+            }
+            throw error;
+          }
+        }
         const task = await businessTaskRepository.create(tx, {
           id,
           organizationId: context.organizationId,
@@ -129,24 +208,13 @@ export class BusinessTasks implements OnApplicationShutdown {
           throw new ApiException(409, 'IDEMPOTENCY_KEY_REUSED');
         return task;
       },
-    ).catch((error: unknown) => {
-      // HTTP 初检后资格仍可能改变；事务拒绝属于当前授权失败，不能报为执行故障。
-      if (!(error instanceof TaskAuthorizationError)) throw error;
-      if (error.code === 'ACCOUNT_SUSPENDED')
-        throw new ApiException(403, 'ACCOUNT_SUSPENDED');
-      if (error.code === 'AUTHORIZATION_UNAVAILABLE')
-        throw new ApiException(503, 'AUTHORIZATION_UNAVAILABLE');
-      throw new ApiException(
-        403,
-        error.code === 'ORGANIZATION_SUSPENDED' ? error.code : 'FORBIDDEN',
-      );
-    });
+    ).catch(rethrowTaskAuthorizationError);
     if (['completed', 'failed', 'rejected'].includes(persisted.status))
       return this.response(persisted);
     // 导出 OpenAPI 只构造应用，不启动网络运行时；生产者由真实业务请求取得。
     this.producer ??= createTaskProducer({
       config: this.config,
-      registry: projectExchangeTasks,
+      registry: this.registry,
       runInTenant: createTaskTenantRunner(this.runtime.pool),
     });
     const submission = await this.producer
@@ -192,7 +260,7 @@ export class BusinessTasks implements OnApplicationShutdown {
             connection,
             headers,
             context.organizationId,
-            { project: [row.type === 'projects.export' ? 'export' : 'create'] },
+            tenantTaskPermissions(this.registry, row.type),
           );
         return this.response(row);
       });
@@ -228,12 +296,15 @@ export class BusinessTasks implements OnApplicationShutdown {
           connection,
           headers,
           context.organizationId,
-          { project: [row.type === 'projects.export' ? 'export' : 'create'] },
+          tenantTaskPermissions(this.registry, row.type),
         );
         if (!row.resultContent) throw new ApiException(404, 'NOT_FOUND');
         return {
           bytes: Buffer.from(row.resultContent, 'base64'),
-          format: row.type === 'projects.import' ? 'json' : row.format,
+          format:
+            row.type === 'projects.import' || row.type === 'invitations.import'
+              ? 'json'
+              : row.format,
         };
       });
     } finally {

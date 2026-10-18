@@ -12,6 +12,7 @@ export type BusinessTaskErrorCode =
   (typeof BusinessTaskErrorCode)[keyof typeof BusinessTaskErrorCode] | null
 
 export const BusinessTaskErrorCode = {
+  TOO_MANY_ROWS: "TOO_MANY_ROWS",
   IMPORT_VALIDATION_FAILED: "IMPORT_VALIDATION_FAILED",
   MEMBERSHIP_REQUIRED: "MEMBERSHIP_REQUIRED",
   PERMISSION_DENIED: "PERMISSION_DENIED",

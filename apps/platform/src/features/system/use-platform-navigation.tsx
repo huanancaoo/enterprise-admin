@@ -12,6 +12,7 @@ import { useTranslation } from "react-i18next"
 import {
   BuildingIcon,
   SettingsIcon,
+  Settings2Icon,
   UsersIcon,
   FileTextIcon,
   MonitorIcon,
@@ -34,16 +35,20 @@ const internalPages = {
   "audit-events": "/platform/audit-events",
   "login-events": "/platform/login-events",
   sessions: "/platform/sessions",
+  monitor: "/platform/monitor",
+  schedules: "/platform/schedules",
   settings: "/platform/settings",
   tasks: "/platform/tasks",
 } as const
 const icons: Record<string, typeof FolderIcon> = {
   Building: BuildingIcon,
   Settings: SettingsIcon,
+  Settings2: Settings2Icon,
   Users: UsersIcon,
   FileText: FileTextIcon,
   Monitor: MonitorIcon,
   ClipboardList: ClipboardListIcon,
+  Folder: FolderIcon,
 }
 export function platformPagePath(key: string | null) {
   return key && key in internalPages
@@ -81,14 +86,21 @@ function activePath(
 }
 function navigationItems(
   nodes: PlatformNavigationItem[],
-  pathname: string
+  pathname: string,
+  monitorTitle: string,
+  scheduleTitle: string
 ): NavMainItem[] {
   return nodes
     .filter((node) => !node.hidden && node.kind !== "action")
     .flatMap((node) => {
       const path = platformPagePath(node.routeKey)
       const Icon = node.icon ? icons[node.icon] : undefined
-      const children = navigationItems(node.children, pathname)
+      const children = navigationItems(
+        node.children,
+        pathname,
+        monitorTitle,
+        scheduleTitle
+      )
       // 授权投影保留隐藏节点供直达；导航移除隐藏子项后不留下空目录。
       if (node.kind === "directory" && children.length === 0) return []
       const render =
@@ -98,14 +110,19 @@ function navigationItems(
           <Link to="/platform/embedded/$menuId" params={{ menuId: node.id }} />
         ) : path === "/platform/menus" || path === "/platform/departments" ? (
           <Link to={path} search={{}} />
-        ) : path === "/platform/settings" ? (
+        ) : path === "/platform/settings" || path === "/platform/monitor" ? (
           <Link to={path} />
         ) : path ? (
           <Link to={path} search={{ page: 1, pageSize: 20 }} />
         ) : undefined
       return [
         {
-          title: node.name,
+          title:
+            node.routeKey === "monitor"
+              ? monitorTitle
+              : node.routeKey === "schedules"
+                ? scheduleTitle
+                : node.name,
           icon: Icon ? createElement(Icon) : undefined,
           isActive: Boolean(
             path
@@ -122,15 +139,24 @@ function navigationItems(
 export function usePlatformNavigation() {
   const query = usePlatformNavigationQuery()
   const { pathname } = useLocation()
-  const { t } = useTranslation(["system", "announcements"])
+  const { t } = useTranslation(["system", "announcements", "monitor"])
   const selected = activePath(query.data?.items ?? [], pathname)
   return {
-    items: navigationItems(query.data?.items ?? [], pathname),
+    items: navigationItems(
+      query.data?.items ?? [],
+      pathname,
+      t("monitor:title"),
+      t("monitor:schedulesTitle")
+    ),
     section: pathname.startsWith("/platform/personal-settings")
       ? { name: t("system:personalSettings") }
       : pathname.startsWith("/platform/announcement-inbox")
         ? { name: t("announcements:title") }
-        : selected.at(-1),
+        : selected.at(-1)?.routeKey === "monitor"
+          ? { ...selected.at(-1)!, name: t("monitor:title") }
+          : selected.at(-1)?.routeKey === "schedules"
+            ? { ...selected.at(-1)!, name: t("monitor:schedulesTitle") }
+            : selected.at(-1),
     ancestors: selected.slice(0, -1),
     error: query.error,
     retry: () => void query.refetch(),

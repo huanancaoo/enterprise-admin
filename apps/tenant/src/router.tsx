@@ -1,3 +1,4 @@
+import { OrganizationRoleDirectoryQuerySchema } from "@workspace/contracts"
 import { AnnouncementInboxQuerySchema } from "@workspace/contracts/platform-announcements"
 import { taskCenterSearchSchema } from "./features/tasks/task-center-search"
 import {
@@ -306,6 +307,7 @@ const organizationSettingsLayoutRoute = createRoute({
 const rolesRoute = createRoute({
   getParentRoute: () => organizationSettingsLayoutRoute,
   path: "/$organizationId/roles",
+  validateSearch: OrganizationRoleDirectoryQuerySchema,
   component: RolesRoute,
 })
 const organizationSettingsRoute = createRoute({

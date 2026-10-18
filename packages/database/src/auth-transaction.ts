@@ -147,6 +147,12 @@ export function createTransactionalAuthAdapter(pool: Pool) {
     deferUntilCommit,
     withDatabaseClient,
     currentClient,
+    createInvitation: (data: Record<string, unknown>) => {
+      const adapter = transactionContext.getStore()?.adapter
+      if (!adapter)
+        throw new Error("Invitation creation requires an auth transaction")
+      return adapter.create({ model: "invitation", data })
+    },
   }
 }
 

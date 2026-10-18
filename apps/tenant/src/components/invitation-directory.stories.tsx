@@ -25,14 +25,15 @@ export default meta
 type Story = StoryObj<typeof meta>
 const newEmail = "new.member@example.test"
 async function directory(canvasElement: HTMLElement) {
-  return within(canvasElement).findByRole("list", {
-    name: "Invitations",
+  const table = await within(canvasElement).findByRole("table", {
     hidden: true,
   })
+  await waitFor(() => expect(table).toHaveAttribute("aria-busy", "false"))
+  return table.querySelector("tbody")!
 }
 async function row(canvasElement: HTMLElement, email = "casey@example.test") {
-  const list = await directory(canvasElement)
-  return within((await within(list).findByText(email)).closest("li")!)
+  const body = await directory(canvasElement)
+  return within((await within(body).findByText(email)).closest("tr")!)
 }
 async function invite(canvasElement: HTMLElement) {
   const canvas = within(canvasElement)
@@ -84,7 +85,7 @@ async function cancelDialog(canvasElement: HTMLElement, email?: string) {
 export const Default: Story = {
   play: async ({ canvasElement }) => {
     const list = await directory(canvasElement)
-    await expect(within(list).getAllByRole("listitem")).toHaveLength(3)
+    await expect(within(list).getAllByRole("row")).toHaveLength(3)
     await expect(
       (await row(canvasElement)).getByText("Accepted by SMTP", { exact: false })
     ).toBeVisible()
@@ -165,7 +166,7 @@ export const LongText: Story = {
 export const RTL: Story = {
   globals: { locale: "ar" },
   play: async ({ canvasElement }) => {
-    await within(canvasElement).findByRole("list", { name: "الدعوات" })
+    await row(canvasElement)
     await expect(canvasElement.ownerDocument.documentElement).toHaveAttribute(
       "dir",
       "rtl"
@@ -175,7 +176,7 @@ export const RTL: Story = {
 export const Chinese: Story = {
   globals: { locale: "zh-CN" },
   play: async ({ canvasElement }) => {
-    await within(canvasElement).findByRole("list", { name: "邀请" })
+    await row(canvasElement)
   },
 }
 export const TerminalStatuses: Story = {
@@ -392,7 +393,7 @@ const inviteConflict =
       ).toBeEnabled()
     )
     await expect(
-      within(await directory(canvasElement)).getAllByRole("listitem", {
+      within(await directory(canvasElement)).getAllByRole("row", {
         hidden: true,
       })
     ).toHaveLength(3)
@@ -423,7 +424,7 @@ const deliveryNotice =
       await within(canvasElement).findByRole(alert ? "alert" : "status")
     ).toHaveTextContent(`Invitation created. ${text}`)
     const target = await row(canvasElement, newEmail)
-    await expect(target.getByText(/Member · Pending/)).toBeVisible()
+    await expect(target.getByText("Pending", { exact: true })).toBeVisible()
     await expect(target.getByText(new RegExp(text))).toBeVisible()
   }
 export const FailedDelivery: Story = {
@@ -457,7 +458,10 @@ export const ReadBackUnavailable: Story = {
     await expect(await canvas.findByRole("alert")).toHaveTextContent(
       "Invitation directory unavailable"
     )
-    await expect(canvas.queryByRole("list")).toBeNull()
+    await expect(canvas.queryByText(newEmail)).toBeNull()
+    await expect(
+      (await row(canvasElement)).getByText("casey@example.test")
+    ).toBeVisible()
   },
 }
 export const CloseDraftWithKeyboard: Story = {
@@ -490,7 +494,7 @@ export const ResendWithKeyboard: Story = {
         .map((element) => element.getAttribute("datetime"))
     ).toEqual(dates)
     await expect(
-      within(await directory(canvasElement)).getAllByRole("listitem")
+      within(await directory(canvasElement)).getAllByRole("row")
     ).toHaveLength(3)
     await expect(trigger).toBeInTheDocument()
     await waitFor(() => expect(trigger).toBeEnabled())
@@ -535,9 +539,9 @@ const resendFailure: Story["play"] = async ({ canvasElement }) => {
   await within(canvasElement).findByRole("alert")
   await waitFor(() => expect(trigger).toBeEnabled())
   await expect(trigger).toHaveFocus()
-  await expect(target.getByText(/Member · Pending/)).toBeVisible()
+  await expect(target.getByText("Pending", { exact: true })).toBeVisible()
   await expect(
-    within(await directory(canvasElement)).getAllByRole("listitem")
+    within(await directory(canvasElement)).getAllByRole("row")
   ).toHaveLength(3)
 }
 export const ResendUnavailable: Story = {
@@ -555,7 +559,7 @@ export const CancelWithKeyboard: Story = {
     await userEvent.keyboard("{Enter}")
     await closed(popup)
     await expect(
-      (await row(canvasElement)).getByText(/Member · Canceled/)
+      (await row(canvasElement)).getByText("Canceled", { exact: true })
     ).toBeVisible()
     await expect(
       (await row(canvasElement)).queryAllByRole("button")
@@ -572,7 +576,7 @@ export const CloseCancelWithKeyboard: Story = {
     await closed(popup)
     await expect(trigger).toHaveFocus()
     await expect(
-      (await row(canvasElement)).getByText(/Member · Pending/)
+      (await row(canvasElement)).getByText("Pending", { exact: true })
     ).toBeVisible()
   },
 }
@@ -599,13 +603,13 @@ export const CancelUnavailable: Story = {
     await userEvent.click(submit)
     await content.findByRole("alert")
     await expect(
-      (await row(canvasElement)).getByText(/Member · Pending/)
+      (await row(canvasElement)).getByText("Pending", { exact: true })
     ).toBeVisible()
     await waitFor(() => expect(submit).toBeEnabled())
     await userEvent.click(submit)
     await closed(popup)
     await expect(
-      (await row(canvasElement)).getByText(/Member · Canceled/)
+      (await row(canvasElement)).getByText("Canceled", { exact: true })
     ).toBeVisible()
   },
 }
@@ -616,7 +620,7 @@ const cancelRejected: Story["play"] = async ({ canvasElement }) => {
   )
   await content.findByRole("alert")
   await expect(
-    (await row(canvasElement)).getByText(/Member · Pending/)
+    (await row(canvasElement)).getByText("Pending", { exact: true })
   ).toBeVisible()
 }
 export const CancelPermissionDenied: Story = {

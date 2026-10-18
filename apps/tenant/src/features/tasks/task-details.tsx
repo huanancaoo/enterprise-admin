@@ -149,7 +149,12 @@ export function TaskDetails(props: Props) {
     props.onClose()
   }
   const errors: Record<string, string> = {
-    IMPORT_VALIDATION_FAILED: t("tasks:IMPORT_VALIDATION_FAILED"),
+    TOO_MANY_ROWS: t("tasks:tooManyExportRows"),
+    IMPORT_VALIDATION_FAILED:
+      query.data?.source === "business" &&
+      query.data.item.type === "invitations.import"
+        ? t("tasks:invitationImportValidationFailed")
+        : t("tasks:IMPORT_VALIDATION_FAILED"),
     MEMBERSHIP_REQUIRED: t("tasks:MEMBERSHIP_REQUIRED"),
     PERMISSION_DENIED: t("tasks:PERMISSION_DENIED"),
     ORGANIZATION_SUSPENDED: t("tasks:ORGANIZATION_SUSPENDED"),
@@ -208,7 +213,15 @@ export function TaskDetails(props: Props) {
             {value.item.errorCode && (
               <p role="alert">{errors[value.item.errorCode]}</p>
             )}
-            {value.item.result && (
+            {value.item.result?.invitationImport && (
+              <p>
+                {t(
+                  "tasks:invitationImportSummary",
+                  value.item.result.invitationImport
+                )}
+              </p>
+            )}
+            {value.item.result && !value.item.result.invitationImport && (
               <p>
                 {t("tasks:processedCount", {
                   quantity: value.item.result.count,
@@ -240,7 +253,9 @@ export function TaskDetails(props: Props) {
             )}
             {value.item.resultAvailable && (
               <Button disabled={downloading} onClick={() => void download()}>
-                {t("tasks:downloadResult")}
+                {value.item.type === "invitations.import"
+                  ? t("tasks:downloadInvitationReport")
+                  : t("tasks:downloadResult")}
               </Button>
             )}
             {downloadError && <p role="alert">{downloadError}</p>}

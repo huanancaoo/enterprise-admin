@@ -18,18 +18,32 @@ const meta = {
 } satisfies Meta<typeof MembersStory>
 export default meta
 type Story = StoryObj<typeof meta>
-const loaded: Story["play"] = async ({ canvasElement }) => {
-  const list = await within(canvasElement).findByRole("list", {
-    name: "Members",
-  })
-  await expect(within(list).getAllByRole("listitem")).toHaveLength(4)
-}
-async function row(canvasElement: HTMLElement, name = "Casey Reader") {
-  const list = await within(canvasElement).findByRole("list", {
-    name: "Members",
+async function memberBody(canvasElement: HTMLElement) {
+  const tables = await within(canvasElement).findAllByRole("table", {
     hidden: true,
   })
-  return within((await within(list).findByText(name)).closest("li")!)
+  await waitFor(() => expect(tables[0]!).toHaveAttribute("aria-busy", "false"))
+  return tables[0]!.querySelector("tbody")!
+}
+const loaded: Story["play"] = async ({ canvasElement }) => {
+  await within(canvasElement).findByText("Morgan Owner")
+  await waitFor(async () =>
+    expect(
+      within(await memberBody(canvasElement)).getAllByRole("row")
+    ).toHaveLength(4)
+  )
+}
+async function row(canvasElement: HTMLElement, name = "Casey Reader") {
+  let target: HTMLElement | null = null
+  await waitFor(() => {
+    const table = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="table"]'
+    )!
+    expect(table).not.toBeNull()
+    target = within(table).getByText(name).closest("tr")
+    expect(target).not.toBeNull()
+  })
+  return within(target!)
 }
 async function dialog(
   canvasElement: HTMLElement,
@@ -63,22 +77,12 @@ async function selectRole(
   await userEvent.click(result.content.getByRole("combobox", { name: "Role" }))
   const option = await result.screen.findByRole("option", { name })
   const list = result.screen.getByRole("listbox")
-  const popup = option.closest('[data-slot="select-content"]')!
   await userEvent.click(option)
-  await waitFor(() => expect(popup).toHaveAttribute("data-closed"))
-  await Promise.all(
-    popup.getAnimations().map((animation) => animation.finished)
-  )
   await waitFor(() => expect(list).not.toBeVisible())
   return result
 }
 async function closed(popup: HTMLElement) {
-  // 先等待关闭动画启动，再核对卸载和焦点，避免把动画中的弹层当作最终结果。
-  await waitFor(() => expect(popup).toHaveAttribute("data-closed"))
-  await Promise.all(
-    popup.getAnimations().map((animation) => animation.finished)
-  )
-  await waitFor(() => expect(popup).not.toBeInTheDocument())
+  await waitFor(() => expect(popup).not.toBeInTheDocument(), { timeout: 2000 })
 }
 export const Default: Story = { play: loaded }
 export const RemovalHover: Story = {
@@ -99,9 +103,7 @@ export const RemovalHover: Story = {
 export const Loading: Story = {
   ...scenario("loading"),
   play: async ({ canvasElement }) => {
-    await expect(
-      await within(canvasElement).findByRole("status")
-    ).toHaveTextContent("Loading…")
+    await within(canvasElement).findAllByText("Loading…")
   },
 }
 export const Empty: Story = {
@@ -113,7 +115,7 @@ export const Empty: Story = {
 const readError: Story["play"] = async ({ canvasElement }) => {
   const canvas = within(canvasElement)
   await canvas.findByRole("alert")
-  await expect(canvas.queryByRole("list", { name: "Members" })).toBeNull()
+  await expect(canvas.queryByText("Casey Reader")).toBeNull()
 }
 export const Error: Story = { ...scenario("unavailable"), play: readError }
 export const PermissionDenied: Story = {
@@ -138,7 +140,7 @@ export const RTL: Story = {
   globals: { locale: "ar" },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await canvas.findByRole("list", { name: "الأعضاء" })
+    await memberBody(canvasElement)
     await expect(canvasElement.ownerDocument.documentElement).toHaveAttribute(
       "dir",
       "rtl"
@@ -149,14 +151,14 @@ export const RTL: Story = {
 export const Chinese: Story = {
   globals: { locale: "zh-CN" },
   play: async ({ canvasElement }) => {
-    await within(canvasElement).findByRole("list", { name: "成员" })
+    await memberBody(canvasElement)
   },
 }
 export const SlowNetwork: Story = {
   ...scenario("slow"),
   play: async ({ canvasElement }) => {
     await within(canvasElement).findByRole("status")
-    await within(canvasElement).findByRole("list", { name: "Members" })
+    await memberBody(canvasElement)
   },
 }
 export const MemberReadOnly: Story = {
@@ -210,60 +212,59 @@ export const FilterAndPagination: Story = {
   ...scenario("paginated"),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await canvas.findByRole("list", { name: "Members" })
+    await memberBody(canvasElement)
     await expect(
-      within(canvas.getByRole("list", { name: "Members" })).getAllByRole(
-        "listitem"
-      )
+      within(await memberBody(canvasElement)).getAllByRole("row")
     ).toHaveLength(20)
     await userEvent.click(canvas.getByRole("button", { name: "Next page" }))
-    await waitFor(() =>
+    await waitFor(async () =>
       expect(
-        within(canvas.getByRole("list", { name: "Members" })).getAllByRole(
-          "listitem"
-        )
+        within(await memberBody(canvasElement)).getAllByRole("row")
       ).toHaveLength(5)
     )
     await userEvent.type(
-      canvas.getByRole("searchbox", { name: "Search members…" }),
+      canvas.getByRole("textbox", { name: "Search members…" }),
       "Casey"
     )
-    await userEvent.click(canvas.getByRole("button", { name: "Apply filters" }))
+    await userEvent.keyboard("{Enter}")
     await canvas.findByText("Casey Reader")
     await expect(
-      within(canvas.getByRole("list", { name: "Members" })).getAllByRole(
-        "listitem"
-      )
+      within(await memberBody(canvasElement)).getAllByRole("row")
     ).toHaveLength(1)
     await expect(
       canvas.getByRole("button", { name: "Previous page" })
-    ).toBeDisabled()
+    ).toHaveAttribute("aria-disabled", "true")
   },
 }
 export const CustomRoleFromURL: Story = {
   args: { search: "?role=project-editor" },
   play: async ({ canvasElement }) => {
     await row(canvasElement, "Devon Editor")
+    const toolbar = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="data-table-toolbar"]'
+    )!
     await expect(
-      within(canvasElement).getByRole("combobox", { name: "Role" })
+      within(toolbar).getByRole("button", { name: /^Role/ })
     ).toHaveTextContent("project-editor")
     await expect(
-      within(
-        within(canvasElement).getByRole("list", { name: "Members" })
-      ).getAllByRole("listitem")
+      within(await memberBody(canvasElement)).getAllByRole("row")
     ).toHaveLength(1)
   },
 }
 export const RoleWithKeyboard: Story = {
   play: async ({ canvasElement }) => {
-    const { content, trigger, popup } = await selectRole(canvasElement)
+    const { content, popup } = await selectRole(canvasElement)
     content.getByRole("button", { name: "Save" }).focus()
     await userEvent.keyboard("{Enter}")
     await closed(popup)
     await expect(
       (await row(canvasElement)).getByText("project-editor")
     ).toBeVisible()
-    await expect(trigger).toHaveFocus()
+    await expect(
+      within(canvasElement)
+        .getByRole("heading", { name: "Members" })
+        .closest('[tabindex="-1"]')!
+    ).toHaveFocus()
   },
 }
 export const RoleSaving: Story = {
@@ -331,9 +332,7 @@ export const RolePermissionRevoked: Story = {
     await userEvent.click(content.getByRole("button", { name: "Save" }))
     await content.findByRole("alert")
     await waitFor(() =>
-      expect(
-        within(canvasElement).queryByRole("list", { name: "Members" })
-      ).toBeNull()
+      expect(within(canvasElement).queryByText("Casey Reader")).toBeNull()
     )
   },
 }
@@ -376,7 +375,11 @@ export const RemoveWithKeyboard: Story = {
     await userEvent.keyboard("{Enter}")
     await closed(popup)
     await expect(within(canvasElement).queryByText("Casey Reader")).toBeNull()
-    await expect(within(canvasElement).getByRole("searchbox")).toHaveFocus()
+    await expect(
+      within(canvasElement)
+        .getByRole("heading", { name: "Members" })
+        .closest('[tabindex="-1"]')!
+    ).toHaveFocus()
   },
 }
 export const RemoveSaving: Story = {

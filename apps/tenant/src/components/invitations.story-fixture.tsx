@@ -1,3 +1,12 @@
+import { useState } from "react"
+import { useTranslation } from "react-i18next"
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  RouterProvider,
+} from "@tanstack/react-router"
 import { organizations } from "@workspace/mocks"
 import { InvitationDirectory } from "./invitation-directory"
 
@@ -6,13 +15,38 @@ export function InvitationsStory({
 }: {
   actorRole?: string
 }) {
-  // 使用正式目录和原生客户端；身份、授权与 SMTP 持久化由真实浏览器链路证明。
+  const [router] = useState(() => {
+    const root = createRootRoute()
+    const invitations = createRoute({
+      getParentRoute: () => root,
+      path: "/",
+      component: () => (
+        <main className="mx-auto max-w-4xl p-6">
+          <InvitationDirectory
+            organizationId={organizations[0].id}
+            actorRole={actorRole}
+          />
+        </main>
+      ),
+    })
+    const task = createRoute({
+      getParentRoute: () => root,
+      path: "/app/tasks/$organizationId",
+      component: TaskDestination,
+    })
+    return createRouter({
+      routeTree: root.addChildren([invitations, task]),
+      history: createMemoryHistory({ initialEntries: ["/"] }),
+    })
+  })
+  return <RouterProvider router={router} />
+}
+
+function TaskDestination() {
+  const { t } = useTranslation("tasks")
   return (
-    <main className="mx-auto max-w-4xl p-6">
-      <InvitationDirectory
-        organizationId={organizations[0].id}
-        actorRole={actorRole}
-      />
+    <main>
+      <h1>{t("title")}</h1>
     </main>
   )
 }

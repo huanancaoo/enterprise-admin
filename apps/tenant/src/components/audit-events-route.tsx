@@ -1,9 +1,11 @@
+import { MemberCombobox } from "./member-combobox"
+import { TenantExportButton } from "../features/tasks/tenant-export-button"
 import { useMemo, useState } from "react"
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { useForm } from "@tanstack/react-form"
 import { useTranslation } from "react-i18next"
-import { FilterIcon, XIcon } from "lucide-react"
+import { XIcon } from "lucide-react"
 import {
   AuditEventsQuerySchema,
   type AuditEvent,
@@ -33,13 +35,6 @@ import {
 } from "@workspace/admin/data-table"
 import { ApiClientError } from "@workspace/api-client"
 import { Badge } from "@workspace/ui/components/badge"
-import {
-  Popover,
-  PopoverContent,
-  PopoverHeader,
-  PopoverTitle,
-  PopoverTrigger,
-} from "@workspace/ui/components/popover"
 import {
   getOrganizationAuditEventOptions,
   getOrganizationAuditEventsOptions,
@@ -157,16 +152,17 @@ const advancedLabels = {
 } as const
 
 function AuditFilters({
+  organizationId,
   search,
   loading,
   onApply,
 }: {
+  organizationId: string
   search: AuditEventsQuery
   loading: boolean
   onApply: (search: AuditEventsQuery) => Promise<void>
 }) {
   const { t } = useTranslation(["organization", "common"])
-  const [open, setOpen] = useState(false)
   const initialFrom = search.from?.slice(0, 10) ?? ""
   const initialTo = search.to?.slice(0, 10) ?? ""
   const schema = useMemo(
@@ -202,97 +198,85 @@ function AuditFilters({
         resourceId: value.resourceId.trim() || undefined,
         page: 1,
       })
-      setOpen(false)
     },
   })
-  const filterCount = [
-    search.from || search.to,
-    search.actorId,
-    search.resourceType,
-    search.resourceId,
-  ].filter(Boolean).length
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
-        render={<Button variant="outline" size="sm" disabled={loading} />}
-      >
-        <FilterIcon data-icon="inline-start" />
-        {t("organization:auditAdvancedFilters")}
-        {filterCount > 0 && <Badge variant="secondary">{filterCount}</Badge>}
-      </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        className="max-h-[min(40rem,calc(100dvh-4rem))] w-[min(36rem,calc(100vw-2rem))] overflow-y-auto"
-      >
-        <PopoverHeader>
-          <PopoverTitle>{t("organization:auditAdvancedFilters")}</PopoverTitle>
-        </PopoverHeader>
-        <filters.Subscribe selector={(state) => state.isSubmitting}>
-          {(busy) => (
-            <form
-              noValidate
-              aria-busy={busy || loading}
-              onSubmit={(event) => {
-                event.preventDefault()
-                void filters.handleSubmit()
-              }}
-            >
-              <fieldset disabled={busy || loading} className="space-y-4">
-                <FieldGroup className="grid gap-4 sm:grid-cols-2">
-                  {advancedNames.map((name) => (
-                    <filters.Field key={name} name={name}>
-                      {(field) => {
-                        const invalid =
-                          field.state.meta.isTouched &&
-                          !field.state.meta.isValid
-                        return (
-                          <Field data-invalid={invalid}>
-                            <FieldLabel htmlFor={`tenant-audit-${name}`}>
-                              {t(`organization:${advancedLabels[name]}`)}
-                            </FieldLabel>
-                            <Input
-                              id={`tenant-audit-${name}`}
-                              type={
-                                name === "from" || name === "to"
-                                  ? "date"
-                                  : "text"
-                              }
-                              autoComplete="off"
-                              aria-invalid={invalid}
-                              value={field.state.value}
-                              maxLength={name === "resourceType" ? 80 : 36}
-                              onBlur={field.handleBlur}
-                              onChange={(event) =>
-                                field.handleChange(event.target.value)
-                              }
-                            />
-                            {invalid && (
-                              <FieldError errors={field.state.meta.errors} />
-                            )}
-                          </Field>
-                        )
-                      }}
-                    </filters.Field>
-                  ))}
-                </FieldGroup>
-                <div className="flex justify-end gap-2 border-t pt-4">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => setOpen(false)}
-                  >
-                    {t("common:close")}
-                  </Button>
-                  <Button type="submit">
-                    {t("organization:applyAuditFilters")}
-                  </Button>
-                </div>
-              </fieldset>
-            </form>
-          )}
-        </filters.Subscribe>
-      </PopoverContent>
-    </Popover>
+    <filters.Subscribe selector={(state) => state.isSubmitting}>
+      {(busy) => (
+        <form
+          className="basis-full"
+          noValidate
+          aria-busy={busy || loading}
+          onSubmit={(event) => {
+            event.preventDefault()
+            void filters.handleSubmit()
+          }}
+        >
+          <fieldset disabled={busy || loading} className="min-w-0">
+            <FieldGroup className="flex-row flex-wrap items-end gap-2">
+              {advancedNames.map((name) => (
+                <filters.Field key={name} name={name}>
+                  {(field) => {
+                    const invalid =
+                      field.state.meta.isTouched && !field.state.meta.isValid
+                    return (
+                      <Field
+                        className={
+                          name === "actorId"
+                            ? "w-48 max-w-full shrink-0 gap-1.5"
+                            : name === "from" || name === "to"
+                              ? "w-36 max-w-full shrink-0 gap-1.5"
+                              : "w-44 max-w-full shrink-0 gap-1.5"
+                        }
+                        data-invalid={invalid}
+                      >
+                        <FieldLabel htmlFor={`tenant-audit-${name}`}>
+                          {t(`organization:${advancedLabels[name]}`)}
+                        </FieldLabel>
+                        {name === "actorId" ? (
+                          <MemberCombobox
+                            organizationId={organizationId}
+                            id={`tenant-audit-${name}`}
+                            invalid={invalid}
+                            value={field.state.value || null}
+                            onValueChange={(value) =>
+                              field.handleChange(value ?? "")
+                            }
+                            onBlur={field.handleBlur}
+                            disabled={busy || loading}
+                          />
+                        ) : (
+                          <Input
+                            id={`tenant-audit-${name}`}
+                            type={
+                              name === "from" || name === "to" ? "date" : "text"
+                            }
+                            autoComplete="off"
+                            aria-invalid={invalid}
+                            value={field.state.value}
+                            maxLength={name === "resourceType" ? 80 : 36}
+                            onBlur={field.handleBlur}
+                            onChange={(event) =>
+                              field.handleChange(event.target.value)
+                            }
+                          />
+                        )}
+                        {invalid && (
+                          <FieldError errors={field.state.meta.errors} />
+                        )}
+                      </Field>
+                    )
+                  }}
+                </filters.Field>
+              ))}
+              <Button type="submit" className="self-end">
+                {t("organization:applyAuditFilters")}
+              </Button>
+            </FieldGroup>
+          </fieldset>
+        </form>
+      )}
+    </filters.Subscribe>
   )
 }
 
@@ -492,7 +476,15 @@ function AuditWorkspace({
           columnFilters,
         }}
         toolbarContent={
+          <TenantExportButton
+            organizationId={organizationId}
+            resource="audit"
+            filters={page.data ? { ...search, ...page.data.window } : null}
+          />
+        }
+        toolbarFilters={
           <AuditFilters
+            organizationId={organizationId}
             key={JSON.stringify(search)}
             search={search}
             loading={page.isFetching}

@@ -5,7 +5,10 @@ import {
   longRoleKey,
   type RolesScenario,
 } from "@workspace/mocks"
-import { delegableRolePermissions } from "@workspace/permissions"
+import {
+  builtInOrganizationRolePermissions,
+  delegableRolePermissions,
+} from "@workspace/permissions"
 import { RolesStory } from "./roles.story-fixture"
 
 const scenario = (name: RolesScenario = "success") => {
@@ -13,7 +16,8 @@ const scenario = (name: RolesScenario = "success") => {
     name,
     Object.entries(delegableRolePermissions).flatMap(([resource, actions]) =>
       actions.map((action) => ({ resource, action }))
-    )
+    ),
+    builtInOrganizationRolePermissions
   )
   return {
     beforeEach: fixture.reset,
@@ -30,15 +34,35 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 async function roleRow(canvasElement: HTMLElement, name = "project-editor") {
-  const region = await within(canvasElement).findByRole("region", {
-    name: "Custom roles",
+  const table = await within(canvasElement).findByRole("table", {
+    hidden: true,
   })
-  return within((await within(region).findByText(name)).closest("li")!)
-}
-async function creation(canvasElement: HTMLElement) {
-  return within(
-    await within(canvasElement).findByRole("region", { name: "Create role" })
+  const target = (
+    await within(table).findByText(name, { exact: true })
+  ).closest("tr")!
+  const details = target.querySelector("details")
+  if (
+    details &&
+    !details.open &&
+    !canvasElement.ownerDocument.body.querySelector('[role="dialog"]')
   )
+    await userEvent.click(details.querySelector("summary")!)
+  return within(target)
+}
+async function creation(canvasElement: HTMLElement, name = "Create role") {
+  const screen = within(canvasElement.ownerDocument.body)
+  const existing = screen.queryByRole("dialog", { name })
+  if (existing && !existing.hasAttribute("data-closed")) {
+    await waitFor(() => expect(existing).toBeVisible())
+    return within(existing)
+  }
+  if (existing) await closed(existing)
+  await userEvent.click(
+    await within(canvasElement).findByRole("button", { name })
+  )
+  const popup = await screen.findByRole("dialog", { name })
+  await waitFor(() => expect(popup).toBeVisible())
+  return within(popup)
 }
 async function filled(canvasElement: HTMLElement, name = "new-reader") {
   const content = await creation(canvasElement)
@@ -83,29 +107,19 @@ export const Default: Story = {
     await expect(
       target.getByText("Projects: view、Projects: update")
     ).toBeVisible()
-    await expect(
-      target.getByText("Members: 0; active invitations: 0")
-    ).toBeVisible()
+    await expect(target.getAllByRole("cell", { name: "0" })).toHaveLength(2)
     await expect(
       (await roleRow(canvasElement, "empty-role")).getByText("No permissions")
     ).toBeVisible()
-    const builtIn = within(
-      await within(canvasElement).findByRole("region", {
-        name: "Built-in roles",
-      })
-    )
-    await expect(builtIn.getAllByText("Read only")).toHaveLength(3)
-    await expect(builtIn.queryAllByRole("button")).toHaveLength(0)
+    for (const name of ["Owner", "Admin", "Member"]) {
+      const builtin = await roleRow(canvasElement, name)
+      await expect(builtin.queryAllByRole("button")).toHaveLength(0)
+    }
   },
 }
 export const BuiltInPermissions: Story = {
   play: async ({ canvasElement }) => {
-    const builtIn = await within(canvasElement).findByRole("region", {
-      name: "Built-in roles",
-    })
-    const member = within(
-      within(builtIn).getByText("Member", { exact: true }).closest("li")!
-    )
+    const member = await roleRow(canvasElement, "Member")
     await expect(member.getByText(/Projects: view/)).toBeVisible()
     await expect(member.getByText(/Members: view directory/)).toBeVisible()
     await expect(member.queryByText(/Projects: update/)).toBeNull()
@@ -116,9 +130,7 @@ export const BuiltInPermissions: Story = {
     ))
       await expect(member.queryByText(label, { exact: false })).toBeNull()
     for (const name of ["Owner", "Admin"]) {
-      const role = within(
-        within(builtIn).getByText(name, { exact: true }).closest("li")!
-      )
+      const role = await roleRow(canvasElement, name)
       for (const label of filePermissionLabels)
         await expect(role.getByText(label, { exact: false })).toBeVisible()
     }
@@ -137,14 +149,15 @@ export const Loading: Story = {
   ...scenario("loading"),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await canvas.findByRole("heading", { name: "Custom roles" })
+    await canvas.findByRole("heading", { name: "Roles" })
     await expect(canvas.getByRole("status")).toHaveTextContent("Loading…")
   },
 }
 export const Empty: Story = {
   ...scenario("empty"),
+  args: { search: "?kind=custom" },
   play: async ({ canvasElement }) => {
-    await within(canvasElement).findByText("No custom roles have been created.")
+    await within(canvasElement).findByText("No results")
   },
 }
 export const Error: Story = {
@@ -167,7 +180,7 @@ export const AccessUnavailable: Story = {
 const denied: Story["play"] = async ({ canvasElement }) => {
   const canvas = within(canvasElement)
   await canvas.findByText("Access denied")
-  await expect(canvas.queryByRole("textbox")).toBeNull()
+  await expect(canvas.queryByRole("textbox", { name: "Role key" })).toBeNull()
   await expect(canvas.queryByText("project-editor")).toBeNull()
 }
 export const PermissionDenied: Story = {
@@ -183,7 +196,7 @@ export const SessionExpired: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await canvas.findByRole("heading", { name: "Unable to load data" })
-    await expect(canvas.queryByRole("textbox")).toBeNull()
+    await expect(canvas.queryByRole("textbox", { name: "Role key" })).toBeNull()
     await expect(canvas.queryByText("project-editor")).toBeNull()
   },
 }
@@ -227,8 +240,15 @@ export const ReadOnly: Story = {
   ...scenario("readOnly"),
   play: async ({ canvasElement }) => {
     await roleRow(canvasElement)
-    await expect(within(canvasElement).queryAllByRole("button")).toHaveLength(0)
-    await expect(within(canvasElement).queryByRole("textbox")).toBeNull()
+    await expect(
+      within(canvasElement).queryByRole("button", { name: "Create role" })
+    ).toBeNull()
+    await expect(
+      (await roleRow(canvasElement)).queryAllByRole("button")
+    ).toHaveLength(0)
+    await expect(
+      within(canvasElement).queryByRole("textbox", { name: "Role key" })
+    ).toBeNull()
   },
 }
 export const CreateOnly: Story = {
@@ -250,7 +270,9 @@ export const UpdateOnly: Story = {
     await expect(
       target.queryByRole("button", { name: "Delete role" })
     ).toBeNull()
-    await expect(within(canvasElement).queryByRole("textbox")).toBeNull()
+    await expect(
+      within(canvasElement).queryByRole("textbox", { name: "Role key" })
+    ).toBeNull()
   },
 }
 export const DeleteOnly: Story = {
@@ -263,18 +285,23 @@ export const DeleteOnly: Story = {
     await expect(
       target.queryByRole("button", { name: "Edit permissions" })
     ).toBeNull()
-    await expect(within(canvasElement).queryByRole("textbox")).toBeNull()
+    await expect(
+      within(canvasElement).queryByRole("textbox", { name: "Role key" })
+    ).toBeNull()
   },
 }
 export const CreateWithKeyboard: Story = {
   play: async ({ canvasElement }) => {
-    const { content, input, submit } = await filled(canvasElement)
+    const { submit } = await filled(canvasElement)
     submit.focus()
     await userEvent.keyboard("{Enter}")
     await roleRow(canvasElement, "new-reader")
-    await expect(input).toHaveValue("")
+    const reopened = await creation(canvasElement)
     await expect(
-      content.getByRole("checkbox", { name: "Projects: view" })
+      reopened.getByRole("textbox", { name: "Role key" })
+    ).toHaveValue("")
+    await expect(
+      reopened.getByRole("checkbox", { name: "Projects: view" })
     ).not.toBeChecked()
   },
 }
@@ -304,7 +331,9 @@ const creationPending: Story["play"] = async ({ canvasElement }) => {
   await waitFor(() => expect(input).toBeDisabled())
   for (const checkbox of content.getAllByRole("checkbox"))
     await expect(checkbox).toHaveAttribute("aria-disabled", "true")
-  await expect(content.getByRole("button", { name: "Loading…" })).toBeDisabled()
+  await expect(
+    content.getByRole("button", { name: "Submitting…" })
+  ).toBeDisabled()
 }
 export const CreateSaving: Story = {
   ...scenario("createLoading"),
@@ -313,22 +342,13 @@ export const CreateSaving: Story = {
 export const CreateReadBackLock: Story = {
   ...scenario("createReadBackSlow"),
   play: async ({ canvasElement }) => {
-    const { content, input, submit } = await filled(canvasElement)
+    const { input, submit } = await filled(canvasElement)
     await userEvent.click(submit)
     await waitFor(() => expect(input).toBeDisabled())
     await expect(input).toHaveValue("new-reader")
-    // 此场景写入 300ms、读回 700ms；等待整个提交结束，而非在默认 1s 内抢先寻找新行。
-    await waitFor(
-      () => {
-        expect(input.closest("form")).toHaveAttribute("aria-busy", "false")
-        expect(input).toBeEnabled()
-        expect(input).toHaveValue("")
-        expect(
-          content.getByRole("checkbox", { name: "Projects: view" })
-        ).not.toBeChecked()
-      },
-      { timeout: 2000 }
-    )
+    await waitFor(() => expect(input).not.toBeInTheDocument(), {
+      timeout: 3000,
+    })
     await roleRow(canvasElement, "new-reader")
   },
 }
@@ -603,7 +623,9 @@ export const DeleteWithKeyboard: Story = {
       within(canvasElement).queryByText("project-editor", { exact: true })
     ).toBeNull()
     await expect(
-      within(canvasElement).getByRole("heading", { name: "Custom roles" })
+      within(canvasElement)
+        .getByRole("heading", { name: "Roles" })
+        .closest('[tabindex="-1"]')!
     ).toHaveFocus()
   },
 }
@@ -641,6 +663,12 @@ export const FilePermissionCatalog: Story = {
     const content = await creation(canvasElement)
     for (const label of filePermissionLabels)
       await expect(content.getByRole("checkbox", { name: label })).toBeVisible()
+    await userEvent.click(content.getByRole("button", { name: "Cancel" }))
+    await waitFor(() =>
+      expect(
+        canvasElement.ownerDocument.body.querySelector('[role="dialog"]')
+      ).toBeNull()
+    )
     const existing = await roleRow(canvasElement)
     await expect(existing.getByText("Permissions: 2")).toBeVisible()
     for (const label of filePermissionLabels)
@@ -666,18 +694,24 @@ export const CreateFilePermissionsKeepsDraft: Story = {
     await waitFor(() => expect(submit).toBeEnabled())
     submit.focus()
     await userEvent.keyboard("{Enter}")
+    await waitFor(() =>
+      expect(
+        canvasElement.ownerDocument.body.querySelector('[role="dialog"]')
+      ).toBeNull()
+    )
     const created = await roleRow(canvasElement, "file-editor")
     await expect(created.getByText("Permissions: 2")).toBeVisible()
     for (const label of selected)
       await expect(created.getByText(label, { exact: false })).toBeVisible()
-    // 列表可先渲染读回结果，表单随后才重置角色名和权限草稿并解除提交锁。
-    await waitFor(() => {
-      expect(input.closest("form")).toHaveAttribute("aria-busy", "false")
-      expect(input).toBeEnabled()
-      expect(input).toHaveValue("")
-      for (const label of selected)
-        expect(content.getByRole("checkbox", { name: label })).not.toBeChecked()
-    })
+    await waitFor(() => expect(input).not.toBeInTheDocument())
+    const reopened = await creation(canvasElement)
+    await expect(
+      reopened.getByRole("textbox", { name: "Role key" })
+    ).toHaveValue("")
+    for (const label of selected)
+      await expect(
+        reopened.getByRole("checkbox", { name: label })
+      ).not.toBeChecked()
   },
 }
 
@@ -725,9 +759,7 @@ export const FilePermissionsLimitedDelegation: Story = {
 export const ChineseFilePermissions: Story = {
   globals: { locale: "zh-CN" },
   play: async ({ canvasElement }) => {
-    const content = within(
-      await within(canvasElement).findByRole("region", { name: "创建角色" })
-    )
+    const content = await creation(canvasElement, "创建角色")
     for (const label of [
       "文件：查看",
       "文件：上传",
@@ -747,9 +779,7 @@ export const ChineseFilePermissions: Story = {
 export const ArabicFilePermissions: Story = {
   globals: { locale: "ar" },
   play: async ({ canvasElement }) => {
-    const content = within(
-      await within(canvasElement).findByRole("region", { name: "إنشاء دور" })
-    )
+    const content = await creation(canvasElement, "إنشاء دور")
     for (const label of [
       "الملفات: عرض",
       "الملفات: تحميل",

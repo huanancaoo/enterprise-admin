@@ -14,7 +14,10 @@ import { AuthRuntime } from './identity/auth-runtime';
 import { setupSwagger } from './openapi/setup-swagger';
 import { createFilesRuntime, FilesRuntime } from './files/files-runtime';
 import { readWorkerConfig } from '@workspace/jobs';
-import { PROJECT_IMPORT_MAX_BYTES } from '@workspace/contracts';
+import {
+  ORGANIZATION_INVITATION_IMPORT_MAX_BYTES,
+  PROJECT_IMPORT_MAX_BYTES,
+} from '@workspace/contracts';
 import { initializeTelemetry } from '@workspace/observability';
 
 export async function createApplication(
@@ -63,6 +66,16 @@ export async function createApplication(
       type: (request) =>
         request.method === 'POST' &&
         /^\/api\/v1\/organizations\/[^/]+\/projects\/imports\/?(?:\?|$)/.test(
+          request.url ?? '',
+        ) &&
+        contentTypeEssence(request.headers['content-type']) ===
+          'application/json',
+    });
+    app.useBodyParser('json', {
+      limit: Math.ceil(ORGANIZATION_INVITATION_IMPORT_MAX_BYTES / 3) * 4 + 1024,
+      type: (request) =>
+        request.method === 'POST' &&
+        /^\/api\/v1\/organizations\/[^/]+\/invitations\/imports\/?(?:\?|$)/.test(
           request.url ?? '',
         ) &&
         contentTypeEssence(request.headers['content-type']) ===

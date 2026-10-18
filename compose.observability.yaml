@@ -1,0 +1,43 @@
+services:
+  otel-collector:
+    image: enterprise-admin-otel-collector:0.162.0-security-1
+    pull_policy: never
+    build:
+      context: .
+      dockerfile: infra/release/base/Dockerfile.telemetry
+      target: otel-collector
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./infra/observability/collector.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "127.0.0.1:4318:4318"
+  prometheus:
+    image: enterprise-admin-prometheus:3.15.0-security-1
+    pull_policy: never
+    build:
+      context: .
+      dockerfile: infra/release/base/Dockerfile.telemetry
+      target: prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yaml
+      - --storage.tsdb.path=/prometheus
+    volumes:
+      - ./infra/observability/prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
+      - ./infra/observability/alerts.yaml:/etc/prometheus/alerts.yaml:ro
+      - observability_metrics_data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+  tracing:
+    image: enterprise-admin-tracing:2.22.0-security-1
+    pull_policy: never
+    build:
+      context: .
+      dockerfile: infra/release/base/Dockerfile.telemetry
+      target: tracing
+    command: ["--config=/etc/jaeger/config.yaml"]
+    volumes:
+      - ./infra/observability/jaeger.yaml:/etc/jaeger/config.yaml:ro
+    ports:
+      - "127.0.0.1:16686:16686"
+volumes:
+  observability_metrics_data:

@@ -8,6 +8,11 @@ import {
   type AuthEmailHooks,
 } from '@workspace/database/auth';
 import { isIP } from 'node:net';
+import { createHmac } from 'node:crypto';
+import {
+  readInvitationLimits,
+  defaultInvitationLimits,
+} from '@workspace/database/invitation-command';
 import { z } from 'zod';
 import { parseEnvironment } from '../config/environment';
 import Redis from 'ioredis';
@@ -60,23 +65,12 @@ const authEnvironmentSchema = z.object({
     .pipe(z.array(trustedProxySchema)),
   GITHUB_CLIENT_ID: z.string().min(1),
   GITHUB_CLIENT_SECRET: z.string().min(1),
-  INVITATION_ORGANIZATION_HOURLY_LIMIT: z.coerce
-    .number()
-    .int()
-    .positive()
-    .default(100),
-  INVITATION_ACTOR_HOURLY_LIMIT: z.coerce.number().int().positive().default(50),
-  INVITATION_IP_HOURLY_LIMIT: z.coerce.number().int().positive().default(100),
 });
 
 export function readAuthConfig(env: NodeJS.ProcessEnv): AuthConfig {
   const value = parseEnvironment(authEnvironmentSchema, env);
   return {
-    invitationLimits: {
-      organization: value.INVITATION_ORGANIZATION_HOURLY_LIMIT,
-      actor: value.INVITATION_ACTOR_HOURLY_LIMIT,
-      ip: value.INVITATION_IP_HOURLY_LIMIT,
-    },
+    invitationLimits: readInvitationLimits(env),
     databaseURL: value.DATABASE_URL,
     redisURL: value.REDIS_URL,
     baseURL: value.BETTER_AUTH_URL,
@@ -112,12 +106,19 @@ export class AuthRuntime implements OnApplicationShutdown {
   readonly trustedOrigins: readonly string[];
   readonly pool: ReturnType<typeof createDatabase>['pool'];
   readonly auth: ReturnType<typeof createAuth>;
+  readonly invitationLimits: NonNullable<AuthConfig['invitationLimits']>;
+  readonly invitationIpHash: (ip?: string) => string;
   private readonly redis: Redis;
 
   constructor(
     config: AuthConfig,
     emailHooks: (pool: AuthRuntime['pool']) => AuthEmailHooks,
   ) {
+    this.invitationLimits = config.invitationLimits ?? defaultInvitationLimits;
+    this.invitationIpHash = (ip) =>
+      createHmac('sha256', config.secret)
+        .update(ip ?? 'internal')
+        .digest('hex');
     this.trustedOrigins = [
       new URL(config.baseURL).origin,
       ...config.trustedOrigins,

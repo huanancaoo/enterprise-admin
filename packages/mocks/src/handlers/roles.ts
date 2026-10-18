@@ -56,7 +56,8 @@ export const longRoleKey = "collaboration-" + "a".repeat(34)
 
 export function createRolesScenario(
   scenario: RolesScenario,
-  permissions: OrganizationRoleAccess["grantablePermissions"]
+  permissions: OrganizationRoleAccess["grantablePermissions"],
+  builtInOrganizationRolePermissions: Record<string, Record<string, readonly string[]>>
 ) {
   const organizationId = organizations[0].id
   const base: Role[] = [
@@ -189,6 +190,61 @@ export function createRolesScenario(
               scenario === "limitedDelegation"
                 ? permissions.filter((item) => item.action !== "update")
                 : permissions,
+          })
+        }
+      ),
+      http.get(
+        "*/api/v1/organizations/:organizationId/roles-directory",
+        async ({ request, params }) => {
+          if (params.organizationId !== organizationId)
+            return failure(403, "FORBIDDEN", "Access denied")
+          if (scenario === "loading") await delay("infinite")
+          if (scenario === "unavailable")
+            return failure(503, "INTERNAL_ERROR", "Role directory unavailable")
+          if (
+            scenario === "slow" ||
+            (scenario === "createReadBackSlow" && wrote)
+          )
+            await delay(700)
+          const search = new URL(request.url).searchParams
+          const page = Number(search.get("page") ?? 1)
+          const pageSize = Number(search.get("pageSize") ?? 20)
+          const q = search.get("q")?.toLowerCase()
+          const kind = search.get("kind")
+          const sortBy =
+            search.get("sortBy") === "createdAt" ? "createdAt" : "role"
+          const direction = search.get("sortOrder") === "desc" ? -1 : 1
+          const all = [
+            ...Object.entries(builtInOrganizationRolePermissions).map(
+              ([role, permission]) => ({
+                id: `builtin:${role}`,
+                organizationId,
+                role,
+                permission,
+                createdAt: "2026-09-01T00:00:00.000Z",
+                builtIn: true,
+                memberCount: 0,
+                invitationCount: 0,
+                authorizationVersion: version,
+              })
+            ),
+            ...rows.map((row) => ({ ...row, builtIn: false })),
+          ]
+            .filter(
+              (row) =>
+                (!q || row.role.toLowerCase().includes(q)) &&
+                (!kind || row.builtIn === (kind === "built-in"))
+            )
+            .sort(
+              (a, b) =>
+                direction * a[sortBy].localeCompare(b[sortBy]) ||
+                a.id.localeCompare(b.id)
+            )
+          return HttpResponse.json({
+            items: all.slice((page - 1) * pageSize, page * pageSize),
+            total: all.length,
+            page,
+            pageSize,
           })
         }
       ),

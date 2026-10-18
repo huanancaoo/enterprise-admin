@@ -24,3 +24,5 @@ export {
 } from "./runtime.ts"
 export type { TaskRuntimeOptions, TaskSubmission, TaskLog } from "./runtime.ts"
 export { canonicalJsonHash } from "./json-digest.ts"
+
+export { createQueueMonitor } from "./queue-monitor.ts"

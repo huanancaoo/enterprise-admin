@@ -83,7 +83,7 @@ export function createInvitationsScenario(
     createdAt,
     expiresAt,
     delivery: {
-      attemptId: `invitation-attempt-${index}`,
+      attemptId: `c7dd0a27-4f8a-4aef-8d4c-${String(7900 + index).padStart(12, "0")}`,
       status: "smtp_accepted",
       attemptedAt: createdAt,
       errorCode: null,
@@ -122,12 +122,12 @@ export function createInvitationsScenario(
   let revoked = false
   let attempt = 1
   const failure = (status: number, code: string, message: string) =>
-    HttpResponse.json({ code, message }, { status })
+    HttpResponse.json({ code, message, locale: "en-US", requestId: "invitation-story-request" }, { status })
   const delivery = (): Invitation["delivery"] =>
     scenario === "unrecordedDelivery"
       ? null
       : {
-          attemptId: `invitation-attempt-${++attempt}`,
+          attemptId: `c7dd0a27-4f8a-4aef-8d4c-${String(7900 + ++attempt).padStart(12, "0")}`,
           status:
             scenario === "failedDelivery"
               ? "failed"
@@ -175,6 +175,57 @@ export function createInvitationsScenario(
                   (action === "create" && scenario !== "cancelOnly") ||
                   (action === "cancel" && scenario !== "createOnly")
               ),
+          })
+        }
+      ),
+      http.get(
+        "*/api/v1/organizations/:organizationId/invitations-directory",
+        async ({ request, params }) => {
+          if (params.organizationId !== organizationId)
+            return failure(403, "FORBIDDEN", "Access denied")
+          if (scenario === "loading") await delay("infinite")
+          if (scenario === "slow") await delay(700)
+          if (scenario === "forbidden") {
+            await delay(300)
+            revoked = true
+            return failure(403, "FORBIDDEN", "Access denied")
+          }
+          if (scenario === "unauthorized")
+            return failure(401, "UNAUTHENTICATED", "Authentication required")
+          if (
+            scenario === "unavailable" ||
+            (scenario === "readBackUnavailable" && wrote)
+          )
+            return failure(
+              503,
+              "INTERNAL_ERROR",
+              "Invitation directory unavailable"
+            )
+          const search = new URL(request.url).searchParams
+          const page = Number(search.get("page") ?? 1),
+            pageSize = Number(search.get("pageSize") ?? 20)
+          const q = search.get("q")?.toLowerCase(),
+            status = search.get("status")
+          const sortBy =
+            search.get("sortBy") === "expiresAt" ? "expiresAt" : "createdAt"
+          const direction = search.get("sortOrder") === "asc" ? 1 : -1
+          const all = rows
+            .filter(
+              (row) =>
+                (!q || row.email.toLowerCase().includes(q)) &&
+                (!status || row.businessStatus === status)
+            )
+            .sort(
+              (a, b) =>
+                direction *
+                  String(a[sortBy]).localeCompare(String(b[sortBy])) ||
+                a.id.localeCompare(b.id)
+            )
+          return HttpResponse.json({
+            items: all.slice((page - 1) * pageSize, page * pageSize),
+            total: all.length,
+            page,
+            pageSize,
           })
         }
       ),

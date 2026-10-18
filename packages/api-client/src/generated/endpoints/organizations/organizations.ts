@@ -22,7 +22,9 @@ import type {
   AuditEvent,
   AuditEventsPage,
   ListOrganizationAuditEventsParams,
+  ListOrganizationMemberOptionsParams,
   OrganizationAccess,
+  OrganizationMemberOptionsPage,
   OrganizationRoleAccess,
   OrganizationSummary,
 } from "../../models"
@@ -1130,6 +1132,217 @@ export function useGetOrganizationAuditEvent<
   const queryOptions = getGetOrganizationAuditEventQueryOptions(
     organizationId,
     eventId,
+    options
+  )
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+
+  return withQueryKey(query, queryOptions.queryKey)
+}
+
+export type listOrganizationMemberOptionsResponse200 = {
+  data: OrganizationMemberOptionsPage
+  status: 200
+}
+
+export type listOrganizationMemberOptionsResponseSuccess =
+  listOrganizationMemberOptionsResponse200 & {
+    headers: Headers
+  }
+export const getListOrganizationMemberOptionsUrl = (
+  organizationId: string,
+  params?: ListOrganizationMemberOptionsParams
+) => {
+  const normalizedParams = new URLSearchParams()
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value))
+    }
+  })
+
+  const stringifiedParams = normalizedParams.toString()
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/organizations/${organizationId}/member-options?${stringifiedParams}`
+    : `/api/v1/organizations/${organizationId}/member-options`
+}
+
+export const listOrganizationMemberOptions = async (
+  organizationId: string,
+  params?: ListOrganizationMemberOptionsParams,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<listOrganizationMemberOptionsResponseSuccess> => {
+  return apiClient<listOrganizationMemberOptionsResponseSuccess>(
+    getListOrganizationMemberOptionsUrl(organizationId, params),
+    {
+      ...options,
+      method: "GET",
+    }
+  )
+}
+
+export const getListOrganizationMemberOptionsQueryKey = (
+  organizationId: string,
+  params?: ListOrganizationMemberOptionsParams
+) => {
+  return [
+    `/api/v1/organizations/${organizationId}/member-options`,
+    ...(params ? [params] : []),
+  ] as const
+}
+
+export const getListOrganizationMemberOptionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listOrganizationMemberOptions>>,
+  TError = ErrorType<unknown>,
+>(
+  organizationId: string,
+  params?: ListOrganizationMemberOptionsParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listOrganizationMemberOptions>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListOrganizationMemberOptionsQueryKey(organizationId, params)
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listOrganizationMemberOptions>>
+  > = ({ signal }) =>
+    listOrganizationMemberOptions(organizationId, params, {
+      signal,
+      ...requestOptions,
+    })
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: organizationId !== null && organizationId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listOrganizationMemberOptions>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListOrganizationMemberOptionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listOrganizationMemberOptions>>
+>
+export type ListOrganizationMemberOptionsQueryError = ErrorType<unknown>
+
+export function useListOrganizationMemberOptions<
+  TData = Awaited<ReturnType<typeof listOrganizationMemberOptions>>,
+  TError = ErrorType<unknown>,
+>(
+  organizationId: string,
+  params: undefined | ListOrganizationMemberOptionsParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listOrganizationMemberOptions>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listOrganizationMemberOptions>>,
+          TError,
+          Awaited<ReturnType<typeof listOrganizationMemberOptions>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useListOrganizationMemberOptions<
+  TData = Awaited<ReturnType<typeof listOrganizationMemberOptions>>,
+  TError = ErrorType<unknown>,
+>(
+  organizationId: string,
+  params?: ListOrganizationMemberOptionsParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listOrganizationMemberOptions>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listOrganizationMemberOptions>>,
+          TError,
+          Awaited<ReturnType<typeof listOrganizationMemberOptions>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useListOrganizationMemberOptions<
+  TData = Awaited<ReturnType<typeof listOrganizationMemberOptions>>,
+  TError = ErrorType<unknown>,
+>(
+  organizationId: string,
+  params?: ListOrganizationMemberOptionsParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listOrganizationMemberOptions>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+
+export function useListOrganizationMemberOptions<
+  TData = Awaited<ReturnType<typeof listOrganizationMemberOptions>>,
+  TError = ErrorType<unknown>,
+>(
+  organizationId: string,
+  params?: ListOrganizationMemberOptionsParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listOrganizationMemberOptions>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+} {
+  const queryOptions = getListOrganizationMemberOptionsQueryOptions(
+    organizationId,
+    params,
     options
   )
 

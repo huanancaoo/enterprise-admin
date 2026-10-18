@@ -42,6 +42,7 @@
     "busboy": "1.6.0",
     "content-disposition": "3.0.0",
     "cron": "4.4.0",
+    "cron-parser": "4.9.0",
     "ioredis": "5.11.1",
     "nest-commander": "3.21.0",
     "nodemailer": "10.0.10",

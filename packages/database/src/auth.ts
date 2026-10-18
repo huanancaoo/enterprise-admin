@@ -56,6 +56,11 @@ import { readPlatformDefaultLocale } from "./platform-locale.ts"
 import { createAuthI18n } from "./auth-i18n.ts"
 import { authPasswordPolicy } from "./auth-password-policy.ts"
 import { verifyPasswordLogin } from "./password-login.ts"
+import {
+  createOrganizationInvitation,
+  ORGANIZATION_INVITATION_EXPIRES_IN_SECONDS,
+  type NativeInvitation,
+} from "./invitation-command.ts"
 import { createSessionFacts } from "./session-facts.ts"
 import {
   assertMemberDirectoryRead,
@@ -439,7 +444,7 @@ export function createAuth(
       actor_id: string
       request_id: string
     }>(
-      "INSERT INTO invitation_delivery_attempts (invitation_id, organization_id) VALUES ($1, $2) RETURNING id, current_setting('app.auth_actor_id') AS actor_id, current_setting('app.auth_request_id') AS request_id",
+      "INSERT INTO invitation_delivery_attempts (invitation_id, organization_id, actor_id, request_id) VALUES ($1, $2, current_setting('app.auth_actor_id')::uuid, current_setting('app.auth_request_id')) RETURNING id, actor_id, request_id",
       [data.id, data.organization.id]
     )
     transactionalAdapter.deferUntilCommit(async () => {
@@ -498,7 +503,7 @@ export function createAuth(
         member: ac.newRole(builtInOrganizationRolePermissions.member),
       },
       dynamicAccessControl: { enabled: true },
-      invitationExpiresIn: 60 * 60 * 24 * 7,
+      invitationExpiresIn: ORGANIZATION_INVITATION_EXPIRES_IN_SECONDS,
       requireEmailVerificationOnInvitation: true,
       sendInvitationEmail: stageInvitationEmail,
       organizationHooks: {
@@ -667,6 +672,48 @@ export function createAuth(
           [organizationId]
         )
         const email = endpointContext.body!.email!.toLowerCase()
+        if (!endpointContext.body?.resend) {
+          const invitation = await createOrganizationInvitation(
+            { query: transactionalAdapter.query },
+            (data) =>
+              transactionalAdapter.createInvitation(
+                data
+              ) as Promise<NativeInvitation>,
+            {
+              organizationId,
+              actorId: session.user.id,
+              requestId: request?.requestId ?? randomUUID(),
+              email,
+              role:
+                typeof endpointContext.body?.role === "string"
+                  ? endpointContext.body.role
+                  : "",
+              ipHash: createHmac("sha256", secret)
+                .update(request?.clientIp ?? "internal")
+                .digest("hex"),
+              limits: invitationLimits,
+            }
+          )
+          const result = await transactionalAdapter.query<{
+            name: string
+            default_locale: string | null
+          }>("SELECT name, default_locale FROM organization WHERE id=$1", [
+            organizationId,
+          ])
+          await stageInvitationEmail({
+            id: invitation.id,
+            email: invitation.email,
+            role: invitation.role,
+            organization: {
+              id: organizationId,
+              name: result.rows[0].name,
+              defaultLocale: result.rows[0].default_locale,
+            },
+            invitation: { id: invitation.id },
+            inviter: { user: { name: session.user.name } },
+          })
+          return { result: invitation }
+        }
         await assertInvitationRole(
           { query: transactionalAdapter.query },
           organizationId,
