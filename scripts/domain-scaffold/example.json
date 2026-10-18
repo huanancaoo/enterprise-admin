@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "domain": "labels",
+  "entity": "label",
+  "table": "labels",
+  "name": { "minLength": 1, "maxLength": 120 },
+  "grants": {
+    "owner": ["read", "create", "delete"],
+    "admin": ["read", "create", "delete"],
+    "member": ["read"]
+  },
+  "delegable": ["read", "create", "delete"],
+  "labels": {
+    "zh-CN": { "title": "标签", "name": "名称" },
+    "en-US": { "title": "Labels", "name": "Name" },
+    "ar": { "title": "التصنيفات", "name": "الاسم" }
+  }
+}

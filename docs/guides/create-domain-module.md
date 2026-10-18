@@ -2,6 +2,36 @@
 
 目标是让新领域沿用框架的身份、权限、隔离、契约和前端状态规则。Projects 是现有完整参考；同步租户写入使用 `TenantWrite`，不把 Projects 或 Files 的专用写入流程复制到新领域。
 
+## 使用业务模块脚手架
+
+开发者可以使用仓库 CLI 生成上述最小领域。输入是 JSON 声明，示例见 [`scripts/domain-scaffold/example.json`](../../scripts/domain-scaffold/example.json)：
+
+```sh
+pnpm domain:create --config scripts/domain-scaffold/example.json --dry-run
+pnpm domain:create --config scripts/domain-scaffold/example.json
+```
+
+`domain` 是复数路由与目录名，`entity` 是单数动作与实体名，`table` 是数据库表名；三者使用 2–40 位小写字母和数字，以字母开头。名称长度按 Unicode 字符计数；`minLength`、`maxLength`、三个内置角色的实际授予、可委派动作和三个语言的标题/字段名称均须显式声明。动作固定为 `read`、`create`、`delete`；空数组表示不授予。声明不接受 SQL、代码、模板或命令。
+
+脚手架生成普通租户领域的 Schema、Repository、Zod 契约、Nest API、通用 DataTable、创建 Dialog、删除确认、三语及测试；同时更新数据库包 export、权限目录、内置角色、自定义角色可委派目录、OpenAPI 所需 Module、SDK export、路由、侧栏、组织切换和面包屑的正式注册点。名称不自动唯一，不复制 Projects 的附件、翻译或文件事务，不产生新的组织、认证或数据库连接。
+
+生成前检查所有目标文件、SQL 表名、权限名和注册结构。已有领域、符号链接或已变化的注册文件直接报错，保留原内容。源码先暂存再成组写入；正式迁移生成失败会恢复本次源码和迁移目录。注册通过 TypeScript AST 定位，仓库注册结构变化时应修正生成器，不能靠另一个隐藏入口绕过。
+
+CLI 在写入前先运行认证 Schema 检查，再以临时 migration out 执行正式 Drizzle 生成探测。现有业务 Schema 与已记录快照不一致时拒绝生成，不把未迁移工作混入新领域。基线通过后使用正式 `pnpm db:generate` 生成结构 migration，再调用 `drizzle-kit generate --custom` 分配 RLS migration 的编号和 ledger，填入固定模板的 SELECT/INSERT/DELETE 授权、ENABLE/FORCE RLS 与组织策略。**CLI 不执行数据库迁移。** 生成完成后审查源码、权限授予和两份新迁移，再继续正式链：
+
+```sh
+pnpm --filter @workspace/i18n exec i18next-cli types
+pnpm api:openapi
+pnpm api:generate
+pnpm db:check
+pnpm lint:boundaries
+pnpm typecheck
+```
+
+源码生成包含契约测试、Service 的 `TenantWrite`/同事务审计测试、真实 HTTP 与 RLS 测试，以及加载、空态、拒绝、RTL、服务端失败保留名称的 Storybook 场景，另有真实 Chromium 路由、创建、刷新、组织导航、URL 筛选和删除确认测试。这些测试需要按下文的真实环境前提运行；生成成功不代表迁移或业务验收成功。名称以声明约束为准，字段扩展、编辑、状态、附件、导入导出等业务能力仍由所属领域明确建模。
+
+正式迁移使用下文规定的迁移身份和流程；API、Worker 不获取迁移凭据。OpenAPI 与 SDK 继续由正式工具生成，脚手架不维护第二份接口类型。后续新增字段或动作时同步演进数据库约束、权限、契约、UI 和测试，不反复覆盖已经修改的领域。
+
 ## 先确定事实和授权
 
 先写出实体、组织归属和操作，再明确名称等字段的约束、角色授予及成功审计。唯一性必须来自业务事实；不要仅因为页面有名称字段就增加名称唯一约束。平台运营、全局身份与租户业务不混放。参考 `apps/api/CONTEXT.md`、`packages/database/README.md` 和根 `CONTEXT-MAP.md`。
