@@ -1,6 +1,8 @@
 import { startBrowserApplication } from "../setup/test-runtime.mjs"
 import { signUpVerified } from "../setup/complete-signup.mjs"
 import { randomBytes, randomUUID } from "node:crypto"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { mkdir } from "node:fs/promises"
 import { createRequire } from "node:module"
 import { expect as expectUI } from "playwright/test"
@@ -1322,7 +1324,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await expectUI(page.locator('[data-slot="popover-content"]')).toHaveCount(0)
     await page.getByRole("heading", { name: "操作日志", exact: true }).click()
     await page.screenshot({
-      path: "/private/tmp/tenant-operation-log-acceptance.png",
+      path: join(tmpdir(), "tenant-operation-log-acceptance.png"),
       fullPage: true,
     })
     await page.setViewportSize({ width: 1280, height: 800 })

@@ -45,7 +45,7 @@ async function createProject(page, name) {
 }
 
 describe("S8 cross-feature browser acceptance", () => {
-  let environment, context, page
+  let environment, context, page, pageErrors, failedRequests
   beforeAll(async () => {
     environment = await startBrowserApplication({ mail: true })
   })
@@ -56,8 +56,26 @@ describe("S8 cross-feature browser acceptance", () => {
       extraHTTPHeaders: { "x-real-ip": `10.${[...randomBytes(3)].join(".")}` },
     })
     page = await context.newPage()
+    pageErrors = 0
+    failedRequests = []
+    page.on("pageerror", () => pageErrors++)
+    page.on("requestfailed", (request) =>
+      failedRequests.push({
+        resourceType: request.resourceType(),
+        pathname: new URL(request.url()).pathname,
+      })
+    )
   })
-  afterEach(() => context.close())
+  afterEach(async ({ task }) => {
+    if (task.result?.state === "fail")
+      console.error("S8 page diagnostics", {
+        pathname: new URL(page.url()).pathname,
+        isClosed: page.isClosed(),
+        pageErrors,
+        failedRequests,
+      })
+    await context.close()
+  })
 
   it.each(["organization", "account"])(
     "a late initial %s response preserves a language explicitly selected in the visible workspace",

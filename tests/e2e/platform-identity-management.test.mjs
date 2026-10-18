@@ -1,4 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest"
 import { expect as expectUI } from "playwright/test"
 import { startBrowserApplication } from "../setup/test-runtime.mjs"
@@ -173,7 +175,7 @@ describe("platform identity management browser flows", () => {
     ).toBeVisible()
     await waitForMail(environment.mailpitOrigin, email, "Reset your password")
     await page.screenshot({
-      path: "/private/tmp/identity-account-management.png",
+      path: join(tmpdir(), "identity-account-management.png"),
       fullPage: true,
     })
   })
@@ -240,7 +242,7 @@ describe("platform identity management browser flows", () => {
     expect(new URL(page.url()).searchParams.get("result")).toBe("failed")
     expect(new URL(page.url()).searchParams.get("page")).toBe("2")
     await page.screenshot({
-      path: "/private/tmp/identity-platform-login-history.png",
+      path: join(tmpdir(), "identity-platform-login-history.png"),
       fullPage: true,
     })
     await page
@@ -265,7 +267,7 @@ describe("platform identity management browser flows", () => {
       )
     ).toBe(true)
     await page.screenshot({
-      path: "/private/tmp/identity-inline-filters-mobile.png",
+      path: join(tmpdir(), "identity-inline-filters-mobile.png"),
       fullPage: true,
     })
   })
@@ -406,7 +408,7 @@ describe("platform identity management browser flows", () => {
       ).status()
     ).toBe(200)
     await page.screenshot({
-      path: "/private/tmp/identity-platform-sessions.png",
+      path: join(tmpdir(), "identity-platform-sessions.png"),
       fullPage: true,
     })
   })
@@ -482,7 +484,7 @@ describe("platform identity management browser flows", () => {
     await expectUI(page.locator("main")).toContainText(ownerAgent)
     await expectUI(page.locator("main")).not.toContainText(otherAgent)
     await page.screenshot({
-      path: "/private/tmp/identity-personal-login-history.png",
+      path: join(tmpdir(), "identity-personal-login-history.png"),
       fullPage: true,
     })
   })
