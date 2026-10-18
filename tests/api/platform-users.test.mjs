@@ -312,4 +312,65 @@ describe("platform user directory and sensitive access", () => {
       environment.runtime.pool.query("SET ROLE platform_executor")
     ).rejects.toMatchObject({ code: "42501" })
   })
+
+  it("orders equal-timestamp directory users by id across pages and preserves the total beyond the last page", async () => {
+    const users = await Promise.all([
+      signUpVerified(environment.baseURL, origin, environment.migrator, {
+        name: "Stable page pair Alpha",
+        email: "alpha-page@example.test",
+      }),
+      signUpVerified(environment.baseURL, origin, environment.migrator, {
+        name: "Stable page pair Bravo",
+        email: "bravo-page@example.test",
+      }),
+    ])
+    await environment.migrator.query(
+      'UPDATE public."user" SET created_at = $1 WHERE id = ANY($2::uuid[])',
+      [new Date("2025-01-01T00:00:00.000Z"), users.map(({ user }) => user.id)]
+    )
+
+    const [first, second] = [...users].sort((left, right) =>
+      left.user.id < right.user.id ? -1 : 1
+    )
+    const pageOne = await (
+      await request("?q=Stable%20page%20pair&pageSize=1")
+    ).json()
+    const pageTwo = await (
+      await request("?q=Stable%20page%20pair&pageSize=1&page=2")
+    ).json()
+    const beyondLastPage = await (
+      await request("?q=Stable%20page%20pair&pageSize=1&page=3")
+    ).json()
+
+    expect(pageOne).toMatchObject({
+      items: [
+        {
+          userId: first.user.id,
+          name: first.user.name,
+          maskedEmail: `${first.email[0]}***@example.test`,
+        },
+      ],
+      page: 1,
+      pageSize: 1,
+      total: 2,
+    })
+    expect(pageTwo).toMatchObject({
+      items: [
+        {
+          userId: second.user.id,
+          name: second.user.name,
+          maskedEmail: `${second.email[0]}***@example.test`,
+        },
+      ],
+      page: 2,
+      pageSize: 1,
+      total: 2,
+    })
+    expect(beyondLastPage).toMatchObject({
+      items: [],
+      page: 3,
+      pageSize: 1,
+      total: 2,
+    })
+  })
 })
