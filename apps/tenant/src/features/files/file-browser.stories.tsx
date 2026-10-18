@@ -346,7 +346,11 @@ export const FilePickerVersionReference: Story = {
     await waitFor(() =>
       expect(popup.getByRole("button", { name: "Use file" })).toBeEnabled()
     )
-    popup.getByRole("button", { name: "Use file" }).focus()
+    // 选择会替换文件单元格；先等弹层下一帧恢复焦点，再用键盘确认。
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+    const confirmButton = popup.getByRole("button", { name: "Use file" })
+    confirmButton.focus()
+    await expect(confirmButton).toHaveFocus()
     await userEvent.keyboard("{Enter}")
     await waitFor(() =>
       expect(
