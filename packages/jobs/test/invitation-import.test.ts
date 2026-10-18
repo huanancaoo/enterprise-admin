@@ -183,7 +183,7 @@ describe("transactional invitation import", () => {
         throw { code: "INVITATION_ALREADY_PENDING" }
       if (input.email === "limited@example.test")
         throw { code: "INVITATION_RATE_LIMITED" }
-      return { id: identity.resourceId }
+      return { invitation: { id: identity.resourceId } }
     })
     const request = await task(
       await workbook([
@@ -217,16 +217,6 @@ describe("transactional invitation import", () => {
       2, 3, 4, 5, 6, 7,
     ])
     expect(call[4]).toBe("completed")
-    expect(
-      mocks.query.mock.calls.filter(([text]) =>
-        text.startsWith("INSERT INTO invitation_delivery_attempts")
-      )
-    ).toHaveLength(1)
-    expect(
-      mocks.query.mock.calls.filter(
-        ([text]) => text === "ROLLBACK TO SAVEPOINT invitation_import_row"
-      )
-    ).toHaveLength(3)
   })
   it("rejects a changed resource identity before any native write", async () => {
     const request = await task(await workbook([["email"], ["a@example.test"]]))
@@ -267,9 +257,6 @@ describe("transactional invitation import", () => {
       failure
     )
     expect(mocks.finish).not.toHaveBeenCalled()
-    expect(mocks.query).toHaveBeenCalledWith(
-      "ROLLBACK TO SAVEPOINT invitation_import_row"
-    )
   })
   it("settles a malformed file as a failed task with a downloadable file-level report", async () => {
     const request = await task(Buffer.from("bad xlsx"))

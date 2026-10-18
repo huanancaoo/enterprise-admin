@@ -60,6 +60,7 @@ import {
   createOrganizationInvitation,
   ORGANIZATION_INVITATION_EXPIRES_IN_SECONDS,
   type NativeInvitation,
+  type InvitationDeliveryIntent,
 } from "./invitation-command.ts"
 import { createSessionFacts } from "./session-facts.ts"
 import {
@@ -447,12 +448,20 @@ export function createAuth(
       "INSERT INTO invitation_delivery_attempts (invitation_id, organization_id, actor_id, request_id) VALUES ($1, $2, current_setting('app.auth_actor_id')::uuid, current_setting('app.auth_request_id')) RETURNING id, actor_id, request_id",
       [data.id, data.organization.id]
     )
+    deferInvitationEmail(data, {
+      attemptId: attempt.rows[0].id,
+      actorId: attempt.rows[0].actor_id,
+      requestId: attempt.rows[0].request_id,
+    })
+  }
+  function deferInvitationEmail(
+    data: InvitationEmailData,
+    delivery: InvitationDeliveryIntent
+  ) {
     transactionalAdapter.deferUntilCommit(async () => {
       try {
         await emailHooks.sendInvitationEmail({
-          attemptId: attempt.rows[0].id,
-          actorId: attempt.rows[0].actor_id,
-          requestId: attempt.rows[0].request_id,
+          ...delivery,
           id: data.id,
           email: data.email,
           role: data.role,
@@ -471,7 +480,7 @@ export function createAuth(
         // 邀请已提交。持久化不可用不能改写创建结果；attempt 保留已记录事实。
         console.error({
           event: "invitation.delivery.unavailable",
-          requestId: attempt.rows[0].request_id,
+          requestId: delivery.requestId,
         })
       }
     })
@@ -673,7 +682,7 @@ export function createAuth(
         )
         const email = endpointContext.body!.email!.toLowerCase()
         if (!endpointContext.body?.resend) {
-          const invitation = await createOrganizationInvitation(
+          const { invitation, delivery } = await createOrganizationInvitation(
             { query: transactionalAdapter.query },
             (data) =>
               transactionalAdapter.createInvitation(
@@ -700,18 +709,21 @@ export function createAuth(
           }>("SELECT name, default_locale FROM organization WHERE id=$1", [
             organizationId,
           ])
-          await stageInvitationEmail({
-            id: invitation.id,
-            email: invitation.email,
-            role: invitation.role,
-            organization: {
-              id: organizationId,
-              name: result.rows[0].name,
-              defaultLocale: result.rows[0].default_locale,
+          deferInvitationEmail(
+            {
+              id: invitation.id,
+              email: invitation.email,
+              role: invitation.role,
+              organization: {
+                id: organizationId,
+                name: result.rows[0].name,
+                defaultLocale: result.rows[0].default_locale,
+              },
+              invitation: { id: invitation.id },
+              inviter: { user: { name: session.user.name } },
             },
-            invitation: { id: invitation.id },
-            inviter: { user: { name: session.user.name } },
-          })
+            delivery
+          )
           return { result: invitation }
         }
         await assertInvitationRole(

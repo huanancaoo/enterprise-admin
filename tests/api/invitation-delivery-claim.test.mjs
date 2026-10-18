@@ -52,7 +52,7 @@ describe("native invitation durable delivery claim", () => {
           "SELECT set_config('app.expected_authorization_version',authorization_version::text,true) FROM organization_status WHERE organization_id=$1",
           [f.organization.id]
         )
-        const invitation = await createOrganizationInvitation(
+        const { invitation, delivery } = await createOrganizationInvitation(
           db,
           nativeInvitationCreator(tx),
           {
@@ -65,20 +65,9 @@ describe("native invitation durable delivery claim", () => {
             limits,
           }
         )
-        const result = await db.query(
-          "INSERT INTO invitation_delivery_attempts(invitation_id,organization_id,actor_id,request_id) VALUES($1,$2,$3,$4) RETURNING id",
-          [
-            invitation.id,
-            f.organization.id,
-            f.owner.user.id,
-            identity.requestId,
-          ]
-        )
         return {
           ...invitation,
-          attemptId: result.rows[0].id,
-          actorId: f.owner.user.id,
-          requestId: identity.requestId,
+          ...delivery,
           organization: f.organization,
           invitation: { id: invitation.id },
           inviter: { user: { name: f.owner.user.name } },

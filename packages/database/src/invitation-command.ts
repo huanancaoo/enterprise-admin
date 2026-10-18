@@ -28,6 +28,11 @@ export type NativeInvitation = {
   expiresAt: Date
   createdAt: Date
 }
+export type InvitationDeliveryIntent = {
+  attemptId: string
+  actorId: string
+  requestId: string
+}
 export type InvitationCommandInput = {
   organizationId: string
   actorId: string
@@ -38,12 +43,15 @@ export type InvitationCommandInput = {
   limits?: InvitationLimits
 }
 
-// 单条入口与后台任务共享所有业务前置条件；生命周期仍由 Better Auth 的 invitation 模型承载。
+// 调用者提供同一事务的原生创建 adapter；邀请、配额、触发器审计和投递意图必须共同提交。
 export async function createOrganizationInvitation(
   db: QueryExecutor,
   create: (data: Omit<NativeInvitation, "id">) => Promise<NativeInvitation>,
   input: InvitationCommandInput
-) {
+): Promise<{
+  invitation: NativeInvitation
+  delivery: InvitationDeliveryIntent
+}> {
   await db.query("SELECT public.require_active_account($1::uuid)", [
     input.actorId,
   ])
@@ -85,7 +93,7 @@ export async function createOrganizationInvitation(
     [input.actorId, input.requestId, input.organizationId]
   )
   const createdAt = new Date()
-  return create({
+  const invitation = await create({
     email,
     role: input.role,
     status: "pending",
@@ -96,6 +104,22 @@ export async function createOrganizationInvitation(
       createdAt.getTime() + ORGANIZATION_INVITATION_EXPIRES_IN_SECONDS * 1000
     ),
   })
+  const attempt = await db.query<{
+    id: string
+    actor_id: string
+    request_id: string
+  }>(
+    "INSERT INTO invitation_delivery_attempts (invitation_id,organization_id,actor_id,request_id) VALUES ($1,$2,$3,$4) RETURNING id,actor_id,request_id",
+    [invitation.id, input.organizationId, input.actorId, input.requestId]
+  )
+  return {
+    invitation,
+    delivery: {
+      attemptId: attempt.rows[0].id,
+      actorId: attempt.rows[0].actor_id,
+      requestId: attempt.rows[0].request_id,
+    },
+  }
 }
 
 // 这里只编译服务端固定 SQL 的位置参数，值仍由 Drizzle 绑定，不把文件内容拼成 SQL。

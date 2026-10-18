@@ -81,7 +81,7 @@ export function createOrganizationInvitationImportTask(policy: {
         }
         await db.query("SAVEPOINT invitation_import_row")
         try {
-          const invitation = await createOrganizationInvitation(
+          const { invitation } = await createOrganizationInvitation(
             db,
             nativeInvitationCreator(tx),
             {
@@ -93,15 +93,6 @@ export function createOrganizationInvitationImportTask(policy: {
               ipHash: task.input.sourceIpHash,
               limits: policy,
             }
-          )
-          await db.query(
-            "INSERT INTO invitation_delivery_attempts (invitation_id,organization_id,actor_id,request_id) VALUES ($1,$2,$3,$4)",
-            [
-              invitation.id,
-              task.identity.organizationId,
-              task.identity.actorId,
-              task.identity.requestId,
-            ]
           )
           rows.push({
             row: sourceRow.row,
