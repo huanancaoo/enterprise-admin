@@ -25,8 +25,16 @@ export function useLoginEventColumns<TLog extends LoginLog>() {
   return useMemo(() => {
     const columns = createDataTableColumnHelper<TLog>()
     const format = createFormatter(locale)
-    const methodLabel = (method: LoginLog["method"]) =>
-      String(t(`identity:${method}Method`))
+    // 保留静态键，确保翻译提取器能识别全部登录方式和结果文案。
+    const methodLabels = {
+      email: String(t("emailMethod")),
+      github: String(t("githubMethod")),
+      totp: String(t("totpMethod")),
+    } satisfies Record<LoginLog["method"], string>
+    const resultLabels = {
+      succeeded: String(t("succeeded")),
+      failed: String(t("failed")),
+    } satisfies Record<LoginLog["result"], string>
     return {
       occurredAt: columns.accessor((row) => row.occurredAt, {
         id: "occurredAt",
@@ -46,13 +54,13 @@ export function useLoginEventColumns<TLog extends LoginLog>() {
         header: ({ header }) => (
           <DataTableColumnHeader header={header} title={t("method")} />
         ),
-        cell: ({ getValue }) => methodLabel(getValue()),
+        cell: ({ getValue }) => methodLabels[getValue()],
         meta: {
           label: t("method"),
           facetMode: "single",
           facetOptions: (["email", "github", "totp"] as const).map((value) => ({
             value,
-            label: methodLabel(value),
+            label: methodLabels[value],
           })),
         },
       }),
@@ -63,7 +71,7 @@ export function useLoginEventColumns<TLog extends LoginLog>() {
         ),
         cell: ({ getValue }) => (
           <Badge variant={getValue() === "succeeded" ? "secondary" : "outline"}>
-            {t(getValue())}
+            {resultLabels[getValue()]}
           </Badge>
         ),
         meta: {
@@ -71,7 +79,7 @@ export function useLoginEventColumns<TLog extends LoginLog>() {
           facetMode: "single",
           facetOptions: (["succeeded", "failed"] as const).map((value) => ({
             value,
-            label: String(t(value)),
+            label: resultLabels[value],
           })),
         },
       }),

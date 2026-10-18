@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite"
+import { useTranslation } from "react-i18next"
 import { expect, userEvent, waitFor, within } from "storybook/test"
 import {
   createPlatformEmployeesRolesScenario,
@@ -95,15 +96,21 @@ export const Locked: Story = {
     })
   },
 }
-export const UnlockUpdatesUserAndEmployee: Story = {
-  ...scenario("locked"),
-  args: { page: "employee-detail" },
-  render: (args) => (
+
+function UnlockUpdatesUserAndEmployeeFixture({
+  args,
+}: {
+  args: Parameters<typeof EmployeeRoleStory>[0]
+}) {
+  const { t: employeeText } = useTranslation("employees")
+  const { t: identityText } = useTranslation("identity")
+
+  return (
     <main>
-      <section aria-label="Employee detail">
+      <section aria-label={employeeText("profile")}>
         <EmployeeRoleStory {...args} embedded />
       </section>
-      <section aria-label="User detail">
+      <section aria-label={identityText("user")}>
         <PlatformReadPageStory
           page="users"
           embedded
@@ -111,13 +118,19 @@ export const UnlockUpdatesUserAndEmployee: Story = {
         />
       </section>
     </main>
-  ),
+  )
+}
+
+export const UnlockUpdatesUserAndEmployee: Story = {
+  ...scenario("locked"),
+  args: { page: "employee-detail" },
+  render: (args) => <UnlockUpdatesUserAndEmployeeFixture args={args} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const employee = within(
-      canvas.getByRole("region", { name: "Employee detail" })
+      canvas.getByRole("region", { name: "Employee profile" })
     )
-    const user = within(canvas.getByRole("region", { name: "User detail" }))
+    const user = within(canvas.getByRole("region", { name: "Account" }))
     await user.findByText("Locked")
     await expect(
       await employee.findByText("5", { selector: "dd" })
@@ -149,9 +162,9 @@ export const UserUnlockUpdatesEmployee: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const employee = within(
-      canvas.getByRole("region", { name: "Employee detail" })
+      canvas.getByRole("region", { name: "Employee profile" })
     )
-    const user = within(canvas.getByRole("region", { name: "User detail" }))
+    const user = within(canvas.getByRole("region", { name: "Account" }))
     await expect(
       await employee.findByText("5", { selector: "dd" })
     ).toBeVisible()

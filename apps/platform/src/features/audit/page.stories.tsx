@@ -991,6 +991,7 @@ export const DirectoryFailureAndEmptySearchKeepTheSelection: Story = {
     await waitFor(() => expect(trigger).toHaveTextContent("South workspace"))
     const retry = screen.getByRole("button", { name: "Retry" })
     await expect(retry.closest('[role="listbox"]')).toBeNull()
+    await waitFor(() => expect(search).toHaveFocus())
     await userEvent.tab()
     await expect(retry).toHaveFocus()
     await userEvent.keyboard("{Enter}")

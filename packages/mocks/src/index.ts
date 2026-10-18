@@ -139,6 +139,7 @@ export type { PlatformEmployeesRolesScenario } from "./handlers/platform-employe
 export { createEmptyTenantAnnouncementInboxHandler } from "./handlers/tenant-announcements"
 
 export {
+  createPlatformLayoutNavigationHandler,
   createHiddenPlatformFrameHandler,
   hiddenPlatformFrameId,
   hiddenPlatformFrameUrl,

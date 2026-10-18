@@ -97,6 +97,8 @@ export const UploadErrorKeepsSelection: Story = {
       "Avatar save failed"
     )
     await expect(canvas.getByAltText("New avatar preview")).toBeVisible()
+    const form = canvasElement.querySelector("form")!
+    await waitFor(() => expect(form).toHaveAttribute("aria-busy", "false"))
     await expect(
       canvas.getByRole("button", { name: "Save avatar" })
     ).toBeEnabled()

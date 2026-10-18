@@ -50,6 +50,19 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
+async function finishFiniteAnimations(element: HTMLElement) {
+  const animations = element.getAnimations().filter((animation) => {
+    const endTime = animation.effect?.getComputedTiming().endTime
+    return typeof endTime === "number" && Number.isFinite(endTime)
+  })
+  await Promise.allSettled(animations.map((animation) => animation.finished))
+}
+
+async function waitForPopupToClose(popup: HTMLElement) {
+  await finishFiniteAnimations(popup)
+  await waitFor(() => expect(popup).not.toBeInTheDocument(), { timeout: 5000 })
+}
+
 export const LoginEvents: Story = {
   args: { page: "login-events" },
   play: async ({ canvasElement }) => {
@@ -146,8 +159,13 @@ export const LoginEventsFilterPagination: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Previous page" }))
     await userEvent.click(canvas.getByRole("button", { name: "Result" }))
     const screen = within(canvasElement.ownerDocument.body)
-    await userEvent.click(await screen.findByRole("option", { name: "Failed" }))
+    const failedOption = await screen.findByRole("option", { name: "Failed" })
+    const resultPopup = failedOption.closest<HTMLElement>(
+      '[data-slot="popover-content"]'
+    )!
+    await userEvent.click(failedOption)
     await userEvent.keyboard("{Escape}")
+    await waitForPopupToClose(resultPopup)
     await expect(
       paginatedFixture.fixture.loginQueries.at(-1)?.get("result")
     ).toBe("failed")
@@ -326,9 +344,18 @@ export const SessionsUserFilter: Story = {
     await userEvent.click(
       await screen.findByRole("combobox", { name: "Filter by account" })
     )
-    await userEvent.click(
-      (await screen.findAllByRole("option", { name: /Mina Chen/ }))[0]!
+    const mina = (
+      await screen.findAllByRole("option", { name: /Mina Chen/ })
+    )[0]!
+    const userPopup = mina.closest<HTMLElement>(
+      '[data-slot="combobox-content"]'
+    )!
+    await userEvent.click(mina)
+    await waitFor(() =>
+      expect(account).toHaveAttribute("aria-expanded", "false")
     )
+    await waitForPopupToClose(userPopup)
+    await waitFor(() => expect(account).toHaveTextContent("Mina Chen"))
     await waitFor(() =>
       expect(screen.queryByRole("listbox", { hidden: true })).toBeNull()
     )

@@ -1,5 +1,15 @@
+import { useState } from "react"
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  Outlet,
+  RouterProvider,
+} from "@tanstack/react-router"
 import type { Meta, StoryObj } from "@storybook/react-vite"
 import { expect, userEvent, waitFor, within } from "storybook/test"
+import { PersonalLoginLogsQuerySchema } from "@workspace/contracts/identity-management"
 import {
   arabicSaved,
   chooseLocale,
@@ -7,12 +17,39 @@ import {
 } from "./locale-settings.story-utils"
 import { LocaleSettingsStory } from "./locale-settings.story-fixture"
 
+function PersonalLocaleSettingsRouter(
+  args: Parameters<typeof LocaleSettingsStory>[0]
+) {
+  const [router] = useState(() => {
+    const root = createRootRoute({ component: Outlet })
+    const settings = createRoute({
+      getParentRoute: () => root,
+      path: "/app/settings",
+      component: () => <LocaleSettingsStory {...args} />,
+    })
+    const loginEvents = createRoute({
+      getParentRoute: () => root,
+      path: "/app/settings/login-events",
+      validateSearch: (search) => PersonalLoginLogsQuerySchema.parse(search),
+      component: () => null,
+    })
+
+    return createRouter({
+      routeTree: root.addChildren([settings, loginEvents]),
+      history: createMemoryHistory({ initialEntries: ["/app/settings"] }),
+    })
+  })
+
+  return <RouterProvider router={router} />
+}
+
 const scenario = (name: Parameters<typeof localeScenario>[1] = "success") =>
   localeScenario("personal", name)
 const meta = {
   title: "Admin/Personal language settings",
   component: LocaleSettingsStory,
   args: { target: "personal" },
+  render: (args) => <PersonalLocaleSettingsRouter {...args} />,
   globals: { locale: "en-US" },
   ...scenario(),
 } satisfies Meta<typeof LocaleSettingsStory>

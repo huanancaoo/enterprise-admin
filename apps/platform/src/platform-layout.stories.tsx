@@ -11,6 +11,7 @@ import { AuthGate, type WorkspaceRouterContext } from "@workspace/admin/auth"
 import { useUiLocale } from "@workspace/i18n/react"
 import {
   createPlatformOrganizationScenario,
+  createPlatformLayoutNavigationHandler,
   createWorkspaceSessionHandlers,
 } from "@workspace/mocks"
 import { router as applicationRouter } from "./router"
@@ -52,6 +53,7 @@ const meta = {
       handlers: [
         ...createWorkspaceSessionHandlers(),
         ...createPlatformOrganizationScenario().handlers,
+        createPlatformLayoutNavigationHandler(),
       ],
     },
   },
@@ -63,16 +65,20 @@ export const DefaultOrganizationLanding: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await expect(
-      await canvas.findByRole("heading", { name: "组织", level: 1 })
+      await canvas.findByRole(
+        "heading",
+        { name: "组织", level: 1 },
+        { timeout: 5000 }
+      )
     ).toBeVisible()
     const navigation = within(
       canvas.getByRole("navigation", { name: "主导航" })
     )
     await expect(
       navigation.getAllByRole("link").map((link) => link.textContent)
-    ).toEqual(["组织", "用户", "审计", "平台设置"])
+    ).toEqual(["组织管理", "全局账号", "操作日志", "平台设置"])
     await expect(
-      navigation.getByRole("link", { name: "组织" })
+      navigation.getByRole("link", { name: "组织管理" })
     ).toHaveAttribute("aria-current", "page")
     await userEvent.click(
       within(
@@ -86,7 +92,11 @@ export const DefaultOrganizationLanding: Story = {
       await screen.findByRole("menuitem", { name: "个人设置" })
     )
     await expect(
-      await canvas.findByRole("heading", { name: "个人设置", level: 1 })
+      await canvas.findByRole(
+        "heading",
+        { name: "个人设置", level: 1 },
+        { timeout: 5000 }
+      )
     ).toBeVisible()
     await waitFor(() =>
       expect(screen.queryAllByRole("menu", { hidden: true })).toHaveLength(0)

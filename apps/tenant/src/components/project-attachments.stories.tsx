@@ -66,7 +66,9 @@ async function pickAttachment(
   await userEvent.click(
     await picker.findByRole("button", { name: "Attachment.txt" })
   )
-  await userEvent.click(picker.getByRole("button", { name: confirmLabel }))
+  const confirm = picker.getByRole("button", { name: confirmLabel })
+  await waitFor(() => expect(confirm).toBeEnabled())
+  await userEvent.click(confirm)
   await waitFor(() =>
     expect(
       screen.queryByRole("dialog", { name: pickerLabel })
