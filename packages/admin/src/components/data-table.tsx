@@ -54,6 +54,7 @@ export function DataTable<TData extends RowData>({
   toolbarContent,
   toolbarFilters,
   showPagination = true,
+  paginationLabel,
   rowClassName,
   ...options
 }: DataTableProps<TData>) {
@@ -199,6 +200,7 @@ export function DataTable<TData extends RowData>({
             status !== "forbidden" &&
             (table.getRowCount() > 0 || status === "loading") && (
               <Pagination
+                paginationLabel={paginationLabel}
                 pageIndex={table.state.pagination.pageIndex}
                 pageSize={table.state.pagination.pageSize}
                 rowCount={table.getRowCount()}

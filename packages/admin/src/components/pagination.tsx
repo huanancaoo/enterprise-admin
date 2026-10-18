@@ -27,6 +27,7 @@ const PAGE_SIZES = [10, 20, 30, 50, 100] as const
 
 export function Pagination({
   pageSizes = PAGE_SIZES,
+  paginationLabel,
   disabled = false,
   isLoading = false,
   pageIndex,
@@ -37,6 +38,7 @@ export function Pagination({
   onPageSizeChange,
 }: {
   pageSizes?: readonly number[]
+  paginationLabel?: string
   disabled?: boolean
   isLoading?: boolean
   pageIndex: number
@@ -97,7 +99,7 @@ export function Pagination({
           </Select>
         </Field>
         <PaginationPrimitive
-          aria-label={t("pagination")}
+          aria-label={paginationLabel ?? t("pagination")}
           className="mx-0 w-auto"
         >
           <PaginationContent>

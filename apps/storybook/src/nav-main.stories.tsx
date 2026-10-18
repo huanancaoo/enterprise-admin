@@ -1,12 +1,20 @@
 import { useTranslation } from "react-i18next"
 import type { Meta, StoryObj } from "@storybook/react-vite"
-import { expect, userEvent, within } from "storybook/test"
+import { expect, userEvent, waitFor, within } from "storybook/test"
 import { NavMain, type NavMainProps } from "@workspace/admin"
 import {
   Sidebar,
   SidebarContent,
   SidebarProvider,
+  SidebarTrigger,
 } from "@workspace/ui/components/sidebar"
+
+const navigationIcon = (
+  <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+    <rect x="4" y="4" width="16" height="16" rx="3" />
+    <path d="M9 4v16M9 10h11" />
+  </svg>
+)
 
 function NavigationStory(props: NavMainProps) {
   const { t } = useTranslation("common")
@@ -18,12 +26,14 @@ function NavigationStory(props: NavMainProps) {
         mobileDescription: t("sidebarDescription"),
       }}
     >
-      <Sidebar>
+      <Sidebar collapsible="icon">
         <SidebarContent>
           <NavMain {...props} />
         </SidebarContent>
       </Sidebar>
-      <main className="p-6" aria-label="Workspace" />
+      <main className="p-6" aria-label="Workspace">
+        <SidebarTrigger />
+      </main>
     </SidebarProvider>
   )
 }
@@ -36,7 +46,13 @@ const meta = {
     label: "Navigation",
     items: [
       {
+        title: "Organizations",
+        icon: navigationIcon,
+        render: <a href="#organizations" />,
+      },
+      {
         title: "System management",
+        icon: navigationIcon,
         items: [
           { title: "Employees", render: <a href="#employees" /> },
           {
@@ -54,6 +70,7 @@ const meta = {
       },
       {
         title: "System monitoring",
+        icon: navigationIcon,
         items: [{ title: "Sessions", render: <a href="#sessions" /> }],
       },
     ],
@@ -72,15 +89,21 @@ export const ThreeLevels: Story = {
       canvas.getByRole("link", { name: "Operation log" })
     ).toHaveAttribute("data-active")
     await userEvent.click(canvas.getByRole("button", { name: "Logs" }))
-    await expect(
-      canvas.queryByRole("link", { name: "Operation log" })
-    ).not.toBeInTheDocument()
+    await waitFor(() =>
+      expect(
+        canvas.queryByRole("link", { name: "Operation log" })
+      ).not.toBeInTheDocument()
+    )
     await userEvent.click(canvas.getByRole("button", { name: "Logs" }))
-    await expect(canvas.getByRole("link", { name: "Login log" })).toBeVisible()
+    await waitFor(() =>
+      expect(canvas.getByRole("link", { name: "Login log" })).toBeVisible()
+    )
     await userEvent.click(
       canvas.getByRole("button", { name: "System monitoring" })
     )
-    await expect(canvas.getByRole("link", { name: "Sessions" })).toBeVisible()
+    await waitFor(() =>
+      expect(canvas.getByRole("link", { name: "Sessions" })).toBeVisible()
+    )
   },
 }
 export const Arabic: Story = { globals: { locale: "ar" } }
@@ -90,6 +113,7 @@ export const ParentPageWithChildren: Story = {
     items: [
       {
         title: "Reports",
+        icon: navigationIcon,
         render: <a href="#reports" />,
         items: [
           {
@@ -113,9 +137,55 @@ export const ParentPageWithChildren: Story = {
     await userEvent.click(
       canvas.getByRole("button", { name: "Toggle Reports submenu" })
     )
-    await expect(
-      canvas.queryByRole("link", { name: "Daily report" })
-    ).not.toBeInTheDocument()
+    await waitFor(() =>
+      expect(
+        canvas.queryByRole("link", { name: "Daily report" })
+      ).not.toBeInTheDocument()
+    )
     await expect(canvas.getByRole("link", { name: "Reports" })).toBeVisible()
+  },
+}
+
+export const KeyboardSubmenu: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const toggle = canvas.getByRole("button", { name: "System monitoring" })
+    toggle.focus()
+    await userEvent.keyboard("{Enter}")
+    await expect(toggle).toHaveAttribute("aria-expanded", "true")
+    await waitFor(() =>
+      expect(canvas.getByRole("link", { name: "Sessions" })).toBeVisible()
+    )
+    await userEvent.keyboard(" ")
+    await expect(toggle).toHaveAttribute("aria-expanded", "false")
+    await waitFor(() =>
+      expect(
+        canvas.queryByRole("link", { name: "Sessions" })
+      ).not.toBeInTheDocument()
+    )
+    await expect(toggle).toHaveFocus()
+  },
+}
+
+export const CollapsedIcons: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const navigation = canvas.getByRole("navigation", { name: "Navigation" })
+    const entries = [
+      within(navigation).getByRole("link", { name: "Organizations" }),
+      within(navigation).getByRole("button", { name: "System management" }),
+      within(navigation).getByRole("button", { name: "System monitoring" }),
+    ]
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Toggle sidebar" })
+    )
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-slot="sidebar"][data-state]')
+      ).toHaveAttribute("data-state", "collapsed")
+    )
+    for (const entry of entries) {
+      await expect(entry.querySelector("svg")).toBeVisible()
+    }
   },
 }

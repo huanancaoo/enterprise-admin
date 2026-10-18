@@ -10,7 +10,7 @@ import {
   AlertDialogTrigger,
 } from "@workspace/ui/components/alert-dialog"
 import { Button } from "@workspace/ui/components/button"
-import type { ReactNode } from "react"
+import type { ComponentProps, ReactNode } from "react"
 
 export type ConfirmDangerActionProps = {
   triggerLabel: string
@@ -26,6 +26,7 @@ export type ConfirmDangerActionProps = {
   open?: boolean
   onOpenChange?: (open: boolean) => void
   children?: ReactNode
+  finalFocus?: ComponentProps<typeof AlertDialogContent>["finalFocus"]
 }
 
 export function ConfirmDangerAction({
@@ -42,6 +43,7 @@ export function ConfirmDangerAction({
   open,
   onOpenChange,
   children,
+  finalFocus,
 }: ConfirmDangerActionProps) {
   return (
     <AlertDialog
@@ -60,7 +62,7 @@ export function ConfirmDangerAction({
       >
         {triggerLabel}
       </AlertDialogTrigger>
-      <AlertDialogContent aria-busy={pending}>
+      <AlertDialogContent aria-busy={pending} finalFocus={finalFocus}>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>

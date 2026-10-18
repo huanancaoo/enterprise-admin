@@ -21,6 +21,8 @@ export type DataTableProps<TData extends RowData> = DataTableOptions<TData> & {
   toolbarFilters?: ReactNode
   /** 按父节点加载的树列表由层级导航切换集合，不显示平面分页。 */
   showPagination?: boolean
+  /** 同页多个表格需要各自命名分页导航，供读屏用户区分操作对象。 */
+  paginationLabel?: string
   /** 行焦点等展示状态独立于批量勾选，不写入 rowSelection。 */
   rowClassName?: (row: Row<DataTableFeatures, TData>) => string | undefined
   status?: DataTableStatus

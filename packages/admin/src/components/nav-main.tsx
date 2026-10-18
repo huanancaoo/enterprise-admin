@@ -50,7 +50,7 @@ function NavItem({
   )
   const chevron = (
     <ChevronRightIcon
-      className={`ms-auto size-4 shrink-0 transition-transform duration-200 ${open ? "rotate-90" : "rtl:rotate-180"}`}
+      className={`ms-auto size-4 shrink-0 transition-transform duration-200 ease-in-out motion-reduce:transition-none ${open ? "rotate-90" : "rtl:rotate-180"}`}
       aria-hidden="true"
     />
   )
@@ -107,7 +107,7 @@ function NavItem({
           {chevron}
         </CollapsibleTrigger>
       )}
-      <CollapsibleContent>
+      <CollapsibleContent className="h-(--collapsible-panel-height) overflow-hidden opacity-100 transition-[height,opacity] duration-200 ease-in-out data-[ending-style]:h-0 data-[ending-style]:opacity-0 data-[starting-style]:h-0 data-[starting-style]:opacity-0 motion-reduce:transition-none">
         <SidebarMenuSub>
           {item.items.map((child) => (
             <NavItem key={navigationKey(child)} item={child} nested />
