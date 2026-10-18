@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto"
+import { canonicalJsonHash, hashJson as hash } from "./json-digest.ts"
 import { z } from "zod"
 import type { TenantTx } from "@workspace/database/tenant"
 import type { PermissionRequest } from "@workspace/permissions"
@@ -88,38 +88,20 @@ export function defineTask<I, R>(
   }
 }
 
-function hash(value: unknown): string {
-  return createHash("sha256").update(JSON.stringify(value)).digest("hex")
-}
-export function taskJobId(
-  identity: TaskIdentity,
-  type: string,
-  key: string
-): string {
+export function taskJobId<
+  T extends Pick<TaskIdentity, "organizationId" | "actorId">,
+>(identity: T, type: string, key: string): string {
   return hash([identity.organizationId, identity.actorId, type, key])
-}
-type JsonValue = z.infer<ReturnType<typeof z.json>>
-function canonical(value: JsonValue): JsonValue {
-  if (Array.isArray(value)) return value.map(canonical)
-  if (value && typeof value === "object") {
-    return Object.fromEntries(
-      Object.keys(value)
-        .sort()
-        .map((key) => [key, canonical(value[key])])
-    )
-  }
-  return value
 }
 function fingerprint(task: Omit<TaskEnvelope, "intentFingerprint">): string {
   // 请求关联标识会随网络重试改变；资源、语言和规范化输入共同决定业务意图。
-  return hash(
-    canonical(
-      z.json().parse({
-        resourceId: task.identity.resourceId,
-        locale: task.identity.locale,
-        input: task.input,
-      })
-    )
+  return canonicalJsonHash(
+    z.json().parse({
+      resourceId: task.identity.resourceId,
+      locale: task.identity.locale,
+      input: task.input,
+    }),
+    "code-unit"
   )
 }
 export function getTask(

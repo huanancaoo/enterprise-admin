@@ -38,7 +38,7 @@ import {
 import {
   DataTable,
   createDataTableColumnHelper,
-  type DataTableStatus,
+  getDataTableQueryStatus,
 } from "@workspace/admin/data-table"
 import {
   Dialog,
@@ -492,15 +492,7 @@ function AuditWorkspace({ search }: { search: PlatformAuditQuery }) {
     ])
   }, [locale, t])
   const pagination = { pageIndex: search.page - 1, pageSize: search.pageSize }
-  const status: DataTableStatus = query.isError
-    ? query.error instanceof ApiClientError && query.error.status === 403
-      ? "forbidden"
-      : "error"
-    : query.isPending
-      ? "loading"
-      : query.isFetching
-        ? "refreshing"
-        : "ready"
+  const status = getDataTableQueryStatus(query)
   const columnFilters = [
     ...(search.result ? [{ id: "result", value: search.result }] : []),
     ...(search.organizationId

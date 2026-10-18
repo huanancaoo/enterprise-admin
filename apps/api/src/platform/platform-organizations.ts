@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import {
-  ApiErrorCodeSchema,
   type ApiErrorCode,
   type OrganizationTransitionResult,
   type TransitionOrganization,
@@ -11,6 +10,7 @@ import {
 import { AuthRuntime } from '../identity/auth-runtime';
 import { ApiException } from '../http/api-exception';
 import type { PlatformPrincipal } from './platform-access.service';
+import { rethrowPlatformDatabaseError } from './platform-database-error';
 
 @Injectable()
 export class PlatformOrganizations {
@@ -120,23 +120,16 @@ export class PlatformOrganizations {
       );
       return response.rows[0].result;
     } catch (error) {
-      if (error instanceof Error && 'code' in error && error.code === 'P0001') {
-        const code = ApiErrorCodeSchema.safeParse(error.message);
-        if (code.success) {
-          const statuses: Partial<Record<ApiErrorCode, number>> = {
-            NOT_FOUND: 404,
-            VERSION_CONFLICT: 409,
-            FORBIDDEN: 403,
-            VALIDATION_ERROR: 400,
-            AUDIT_UNAVAILABLE: 503,
-            AUTHORIZATION_UNAVAILABLE: 503,
-            IDEMPOTENCY_KEY_REUSED: 409,
-          };
-          const status = statuses[code.data];
-          if (status) throw new ApiException(status, code.data);
-        }
-      }
-      throw error;
+      const statuses: Partial<Record<ApiErrorCode, number>> = {
+        NOT_FOUND: 404,
+        VERSION_CONFLICT: 409,
+        FORBIDDEN: 403,
+        VALIDATION_ERROR: 400,
+        AUDIT_UNAVAILABLE: 503,
+        AUTHORIZATION_UNAVAILABLE: 503,
+        IDEMPOTENCY_KEY_REUSED: 409,
+      };
+      rethrowPlatformDatabaseError(error, statuses);
     }
   }
 }

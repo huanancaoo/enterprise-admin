@@ -341,7 +341,7 @@ describe("organization storage policy browser workflow", () => {
     await page.goto(address())
     await expectUI(
       page.getByText(
-        "Your platform auditor role can view this storage policy.",
+        "You can view this storage policy but do not have permission to change it.",
         { exact: true }
       )
     ).toBeVisible()

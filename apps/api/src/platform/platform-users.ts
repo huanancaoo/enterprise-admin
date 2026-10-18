@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import {
-  ApiErrorCodeSchema,
   type ApiErrorCode,
   type PlatformUsersQuery,
   type PlatformUsersPage,
@@ -8,8 +7,8 @@ import {
   type PlatformSensitiveProfile,
 } from '@workspace/contracts';
 import { AuthRuntime } from '../identity/auth-runtime';
-import { ApiException } from '../http/api-exception';
 import type { PlatformPrincipal } from './platform-access.service';
+import { rethrowPlatformDatabaseError } from './platform-database-error';
 
 @Injectable()
 export class PlatformUsers {
@@ -63,19 +62,14 @@ export class PlatformUsers {
       return (await this.runtime.pool.query<{ result: T }>(statement, values))
         .rows[0].result;
     } catch (error) {
-      if (error instanceof Error && 'code' in error && error.code === 'P0001') {
-        const parsed = ApiErrorCodeSchema.safeParse(error.message);
-        const statuses: Partial<Record<ApiErrorCode, number>> = {
-          FORBIDDEN: 403,
-          NOT_FOUND: 404,
-          VALIDATION_ERROR: 400,
-          AUDIT_UNAVAILABLE: 503,
-          AUTHORIZATION_UNAVAILABLE: 503,
-        };
-        if (parsed.success && statuses[parsed.data])
-          throw new ApiException(statuses[parsed.data]!, parsed.data);
-      }
-      throw error;
+      const statuses: Partial<Record<ApiErrorCode, number>> = {
+        FORBIDDEN: 403,
+        NOT_FOUND: 404,
+        VALIDATION_ERROR: 400,
+        AUDIT_UNAVAILABLE: 503,
+        AUTHORIZATION_UNAVAILABLE: 503,
+      };
+      rethrowPlatformDatabaseError(error, statuses);
     }
   }
 }

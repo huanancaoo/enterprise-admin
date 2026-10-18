@@ -75,7 +75,7 @@ describe("platform user directory browser flow", () => {
       `${environment.platformOrigin}/platform/users?q=Browser%20directory`
     )
     await expectUI(
-      page.getByRole("heading", { name: "Users", exact: true })
+      page.getByRole("heading", { name: "Global accounts", exact: true })
     ).toBeVisible()
     await expectUI(page.locator("tbody tr")).toHaveCount(20)
     await page.getByLabel("Next page", { exact: true }).click()
@@ -272,7 +272,11 @@ describe("platform user directory browser flow", () => {
       .click()
     await expectUI(dialog.getByRole("status")).toHaveText(target.email)
     await environment.deployerPool.query(
-      "UPDATE public.platform_assignment SET role = 'platform_auditor' WHERE user_id = $1",
+      "SELECT public.manage_platform_assignment('grant',$1,'platform_auditor','browser sensitive permission revocation')",
+      [actor.user.id]
+    )
+    await environment.deployerPool.query(
+      "SELECT public.manage_platform_assignment('revoke',$1,'platform_admin','browser sensitive permission revocation')",
       [actor.user.id]
     )
     await dialog

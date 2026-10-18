@@ -227,6 +227,20 @@ beforeEach(() => {
 });
 
 describe('平台异步任务业务链', () => {
+  it('提交导出仍生成已存任务采用的原意图摘要', async () => {
+    const { service, commands } = setup();
+    await service.export(
+      actor,
+      { resource: 'employees', filters: { q: '客户', status: 'active' } },
+      'fingerprint-protocol',
+      'request-a',
+    );
+    expect(
+      commands.find((command) => command.operation === 'submit')?.input
+        .intentFingerprint,
+    ).toBe('238696b55ff86f2323e04f809be7c1547fc3c16c4db0bdd2c17a8ec88c9f3e9c');
+  });
+
   it('模板通过运行账号可调用的授权快照检查任职管理权限', async () => {
     const { service, pool, control } = setup();
     control.permissions = ['platform.authorization:manage'];

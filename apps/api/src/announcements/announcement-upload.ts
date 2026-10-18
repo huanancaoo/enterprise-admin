@@ -7,15 +7,9 @@ import busboy from 'busboy';
 import sharp from 'sharp';
 import type { Request } from 'express';
 import { ApiException } from '../http/api-exception';
+import { verifyImageContent } from '../media/verify-image-content';
 
 const maximumBytes = 100 * 1024 ** 2;
-const imageTypes = {
-  jpeg: 'image/jpeg',
-  png: 'image/png',
-  webp: 'image/webp',
-  gif: 'image/gif',
-} as const;
-
 export async function readAnnouncementUpload(request: Request) {
   const directory = await mkdtemp(join(tmpdir(), 'enterprise-announcement-'));
   const path = join(directory, 'content');
@@ -80,14 +74,11 @@ export async function readAnnouncementUpload(request: Request) {
       if (bytes > 5 * 1024 ** 2) throw new ApiException(413, 'FILE_TOO_LARGE');
       const decoder = sharp(path, { animated: true, failOn: 'warning' });
       try {
-        const metadata = await decoder.metadata();
-        if (
-          !(metadata.format in imageTypes) ||
-          imageTypes[metadata.format as keyof typeof imageTypes] !== mimeType
-        ) {
-          throw new ApiException(400, 'VALIDATION_ERROR');
-        }
-        await decoder.raw().toBuffer();
+        await verifyImageContent(
+          decoder,
+          mimeType,
+          () => new ApiException(400, 'VALIDATION_ERROR'),
+        );
       } finally {
         decoder.destroy();
       }

@@ -603,11 +603,11 @@ describe("S8 cross-feature browser acceptance", () => {
         .getByRole("button", { name: "登录", exact: true })
         .click()
       await expectUI(
-        platformPage.getByText("平台管理员 · 全平台范围", { exact: true })
+        platformPage.getByText("超级管理员", { exact: true })
       ).toBeVisible()
       await platformPage
         .getByRole("navigation", { name: "主导航", exact: true })
-        .getByRole("link", { name: "组织", exact: true })
+        .getByRole("link", { name: "组织管理", exact: true })
         .click()
       await platformPage
         .getByRole("link", { name: org.name, exact: true })

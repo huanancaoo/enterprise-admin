@@ -3,31 +3,27 @@ import { useForm } from "@tanstack/react-form"
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate, useSearch } from "@tanstack/react-router"
 import { useTranslation } from "react-i18next"
-import { ApiClientError, listMyLoginEvents } from "@workspace/api-client"
+import { listMyLoginEvents } from "@workspace/api-client"
 import {
   LoginLogsPageSchema,
   PersonalLoginLogsQuerySchema,
   type LoginLog,
   type PersonalLoginLogsQuery,
 } from "@workspace/contracts/identity-management"
-import { useAuthenticatedSession } from "@workspace/admin/auth"
+import {
+  useAuthenticatedSession,
+  useLoginEventColumns,
+  utcDateTimeFilterValues,
+  utcDateTimeFilterQuery,
+  LoginEventTimeFilterField,
+} from "@workspace/admin/auth"
 import {
   DataTable,
-  DataTableColumnHeader,
   createDataTableColumnHelper,
-  type DataTableStatus,
+  getDataTableQueryStatus,
 } from "@workspace/admin/data-table"
-import { createFormatter } from "@workspace/i18n"
-import { useUiLocale } from "@workspace/i18n/react"
-import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
-import {
-  Field,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@workspace/ui/components/field"
-import { Input } from "@workspace/ui/components/input"
+import { FieldGroup } from "@workspace/ui/components/field"
 
 const loginColumns = createDataTableColumnHelper<LoginLog>()
 const EMPTY_LOGS: LoginLog[] = []
@@ -37,17 +33,15 @@ export function PersonalLoginEventsRoute() {
   const session = useAuthenticatedSession()!
   const search = useSearch({ from: "/app/settings/login-events" })
   const navigate = useNavigate({ from: "/app/settings/login-events" })
-  const locale = useUiLocale()
+  const commonColumns = useLoginEventColumns<LoginLog>()
   const filterQuery = (value: { from: string; to: string }) => ({
     ...search,
-    from: value.from ? `${value.from}:00Z` : undefined,
-    to: value.to ? `${value.to}:00Z` : undefined,
+    ...utcDateTimeFilterQuery(value),
     page: 1,
   })
   const filtersForm = useForm({
     defaultValues: {
-      from: search.from ? new Date(search.from).toISOString().slice(0, 16) : "",
-      to: search.to ? new Date(search.to).toISOString().slice(0, 16) : "",
+      ...utcDateTimeFilterValues(search),
     },
     validators: {
       onSubmit: ({ value }) => {
@@ -73,8 +67,7 @@ export function PersonalLoginEventsRoute() {
   // URL 条件变更时回填表单；搜索和翻页不覆盖尚未应用的筛选输入。
   useEffect(() => {
     filtersForm.reset({
-      from: search.from ? new Date(search.from).toISOString().slice(0, 16) : "",
-      to: search.to ? new Date(search.to).toISOString().slice(0, 16) : "",
+      ...utcDateTimeFilterValues({ from: search.from, to: search.to }),
     })
   }, [filtersForm, search.from, search.to])
   const { page, pageSize, ...filters } = search
@@ -87,91 +80,18 @@ export function PersonalLoginEventsRoute() {
       ),
     retry: false,
   })
-  const columns = useMemo(() => {
-    const format = createFormatter(locale)
-    const methodLabel = (method: LoginLog["method"]) =>
-      String(t(`identity:${method}Method`))
-    return loginColumns.columns([
-      loginColumns.accessor("occurredAt", {
-        header: ({ header }) => (
-          <DataTableColumnHeader header={header} title={t("occurredAt")} />
-        ),
-        cell: ({ getValue }) =>
-          format.dateTime(new Date(getValue()), "UTC", {
-            dateStyle: "medium",
-            timeStyle: "short",
-          }),
-        meta: { label: t("occurredAt") },
-        size: 210,
-      }),
-      loginColumns.accessor("method", {
-        header: ({ header }) => (
-          <DataTableColumnHeader header={header} title={t("method")} />
-        ),
-        cell: ({ getValue }) => methodLabel(getValue()),
-        meta: {
-          label: t("method"),
-          facetMode: "single",
-          facetOptions: (["email", "github", "totp"] as const).map((value) => ({
-            value,
-            label: methodLabel(value),
-          })),
-        },
-      }),
-      loginColumns.accessor("result", {
-        header: ({ header }) => (
-          <DataTableColumnHeader header={header} title={t("result")} />
-        ),
-        cell: ({ getValue }) => (
-          <Badge variant={getValue() === "succeeded" ? "secondary" : "outline"}>
-            {t(getValue())}
-          </Badge>
-        ),
-        meta: {
-          label: t("result"),
-          facetMode: "single",
-          facetOptions: (["succeeded", "failed"] as const).map((value) => ({
-            value,
-            label: String(t(value)),
-          })),
-        },
-      }),
-      loginColumns.accessor("reasonCode", {
-        header: t("reason"),
-        cell: ({ getValue }) => {
-          const reason = getValue()
-          if (!reason) return "—"
-          const labels = {
-            INVALID_CREDENTIALS: "reasonInvalidCredentials",
-            PASSWORD_LOGIN_LOCKED: "reasonPasswordLoginLocked",
-            EMAIL_NOT_VERIFIED: "reasonEmailNotVerified",
-            INVALID_OTP: "reasonInvalidOtp",
-            ACCOUNT_SUSPENDED: "reasonAccountSuspended",
-            AUTHORIZATION_UNAVAILABLE: "reasonAuthorizationUnavailable",
-            AUTHENTICATION_FAILED: "reasonAuthenticationFailed",
-          } as const
-          return t(`identity:${labels[reason]}`)
-        },
-        meta: { label: t("reason") },
-      }),
-      loginColumns.accessor("ipAddress", {
-        header: t("ipAddress"),
-        cell: ({ getValue }) => (
-          <bdi className="font-mono text-xs">{getValue() ?? "—"}</bdi>
-        ),
-        meta: { label: t("ipAddress") },
-        size: 160,
-      }),
-      loginColumns.accessor("userAgent", {
-        header: t("userAgent"),
-        cell: ({ getValue }) => (
-          <span className="line-clamp-2">{getValue() ?? "—"}</span>
-        ),
-        meta: { label: t("userAgent") },
-        size: 300,
-      }),
-    ])
-  }, [locale, t])
+  const columns = useMemo(
+    () =>
+      loginColumns.columns([
+        commonColumns.occurredAt,
+        commonColumns.method,
+        commonColumns.result,
+        commonColumns.reasonCode,
+        commonColumns.ipAddress,
+        commonColumns.userAgent,
+      ]),
+    [commonColumns]
+  )
   const pagination = { pageIndex: page - 1, pageSize }
   const columnFilters = [
     ...(search.method ? [{ id: "method", value: search.method }] : []),
@@ -180,15 +100,7 @@ export function PersonalLoginEventsRoute() {
       ? [{ id: "occurredAt", value: { from: search.from, to: search.to } }]
       : []),
   ]
-  const status: DataTableStatus = query.isError
-    ? query.error instanceof ApiClientError && query.error.status === 403
-      ? "forbidden"
-      : "error"
-    : query.isPending
-      ? "loading"
-      : query.isFetching
-        ? "refreshing"
-        : "ready"
+  const status = getDataTableQueryStatus(query)
   return (
     <section className="min-w-0 space-y-6">
       <header className="space-y-1.5">
@@ -240,40 +152,20 @@ export function PersonalLoginEventsRoute() {
                           const invalid =
                             field.state.meta.isTouched &&
                             !field.state.meta.isValid
-                          const label =
-                            name === "from" ? t("filterFrom") : t("filterTo")
-                          const id = `personal-login-${name}`
                           return (
-                            <Field
-                              data-invalid={invalid}
-                              className="w-full gap-1 sm:w-56"
-                            >
-                              <FieldLabel
-                                className="text-xs text-muted-foreground"
-                                htmlFor={id}
-                              >
-                                {label}
-                              </FieldLabel>
-                              <Input
-                                id={id}
-                                type="datetime-local"
-                                value={field.state.value}
-                                onChange={(event) =>
-                                  field.handleChange(event.target.value)
-                                }
-                                onBlur={field.handleBlur}
-                                aria-invalid={invalid}
-                                aria-describedby={
-                                  invalid ? `${id}-error` : undefined
-                                }
-                              />
-                              {invalid && (
-                                <FieldError
-                                  id={`${id}-error`}
-                                  errors={field.state.meta.errors}
-                                />
-                              )}
-                            </Field>
+                            <LoginEventTimeFilterField
+                              id={`personal-login-${name}`}
+                              label={
+                                name === "from"
+                                  ? t("filterFrom")
+                                  : t("filterTo")
+                              }
+                              value={field.state.value}
+                              onChange={field.handleChange}
+                              onBlur={field.handleBlur}
+                              invalid={invalid}
+                              errors={field.state.meta.errors}
+                            />
                           )
                         }}
                       </filtersForm.Field>

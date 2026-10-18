@@ -21184,12 +21184,7 @@
                 ]
               },
               "locale": {
-                "type": "string",
-                "enum": [
-                  "zh-CN",
-                  "en-US",
-                  "ar"
-                ]
+                "$ref": "#/components/schemas/SupportedLocale"
               }
             },
             "required": [

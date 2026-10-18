@@ -1,8 +1,8 @@
-import { createHash } from 'node:crypto';
 import { Inject, Injectable, type OnApplicationShutdown } from '@nestjs/common';
 import {
   createTaskEnvelope,
   createTaskProducer,
+  taskJobId,
   TaskPermanentError,
   type WorkerConfig,
 } from '@workspace/jobs';
@@ -81,16 +81,14 @@ export class BusinessTasks implements OnApplicationShutdown {
   ) {
     if (!idempotencyKey?.trim() || idempotencyKey.length > 200)
       throw new ApiException(400, 'VALIDATION_ERROR');
-    const jobId = createHash('sha256')
-      .update(
-        JSON.stringify([
-          context.organizationId.toLowerCase(),
-          context.userId.toLowerCase(),
-          type,
-          idempotencyKey,
-        ]),
-      )
-      .digest('hex');
+    const jobId = taskJobId(
+      {
+        organizationId: context.organizationId.toLowerCase(),
+        actorId: context.userId.toLowerCase(),
+      },
+      type,
+      idempotencyKey,
+    );
     // 同一意图使用稳定资源身份，两个并发首次请求不会各自生成不同任务。
     const id = `${jobId.slice(0, 8)}-${jobId.slice(8, 12)}-4${jobId.slice(13, 16)}-a${jobId.slice(17, 20)}-${jobId.slice(20, 32)}`;
     const identity = {

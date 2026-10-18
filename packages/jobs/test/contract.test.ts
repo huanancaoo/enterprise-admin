@@ -33,12 +33,17 @@ describe("registered task contract", () => {
       input: { name: "hello" },
     })
     expect(first.input).toEqual({ name: "hello" })
+    expect(first.intentFingerprint).toBe(
+      "f076d0fb642dd09a45195850925e810b854424007b82eec175d59896675e4b9f"
+    )
     expect(first.intentFingerprint).toBe(repeat.intentFingerprint)
     expect(first.identity.requestId).toBe("request-a")
   })
   it("keeps the same queue identity across request retries and separates actors", () => {
     const id = taskJobId(identity, "fixture.write", "one")
-    expect(id).toMatch(/^[a-f0-9]{64}$/)
+    expect(id).toBe(
+      "603c44c1788f89b53686b30ef43d76ca5fcc2011f6881ec59915de049fe0260e"
+    )
     expect(
       taskJobId({ ...identity, requestId: "request-b" }, "fixture.write", "one")
     ).toBe(id)

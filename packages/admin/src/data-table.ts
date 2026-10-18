@@ -9,3 +9,4 @@ export {
   createDataTableRowControlsColumn,
   createDataTableSelectColumn,
 } from "./lib/data-table"
+export { getDataTableQueryStatus } from "./lib/data-table-query"

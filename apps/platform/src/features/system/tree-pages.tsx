@@ -58,7 +58,12 @@ import {
 } from "@workspace/ui/components/select"
 import { usePlatformAccessFailure } from "../../lib/use-platform-access-failure"
 import { PlatformExportButton } from "../tasks/task-actions"
-import { CatalogDeleteDialog, CatalogStatus } from "./catalog-components"
+import {
+  CatalogDeleteDialog,
+  CatalogStatus,
+  CatalogStatusField,
+  CatalogSortField,
+} from "./catalog-components"
 
 type TreeKind = "menu" | "department"
 type TreeRow = PlatformMenu | PlatformDepartment
@@ -932,41 +937,21 @@ function TreeEditorDialog({
                           field.state.meta.isTouched &&
                           !field.state.meta.isValid
                         return (
-                          <Field data-invalid={invalid}>
-                            <FieldLabel htmlFor={`${id}-status`}>
-                              {t("catalogs:status")}
-                            </FieldLabel>
-                            <Select
-                              items={{
-                                active: t("catalogs:active"),
-                                disabled: t("catalogs:disabled"),
-                              }}
-                              value={field.state.value}
-                              onValueChange={(value) =>
-                                value !== null && field.handleChange(value)
-                              }
-                            >
-                              <SelectTrigger
-                                id={`${id}-status`}
-                                className="w-full"
-                                onBlur={field.handleBlur}
-                                aria-invalid={invalid}
-                              >
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="active">
-                                  {t("catalogs:active")}
-                                </SelectItem>
-                                <SelectItem value="disabled">
-                                  {t("catalogs:disabled")}
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
-                            {invalid && (
-                              <FieldError errors={field.state.meta.errors} />
-                            )}
-                          </Field>
+                          <CatalogStatusField<"active" | "disabled">
+                            id={`${id}-status`}
+                            value={field.state.value}
+                            statuses={[
+                              { value: "active", label: t("catalogs:active") },
+                              {
+                                value: "disabled",
+                                label: t("catalogs:disabled"),
+                              },
+                            ]}
+                            onChange={field.handleChange}
+                            onBlur={field.handleBlur}
+                            invalid={invalid}
+                            errors={field.state.meta.errors}
+                          />
                         )
                       }}
                     </form.Field>
@@ -976,32 +961,14 @@ function TreeEditorDialog({
                           field.state.meta.isTouched &&
                           !field.state.meta.isValid
                         return (
-                          <Field data-invalid={invalid}>
-                            <FieldLabel htmlFor={`${id}-sort`}>
-                              {t("catalogs:sort")}
-                            </FieldLabel>
-                            <Input
-                              id={`${id}-sort`}
-                              type="number"
-                              required
-                              min={0}
-                              max={2147483647}
-                              step={1}
-                              value={
-                                Number.isNaN(field.state.value)
-                                  ? ""
-                                  : field.state.value
-                              }
-                              onBlur={field.handleBlur}
-                              onChange={(event) =>
-                                field.handleChange(event.target.valueAsNumber)
-                              }
-                              aria-invalid={invalid}
-                            />
-                            {invalid && (
-                              <FieldError errors={field.state.meta.errors} />
-                            )}
-                          </Field>
+                          <CatalogSortField
+                            id={`${id}-sort`}
+                            value={field.state.value}
+                            onChange={field.handleChange}
+                            onBlur={field.handleBlur}
+                            invalid={invalid}
+                            errors={field.state.meta.errors}
+                          />
                         )
                       }}
                     </form.Field>

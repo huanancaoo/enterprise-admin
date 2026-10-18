@@ -406,9 +406,11 @@ describe("platform organizations browser flow", () => {
     )
     const target = await createOrganization()
     const page = await pageFor(actor)
-    await page.goto(
-      `${environment.platformOrigin}/platform/organizations/${target.id}`
+    await page.goto(`${environment.platformOrigin}/platform/organizations`)
+    const targetLink = page.locator(
+      `main a[href="/platform/organizations/${target.id}"]`
     )
+    await targetLink.click()
     await page
       .getByRole("button", { name: "Suspend organization", exact: true })
       .click()
@@ -420,7 +422,7 @@ describe("platform organizations browser flow", () => {
       .getByLabel("Organization slug", { exact: true })
       .fill(target.slug)
     await environment.deployerPool.query(
-      "UPDATE public.platform_assignment SET status = 'revoked', revoked_at = clock_timestamp(), revoked_by = current_user, revoke_reason = 'browser revocation' WHERE user_id = $1",
+      "SELECT public.manage_platform_assignment('revoke',$1,'platform_admin','browser revocation')",
       [actor.user.id]
     )
     await dialog
@@ -439,7 +441,7 @@ describe("platform organizations browser flow", () => {
     )
     expect(state.rows[0].status).toBe("ACTIVE")
     await environment.deployerPool.query(
-      "UPDATE public.platform_assignment SET status = 'active', revoked_at = NULL, revoked_by = NULL, revoke_reason = NULL WHERE user_id = $1",
+      "SELECT public.manage_platform_assignment('grant',$1,'platform_admin','restore browser organization read')",
       [actor.user.id]
     )
     const freshName = "Organization read after a new platform grant"
@@ -459,7 +461,9 @@ describe("platform organizations browser flow", () => {
       }
     )
     try {
+      // 拒绝页替换当前历史项；从原目录重新进入，仍在同一 SPA 中验证受限缓存已清除。
       await page.goBack()
+      await targetLink.click()
       await expectUI(
         page.locator('[role="status"][aria-busy="true"]')
       ).toBeVisible()

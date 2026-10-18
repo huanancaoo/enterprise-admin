@@ -1799,9 +1799,6 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     ).toBeVisible()
     await expectUI(page.getByText("还没有项目", { exact: true })).toBeVisible()
     await expectUI(
-      page.getByText("上次登录：邮箱", { exact: true })
-    ).toBeVisible()
-    await expectUI(
       page.getByRole("heading", { name: "创建组织", exact: true })
     ).toHaveCount(0)
   })

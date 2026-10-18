@@ -154,14 +154,10 @@ describe("账户安全原生认证与双后台浏览器", () => {
         .getByRole("button", { name: "修改密码", exact: true })
         .click()
       if (surface === "platform") {
-        await expectUI(target.page).toHaveURL(/\/platform\/mfa/)
-        await target.page
-          .getByLabel("6 位验证码", { exact: true })
-          .fill(platformTotp(target.account.secret))
-        await target.page
-          .getByRole("button", { name: "验证并继续", exact: true })
-          .click()
-        await target.page.goto(target.origin + target.path)
+        await expectUI(target.page).toHaveURL(target.origin + target.path)
+        await expectUI(
+          target.page.getByText("密码已修改，其他会话已退出。", { exact: true })
+        ).toBeVisible()
       } else {
         await expectUI(
           target.page.getByText("密码已修改，其他会话已退出。")

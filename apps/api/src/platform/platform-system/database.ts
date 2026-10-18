@@ -1,14 +1,13 @@
 import type { z } from 'zod';
 import type { PoolClient } from 'pg';
 import {
-  ApiErrorCodeSchema,
   type ApiErrorCode,
   type PlatformEmployeeOptionsQuery,
   type PlatformExportFilters,
 } from '@workspace/contracts';
 import type { AuthRuntime } from '../../identity/auth-runtime';
 import type { Identity } from '../../identity/identity.service';
-import { ApiException } from '../../http/api-exception';
+import { rethrowPlatformDatabaseError } from '../platform-database-error';
 
 export type PlatformSystemActor = Pick<Identity, 'userId' | 'sessionId'>;
 export type PlatformSystemExportQuery = PlatformExportFilters & {
@@ -126,13 +125,7 @@ export class PlatformSystemDatabase {
       ).rows[0].result;
       return schema.parse(result);
     } catch (error) {
-      if (error instanceof Error && 'code' in error && error.code === 'P0001') {
-        const parsed = ApiErrorCodeSchema.safeParse(error.message);
-        if (parsed.success && statuses[parsed.data]) {
-          throw new ApiException(statuses[parsed.data]!, parsed.data);
-        }
-      }
-      throw error;
+      rethrowPlatformDatabaseError(error, statuses);
     }
   }
 }

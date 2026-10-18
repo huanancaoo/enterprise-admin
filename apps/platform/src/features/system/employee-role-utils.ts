@@ -3,22 +3,6 @@ import { useQueryClient } from "@tanstack/react-query"
 import { useRouter } from "@tanstack/react-router"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import type { z } from "zod"
-import { ApiClientError } from "@workspace/api-client"
-import type { DataTableStatus } from "@workspace/admin/data-table"
-
-export function directoryStatus(query: {
-  isError: boolean
-  error: unknown
-  isPending: boolean
-  isFetching: boolean
-}): DataTableStatus {
-  if (query.isError)
-    return query.error instanceof ApiClientError && query.error.status === 403
-      ? "forbidden"
-      : "error"
-  if (query.isPending) return "loading"
-  return query.isFetching ? "refreshing" : "ready"
-}
 
 export function localizedDirectoryValidation<T>(
   schema: z.ZodType<T>,

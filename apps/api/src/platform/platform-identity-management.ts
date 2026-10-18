@@ -2,7 +2,6 @@ import { Inject, Injectable } from '@nestjs/common';
 import { hashPassword } from 'better-auth/crypto';
 import type { PoolClient } from 'pg';
 import {
-  ApiErrorCodeSchema,
   type ApiErrorCode,
   type CreatePlatformUser,
   type UpdatePlatformUser,
@@ -22,6 +21,7 @@ import { AuthRuntime } from '../identity/auth-runtime';
 import type { Identity } from '../identity/identity.service';
 import { ApiException } from '../http/api-exception';
 import type { PlatformPrincipal } from './platform-access.service';
+import { rethrowPlatformDatabaseError } from './platform-database-error';
 
 export const PLATFORM_PASSWORD_RESET_REDIRECT = Symbol(
   'platformPasswordResetRedirect',
@@ -322,24 +322,19 @@ export class PlatformIdentityManagement {
   }
 
   private throwDatabaseError(error: unknown): never {
-    if (error instanceof Error && 'code' in error && error.code === 'P0001') {
-      const code = ApiErrorCodeSchema.safeParse(error.message);
-      const statuses: Partial<Record<ApiErrorCode, number>> = {
-        FORBIDDEN: 403,
-        UNAUTHENTICATED: 401,
-        NOT_FOUND: 404,
-        VALIDATION_ERROR: 400,
-        ACCOUNT_SUSPENDED: 403,
-        LAST_PLATFORM_SUPERADMIN: 409,
-        BUILT_IN_ROLE_IMMUTABLE: 403,
-        EMAIL_ALREADY_EXISTS: 409,
-        VERSION_CONFLICT: 409,
-        AUDIT_UNAVAILABLE: 503,
-        AUTHORIZATION_UNAVAILABLE: 503,
-      };
-      if (code.success && statuses[code.data])
-        throw new ApiException(statuses[code.data]!, code.data);
-    }
-    throw error;
+    const statuses: Partial<Record<ApiErrorCode, number>> = {
+      FORBIDDEN: 403,
+      UNAUTHENTICATED: 401,
+      NOT_FOUND: 404,
+      VALIDATION_ERROR: 400,
+      ACCOUNT_SUSPENDED: 403,
+      LAST_PLATFORM_SUPERADMIN: 409,
+      BUILT_IN_ROLE_IMMUTABLE: 403,
+      EMAIL_ALREADY_EXISTS: 409,
+      VERSION_CONFLICT: 409,
+      AUDIT_UNAVAILABLE: 503,
+      AUTHORIZATION_UNAVAILABLE: 503,
+    };
+    rethrowPlatformDatabaseError(error, statuses);
   }
 }

@@ -41,6 +41,7 @@ import { RequestLanguage } from '../src/http/request-language';
 import { Projects } from '../src/projects/projects';
 import { ProjectFiles } from '../src/projects/project-files';
 import { TenantContextService } from '../src/tenancy/tenant-context.service';
+import { OrganizationMembershipAccess } from '../src/tenancy/organization-membership-access';
 import {
   CurrentTenant,
   RequireTenant,
@@ -558,6 +559,7 @@ describe(
         providers: [
           TenantGuard,
           TenantContextService,
+          OrganizationMembershipAccess,
           Projects,
           {
             provide: ProjectFiles,

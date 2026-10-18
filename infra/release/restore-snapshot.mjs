@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises"
 import { join, resolve } from "node:path"
 import { releaseRuntime, sha256, withProjectLock } from "./release-runtime.mjs"
 import { readDatabaseMetadata } from "./database-metadata.mjs"
+import { applicationServices } from "./services.mjs"
 
 // 恢复与基础发行迁移共用数据链路；调用者必须明确验证各自的基础镜像与排序约束。
 export async function restoreSnapshot(
@@ -51,7 +52,7 @@ export async function restoreSnapshot(
       if ((await sha256(join(directory, name))) !== expected)
         throw new Error(`BACKUP_CHECKSUM_MISMATCH:${name}`)
     }
-    for (const service of ["api", "worker", "tenant", "platform", "migrator"]) {
+    for (const service of applicationServices) {
       const image = runtime.env[`RELEASE_${service.toUpperCase()}_IMAGE`]
       const actual = runtime
         .docker(["image", "inspect", "--format", "{{.Id}}", image])

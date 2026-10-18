@@ -36,6 +36,7 @@ import { useAuthenticatedSession } from "@workspace/admin/auth"
 import { ErrorState, LoadingState } from "@workspace/admin"
 import {
   DataTable,
+  getDataTableQueryStatus,
   createDataTableColumnHelper,
   createDataTableSelectColumn,
 } from "@workspace/admin/data-table"
@@ -77,7 +78,6 @@ import { usePlatformAccessFailure } from "../../lib/use-platform-access-failure"
 import { PlatformExportButton } from "../tasks/task-actions"
 import { DirectoryError } from "./employee-role-fields"
 import {
-  directoryStatus,
   localizedDirectoryValidation,
   useRefreshPlatformAuthority,
 } from "./employee-role-utils"
@@ -264,7 +264,7 @@ export function PlatformRolesPage() {
         data={query.data?.items ?? EMPTY_ROLES}
         getRowId={(row) => row.id}
         rowCount={query.data?.total ?? 0}
-        status={directoryStatus(query)}
+        status={getDataTableQueryStatus(query)}
         error={query.error instanceof Error ? query.error.message : undefined}
         onRetry={() => void query.refetch()}
         manualPagination
@@ -1060,7 +1060,7 @@ export function PlatformRoleEmployeesPage() {
         data={query.data?.items ?? EMPTY_EMPLOYEES}
         getRowId={(row) => row.userId}
         rowCount={query.data?.total ?? 0}
-        status={directoryStatus(query)}
+        status={getDataTableQueryStatus(query)}
         error={query.error instanceof Error ? query.error.message : undefined}
         onRetry={() => void query.refetch()}
         manualPagination

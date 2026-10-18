@@ -29,7 +29,7 @@ import { Input } from "@workspace/ui/components/input"
 import {
   DataTable,
   createDataTableColumnHelper,
-  type DataTableStatus,
+  getDataTableQueryStatus,
 } from "@workspace/admin/data-table"
 import { ApiClientError } from "@workspace/api-client"
 import { Badge } from "@workspace/ui/components/badge"
@@ -459,15 +459,7 @@ function AuditWorkspace({
     page.isError &&
     page.error instanceof ApiClientError &&
     (page.error.status === 401 || page.error.status === 403)
-  const status: DataTableStatus = page.isError
-    ? page.error instanceof ApiClientError && page.error.status === 403
-      ? "forbidden"
-      : "error"
-    : page.isPending
-      ? "loading"
-      : page.isFetching
-        ? "refreshing"
-        : "ready"
+  const status = getDataTableQueryStatus(page)
   function resultLabel(result: string) {
     return resultLabels[result as keyof typeof resultLabels] ?? result
   }

@@ -1,4 +1,4 @@
-import { useId, useState, type ChangeEvent } from "react"
+import { useId, useState, type ChangeEvent, type ComponentProps } from "react"
 import { useForm } from "@tanstack/react-form"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
@@ -40,6 +40,88 @@ export type CatalogValues = {
 }
 export type CatalogField = "key" | "name" | "label" | "value" | "remark"
 export type StatusOption = { value: string; label: string }
+
+type CatalogFieldFeedback = {
+  id: string
+  invalid: boolean
+  onBlur: () => void
+  errors: ComponentProps<typeof FieldError>["errors"]
+}
+
+export function CatalogStatusField<TValue extends string>({
+  id,
+  value,
+  statuses,
+  onChange,
+  onBlur,
+  invalid,
+  errors,
+}: CatalogFieldFeedback & {
+  value: TValue
+  statuses: readonly { value: TValue; label: string }[]
+  onChange: (value: TValue) => void
+}) {
+  const { t } = useTranslation("catalogs")
+  return (
+    <Field data-invalid={invalid}>
+      <FieldLabel htmlFor={id}>{t("status")}</FieldLabel>
+      <Select
+        items={statuses}
+        value={value}
+        onValueChange={(next) => next !== null && onChange(next)}
+      >
+        <SelectTrigger
+          id={id}
+          onBlur={onBlur}
+          aria-invalid={invalid}
+          className="w-full"
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {statuses.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {invalid && <FieldError errors={errors} />}
+    </Field>
+  )
+}
+
+export function CatalogSortField({
+  id,
+  value,
+  onChange,
+  onBlur,
+  invalid,
+  errors,
+}: CatalogFieldFeedback & {
+  value: number
+  onChange: (value: number) => void
+}) {
+  const { t } = useTranslation("catalogs")
+  return (
+    <Field data-invalid={invalid}>
+      <FieldLabel htmlFor={id}>{t("sort")}</FieldLabel>
+      <Input
+        id={id}
+        type="number"
+        min={0}
+        max={2147483647}
+        step={1}
+        required
+        value={Number.isNaN(value) ? "" : value}
+        onBlur={onBlur}
+        onChange={(event) => onChange(event.target.valueAsNumber)}
+        aria-invalid={invalid}
+      />
+      {invalid && <FieldError errors={errors} />}
+    </Field>
+  )
+}
 
 function editorSchema(
   fields: readonly CatalogField[],
@@ -190,40 +272,15 @@ export function CatalogEditorDialog({
                           field.state.meta.isTouched &&
                           !field.state.meta.isValid
                         return (
-                          <Field data-invalid={invalid}>
-                            <FieldLabel htmlFor={`${id}-status`}>
-                              {t("catalogs:status")}
-                            </FieldLabel>
-                            <Select
-                              items={statuses}
-                              value={field.state.value}
-                              onValueChange={(value) =>
-                                value !== null && field.handleChange(value)
-                              }
-                            >
-                              <SelectTrigger
-                                id={`${id}-status`}
-                                onBlur={field.handleBlur}
-                                aria-invalid={invalid}
-                                className="w-full"
-                              >
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {statuses.map((option) => (
-                                  <SelectItem
-                                    key={option.value}
-                                    value={option.value}
-                                  >
-                                    {option.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            {invalid && (
-                              <FieldError errors={field.state.meta.errors} />
-                            )}
-                          </Field>
+                          <CatalogStatusField
+                            id={`${id}-status`}
+                            value={field.state.value}
+                            statuses={statuses}
+                            onChange={field.handleChange}
+                            onBlur={field.handleBlur}
+                            invalid={invalid}
+                            errors={field.state.meta.errors}
+                          />
                         )
                       }}
                     </form.Field>
@@ -233,32 +290,14 @@ export function CatalogEditorDialog({
                           field.state.meta.isTouched &&
                           !field.state.meta.isValid
                         return (
-                          <Field data-invalid={invalid}>
-                            <FieldLabel htmlFor={`${id}-sort`}>
-                              {t("catalogs:sort")}
-                            </FieldLabel>
-                            <Input
-                              id={`${id}-sort`}
-                              type="number"
-                              min={0}
-                              max={2147483647}
-                              step={1}
-                              required
-                              value={
-                                Number.isNaN(field.state.value)
-                                  ? ""
-                                  : field.state.value
-                              }
-                              onBlur={field.handleBlur}
-                              onChange={(event) =>
-                                field.handleChange(event.target.valueAsNumber)
-                              }
-                              aria-invalid={invalid}
-                            />
-                            {invalid && (
-                              <FieldError errors={field.state.meta.errors} />
-                            )}
-                          </Field>
+                          <CatalogSortField
+                            id={`${id}-sort`}
+                            value={field.state.value}
+                            onChange={field.handleChange}
+                            onBlur={field.handleBlur}
+                            invalid={invalid}
+                            errors={field.state.meta.errors}
+                          />
                         )
                       }}
                     </form.Field>

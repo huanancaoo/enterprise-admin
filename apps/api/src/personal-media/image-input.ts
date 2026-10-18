@@ -5,13 +5,7 @@ import type { Request } from 'express';
 import sharp from 'sharp';
 import { ApiException } from '../http/api-exception';
 import { contentTypeEssence } from '../http/content-type';
-
-const imageTypes = {
-  jpeg: 'image/jpeg',
-  png: 'image/png',
-  webp: 'image/webp',
-  gif: 'image/gif',
-} as const;
+import { imageTypes, verifyImageContent } from '../media/verify-image-content';
 
 export async function readImage(request: Request, signal: AbortSignal) {
   const type = contentTypeEssence(request.get('content-type'));
@@ -39,12 +33,11 @@ export async function readImage(request: Request, signal: AbortSignal) {
   const abort = () => decoder.destroy();
   signal.addEventListener('abort', abort, { once: true });
   try {
-    const metadata = await decoder.metadata();
-    if (!(metadata.format in imageTypes)) throw new BadRequestException();
-    const contentType = imageTypes[metadata.format as keyof typeof imageTypes];
-    if (contentType !== type) throw new BadRequestException();
-    // metadata 只读头；全部动画帧实际解码成像素后才允许创建持久上传计划。
-    await decoder.raw().toBuffer();
+    const contentType = await verifyImageContent(
+      decoder,
+      type,
+      () => new BadRequestException(),
+    );
     signal.throwIfAborted();
     return {
       body,

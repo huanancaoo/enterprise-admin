@@ -293,7 +293,7 @@ describe("页面组织结构：真实 API 导航与授权", () => {
     ).toHaveCount(0)
   })
 
-  it("两种平台角色都有四项导航和头像设置入口，审计员写入及普通账号的平台访问仍被拒绝", async () => {
+  it("两种平台角色都有系统导航和头像设置入口，审计员写入及普通账号的平台访问仍被拒绝", async () => {
     for (const role of ["platform_admin", "platform_auditor"]) {
       const actor = await platformOperator(
         environment,
@@ -307,23 +307,47 @@ describe("页面组织结构：真实 API 导航与授权", () => {
         page.getByRole("heading", { name: "组织", exact: true })
       ).toBeVisible()
       expect(await main(page).getByRole("link").allTextContents()).toEqual([
-        "组织",
-        "用户",
-        "操作日志",
+        "组织管理",
+        "全局账号",
         "平台设置",
       ])
+      await expectUI(
+        main(page).getByRole("button", { name: "系统管理", exact: true })
+      ).toBeVisible()
       await page.screenshot({
         path: join(tmpdir(), `enterprise-navigation-${role}.png`),
       })
-      for (const label of ["用户", "操作日志", "平台设置"]) {
-        await main(page).getByRole("link", { name: label, exact: true }).click()
+      for (const [navLabel, heading] of [
+        ["全局账号", "全局账号"],
+        ["平台设置", "平台设置"],
+      ]) {
+        await main(page)
+          .getByRole("link", { name: navLabel, exact: true })
+          .click()
         await expectUI(
-          page.getByRole("heading", { name: label, exact: true })
+          page.getByRole("heading", { name: heading, exact: true })
         ).toBeVisible()
       }
+      await main(page)
+        .getByRole("button", { name: "系统管理", exact: true })
+        .click()
+      await main(page)
+        .getByRole("button", { name: "日志管理", exact: true })
+        .click()
+      await main(page)
+        .getByRole("link", { name: "操作日志", exact: true })
+        .click()
+      await expectUI(
+        page.getByRole("heading", { name: "操作日志", exact: true })
+      ).toBeVisible()
+      await main(page)
+        .getByRole("link", { name: "平台设置", exact: true })
+        .click()
       if (role === "platform_auditor") {
         await expectUI(
-          page.getByText("平台审计员可以查看这些设置。", { exact: true })
+          page.getByText("你可以查看这些设置，但没有修改权限。", {
+            exact: true,
+          })
         ).toBeVisible()
         await expectUI(
           page.getByRole("button", { name: "保存", exact: true })

@@ -1,5 +1,6 @@
 import { z } from "zod"
 import { fileErrorCodes } from "./file-errors.js"
+import { SupportedLocaleSchema } from "./locale.js"
 
 export {
   fileErrorCodes,
@@ -60,7 +61,7 @@ export const FileReferenceLocationSchema = z
     z.strictObject({
       ...fileReferenceLocationFields,
       kind: z.literal("project_rich_text"),
-      locale: z.enum(["zh-CN", "en-US", "ar"]),
+      locale: SupportedLocaleSchema,
     }),
   ])
   .meta({ id: "FileReferenceLocation" })

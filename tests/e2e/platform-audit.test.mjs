@@ -89,7 +89,6 @@ describe("platform audit browser investigation", () => {
   }
   async function axe(page, selector = "main") {
     await page.locator(selector).evaluate(async (element) => {
-      // 筛选提交会卸载 Popover，取消它的退出动画也属于正常完成。
       await Promise.allSettled(
         element
           .getAnimations({ subtree: true })
@@ -109,16 +108,11 @@ describe("platform audit browser investigation", () => {
     )
     expect(violations).toEqual([])
   }
-  async function openFilters(page, locale = "en-US") {
-    const label = {
-      "en-US": "Advanced filters",
-      "zh-CN": "高级筛选",
-      ar: "عوامل تصفية متقدمة",
-    }[locale]
-    await page.getByRole("button", { name: new RegExp(`^${label}`) }).click()
-    await expectUI(
-      page.getByRole("dialog", { name: label, exact: true })
-    ).toBeVisible()
+  async function expectFiltersReady(page) {
+    const form = page.locator("form[aria-label][aria-busy]")
+    await expectUI(form).toBeVisible()
+    await expectUI(form).toHaveAttribute("aria-busy", "false")
+    await expectUI(form.locator('button[type="submit"]')).toBeEnabled()
   }
   async function selectEntity(page, entity, query, name) {
     const trigger = page.getByRole("combobox", { name: entity, exact: true })
@@ -179,7 +173,7 @@ describe("platform audit browser investigation", () => {
     await dialog.getByRole("button", { name: "Close", exact: true }).click()
     await expectUI(dialog).toHaveCount(0)
     await expectUI(trigger).toBeFocused()
-    await openFilters(page)
+    await expectFiltersReady(page)
     await expectUI(page.getByLabel(/Purpose of access/)).toHaveCount(0)
     await page.keyboard.press("Escape")
     const search = page.getByRole("textbox", {
@@ -188,9 +182,7 @@ describe("platform audit browser investigation", () => {
     await search.fill("role.deleted")
     await page.getByRole("button", { name: "Search", exact: true }).click()
     await expectUI(page.getByText("No results", { exact: true })).toBeVisible()
-    await expectUI(
-      page.getByRole("button", { name: /^Advanced filters/ })
-    ).toBeEnabled()
+    await expectFiltersReady(page)
     await search.fill("member.role_changed")
     await page.getByRole("button", { name: "Search", exact: true }).click()
     await expectUI(page.locator("tbody tr")).toHaveCount(20)
@@ -244,7 +236,7 @@ describe("platform audit browser investigation", () => {
     await expectUI(
       page.getByRole("button", { name: "Next page", exact: true })
     ).toBeDisabled()
-    await openFilters(page)
+    await expectFiltersReady(page)
     const fixedWindow = new URL(page.url()).searchParams
     await selectEntity(page, "Actor", tenant.user.id, tenant.user.name)
     await page
@@ -259,11 +251,24 @@ describe("platform audit browser investigation", () => {
       fixedWindow.get("to")
     )
     await page.getByRole("button", { name: "Result", exact: true }).click()
+    const filteredResponse = page.waitForResponse((response) => {
+      const target = new URL(response.url())
+      return (
+        target.pathname === "/api/v1/platform/audit-events" &&
+        target.searchParams.get("result") === "succeeded" &&
+        target.searchParams.get("actorId") === tenant.user.id
+      )
+    })
     await page.getByRole("option", { name: "Succeeded", exact: true }).click()
     await page.keyboard.press("Escape")
+    const filtered = await filteredResponse
+    expect(filtered.status()).toBe(200)
+    await filtered.finished()
     await expectUI(page).toHaveURL(/result=succeeded/)
     await expectUI(page.locator("tbody tr")).toHaveCount(10)
     expect(new URL(page.url()).searchParams.get("actorId")).toBe(tenant.user.id)
+    // 此次筛选前后行数相同，行数与旧表单空闲都不能替代本次 HTTP 完成。
+    await expectFiltersReady(page)
     await axe(page)
     await page.screenshot({
       path: join(tmpdir(), "enterprise-admin-platform-audit-datatable.png"),
@@ -280,7 +285,7 @@ describe("platform audit browser investigation", () => {
     })
     await page.goto(`${url()}&page=2&pageSize=10`)
     await expectUI(page.locator("tbody tr")).toHaveCount(10)
-    await openFilters(page)
+    await expectFiltersReady(page)
     const initialUrl = page.url()
     const initialReads = reads.length
     const org = page.getByRole("combobox", {
@@ -301,9 +306,7 @@ describe("platform audit browser investigation", () => {
     await orgSearch.press("ArrowDown")
     await orgSearch.press("Enter")
     await expectUI(org).toContainText(organization.name)
-    await expectUI(
-      page.getByRole("dialog", { name: "Advanced filters", exact: true })
-    ).toBeVisible()
+    await expectUI(page.locator("form[aria-label][aria-busy]")).toBeVisible()
     expect(page.url()).toBe(initialUrl)
     expect(reads).toHaveLength(initialReads)
 
@@ -343,24 +346,20 @@ describe("platform audit browser investigation", () => {
     await expectUI(page.locator("tbody tr")).toHaveCount(10)
     await page.reload()
     await expectUI(page.locator("tbody tr")).toHaveCount(10)
-    await openFilters(page)
+    await expectFiltersReady(page)
     await expectUI(org).toContainText(organization.name)
     await expectUI(actor).toContainText(tenant.user.name)
     await org.click()
     await expectUI(orgSearch).toBeVisible()
     await page.keyboard.press("Escape")
     await expectUI(orgSearch).toHaveCount(0)
-    await expectUI(
-      page.getByRole("dialog", { name: "Advanced filters", exact: true })
-    ).toBeVisible()
+    await expectUI(page.locator("form[aria-label][aria-busy]")).toBeVisible()
     await expectUI(org).toBeFocused()
     await page.keyboard.press("Escape")
-    await expectUI(
-      page.getByRole("dialog", { name: "Advanced filters", exact: true })
-    ).toHaveCount(0)
+    await expectUI(page.locator("form[aria-label][aria-busy]")).toBeVisible()
 
     const historicalId = randomUUID()
-    await openFilters(page)
+    await expectFiltersReady(page)
     await expectUI(
       page.getByRole("button", { name: /Filter .* by ID/ })
     ).toHaveCount(0)
@@ -368,7 +367,7 @@ describe("platform audit browser investigation", () => {
     historicalUrl.searchParams.set("organizationId", historicalId)
     await page.goto(historicalUrl.toString())
     await expectUI(page.getByText("No results", { exact: true })).toBeVisible()
-    await openFilters(page)
+    await expectFiltersReady(page)
     await expectUI(org).toContainText(historicalId)
     await expectUI(
       page.getByText("This ID is not in the current directory", { exact: true })
@@ -380,7 +379,7 @@ describe("platform audit browser investigation", () => {
     await expectUI(page.getByText("No results", { exact: true })).toBeVisible()
     await page.reload()
     await expectUI(page.getByText("No results", { exact: true })).toBeVisible()
-    await openFilters(page)
+    await expectFiltersReady(page)
     await expectUI(org).toContainText(historicalId)
     await expectUI(actor).toContainText(tenant.user.name)
     const shared = new URL(page.url()).searchParams
@@ -388,7 +387,7 @@ describe("platform audit browser investigation", () => {
     expect(shared.get("actorId")).toBe(tenant.user.id)
     expect(shared.has("source")).toBe(false)
     expect(shared.has("mode")).toBe(false)
-    await axe(page, '[role="dialog"]')
+    await axe(page, 'form[aria-label="Filters"]')
     await page.screenshot({
       path: join(tmpdir(), "enterprise-admin-platform-combobox-history.png"),
       fullPage: true,
@@ -429,7 +428,7 @@ describe("platform audit browser investigation", () => {
         locale === "ar" ? "rtl" : "ltr"
       )
       await expectUI(page.locator("tbody tr")).toHaveCount(20)
-      await openFilters(page, locale)
+      await expectFiltersReady(page)
       await page.getByLabel(fromLabel, { exact: true }).fill("2099-01-01T00:00")
       const apply = page.getByRole("button", { name: applyLabel, exact: true })
       await apply.focus()
@@ -467,7 +466,7 @@ describe("platform audit browser investigation", () => {
     const page = await pageFor(admin)
     await page.goto(url())
     await expectUI(page.locator("tbody tr")).toHaveCount(20)
-    await openFilters(page)
+    await expectFiltersReady(page)
     await selectEntity(page, "Organization", organization.id, organization.name)
     await environment.migrator
       .query(`CREATE FUNCTION public.issue22_browser_fail() RETURNS trigger LANGUAGE plpgsql AS $$
@@ -482,31 +481,38 @@ describe("platform audit browser investigation", () => {
       await route.continue()
     })
     try {
-      await page
-        .getByRole("button", { name: "Apply filters", exact: true })
-        .click()
+      try {
+        await page
+          .getByRole("button", { name: "Apply filters", exact: true })
+          .click()
+        await expectUI(
+          page.locator('[data-slot="data-table"][aria-busy="true"]')
+        ).toBeVisible()
+        await expectUI(
+          page.locator("form[aria-label][aria-busy]")
+        ).toHaveAttribute("aria-busy", "true")
+        await expectUI(
+          page.getByRole("button", { name: "Apply filters", exact: true })
+        ).toBeDisabled()
+      } finally {
+        release()
+      }
+      await expectUI(page.getByRole("alert")).toBeVisible()
+      await expectFiltersReady(page)
       await expectUI(
-        page.locator('[data-slot="data-table"][aria-busy="true"]')
-      ).toBeVisible()
-      await expectUI(
-        page.getByRole("button", { name: /^Advanced filters/ })
-      ).toBeDisabled()
+        page.getByRole("combobox", { name: "Organization", exact: true })
+      ).toContainText(organization.name)
     } finally {
-      release()
+      // 故障注入必须随用例结束恢复，避免前一个断言失败污染后续权限验证。
+      await page.unroute("**/api/v1/platform/audit-events?**")
+      await environment.migrator.query(
+        "DROP TRIGGER issue22_browser_fail ON public.audit_events; DROP FUNCTION public.issue22_browser_fail()"
+      )
     }
-    await expectUI(page.getByRole("alert")).toBeVisible()
-    await openFilters(page)
-    await expectUI(
-      page.getByRole("combobox", { name: "Organization", exact: true })
-    ).toContainText(organization.name)
-    await page.unroute("**/api/v1/platform/audit-events?**")
-    await environment.migrator.query(
-      "DROP TRIGGER issue22_browser_fail ON public.audit_events; DROP FUNCTION public.issue22_browser_fail()"
-    )
     await page.keyboard.press("Escape")
     await page.getByRole("button", { name: "Retry", exact: true }).click()
     await expectUI(page.locator("tbody tr")).toHaveCount(20)
-    await openFilters(page)
+    await expectFiltersReady(page)
     await page
       .getByLabel("From (UTC)", { exact: true })
       .fill("2020-01-01T00:00")

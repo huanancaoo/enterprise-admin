@@ -8,6 +8,7 @@ import {
 import { AuthRuntime } from '../identity/auth-runtime';
 import { ApiException } from '../http/api-exception';
 import type { PlatformPrincipal } from './platform-access.service';
+import { platformDatabaseFailure } from './platform-database-error';
 
 const statuses = {
   NOT_FOUND: 404,
@@ -82,14 +83,9 @@ export class PlatformStoragePolicyService {
       return response.rows[0].result;
     } catch (failure) {
       // 只投影本通道的业务错误；数据库异常文本不属于公开协议。
-      const code =
-        failure instanceof Error &&
-        'code' in failure &&
-        failure.code === 'P0001' &&
-        Object.hasOwn(statuses, failure.message)
-          ? (failure.message as keyof typeof statuses)
-          : 'INTERNAL_ERROR';
-      const status = code === 'INTERNAL_ERROR' ? 500 : statuses[code];
+      const projected = platformDatabaseFailure(failure, statuses);
+      const code = projected?.code ?? 'INTERNAL_ERROR';
+      const status = projected?.status ?? 500;
       if (status !== 400) {
         try {
           await this.runtime.pool.query(

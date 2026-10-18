@@ -4,6 +4,7 @@
  * Enterprise Foundation API
  * OpenAPI spec version: 0.1.0
  */
+import type { SupportedLocale } from "./supportedLocale"
 
 export type FileReferenceLocation =
   | {
@@ -29,5 +30,5 @@ export type FileReferenceLocation =
       /** @minLength 1 */
       projectName: string
       kind: "project_rich_text"
-      locale: "zh-CN" | "en-US" | "ar"
+      locale: SupportedLocale
     }

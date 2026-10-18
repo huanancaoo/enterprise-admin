@@ -185,7 +185,7 @@ describe("platform MFA browser flow", () => {
         })
       ).toBeVisible()
       await expectUI(
-        page.getByRole("link", { name: "المنظمات", exact: true }).last()
+        page.getByRole("link", { name: "组织管理", exact: true }).last()
       ).toHaveCount(0)
       await page.evaluate((userId) => {
         localStorage.setItem(
@@ -215,7 +215,7 @@ describe("platform MFA browser flow", () => {
         })
       ).toBeVisible()
       await expectUI(
-        page.getByRole("link", { name: "المنظمات", exact: true }).last()
+        page.getByRole("link", { name: "组织管理", exact: true }).last()
       ).toHaveCount(0)
       expect(
         (
@@ -275,11 +275,9 @@ describe("platform MFA browser flow", () => {
       }
     )
     expect(verified.status()).toBe(200)
+    await expectUI(page.getByText("超级管理员", { exact: true })).toBeVisible()
     await expectUI(
-      page.getByText("平台管理员 · 全平台范围", { exact: true })
-    ).toBeVisible()
-    await expectUI(
-      page.getByRole("link", { name: "组织", exact: true }).last()
+      page.getByRole("link", { name: "组织管理", exact: true }).last()
     ).toBeVisible()
     await environment.migrator.query(
       'UPDATE public."user" SET preferred_locale = $2 WHERE id = $1',
@@ -328,11 +326,9 @@ describe("platform MFA browser flow", () => {
     await page.keyboard.press("Enter")
     await expectUI(page).toHaveURL(/\/platform\/organizations(?:\?|$)/)
     await expectUI(page.locator("html")).toHaveAttribute("lang", "ar")
+    await expectUI(page.getByText("超级管理员", { exact: true })).toBeVisible()
     await expectUI(
-      page.getByText("مسؤول المنصة · نطاق المنصة بالكامل", { exact: true })
-    ).toBeVisible()
-    await expectUI(
-      page.getByRole("link", { name: "المنظمات", exact: true }).last()
+      page.getByRole("link", { name: "组织管理", exact: true }).last()
     ).toBeVisible()
     await expectUI(page.locator("html")).toHaveAttribute("lang", "ar")
     await expectUI(page.locator("html")).toHaveAttribute("dir", "rtl")

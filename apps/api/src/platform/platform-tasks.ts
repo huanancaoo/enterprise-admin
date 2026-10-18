@@ -20,7 +20,11 @@ import {
   createPlatformTaskRuntime,
   type PlatformTaskReference,
 } from '@workspace/jobs/platform-runtime';
-import { TaskPermanentError, type WorkerConfig } from '@workspace/jobs';
+import {
+  canonicalJsonHash,
+  TaskPermanentError,
+  type WorkerConfig,
+} from '@workspace/jobs';
 import {
   createPlatformEmployeeImportTemplate,
   parsePlatformEmployeeImportWorkbook,
@@ -86,19 +90,7 @@ const rejectedCodes = new Set([
   'ASSIGNMENT_INACTIVE',
 ]);
 function fingerprint(value: unknown): string {
-  const canonical = (input: unknown): unknown => {
-    if (Array.isArray(input)) return input.map(canonical);
-    if (input && typeof input === 'object')
-      return Object.fromEntries(
-        Object.entries(input)
-          .sort(([a], [b]) => a.localeCompare(b))
-          .map(([k, v]) => [k, canonical(v)]),
-      );
-    return input;
-  };
-  return createHash('sha256')
-    .update(JSON.stringify(canonical(value)))
-    .digest('hex');
+  return canonicalJsonHash(value, 'locale');
 }
 function taskIdentity(actor: Identity, key: string): string {
   const value = fingerprint([actor.userId, key]);

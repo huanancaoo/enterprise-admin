@@ -39,6 +39,7 @@ import { useAuthenticatedSession } from "@workspace/admin/auth"
 import { ErrorState, LoadingState } from "@workspace/admin"
 import {
   DataTable,
+  getDataTableQueryStatus,
   createDataTableColumnHelper,
   createDataTableSelectColumn,
 } from "@workspace/admin/data-table"
@@ -89,7 +90,6 @@ import {
   PlatformEmployeeImportButton,
 } from "../tasks/task-actions"
 import {
-  directoryStatus,
   localizedDirectoryValidation,
   changeDirectorySelection,
   useRefreshPlatformAuthority,
@@ -418,7 +418,7 @@ export function PlatformEmployeesPage() {
         enableSorting={false}
         enableRowSelection={manage}
         isActionPending={pending}
-        status={directoryStatus(query)}
+        status={getDataTableQueryStatus(query)}
         error={query.error instanceof Error ? query.error.message : undefined}
         onRetry={() => void query.refetch()}
         searchPlaceholder={t("employees:search")}

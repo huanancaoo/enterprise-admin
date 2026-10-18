@@ -13,6 +13,7 @@ import {
 import { join, resolve, sep } from "node:path"
 import { parse, stringify } from "yaml"
 import { sha256 } from "./release-runtime.mjs"
+import { applicationServices, infrastructureServices } from "./services.mjs"
 
 const [version, acceptanceFile, destination] = process.argv.slice(2)
 if (
@@ -39,14 +40,9 @@ const requiredChecks = [
 if (
   accepted.accepted !== true ||
   requiredChecks.some((check) => !accepted.checks?.includes(check)) ||
-  [
-    "postgres",
-    "redis",
-    "mailpit",
-    "otel-collector",
-    "prometheus",
-    "tracing",
-  ].some((service) => !accepted.infrastructureImages?.[service])
+  infrastructureServices.some(
+    (service) => !accepted.infrastructureImages?.[service]
+  )
 )
   throw new Error("RELEASE_ACCEPTANCE_REQUIRED")
 if (
@@ -102,14 +98,7 @@ execFileSync(
     },
   }
 )
-for (const service of [
-  "postgres",
-  "redis",
-  "mailpit",
-  "otel-collector",
-  "prometheus",
-  "tracing",
-])
+for (const service of infrastructureServices)
   selected[service] = accepted.infrastructureImages[service]
 const scanner =
   "aquasec/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa"
@@ -202,14 +191,7 @@ const composeSource = parse(
   await readFile(join(source, "compose.release.yaml"), "utf8"),
   { merge: true }
 )
-for (const service of [
-  "postgres",
-  "redis",
-  "mailpit",
-  "otel-collector",
-  "prometheus",
-  "tracing",
-])
+for (const service of infrastructureServices)
   // 合并锚点后只替换目标服务对象，避免共享别名把镜像变更带到其他服务。
   composeSource.services[service] = {
     ...composeSource.services[service],
@@ -217,7 +199,7 @@ for (const service of [
   }
 await writeFile(join(source, "compose.release.yaml"), stringify(composeSource))
 let example = await readFile(join(source, "infra/release/.env.example"), "utf8")
-for (const service of ["api", "worker", "tenant", "platform", "migrator"])
+for (const service of applicationServices)
   example = example.replace(
     new RegExp(`^RELEASE_${service.toUpperCase()}_IMAGE=.*$`, "m"),
     `RELEASE_${service.toUpperCase()}_IMAGE=${images[service].id}`

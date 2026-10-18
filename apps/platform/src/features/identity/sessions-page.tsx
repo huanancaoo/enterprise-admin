@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate, useRouteContext, useSearch } from "@tanstack/react-router"
 import { useTranslation } from "react-i18next"
 import {
-  ApiClientError,
   listPlatformSessions,
   revokePlatformSession,
 } from "@workspace/api-client"
@@ -20,7 +19,7 @@ import {
   DataTable,
   DataTableColumnHeader,
   createDataTableColumnHelper,
-  type DataTableStatus,
+  getDataTableQueryStatus,
 } from "@workspace/admin/data-table"
 import { usePlatformAccessFailure } from "../../lib/use-platform-access-failure"
 import { UserCombobox } from "../../components/user-combobox"
@@ -195,15 +194,7 @@ export function PlatformSessionsPage() {
     ])
   }, [locale, platformAccess.permissions, resetRevoke, revokePending, t])
   const pagination = { pageIndex: search.page - 1, pageSize: search.pageSize }
-  const status: DataTableStatus = query.isError
-    ? query.error instanceof ApiClientError && query.error.status === 403
-      ? "forbidden"
-      : "error"
-    : query.isPending
-      ? "loading"
-      : query.isFetching
-        ? "refreshing"
-        : "ready"
+  const status = getDataTableQueryStatus(query)
   const filters = search.userId ? [{ id: "userId", value: search.userId }] : []
   return (
     <section className="min-w-0 space-y-6">

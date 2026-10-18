@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { managePlatformAssignment } from "../../packages/database/dist/platform-assignment-admin.js"
+import { PlatformAccessSchema } from "../../packages/contracts/src/index.ts"
 import { signUpVerified } from "../setup/complete-signup.mjs"
 import { startTestApplication } from "../setup/test-runtime.mjs"
 
@@ -116,10 +117,22 @@ describe("platform access denial audit", () => {
     })
     const response = await access(user.cookie)
     expect(response.status).toBe(200)
-    expect(await response.json()).toMatchObject({
-      role: "platform_admin",
+    const body = PlatformAccessSchema.parse(await response.json())
+    expect(body).toMatchObject({
+      userId: user.user.id,
+      scope: "global",
       mfaVerifiedAt: null,
     })
+    expect(body.roles).toEqual([
+      expect.objectContaining({ key: "platform_admin", builtIn: true }),
+    ])
+    expect(body.permissions).toEqual(
+      expect.arrayContaining([
+        "platform.settings:read",
+        "platform.settings:update",
+        "platform.authorization:manage",
+      ])
+    )
     expect(await readAudit(response.headers.get("x-request-id"))).toEqual([])
   })
 

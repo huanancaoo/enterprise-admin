@@ -1,6 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
-  ApiErrorCodeSchema,
   type ApiErrorCode,
   type PlatformSettings as Settings,
   type UpdatePlatformSettings,
@@ -9,9 +8,9 @@ import {
 import { supportedLocales } from '@workspace/i18n';
 import { PLATFORM_DEPLOYMENT_SUMMARY } from '../config/deployment-summary';
 import type { DeploymentSummary } from '../config/deployment-summary';
-import { ApiException } from '../http/api-exception';
 import { AuthRuntime } from '../identity/auth-runtime';
 import type { PlatformPrincipal } from './platform-access.service';
+import { rethrowPlatformDatabaseError } from './platform-database-error';
 
 @Injectable()
 export class PlatformSettings {
@@ -61,20 +60,15 @@ export class PlatformSettings {
       return (await this.runtime.pool.query<{ result: T }>(statement, values))
         .rows[0].result;
     } catch (error) {
-      if (error instanceof Error && 'code' in error && error.code === 'P0001') {
-        const code = ApiErrorCodeSchema.safeParse(error.message);
-        const statuses: Partial<Record<ApiErrorCode, number>> = {
-          FORBIDDEN: 403,
-          VALIDATION_ERROR: 400,
-          VERSION_CONFLICT: 409,
-          IDEMPOTENCY_KEY_REUSED: 409,
-          AUDIT_UNAVAILABLE: 503,
-          AUTHORIZATION_UNAVAILABLE: 503,
-        };
-        if (code.success && statuses[code.data])
-          throw new ApiException(statuses[code.data]!, code.data);
-      }
-      throw error;
+      const statuses: Partial<Record<ApiErrorCode, number>> = {
+        FORBIDDEN: 403,
+        VALIDATION_ERROR: 400,
+        VERSION_CONFLICT: 409,
+        IDEMPOTENCY_KEY_REUSED: 409,
+        AUDIT_UNAVAILABLE: 503,
+        AUTHORIZATION_UNAVAILABLE: 503,
+      };
+      rethrowPlatformDatabaseError(error, statuses);
     }
   }
 }

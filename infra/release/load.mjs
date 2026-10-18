@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process"
 import { readFile } from "node:fs/promises"
 import { join, resolve, sep } from "node:path"
 import { sha256 } from "./release-runtime.mjs"
+import { releaseServices } from "./services.mjs"
 
 const [source] = process.argv.slice(2)
 if (process.argv.length !== 3)
@@ -17,27 +18,18 @@ for (const [name, expected] of Object.entries(manifest.files)) {
   if ((await sha256(file)) !== expected)
     throw new Error(`RELEASE_CHECKSUM_MISMATCH:${name}`)
 }
-const services = [
-  "api",
-  "worker",
-  "tenant",
-  "platform",
-  "migrator",
-  "postgres",
-  "redis",
-  "mailpit",
-  "otel-collector",
-  "prometheus",
-  "tracing",
-]
 const platform = execFileSync(
   "docker",
   ["version", "--format", "{{.Server.Os}}/{{.Server.Arch}}"],
   { encoding: "utf8" }
 ).trim()
-if (services.some((service) => manifest.images[service]?.platform !== platform))
+if (
+  releaseServices.some(
+    (service) => manifest.images[service]?.platform !== platform
+  )
+)
   throw new Error("RELEASE_TARGET_PLATFORM_MISMATCH")
-for (const service of services) {
+for (const service of releaseServices) {
   const image = manifest.images[service]
   if (!image || !Object.hasOwn(manifest.files, `${service}.image.tar`))
     throw new Error("RELEASE_MANIFEST_INVALID")

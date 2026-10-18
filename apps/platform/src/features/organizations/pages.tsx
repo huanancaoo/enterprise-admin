@@ -52,7 +52,7 @@ import {
   DataTable,
   DataTableColumnHeader,
   createDataTableColumnHelper,
-  type DataTableStatus,
+  getDataTableQueryStatus,
 } from "@workspace/admin/data-table"
 import { OrganizationStoragePolicy } from "../storage-policy/organization-storage-policy"
 import { usePlatformAccessFailure } from "../../lib/use-platform-access-failure"
@@ -163,15 +163,7 @@ export function PlatformOrganizationsPage() {
     ? [{ id: "status", value: search.status }]
     : []
   const pagination = { pageIndex: search.page - 1, pageSize: search.pageSize }
-  const status: DataTableStatus = query.isError
-    ? query.error instanceof ApiClientError && query.error.status === 403
-      ? "forbidden"
-      : "error"
-    : query.isPending
-      ? "loading"
-      : query.isFetching
-        ? "refreshing"
-        : "ready"
+  const status = getDataTableQueryStatus(query)
   return (
     <section className="min-w-0 space-y-6">
       <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">

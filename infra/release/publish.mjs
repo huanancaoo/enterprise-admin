@@ -3,6 +3,7 @@ import assert from "node:assert/strict"
 import { loadEnvFile } from "node:process"
 import { setTimeout as delay } from "node:timers/promises"
 import { withProjectLock } from "./release-runtime.mjs"
+import { infrastructureServices } from "./services.mjs"
 
 const [project, envFile] = process.argv.slice(2)
 if (!project || !envFile || process.argv.length !== 4) {
@@ -76,18 +77,7 @@ await withProjectLock(project, async () => {
     if (missing.length)
       throw new Error(`WORKER_TASK_TYPES_REQUIRED:${missing.join(",")}`)
   }
-  compose(
-    "up",
-    "-d",
-    "--no-build",
-    "--wait",
-    "postgres",
-    "redis",
-    "mailpit",
-    "otel-collector",
-    "prometheus",
-    "tracing"
-  )
+  compose("up", "-d", "--no-build", "--wait", ...infrastructureServices)
   // 只有 one-shot 的真实退出码为 0 才能替换在线应用；失败时保留已有容器。
   compose("run", "--rm", "--no-deps", "migrator")
   // 数据卷归属由无数据库凭据的 one-shot 初始化，在线 API 始终使用 node 身份。

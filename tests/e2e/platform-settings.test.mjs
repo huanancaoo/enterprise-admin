@@ -341,9 +341,10 @@ describe("platform settings browser workflow", () => {
     await pageFor(auditor)
     await page.goto(address())
     await expectUI(
-      page.getByText("Your platform auditor role can view these settings.", {
-        exact: true,
-      })
+      page.getByText(
+        "You can view these settings but do not have permission to change them.",
+        { exact: true }
+      )
     ).toBeVisible()
     await expectUI(page.locator("form")).toHaveCount(0)
     await axe()

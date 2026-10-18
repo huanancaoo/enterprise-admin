@@ -48,7 +48,7 @@ import {
 import {
   DataTable,
   createDataTableColumnHelper,
-  type DataTableStatus,
+  getDataTableQueryStatus,
 } from "@workspace/admin/data-table"
 import {
   Dialog,
@@ -173,15 +173,7 @@ export function PlatformUsersPage() {
     ])
   }, [locale, t, identityText, platformAccess.permissions])
   const pagination = { pageIndex: search.page - 1, pageSize: search.pageSize }
-  const status: DataTableStatus = query.isError
-    ? query.error instanceof ApiClientError && query.error.status === 403
-      ? "forbidden"
-      : "error"
-    : query.isPending
-      ? "loading"
-      : query.isFetching
-        ? "refreshing"
-        : "ready"
+  const status = getDataTableQueryStatus(query)
   return (
     <section className="min-w-0 space-y-6">
       <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">

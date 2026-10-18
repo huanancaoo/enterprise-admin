@@ -429,9 +429,11 @@ describe("platform settings and persisted language inheritance", () => {
         legacy: false,
         deployer: false,
       })
+    // 撤权场景保留原管理员，避免夹具触发“最后一位有效超级管理员”约束。
+    const actor = await platformOperator(environment, origin)
     const body = await input("zh-CN"),
       key = randomUUID()
-    expect((await request(admin, body, key)).status).toBe(200)
+    expect((await request(actor, body, key)).status).toBe(200)
     await promisify(execFile)(
       process.execPath,
       [
@@ -440,7 +442,7 @@ describe("platform settings and persisted language inheritance", () => {
         "assignment",
         "revoke",
         "--user-id",
-        admin.user.id,
+        actor.user.id,
         "--role",
         "platform_admin",
         "--reason",
@@ -453,7 +455,8 @@ describe("platform settings and persisted language inheritance", () => {
         },
       }
     )
-    expect((await request(admin, body, key)).status).toBe(403)
-    expect((await request()).status).toBe(403)
+    expect((await request(actor, body, key)).status).toBe(403)
+    expect((await request(actor)).status).toBe(403)
+    expect((await request()).status).toBe(200)
   })
 })
