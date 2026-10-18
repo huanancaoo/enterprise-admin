@@ -88,7 +88,9 @@ describe("platform user directory and sensitive access", () => {
       await request("?q=Directory&pageSize=1&page=2", auditor)
     ).json()
     expect(firstPage.items[0].userId).toBe(second.user.id)
+    expect(firstPage.items[0].organizationCount).toBe(0)
     expect(secondPage.items[0].userId).toBe(target.user.id)
+    expect(secondPage.items[0].organizationCount).toBe(1)
     expect(firstPage.total).toBe(2)
     expect(JSON.stringify([firstPage, secondPage])).not.toContain(target.email)
     expect(

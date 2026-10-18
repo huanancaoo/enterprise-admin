@@ -575,6 +575,13 @@
       "when": 1792303012710,
       "tag": "0081_platform-audit-query-planning",
       "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1792305213305,
+      "tag": "0082_platform-user-page-projection",
+      "breakpoints": true
     }
   ]
 }
