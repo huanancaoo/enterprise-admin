@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 import {
   createMemoryHistory,
@@ -54,12 +54,14 @@ export function PlatformReadPageStory({
   auditor = false,
   initialEntry,
   embedded = false,
+  children,
 }: {
   page: "users" | "audit" | "settings" | "login-events" | "sessions"
   detail?: boolean
   auditor?: boolean
   initialEntry?: string
   embedded?: boolean
+  children?: ReactNode
 }) {
   const PageContainer = embedded ? "div" : "main"
   const [router] = useState(() => {
@@ -77,7 +79,12 @@ export function PlatformReadPageStory({
           auditor
         ),
       }),
-      component: Outlet,
+      component: () => (
+        <>
+          {children}
+          <Outlet />
+        </>
+      ),
     })
     const users = createRoute({
       getParentRoute: () => platform,

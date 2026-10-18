@@ -13,10 +13,7 @@ import {
   PlatformUserDetailSchema,
   type PlatformUserDetail,
 } from "@workspace/contracts/platform"
-import {
-  PlatformUserMutationResultSchema,
-  type PlatformUserMutationResult,
-} from "@workspace/contracts/identity-management"
+import { PlatformUserMutationResultSchema } from "@workspace/contracts/identity-management"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
 import {
@@ -36,6 +33,7 @@ import {
   DialogTrigger,
 } from "@workspace/ui/components/dialog"
 import { usePlatformAccessFailure } from "../../lib/use-platform-access-failure"
+import { usePlatformUserChanges } from "./user-queries"
 
 export function CreatePlatformAccount({
   onCreated,
@@ -44,6 +42,7 @@ export function CreatePlatformAccount({
 }) {
   const { t } = useTranslation(["identity", "validation", "common"])
   const id = useId()
+  const changes = usePlatformUserChanges()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<unknown>()
   usePlatformAccessFailure(error)
@@ -70,6 +69,7 @@ export function CreatePlatformAccount({
         setError(failure)
         return
       }
+      await changes.created(user)
       formApi.reset()
       setOpen(false)
       onCreated(user)
@@ -207,14 +207,13 @@ export function CreatePlatformAccount({
 export function PlatformAccountActions({
   user,
   permissions,
-  onSaved,
 }: {
   user: PlatformUserDetail
   permissions: string[]
-  onSaved: (result: PlatformUserMutationResult) => void
 }) {
   const { t } = useTranslation(["identity", "validation", "common"])
   const id = useId()
+  const changes = usePlatformUserChanges()
   const [action, setAction] = useState<"edit" | "status" | "reset" | null>(null)
   const [error, setError] = useState<unknown>()
   const [pending, setPending] = useState(false)
@@ -233,7 +232,9 @@ export function PlatformAccountActions({
           ...value,
           expectedVersion: user.version,
         })
-        onSaved(PlatformUserMutationResultSchema.parse(result.data))
+        await changes.updated(
+          PlatformUserMutationResultSchema.parse(result.data)
+        )
       })
     },
   })
@@ -329,7 +330,9 @@ export function PlatformAccountActions({
                     status: user.status === "active" ? "suspended" : "active",
                     expectedVersion: user.version,
                   })
-                  onSaved(PlatformUserMutationResultSchema.parse(result.data))
+                  await changes.updated(
+                    PlatformUserMutationResultSchema.parse(result.data)
+                  )
                 }
               })
             }}

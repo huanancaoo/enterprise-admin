@@ -8,6 +8,8 @@ import {
   type PlatformUsersScenario,
 } from "@workspace/mocks"
 import { PlatformReadPageStory } from "../platform-read-page.story-fixture"
+import { UserCombobox } from "../../components/user-combobox"
+import { useState } from "react"
 
 const scenario = (name: PlatformUsersScenario = "success") => {
   const fixture = createPlatformUsersScenario(name)
@@ -463,5 +465,77 @@ export const UnlockPasswordLoginPermissionDenied: Story = {
       })
     ).toBeInTheDocument()
     await expect(canvas.queryByText("Password login unlocked.")).toBeNull()
+  },
+}
+
+function ConcurrentUserReaders() {
+  const [selectedId, setSelectedId] = useState<string | null>(
+    platformUserFixture.userId
+  )
+  return (
+    <main>
+      <PlatformReadPageStory page="users" detail embedded>
+        <div className="mx-auto max-w-6xl p-6">
+          <label htmlFor="saved-user-preview">Selected user</label>
+          <UserCombobox
+            id="saved-user-preview"
+            value={selectedId}
+            onValueChange={setSelectedId}
+          />
+        </div>
+      </PlatformReadPageStory>
+      <PlatformReadPageStory page="users" embedded />
+    </main>
+  )
+}
+
+export const SavedNameUpdatesEveryReader: Story = {
+  render: () => <ConcurrentUserReaders />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const screen = within(canvasElement.ownerDocument.body)
+    const selected = await canvas.findByRole("combobox", {
+      name: "Selected user",
+    })
+    await waitFor(() =>
+      expect(selected).toHaveTextContent(platformUserFixture.name)
+    )
+    await canvas.findByRole("link", { name: platformUserFixture.name })
+    await userEvent.click(selected)
+    const option = await screen.findByRole("option", {
+      name: new RegExp(platformUserFixture.name),
+    })
+    const popup = option.closest('[data-slot="combobox-content"]')
+    await userEvent.keyboard("{Escape}")
+    await waitFor(() => expect(popup).not.toBeInTheDocument())
+    await waitFor(() => expect(selected).toHaveFocus())
+    await userEvent.click(
+      await canvas.findByRole("button", { name: "Edit account" })
+    )
+    const dialog = within(
+      await screen.findByRole("dialog", { name: "Edit account" })
+    )
+    const name = dialog.getByRole("textbox", { name: "Name" })
+    await waitFor(() => expect(name).toHaveFocus())
+    await userEvent.clear(name)
+    await userEvent.type(name, "Mina Chen Updated")
+    await expect(name).toHaveValue("Mina Chen Updated")
+    await userEvent.click(dialog.getByRole("button", { name: "Save" }))
+    await closed(screen)
+    await canvas.findByRole("heading", { name: "Mina Chen Updated" })
+    await canvas.findByRole("link", { name: "Mina Chen Updated" })
+    await waitFor(() => expect(selected).toHaveTextContent("Mina Chen Updated"))
+    await userEvent.click(selected)
+    const updatedOption = await screen.findByRole("option", {
+      name: /Mina Chen Updated/,
+    })
+    const updatedPopup = updatedOption.closest('[data-slot="combobox-content"]')
+    await expect(
+      screen.queryByRole("option", { name: /^Mina Chen(?! Updated)/ })
+    ).toBeNull()
+    await expect(canvas.queryByText(platformUserFullEmail)).toBeNull()
+    await userEvent.keyboard("{Escape}")
+    await waitFor(() => expect(updatedPopup).not.toBeInTheDocument())
+    await waitFor(() => expect(selected).toHaveFocus())
   },
 }

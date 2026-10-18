@@ -11,20 +11,14 @@ import { PermissionDeniedState } from "@workspace/admin"
 import { ApiClientError } from "@workspace/api-client"
 import {
   getPlatformOrganization,
-  getPlatformUser,
   getGetPlatformOrganizationQueryKey,
-  getGetPlatformUserQueryKey,
   listPlatformOrganizations,
-  listPlatformUsers,
   getListPlatformOrganizationsQueryKey,
-  getListPlatformUsersQueryKey,
 } from "@workspace/api-client"
 import {
   OrganizationIdSchema,
   PlatformOrganizationDetailSchema,
   PlatformOrganizationPageSchema,
-  PlatformUserDetailSchema,
-  PlatformUsersPageSchema,
   type PlatformOrganizationDetail,
   type PlatformUserDetail,
 } from "@workspace/contracts"
@@ -43,6 +37,7 @@ import {
 import { Button } from "@workspace/ui/components/button"
 import { InputGroupAddon } from "@workspace/ui/components/input-group"
 import { usePlatformAccessFailure } from "../lib/use-platform-access-failure"
+import { platformUserQueries } from "../features/users/user-queries"
 import {
   Building2Icon,
   ChevronsUpDownIcon,
@@ -107,23 +102,27 @@ function useEntityDirectory(
       ? debouncedSearch
       : null
   const { value } = props
+  const userDirectory = platformUserQueries(session.user.id).directory({
+    q: debouncedSearch || undefined,
+    pageSize: PAGE_SIZE,
+  })
+  const userDetail = platformUserQueries(session.user.id).detail(value ?? "")
 
   const listQueryKey = useMemo(() => {
-    const params =
-      kind === "organization"
-        ? {
-            q: debouncedSearch || undefined,
-            pageSize: PAGE_SIZE,
-            sortBy: "createdAt" as const,
-            sortOrder: "desc" as const,
-          }
-        : { q: debouncedSearch || undefined, pageSize: PAGE_SIZE }
+    if (kind === "user")
+      return platformUserQueries(session.user.id).directory({
+        q: debouncedSearch || undefined,
+        pageSize: PAGE_SIZE,
+      }).queryKey
     return [
       "platform",
       session.user.id,
-      ...(kind === "organization"
-        ? getListPlatformOrganizationsQueryKey(params)
-        : getListPlatformUsersQueryKey(params)),
+      ...getListPlatformOrganizationsQueryKey({
+        q: debouncedSearch || undefined,
+        pageSize: PAGE_SIZE,
+        sortBy: "createdAt",
+        sortOrder: "desc",
+      }),
     ]
   }, [debouncedSearch, kind, session.user.id])
 
@@ -148,18 +147,7 @@ function useEntityDirectory(
           ).data
         )
       }
-      return PlatformUsersPageSchema.parse(
-        (
-          await listPlatformUsers(
-            {
-              q: debouncedSearch || undefined,
-              page: pageParam,
-              pageSize: PAGE_SIZE,
-            },
-            { signal }
-          )
-        ).data
-      )
+      return userDirectory.queryFn({ pageParam, signal })
     },
     getNextPageParam: (lastPage) =>
       lastPage.page * lastPage.pageSize < lastPage.total
@@ -184,13 +172,14 @@ function useEntityDirectory(
   )
 
   const selectedKey = useMemo(
-    () => [
-      "platform",
-      session.user.id,
-      ...(kind === "organization"
-        ? getGetPlatformOrganizationQueryKey(value ?? "")
-        : getGetPlatformUserQueryKey(value ?? "")),
-    ],
+    () =>
+      kind === "user"
+        ? platformUserQueries(session.user.id).detail(value ?? "").queryKey
+        : [
+            "platform",
+            session.user.id,
+            ...getGetPlatformOrganizationQueryKey(value ?? ""),
+          ],
     [kind, session.user.id, value]
   )
   const selectedQuery = useQuery({
@@ -201,18 +190,17 @@ function useEntityDirectory(
         return PlatformOrganizationDetailSchema.parse(
           (await getPlatformOrganization(value!, { signal })).data
         )
-      return PlatformUserDetailSchema.parse(
-        (await getPlatformUser(value!, { signal })).data
-      )
+      return userDetail.queryFn({ signal })
     },
     retry: false,
   })
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    // 用户详情也可能正由账号页面读取；其请求由最后一个观察者离开时取消。
+    if (kind === "user") return
+    return () => {
       void queryClient.cancelQueries({ queryKey: selectedKey, exact: true })
-    },
-    [queryClient, selectedKey]
-  )
+    }
+  }, [kind, queryClient, selectedKey])
 
   const exactOrganizationKey = useMemo(
     () => [

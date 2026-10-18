@@ -1,6 +1,6 @@
 import { PlatformExportButton } from "../tasks/task-actions"
 import { useMemo, useState } from "react"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 import { useForm } from "@tanstack/react-form"
 import {
   Link,
@@ -13,13 +13,9 @@ import {
 import { useTranslation } from "react-i18next"
 import {
   ApiClientError,
-  getPlatformUser,
   getPlatformSensitiveProfile,
-  listPlatformUsers,
 } from "@workspace/api-client"
 import {
-  PlatformUsersPageSchema,
-  PlatformUserDetailSchema,
   PlatformSensitiveProfileSchema,
   SensitiveProfileQuerySchema,
   type PlatformUsersPage,
@@ -64,7 +60,7 @@ import {
   CreatePlatformAccount,
   PlatformAccountActions,
 } from "./account-management"
-import { authClient } from "../../lib/auth-client"
+import { platformUserQueries } from "./user-queries"
 import { PlatformPasswordLoginLock } from "./password-login-lock"
 
 type UserRow = PlatformUsersPage["items"][number]
@@ -76,18 +72,10 @@ export function PlatformUsersPage() {
   const { t: identityText } = useTranslation("identity")
   const session = useAuthenticatedSession()!
   const { platformAccess } = useRouteContext({ from: "/platform" })
-  const queryClient = useQueryClient()
   const search = useSearch({ from: "/platform/users" })
   const navigate = useNavigate({ from: "/platform/users" })
   const locale = useUiLocale()
-  const query = useQuery({
-    queryKey: ["platform", session.user.id, "users", search],
-    queryFn: async ({ signal }) =>
-      PlatformUsersPageSchema.parse(
-        (await listPlatformUsers(search, { signal })).data
-      ),
-    retry: false,
-  })
+  const query = useQuery(platformUserQueries(session.user.id).page(search))
   usePlatformAccessFailure(query.error)
   const columns = useMemo(() => {
     const format = createFormatter(locale)
@@ -180,6 +168,7 @@ export function PlatformUsersPage() {
         {t("platformUsers")}
       </h1>
       <DataTable
+        paginationLabel={t("platformUsers")}
         columns={columns}
         data={query.data?.items ?? EMPTY_USERS}
         getRowId={(row) => row.userId}
@@ -202,13 +191,6 @@ export function PlatformUsersPage() {
             {platformAccess.permissions.includes("platform.user:create") && (
               <CreatePlatformAccount
                 onCreated={(user) => {
-                  queryClient.setQueryData(
-                    ["platform", session.user.id, "user", user.userId],
-                    user
-                  )
-                  void queryClient.invalidateQueries({
-                    queryKey: ["platform", session.user.id, "users"],
-                  })
                   void navigate({
                     to: "/platform/users/$userId",
                     params: { userId: user.userId },
@@ -346,18 +328,9 @@ export function PlatformUserDetailPage() {
   const { userId } = useParams({ from: "/platform/users/$userId" })
   const { platformAccess } = useRouteContext({ from: "/platform" })
   const session = useAuthenticatedSession()!
-  const nativeSession = authClient.useSession()
-  const queryClient = useQueryClient()
   const format = createFormatter(useUiLocale())
   const [open, setOpen] = useState(false)
-  const query = useQuery({
-    queryKey: ["platform", session.user.id, "user", userId],
-    queryFn: async ({ signal }) =>
-      PlatformUserDetailSchema.parse(
-        (await getPlatformUser(userId, { signal })).data
-      ),
-    retry: false,
-  })
+  const query = useQuery(platformUserQueries(session.user.id).detail(userId))
   usePlatformAccessFailure(query.error)
   if (query.isPending) return <LoadingState />
   if (query.isError)
@@ -394,24 +367,6 @@ export function PlatformUserDetailPage() {
           key={`${user.userId}-${user.version}`}
           user={user}
           permissions={platformAccess.permissions}
-          onSaved={(result) => {
-            queryClient.setQueryData(
-              ["platform", session.user.id, "user", userId],
-              {
-                ...user,
-                name: result.name,
-                status: result.status,
-                version: result.version,
-              }
-            )
-            void queryClient.invalidateQueries({
-              queryKey: ["platform", session.user.id, "users"],
-            })
-            if (userId === session.user.id)
-              void nativeSession.refetch({
-                query: { disableCookieCache: true },
-              })
-          }}
         />
       )}
       <Card>
@@ -566,6 +521,7 @@ function UserOrganizations({
   }, [locale, t])
   return (
     <DataTable
+      paginationLabel={t("platformUserOrganizations")}
       columns={columns}
       data={data}
       getRowId={(row) => row.organizationId}

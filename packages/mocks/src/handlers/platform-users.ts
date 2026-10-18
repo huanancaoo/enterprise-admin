@@ -2,6 +2,7 @@ import { delay, http, HttpResponse } from "msw"
 import {
   PlatformUsersQuerySchema,
   SensitiveProfileQuerySchema,
+  UpdatePlatformUserSchema,
   type PlatformUserDetail,
 } from "@workspace/contracts"
 
@@ -104,6 +105,7 @@ export function createPlatformUsersScenario(
       })
     ),
   ]
+  const initialUsers = structuredClone(users)
   const privateEmails = new Map(
     users.map((item, index) => [
       item.userId,
@@ -128,6 +130,7 @@ export function createPlatformUsersScenario(
     reset: () => {
       sensitiveFailureReturned = false
       unlockedUserIds.length = 0
+      users.splice(0, users.length, ...structuredClone(initialUsers))
       users[0]!.lockedUntil = lockTime()
     },
     handlers: [
@@ -173,6 +176,26 @@ export function createPlatformUsersScenario(
         const result = users.find((item) => item.userId === params.userId)
         return result ? HttpResponse.json(result) : failure(404, "NOT_FOUND")
       }),
+      http.patch(
+        "*/api/v1/platform/users/:userId",
+        async ({ request, params }) => {
+          const body = UpdatePlatformUserSchema.parse(await request.json())
+          const target = users.find((item) => item.userId === params.userId)
+          if (!target) return failure(404, "NOT_FOUND")
+          if (target.version !== body.expectedVersion)
+            return failure(409, "CONFLICT")
+          const changed = target.name !== body.name
+          target.name = body.name
+          if (changed) target.version += 1
+          return HttpResponse.json({
+            userId: target.userId,
+            name: target.name,
+            status: target.status,
+            version: target.version,
+            changed,
+          })
+        }
+      ),
       http.post(
         "*/api/v1/platform/users/:userId/password-login/unlock",
         async ({ params }) => {
