@@ -10,6 +10,7 @@ import {
 import { PlatformReadPageStory } from "../platform-read-page.story-fixture"
 import { UserCombobox } from "../../components/user-combobox"
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 
 const scenario = (name: PlatformUsersScenario = "success") => {
   const fixture = createPlatformUsersScenario(name)
@@ -469,6 +470,7 @@ export const UnlockPasswordLoginPermissionDenied: Story = {
 }
 
 function ConcurrentUserReaders() {
+  const { t } = useTranslation("organization")
   const [selectedId, setSelectedId] = useState<string | null>(
     platformUserFixture.userId
   )
@@ -476,7 +478,9 @@ function ConcurrentUserReaders() {
     <main>
       <PlatformReadPageStory page="users" detail embedded>
         <div className="mx-auto max-w-6xl p-6">
-          <label htmlFor="saved-user-preview">Selected user</label>
+          <label htmlFor="saved-user-preview">
+            {t("platformEntityUserPlaceholder")}
+          </label>
           <UserCombobox
             id="saved-user-preview"
             value={selectedId}
@@ -495,7 +499,7 @@ export const SavedNameUpdatesEveryReader: Story = {
     const canvas = within(canvasElement)
     const screen = within(canvasElement.ownerDocument.body)
     const selected = await canvas.findByRole("combobox", {
-      name: "Selected user",
+      name: "Choose a user",
     })
     await waitFor(() =>
       expect(selected).toHaveTextContent(platformUserFixture.name)
