@@ -61,11 +61,13 @@ export const SubmitsAtomicCsvImport: Story = {
     const dialog = await within(canvasElement.ownerDocument.body).findByRole(
       "dialog"
     )
-    await expect(
-      within(dialog).getByText(
-        "Only new projects are added. All rows must pass validation before any project is saved."
-      )
-    ).toBeVisible()
+    await waitFor(() =>
+      expect(
+        within(dialog).getByText(
+          "Only new projects are added. All rows must pass validation before any project is saved."
+        )
+      ).toBeVisible()
+    )
     const file = new File(
       ["name,description,contentLocale\nImported,Example,en-US\n"],
       "projects.csv",

@@ -138,9 +138,10 @@ export const UnlockUpdatesUserAndEmployee: Story = {
     await userEvent.click(
       await employee.findByRole("button", { name: "Unlock password login" })
     )
-    const dialog = within(
-      await within(canvasElement.ownerDocument.body).findByRole("dialog")
-    )
+    const dialogElement = await within(
+      canvasElement.ownerDocument.body
+    ).findByRole("dialog")
+    const dialog = within(dialogElement)
     await userEvent.click(
       dialog.getByRole("button", { name: "Unlock password login" })
     )
@@ -151,6 +152,7 @@ export const UnlockUpdatesUserAndEmployee: Story = {
     await expect(
       employee.queryByRole("button", { name: "Unlock password login" })
     ).toBeNull()
+    await waitFor(() => expect(dialogElement.isConnected).toBe(false))
     await expect(
       employee.getByRole("button", { name: "Disable employment" })
     ).toBeVisible()

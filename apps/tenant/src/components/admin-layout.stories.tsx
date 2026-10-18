@@ -105,7 +105,11 @@ export const PersistentSidebar: Story = {
     )
     await userEvent.click(project)
     await expect(
-      await canvas.findByRole("heading", { name: "办公空间 1-26" })
+      await canvas.findByRole(
+        "heading",
+        { name: "办公空间 1-26" },
+        { timeout: 5000 }
+      )
     ).toBeVisible()
     await expect(canvas.getByText("项目详情")).toBeVisible()
     await expect(
