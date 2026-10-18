@@ -977,6 +977,49 @@ describe(
         assert.deepEqual(helper, { runtime: false, public: false })
     })
 
+    test("操作日志按实际参数规划，成功与拒绝后均恢复连接的计划设置", async () => {
+      const helper = (
+        await owner.query(
+          "SELECT proconfig FROM pg_proc WHERE oid='public.read_platform_audit_events_for_action(uuid,uuid,timestamptz,timestamptz,uuid,uuid,text,text,integer,integer,text,text)'::regprocedure"
+        )
+      ).rows[0]
+      assert.deepEqual(helper.proconfig, [
+        "search_path=pg_catalog",
+        "row_security=on",
+        "plan_cache_mode=force_custom_plan",
+      ])
+      const operator = await principal()
+      const auditRole = await role(["platform.audit:read"])
+      await assign(operator, auditRole)
+      const client = await runtime.connect()
+      try {
+        // 连接池后续可能交给其他业务；函数的规划设置不能泄漏至调用方。
+        await client.query("SET plan_cache_mode=force_generic_plan")
+        const read = () =>
+          client.query(
+            "SELECT public.list_platform_audit_events($1,$2,NULL,NULL,NULL,NULL,NULL,NULL,1,20,$3) AS result",
+            [operator.id, operator.session, randomUUID()]
+          )
+        const assertCallerPlan = async () =>
+          assert.equal(
+            (await client.query("SHOW plan_cache_mode")).rows[0]
+              .plan_cache_mode,
+            "force_generic_plan"
+          )
+        assert.ok(Array.isArray((await read()).rows[0].result.items))
+        await assertCallerPlan()
+        await owner.query(
+          "UPDATE public.platform_role SET permissions='{}' WHERE id=$1",
+          [auditRole.id]
+        )
+        await assert.rejects(read(), isDatabaseError("FORBIDDEN"))
+        await assertCallerPlan()
+      } finally {
+        await client.query("RESET plan_cache_mode")
+        client.release()
+      }
+    })
+
     test("内置super不可改名/停用/改权限/删除，普通角色不能取得授权管理保留权限", async () => {
       for (const sql of [
         "UPDATE public.platform_role SET name='changed' WHERE key='platform_admin'",
