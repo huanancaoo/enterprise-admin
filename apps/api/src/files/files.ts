@@ -16,34 +16,23 @@ import {
   type FileWorkspace,
   type FileReferenceLocations,
 } from '@workspace/contracts';
-import {
-  createTenantRunner,
-  type TenantContext,
-  type TenantTx,
-} from '@workspace/database/tenant';
+import { type TenantContext, type TenantTx } from '@workspace/database/tenant';
 import { fileRepository } from '@workspace/database/repositories/files';
 import { projectRepository } from '@workspace/database/repositories/projects';
-import { AuthRuntime } from '../identity/auth-runtime';
-import {
-  IdentityService,
-  businessActorReference,
-} from '../identity/identity.service';
-import { rethrowTenantWriteError } from '../tenancy/tenant-write';
 import {
   AuthorizationService,
   type PermissionRequest,
 } from '../authorization/authorization.service';
 import { FilesRuntime } from './files-runtime';
+import { FileOrganizationSession } from './file-organization-session';
 import { fileEntryResponse, fileVersionResponse } from './file-responses';
-import { rethrowFileError } from './file-http-errors';
 
 @Injectable()
 export class Files {
   constructor(
-    private readonly identity: AuthRuntime,
     private readonly runtime: FilesRuntime,
     private readonly authorization: AuthorizationService,
-    private readonly actors: IdentityService,
+    private readonly session: FileOrganizationSession,
   ) {}
 
   private async read<T>(
@@ -55,42 +44,18 @@ export class Files {
       | ((value: T) => readonly PermissionRequest[]),
   ): Promise<T> {
     this.runtime.requireStorage();
-    try {
-      // 身份读取不持业务锁；最终授权与文件事实共用已借连接，避免池内互等。
-      const actor = await this.actors.requireBusinessIdentity(
+    // 读取也会懒初始化 workspace；与路径/上传写统一 usage→Session/status 锁序。
+    return this.session.open(context, headers, async (scope) => {
+      const result = await load(scope.tx, scope.client);
+      await this.authorization.requireAnyPermissionInTransaction(
+        scope.client,
         headers,
         context.organizationId,
+        typeof permissions === 'function' ? permissions(result) : permissions,
       );
-      const client = await this.identity.pool.connect();
-      try {
-        return await createTenantRunner(client)(context, async (tx) => {
-          // 读取也会懒初始化 workspace；与路径/上传写统一 usage→Session/status 锁序。
-          await fileRepository.lockOrganization(tx);
-          await fileRepository.requireCurrentActor(
-            tx,
-            businessActorReference(actor),
-          );
-          const result = await load(tx, client);
-          await this.authorization.requireAnyPermissionInTransaction(
-            client,
-            headers,
-            context.organizationId,
-            typeof permissions === 'function'
-              ? permissions(result)
-              : permissions,
-          );
-          await fileRepository.requireCurrentActor(
-            tx,
-            businessActorReference(actor),
-          );
-          return result;
-        }).catch((error: unknown) => rethrowTenantWriteError(error, context));
-      } finally {
-        client.release();
-      }
-    } catch (error) {
-      rethrowFileError(error);
-    }
+      await scope.recheckActor();
+      return result;
+    });
   }
 
   async workspace(

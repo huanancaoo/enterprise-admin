@@ -54,6 +54,7 @@ export class ProjectFiles {
       : undefined;
     const client: PoolClient = await this.runtime.pool.connect();
     try {
+      // 这里在 usage 锁之后才读用户会话。FileOrganizationSession 先读身份再加锁，不能替换这一段。
       return await createTenantRunner(client)(context, async (tx) => {
         await client.query('SELECT public.require_active_account($1::uuid)', [
           context.userId,

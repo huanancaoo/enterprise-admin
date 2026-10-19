@@ -7,34 +7,25 @@ import {
   type FileBatchItemResponse,
   type FileBatchResponse,
 } from '@workspace/contracts';
-import {
-  createTenantRunner,
-  type TenantContext,
-} from '@workspace/database/tenant';
+import { type TenantContext } from '@workspace/database/tenant';
 import {
   fileRepository,
   type FileBatch,
   type FileBatchItem,
 } from '@workspace/database/repositories/files';
-import { AuthRuntime } from '../identity/auth-runtime';
-import {
-  IdentityService,
-  businessActorReference,
-} from '../identity/identity.service';
 import {
   AuthorizationService,
   type PermissionRequest,
 } from '../authorization/authorization.service';
 import { apiFailureCode } from '../http/api-error.filter';
 import { ApiException } from '../http/api-exception';
-import { rethrowTenantWriteError } from '../tenancy/tenant-write';
-import { rethrowFileError } from './file-http-errors';
 import {
   FileOperationReads,
   fileBatchActionPermissions,
 } from './file-operation-reads';
 import { FilesRuntime } from './files-runtime';
 import { FilePathWrites } from './file-path-writes';
+import { FileOrganizationSession } from './file-organization-session';
 
 const hash = (value: unknown) =>
   createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -54,12 +45,11 @@ function publicError(
 @Injectable()
 export class FileBatches {
   constructor(
-    private readonly identity: AuthRuntime,
-    private readonly actors: IdentityService,
     private readonly authorization: AuthorizationService,
     private readonly paths: FilePathWrites,
     private readonly receipts: FileOperationReads,
     private readonly runtime: FilesRuntime,
+    private readonly session: FileOrganizationSession,
   ) {}
 
   private async plan(
@@ -69,64 +59,45 @@ export class FileBatches {
     input?: ExecuteFileBatch,
   ) {
     this.runtime.requireStorage();
-    const actor = await this.actors.requireBusinessIdentity(
-      headers,
-      context.organizationId,
-    );
-    const client = await this.identity.pool.connect();
-    try {
-      return await createTenantRunner(client)(context, async (tx) => {
-        await fileRepository.lockOrganization(tx);
-        await fileRepository.requireCurrentActor(
-          tx,
-          businessActorReference(actor),
+    return this.session.open(context, headers, async (scope) => {
+      const existing = await fileRepository.findBatch(scope.tx, id);
+      if (!input && !existing) throw new NotFoundException();
+      const choices: PermissionRequest[] = [
+        { file: ['read'], folder: ['read'] },
+      ];
+      if (input)
+        choices.splice(
+          0,
+          choices.length,
+          ...fileBatchActionPermissions(input.action),
         );
-        const existing = await fileRepository.findBatch(tx, id);
-        if (!input && !existing) throw new NotFoundException();
-        const choices: PermissionRequest[] = [
-          { file: ['read'], folder: ['read'] },
-        ];
-        if (input)
-          choices.splice(
-            0,
-            choices.length,
-            ...fileBatchActionPermissions(input.action),
-          );
-        else if (existing!.batch.actorId === context.userId)
-          choices.push(...fileBatchActionPermissions(existing!.batch.action));
-        await this.authorization.requireAnyPermissionInTransaction(
-          client,
-          headers,
-          context.organizationId,
-          choices,
-        );
-        await fileRepository.requireCurrentActor(
-          tx,
-          businessActorReference(actor),
-        );
-        return input
-          ? fileRepository.beginBatch(tx, {
-              id,
-              requestHash: hash({
-                action: input.action,
-                parentId: 'parentId' in input ? (input.parentId ?? null) : null,
-                items: input.items.map((item) => ({
-                  entryId: item.entryId,
-                  expectedRevision: item.expectedRevision,
-                  operationId: item.operationId,
-                })),
-              }),
+      else if (existing!.batch.actorId === context.userId)
+        choices.push(...fileBatchActionPermissions(existing!.batch.action));
+      await this.authorization.requireAnyPermissionInTransaction(
+        scope.client,
+        headers,
+        context.organizationId,
+        choices,
+      );
+      await scope.recheckActor();
+      return input
+        ? fileRepository.beginBatch(scope.tx, {
+            id,
+            requestHash: hash({
               action: input.action,
-              items: input.items,
-              parentId: 'parentId' in input ? input.parentId : undefined,
-            })
-          : existing!;
-      }).catch((error: unknown) => rethrowTenantWriteError(error, context));
-    } catch (error) {
-      rethrowFileError(error);
-    } finally {
-      client.release();
-    }
+              parentId: 'parentId' in input ? (input.parentId ?? null) : null,
+              items: input.items.map((item) => ({
+                entryId: item.entryId,
+                expectedRevision: item.expectedRevision,
+                operationId: item.operationId,
+              })),
+            }),
+            action: input.action,
+            items: input.items,
+            parentId: 'parentId' in input ? input.parentId : undefined,
+          })
+        : existing!;
+    });
   }
 
   async execute(

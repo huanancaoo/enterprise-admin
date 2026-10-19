@@ -22,6 +22,7 @@ import {
   PermissionDeniedState,
 } from "@workspace/admin"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
+import { nextIdempotencyAttempt } from "@workspace/admin"
 import { localeMeta } from "@workspace/i18n"
 import { Card, CardContent } from "@workspace/ui/components/card"
 import { Button } from "@workspace/ui/components/button"
@@ -214,8 +215,11 @@ function SettingsForm({
       }
       const body = JSON.stringify(data)
       // 请求结果未知时用相同键重试；用户改变输入即构成另一项明确操作。
-      if (attempt.current?.body !== body)
-        attempt.current = { body, key: crypto.randomUUID() }
+      attempt.current = nextIdempotencyAttempt(
+        attempt.current,
+        attempt.current?.body === body,
+        (key) => ({ body, key }),
+      )
       try {
         const result = PlatformSettingsUpdateResultSchema.parse(
           (

@@ -17,6 +17,7 @@ import {
   LoadingState,
   PermissionDeniedState,
 } from "@workspace/admin"
+import { nextIdempotencyAttempt } from "@workspace/admin"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
@@ -246,8 +247,11 @@ function StoragePolicyForm({
       })
       const body = JSON.stringify(data)
       // 相同草稿重试沿用原键，未知响应不能生成第二次业务操作。
-      if (attempt.current?.body !== body)
-        attempt.current = { body, key: crypto.randomUUID() }
+      attempt.current = nextIdempotencyAttempt(
+        attempt.current,
+        attempt.current?.body === body,
+        (key) => ({ body, key }),
+      )
       try {
         const result = PlatformStoragePolicyUpdateResultSchema.parse(
           (

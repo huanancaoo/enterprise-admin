@@ -17,6 +17,7 @@ import {
   LoadingState,
   PermissionDeniedState,
 } from "@workspace/admin"
+import { nextIdempotencyAttempt } from "@workspace/admin"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import {
   ApiClientError,
@@ -303,12 +304,12 @@ function OrganizationAction({
       setError(undefined)
       const input = { reason: value.reason, expectedVersion: version }
       // 网络结果未知时重试同一请求体与键；后台刷新不能替换已确认的版本。
-      if (
-        !attempt.current ||
-        JSON.stringify(attempt.current.input) !== JSON.stringify(input)
-      ) {
-        attempt.current = { action, input, key: crypto.randomUUID() }
-      }
+      attempt.current = nextIdempotencyAttempt(
+        attempt.current,
+        attempt.current !== null &&
+          JSON.stringify(attempt.current.input) === JSON.stringify(input),
+        (key) => ({ action, input, key }),
+      )
       const command = attempt.current
       try {
         const operation = actions[command.action].operation

@@ -19,17 +19,12 @@ import {
 } from '@workspace/database/repositories/files';
 import { AuthRuntime } from '../identity/auth-runtime';
 import {
-  IdentityService,
-  businessActorReference,
-} from '../identity/identity.service';
-import {
   AuthorizationService,
   type PermissionRequest,
 } from '../authorization/authorization.service';
-import { rethrowTenantWriteError } from '../tenancy/tenant-write';
+import { FileOrganizationSession } from './file-organization-session';
 import { FileWriteExecutor } from './file-write-executor';
-import { rethrowFileError } from './file-http-errors';
-import { createFileWriteObjectPlan } from './file-object-plan';
+import { runPathOperation } from './file-operation-runs';
 
 type PathAction = 'rename' | 'move' | 'trash' | 'restore' | 'purge';
 type PathInput =
@@ -52,9 +47,9 @@ export function filePathPermissions(
 export class FilePathWrites {
   constructor(
     private readonly identity: AuthRuntime,
-    private readonly actors: IdentityService,
     private readonly authorization: AuthorizationService,
     private readonly executor: FileWriteExecutor,
+    private readonly session: FileOrganizationSession,
   ) {}
 
   private async entry(context: TenantContext, id: string): Promise<FileEntry> {
@@ -72,37 +67,18 @@ export class FilePathWrites {
     action: 'trash' | 'purge',
   ): Promise<FileEntryImpact> {
     const entry = await this.entry(context, id);
-    const actor = await this.actors.requireBusinessIdentity(
-      headers,
-      context.organizationId,
-    );
-    const client = await this.identity.pool.connect();
-    try {
-      return await createTenantRunner(client)(context, async (tx) => {
-        await fileRepository.lockOrganization(tx);
-        await fileRepository.requireCurrentActor(
-          tx,
-          businessActorReference(actor),
-        );
-        await this.authorization.requirePermissionInTransaction(
-          client,
-          headers,
-          context.organizationId,
-          filePathPermissions(entry.kind, action),
-        );
-        await fileRepository.requireCurrentActor(
-          tx,
-          businessActorReference(actor),
-        );
-        return FileEntryImpactSchema.parse(
-          await fileRepository.entryImpact(tx, id, action),
-        );
-      }).catch((error: unknown) => rethrowTenantWriteError(error, context));
-    } catch (error) {
-      rethrowFileError(error);
-    } finally {
-      client.release();
-    }
+    return this.session.open(context, headers, async (scope) => {
+      await this.authorization.requirePermissionInTransaction(
+        scope.client,
+        headers,
+        context.organizationId,
+        filePathPermissions(entry.kind, action),
+      );
+      await scope.recheckActor();
+      return FileEntryImpactSchema.parse(
+        await fileRepository.entryImpact(scope.tx, id, action),
+      );
+    });
   }
 
   async perform(
@@ -140,37 +116,16 @@ export class FilePathWrites {
         },
         permissions: filePathPermissions(entry.kind, action),
       },
-      async (scope) => {
-        const { objects } = await scope.write((tx, now) =>
-          fileRepository.preparePathOperation(tx, operationId, {
-            entryId,
-            expectedRevision: input.expectedRevision,
-            selected: batch?.selected,
-            parentId: 'parentId' in input ? input.parentId : undefined,
-            name: 'name' in input ? input.name : undefined,
-            now,
-          }),
-        );
-        await scope.storage.ensureOwner(
-          { kind: 'organization', id: context.organizationId },
-          scope.signal,
-        );
-        const objectPlan = createFileWriteObjectPlan(context, scope, objects);
-        if (action !== 'purge') {
-          await objectPlan.prepareTargets();
-          await scope.publish((tx, now) =>
-            fileRepository.commitPathOperation(tx, operationId, now),
-          );
-        }
-        await objectPlan.removeSources();
-        // purge 的物理删除不可撤销，只有删除事实、生命周期和同事务审计都成功后才发布完成。
-        return scope.complete(
-          action === 'purge'
-            ? (tx, now) =>
-                fileRepository.commitPathOperation(tx, operationId, now)
-            : undefined,
-        );
-      },
+      (scope) =>
+        runPathOperation(
+          scope,
+          context,
+          operationId,
+          entryId,
+          action,
+          input,
+          batch,
+        ),
     );
   }
 }

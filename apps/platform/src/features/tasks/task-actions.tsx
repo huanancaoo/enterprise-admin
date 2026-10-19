@@ -3,6 +3,7 @@ import { useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate, useRouteContext } from "@tanstack/react-router"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
+import { nextIdempotencyAttempt } from "@workspace/admin"
 import {
   createPlatformExportTask,
   createPlatformEmployeeImportTask,
@@ -61,8 +62,11 @@ function useTaskSubmission() {
   ) => {
     const signature = await fingerprint(body)
     // 网络结果未知时重试同一提交；变更输入属于新任务，不能复用旧幂等键。
-    if (lastRequest.current?.fingerprint !== signature)
-      lastRequest.current = { fingerprint: signature, key: crypto.randomUUID() }
+    lastRequest.current = nextIdempotencyAttempt(
+      lastRequest.current,
+      lastRequest.current?.fingerprint === signature,
+      (key) => ({ fingerprint: signature, key }),
+    )
     try {
       const result = PlatformTaskSchema.parse(
         (

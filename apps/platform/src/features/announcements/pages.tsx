@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState } from "react"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMemo, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useRouteContext } from "@tanstack/react-router"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
@@ -12,6 +12,9 @@ import {
   LoadingState,
   PermissionDeniedState,
   saveAnnouncementResource,
+  useAnnouncementUnreadQuery,
+  useAnnouncementInboxQuery,
+  useAnnouncementReading,
   type AnnouncementInboxSearch,
 } from "@workspace/admin"
 import type { FileContentPorts } from "@workspace/admin/rich-text-editor"
@@ -36,11 +39,8 @@ import {
 import {
   AnnouncementPageSchema,
   AnnouncementDetailSchema,
-  AnnouncementInboxPageSchema,
-  AnnouncementReadingSchema,
   AnnouncementAttachmentSchema,
   AnnouncementRichTextDocumentSchema,
-  AnnouncementReadResultSchema,
   AnnouncementReadersPageSchema,
   CreateAnnouncementSchema,
   UpdateAnnouncementSchema,
@@ -344,14 +344,12 @@ export function PlatformAnnouncementInboxPage({
   onOpen: (id: string) => void
 }) {
   const user = useAuthenticatedSession()!.user
-  const query = useQuery({
-    queryKey: [...platformAnnouncementKeys.inbox(user.id), "list", search],
-    queryFn: async ({ signal }) =>
-      AnnouncementInboxPageSchema.parse(
-        (await listPlatformAnnouncementInbox(search, { signal })).data
-      ),
-    retry: false,
-  })
+  const { query, status } = useAnnouncementInboxQuery(
+    platformAnnouncementKeys.inbox(user.id),
+    search,
+    (signal) =>
+      listPlatformAnnouncementInbox(search, { signal }).then((reply) => reply.data),
+  )
   usePlatformAccessFailure(query.error)
   return (
     <AnnouncementInbox
@@ -360,7 +358,7 @@ export function PlatformAnnouncementInboxPage({
       search={search}
       onSearchChange={onSearchChange}
       onOpen={(item) => onOpen(item.id)}
-      status={getDataTableQueryStatus(query)}
+      status={status}
       error={query.error?.message}
       onRetry={() => void query.refetch()}
     />
@@ -368,19 +366,13 @@ export function PlatformAnnouncementInboxPage({
 }
 export function PlatformAnnouncementEntry({ onOpen }: { onOpen: () => void }) {
   const user = useAuthenticatedSession()!.user
-  const query = useQuery({
-    queryKey: [...platformAnnouncementKeys.inbox(user.id), "unread"],
-    queryFn: async ({ signal }) =>
-      AnnouncementInboxPageSchema.parse(
-        (
-          await listPlatformAnnouncementInbox(
-            { page: 1, pageSize: 1 },
-            { signal }
-          )
-        ).data
+  const query = useAnnouncementUnreadQuery(
+    platformAnnouncementKeys.inbox(user.id),
+    (signal) =>
+      listPlatformAnnouncementInbox({ page: 1, pageSize: 1 }, { signal }).then(
+        (reply) => reply.data,
       ),
-    retry: false,
-  })
+  )
   usePlatformAccessFailure(query.error)
   return (
     <AnnouncementEntry
@@ -400,92 +392,61 @@ export function PlatformAnnouncementReadPage({
   const { t } = useTranslation("announcements")
   const user = useAuthenticatedSession()!.user
   const client = useQueryClient()
-  const key = [
-    ...platformAnnouncementKeys.inbox(user.id),
-    "reading",
+  const rejectAccess = usePlatformAccessFailure(undefined)
+  const reading = useAnnouncementReading({
+    scope: platformAnnouncementKeys.inbox(user.id),
     announcementId,
-  ] as const
-  const query = useQuery({
-    queryKey: key,
-    queryFn: async ({ signal }) =>
-      AnnouncementReadingSchema.parse(
-        (await getPlatformAnnouncementReading(announcementId, { signal })).data
+    contentScopeKey: ["announcement-reading", user.id, announcementId],
+    load: (signal) =>
+      getPlatformAnnouncementReading(announcementId, { signal }).then(
+        (reply) => reply.data,
       ),
-    retry: false,
-  })
-  const rejectAccess = usePlatformAccessFailure(query.error)
-  const mark = useMutation({
-    mutationFn: async (publicationId: string) =>
-      AnnouncementReadResultSchema.parse(
-        (
-          await readPlatformAnnouncement(
-            announcementId,
-            ReadAnnouncementSchema.parse({ publicationId })
-          )
-        ).data
-      ),
-    onSuccess: async () => {
-      client.setQueryData(
-        key,
-        (previous: z.infer<typeof AnnouncementReadingSchema> | undefined) =>
-          previous ? { ...previous, unread: false } : previous
-      )
-      await client.invalidateQueries({
+    markRead: (publicationId) =>
+      readPlatformAnnouncement(
+        announcementId,
+        ReadAnnouncementSchema.parse({ publicationId }),
+      ).then((reply) => reply.data),
+    invalidate: () =>
+      client.invalidateQueries({
         queryKey: platformAnnouncementKeys.inbox(user.id),
-      })
-    },
-    onError: (error) => {
+      }),
+    resolveImage: async (reference, signal) =>
+      (
+        await getPlatformAnnouncementInboxMedia(
+          reference.fileId,
+          { versionId: reference.versionId },
+          { signal },
+        )
+      ).data,
+    downloadFile: async (reference) =>
+      saveAnnouncementResource(
+        await getPlatformAnnouncementInboxMedia(reference.fileId, {
+          versionId: reference.versionId,
+        }),
+      ),
+    getFileErrorMessage: message,
+    onMarkError: (error) => {
       void rejectAccess(error)
     },
   })
-  const publicationId = query.data?.publicationId
-  const mutate = mark.mutate
-  const onMarkRead = useCallback(() => {
-    mutate(z.uuid().parse(publicationId))
-  }, [mutate, publicationId])
-  const ports = useMemo<FileContentPorts>(
-    () => ({
-      contentScopeKey: JSON.stringify([
-        "announcement-reading",
-        user.id,
-        announcementId,
-        publicationId,
-      ]),
-      resolveImage: async (reference, signal) =>
-        (
-          await getPlatformAnnouncementInboxMedia(
-            reference.fileId,
-            { versionId: reference.versionId },
-            { signal }
-          )
-        ).data,
-      downloadFile: async (reference) =>
-        saveAnnouncementResource(
-          await getPlatformAnnouncementInboxMedia(reference.fileId, {
-            versionId: reference.versionId,
-          })
-        ),
-      getFileErrorMessage: message,
-    }),
-    [announcementId, publicationId, user.id]
-  )
-  if (query.isPending) return <LoadingState />
-  if (query.isError)
+  usePlatformAccessFailure(reading.query.error)
+  if (reading.query.isPending) return <LoadingState />
+  if (reading.query.isError)
     return (
       <ErrorState
-        message={query.error.message}
-        onRetry={() => void query.refetch()}
+        message={reading.query.error.message}
+        onRetry={() => void reading.query.refetch()}
       />
     )
   return (
     <AnnouncementArticle
-      item={query.data}
-      unread={query.data.unread}
-      ports={ports}
+      item={reading.query.data}
+      unread={reading.query.data.unread}
+      ports={reading.ports}
       onBack={onBack}
-      onMarkRead={onMarkRead}
-      markingRead={mark.isPending}
-      readError={mark.isError ? t("readFailed") : undefined}
+      onMarkRead={reading.onMarkRead}
+      markingRead={reading.markingRead}
+      readError={reading.readFailed ? t("readFailed") : undefined}
     />
   )
 }

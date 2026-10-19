@@ -2,11 +2,7 @@ import { createHash } from 'node:crypto';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import type { FileOperationResponse } from '@workspace/contracts';
-import {
-  createTenantRunner,
-  type TenantContext,
-  type TenantTx,
-} from '@workspace/database/tenant';
+import { type TenantContext, type TenantTx } from '@workspace/database/tenant';
 import {
   fileBatchRootRequest,
   fileRepository,
@@ -14,20 +10,14 @@ import {
   type FileBatchItem,
   type FileOperation,
 } from '@workspace/database/repositories/files';
-import { AuthRuntime } from '../identity/auth-runtime';
-import {
-  IdentityService,
-  businessActorReference,
-} from '../identity/identity.service';
+import { filePathPermissions } from './file-path-writes';
 import {
   AuthorizationService,
   type PermissionRequest,
 } from '../authorization/authorization.service';
-import { rethrowTenantWriteError } from '../tenancy/tenant-write';
-import { rethrowFileError } from './file-http-errors';
-import { filePathPermissions } from './file-path-writes';
 import { fileOperationResponse } from './file-responses';
 import { FilesRuntime } from './files-runtime';
+import { FileOrganizationSession } from './file-organization-session';
 
 export function fileBatchActionPermissions(
   action: FileBatch['action'],
@@ -45,10 +35,9 @@ type FileBatchRootObservation = {
 @Injectable()
 export class FileOperationReads {
   constructor(
-    private readonly identity: AuthRuntime,
-    private readonly actors: IdentityService,
     private readonly authorization: AuthorizationService,
     private readonly runtime: FilesRuntime,
+    private readonly session: FileOrganizationSession,
   ) {}
 
   private async observe<T>(
@@ -57,34 +46,12 @@ export class FileOperationReads {
     read: (tx: TenantTx, client: PoolClient) => Promise<T>,
   ): Promise<T> {
     this.runtime.requireStorage();
-    try {
-      // 身份读取先于 usage 锁；最终授权复用持锁连接，避免身份连接与业务锁互等。
-      const actor = await this.actors.requireBusinessIdentity(
-        headers,
-        context.organizationId,
-      );
-      const client = await this.identity.pool.connect();
-      try {
-        return await createTenantRunner(client)(context, async (tx) => {
-          await fileRepository.lockOrganization(tx);
-          await fileRepository.requireCurrentActor(
-            tx,
-            businessActorReference(actor),
-          );
-          const result = await read(tx, client);
-          // 授权或事实读取可能等待；返回前仍以数据库时钟检查会话实际到期时间。
-          await fileRepository.requireCurrentActor(
-            tx,
-            businessActorReference(actor),
-          );
-          return result;
-        }).catch((error: unknown) => rethrowTenantWriteError(error, context));
-      } finally {
-        client.release();
-      }
-    } catch (error) {
-      rethrowFileError(error);
-    }
+    return this.session.open(context, headers, async (scope) => {
+      const result = await read(scope.tx, scope.client);
+      // 授权或事实读取可能等待；返回前仍以数据库时钟检查会话实际到期时间。
+      await scope.recheckActor();
+      return result;
+    });
   }
 
   operation(

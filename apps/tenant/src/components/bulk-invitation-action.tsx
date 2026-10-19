@@ -4,6 +4,7 @@ import { useNavigate } from "@tanstack/react-router"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
 import { FormDialog } from "@workspace/admin"
+import { nextIdempotencyAttempt } from "@workspace/admin"
 import {
   createOrganizationInvitationImport,
   getOrganizationInvitationImportTemplate,
@@ -78,8 +79,11 @@ export function BulkInvitationAction({
       roleLabel={roleLabel}
       onSubmit={async ({ file, role }) => {
         // 同一文件与角色的失败重试保留幂等键，避免网络响应丢失后重复创建任务。
-        if (request.current?.file !== file || request.current.role !== role)
-          request.current = { file, role, key: crypto.randomUUID() }
+        request.current = nextIdempotencyAttempt(
+          request.current,
+          request.current?.file === file && request.current.role === role,
+          (key) => ({ file, role, key }),
+        )
         const task = BusinessTaskSchema.parse(
           (
             await createOrganizationInvitationImport(

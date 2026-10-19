@@ -5,6 +5,7 @@ type RuntimePool = ReturnType<typeof createDatabase>['pool'];
 import { decryptEmailPayload } from './email-crypto';
 import type { EmailProvider, OutboundEmail } from './email-provider';
 import { nextEmailAttemptDelayMs } from './retry-policy';
+import { DeliveryLoop } from '../delivery/delivery-loop';
 
 type ClaimedMessage = {
   id: string;
@@ -14,43 +15,35 @@ type ClaimedMessage = {
 };
 
 export class EmailDispatcher {
-  private stopped = true;
-  private timer: NodeJS.Timeout | undefined;
+  private readonly loop: DeliveryLoop;
 
   constructor(
     private readonly pool: RuntimePool,
     private readonly provider: EmailProvider,
     private readonly config: EmailConfig,
     private readonly dispatchInvitation: () => Promise<boolean>,
-  ) {}
+  ) {
+    this.loop = new DeliveryLoop({
+      intervalMs: () => this.config.pollIntervalMs,
+      dispatch: async () => {
+        await this.dispatchInvitation();
+        await this.dispatchOne();
+      },
+      onTickError: (error) => {
+        console.error({
+          event: 'email.dispatch.tick_failed',
+          error: error instanceof Error ? error.message : 'unknown',
+        });
+      },
+    });
+  }
 
   start(): void {
-    if (!this.stopped) return;
-    this.stopped = false;
-    void this.tick();
+    this.loop.start();
   }
 
-  stop(): void {
-    this.stopped = true;
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = undefined;
-  }
-
-  private async tick(): Promise<void> {
-    if (this.stopped) return;
-    try {
-      await this.dispatchInvitation();
-      await this.dispatchOne();
-    } catch (error) {
-      console.error({
-        event: 'email.dispatch.tick_failed',
-        error: error instanceof Error ? error.message : 'unknown',
-      });
-    }
-    if (this.stopped) return;
-    this.timer = setTimeout(() => {
-      void this.tick();
-    }, this.config.pollIntervalMs);
+  stop(): Promise<void> {
+    return this.loop.stop();
   }
 
   async dispatchOne(): Promise<boolean> {

@@ -34,9 +34,9 @@ export class EmailRuntime implements OnModuleDestroy {
     this.dispatcher.start();
   }
 
-  onModuleDestroy(): void {
-    // Nest 先执行 module destroy，再关闭身份连接池，投递器不能继续领取新任务。
-    this.dispatcher.stop();
+  async onModuleDestroy(): Promise<void> {
+    // Nest 先执行 module destroy，再关闭身份连接池。等在途投递结算后再关 SMTP。
+    await this.dispatcher.stop();
     this.smtp.close();
   }
 }

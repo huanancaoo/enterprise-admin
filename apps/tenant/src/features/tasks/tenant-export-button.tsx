@@ -12,6 +12,7 @@ import {
   CreateMemberExportSchema,
 } from "@workspace/contracts"
 import { Button } from "@workspace/ui/components/button"
+import { nextIdempotencyAttempt } from "@workspace/admin"
 import { authClient } from "@/lib/auth-client"
 
 export function TenantExportButton({
@@ -53,8 +54,11 @@ export function TenantExportButton({
           : CreateMemberExportSchema.parse({ format: "xlsx", filter })
       const signature = JSON.stringify(body)
       // 提交结果未知时保留同一幂等键，避免网络重试创建重复导出。
-      if (request.current?.signature !== signature)
-        request.current = { signature, key: crypto.randomUUID() }
+      request.current = nextIdempotencyAttempt(
+        request.current,
+        request.current?.signature === signature,
+        (key) => ({ signature, key }),
+      )
       const headers = { "Idempotency-Key": request.current.key }
       const task = BusinessTaskSchema.parse(
         (resource === "audit"

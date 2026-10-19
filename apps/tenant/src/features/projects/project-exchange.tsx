@@ -5,6 +5,7 @@ import { z } from "zod"
 import { useTranslation } from "react-i18next"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import { FormDialog } from "@workspace/admin"
+import { nextIdempotencyAttempt } from "@workspace/admin"
 import {
   ApiClientError,
   createProjectImport,
@@ -210,8 +211,11 @@ function ExchangeDialog(
         body,
       ])
       // 同一意图在结果未知后重试仍使用原key；改变文件、格式或筛选则是新意图。
-      if (intent.current?.fingerprint !== fingerprint)
-        intent.current = { fingerprint, key: crypto.randomUUID() }
+      intent.current = nextIdempotencyAttempt(
+        intent.current,
+        intent.current?.fingerprint === fingerprint,
+        (key) => ({ fingerprint, key }),
+      )
       const headers = { "Idempotency-Key": intent.current.key }
       const options = {
         signal: active.signal,

@@ -14,6 +14,7 @@ import { FilePathsController } from './file-paths.controller';
 import { FileBatches } from './file-batches';
 import { FileBatchesController } from './file-batches.controller';
 import { FileWriteExecutor } from './file-write-executor';
+import { FileOrganizationSession } from './file-organization-session';
 import { FileUploads } from './file-uploads';
 import { FileUploadsController } from './file-uploads.controller';
 import { FileOverwrites } from './file-overwrites';
@@ -41,6 +42,7 @@ export class FilesModule {
         FilePathWrites,
         FileBatches,
         FileWriteExecutor,
+        FileOrganizationSession,
         FileUploads,
         FileOverwrites,
       ],

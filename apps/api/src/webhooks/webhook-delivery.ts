@@ -12,6 +12,7 @@ import {
 import { webhookRepository } from '@workspace/database/repositories/webhooks';
 import { AuthRuntime } from '../identity/auth-runtime';
 import { webhooksConfig, type WebhooksConfig } from './webhooks-config';
+import { DeliveryLoop } from '../delivery/delivery-loop';
 
 type Claim = {
   id: string;
@@ -25,42 +26,31 @@ type Claim = {
 @Injectable()
 export class WebhookDelivery implements OnModuleDestroy {
   private readonly logger = new Logger(WebhookDelivery.name);
-  private stopped = true;
-  private timer: NodeJS.Timeout | undefined;
-  private active: Promise<void> | undefined;
+  private readonly loop: DeliveryLoop;
   constructor(
     private readonly runtime: AuthRuntime,
     @Inject(webhooksConfig) private readonly config: WebhooksConfig,
-  ) {}
-  start() {
-    if (!this.stopped) return;
-    this.stopped = false;
-    this.schedule(0);
+  ) {
+    this.loop = new DeliveryLoop({
+      intervalMs: () => this.config.pollIntervalMs,
+      dispatch: () => this.dispatchOne().then(() => undefined),
+      onTickError: () => {
+        this.logger.error({
+          event: 'webhook.delivery.tick_failed',
+          errorCode: 'DELIVERY_STORAGE_ERROR',
+        });
+      },
+    });
   }
-  async stop() {
-    this.stopped = true;
-    if (this.timer) clearTimeout(this.timer);
-    await this.active;
+  start() {
+    this.loop.start();
+  }
+  stop() {
+    return this.loop.stop();
   }
   // 在AuthRuntime关闭连接池前完成活动投递与租约结算。
   onModuleDestroy() {
     return this.stop();
-  }
-  private schedule(delay: number) {
-    this.timer = setTimeout(() => {
-      this.active = this.dispatchOne()
-        .then(() => undefined)
-        .catch(() => {
-          this.logger.error({
-            event: 'webhook.delivery.tick_failed',
-            errorCode: 'DELIVERY_STORAGE_ERROR',
-          });
-        })
-        .finally(() => {
-          this.active = undefined;
-          if (!this.stopped) this.schedule(this.config.pollIntervalMs);
-        });
-    }, delay);
   }
   async dispatchOne(): Promise<boolean> {
     const claim = await this.runtime.pool.query<{ value: Claim | null }>(

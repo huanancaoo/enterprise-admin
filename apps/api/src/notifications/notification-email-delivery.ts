@@ -17,6 +17,7 @@ import {
   notificationsConfig,
   type NotificationsConfig,
 } from './notifications-config';
+import { DeliveryLoop } from '../delivery/delivery-loop';
 
 type Claim = {
   id: string;
@@ -31,45 +32,33 @@ type Claim = {
 export class NotificationEmailDelivery implements OnModuleDestroy {
   private readonly logger = new Logger(NotificationEmailDelivery.name);
   private readonly provider: SmtpEmailProvider;
-  private stopped = true;
-  private timer: NodeJS.Timeout | undefined;
-  private active: Promise<void> | undefined;
+  private readonly loop: DeliveryLoop;
   constructor(
     private readonly runtime: AuthRuntime,
     @Inject(notificationsConfig) private readonly config: NotificationsConfig,
   ) {
     this.provider = new SmtpEmailProvider(config.email.smtp, config.email.from);
+    this.loop = new DeliveryLoop({
+      intervalMs: () => this.config.email.pollIntervalMs,
+      dispatch: () => this.dispatchOne().then(() => undefined),
+      onTickError: () => {
+        this.logger.error({
+          event: 'notification.email.tick_failed',
+          errorCode: 'DELIVERY_STORAGE_ERROR',
+        });
+      },
+    });
   }
   start() {
-    if (!this.stopped) return;
-    this.stopped = false;
-    this.schedule(0);
+    this.loop.start();
   }
   async stop() {
-    this.stopped = true;
-    if (this.timer) clearTimeout(this.timer);
-    await this.active;
+    await this.loop.stop();
     this.provider.close();
   }
   // 在AuthRuntime关闭连接池前完成活动投递与租约结算。
   onModuleDestroy() {
     return this.stop();
-  }
-  private schedule(delay: number) {
-    this.timer = setTimeout(() => {
-      this.active = this.dispatchOne()
-        .then(() => undefined)
-        .catch(() =>
-          this.logger.error({
-            event: 'notification.email.tick_failed',
-            errorCode: 'DELIVERY_STORAGE_ERROR',
-          }),
-        )
-        .finally(() => {
-          this.active = undefined;
-          if (!this.stopped) this.schedule(this.config.email.pollIntervalMs);
-        });
-    }, delay);
   }
   async dispatchOne(): Promise<boolean> {
     const claim = await this.runtime.pool.query<{ value: Claim | null }>(
