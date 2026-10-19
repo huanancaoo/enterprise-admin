@@ -16,8 +16,6 @@ const mocks = vi.hoisted(() => ({
   create: vi.fn(),
   query: vi.fn(),
   finish: vi.fn(),
-  lock: vi.fn(),
-  find: vi.fn(),
 }))
 vi.mock("@workspace/database/invitation-command", () => ({
   createOrganizationInvitation: mocks.create,
@@ -28,8 +26,6 @@ vi.mock("@workspace/database/invitation-command", () => ({
 vi.mock("@workspace/database/repositories/business-tasks", () => ({
   businessTaskRepository: {
     finish: mocks.finish,
-    lock: mocks.lock,
-    find: mocks.find,
   },
 }))
 async function workbook(rows: unknown[][], sheets = 1) {
@@ -217,37 +213,6 @@ describe("transactional invitation import", () => {
       2, 3, 4, 5, 6, 7,
     ])
     expect(call[4]).toBe("completed")
-  })
-  it("rejects a changed resource identity before any native write", async () => {
-    const request = await task(await workbook([["email"], ["a@example.test"]]))
-    mocks.lock.mockResolvedValue({
-      actorId: identity.actorId,
-      type: "members.export",
-      intentFingerprint: request.intentFingerprint,
-      status: "queued",
-    })
-    await expect(
-      definition().authorizeResource({} as TenantTx, request)
-    ).rejects.toMatchObject({ code: "RESOURCE_DENIED" })
-    expect(mocks.create).not.toHaveBeenCalled()
-  })
-  it("returns the committed report summary on a retry without creating or sending again", async () => {
-    const request = await task(await workbook([["email"], ["a@example.test"]]))
-    const result = {
-      count: 1,
-      issues: [],
-      invitationImport: { invited: 1, skipped: 0, failed: 0 },
-    }
-    mocks.find.mockResolvedValue({
-      status: "completed",
-      intentFingerprint: request.intentFingerprint,
-      result,
-    })
-    expect(await definition().findCommitted({} as TenantTx, request)).toEqual({
-      intentFingerprint: request.intentFingerprint,
-      result,
-    })
-    expect(mocks.create).not.toHaveBeenCalled()
   })
   it("keeps unexpected database failures out of per-row business reports", async () => {
     const request = await task(await workbook([["email"], ["a@example.test"]]))

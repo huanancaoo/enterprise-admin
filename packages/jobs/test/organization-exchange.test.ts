@@ -13,8 +13,6 @@ const tenantExchangeTasks = createTenantExchangeTasks({
   ip: 100,
 })
 const mocks = vi.hoisted(() => ({
-  lock: vi.fn(),
-  find: vi.fn(),
   finish: vi.fn(),
   listPage: vi.fn(),
   members: vi.fn(),
@@ -22,8 +20,6 @@ const mocks = vi.hoisted(() => ({
 }))
 vi.mock("@workspace/database/repositories/business-tasks", () => ({
   businessTaskRepository: {
-    lock: mocks.lock,
-    find: mocks.find,
     finish: mocks.finish,
   },
 }))
@@ -76,22 +72,6 @@ describe("organization exports", () => {
     ).toEqual({
       project: ["create"],
     })
-  })
-  it("rejects a stored task with a mismatched type or revoked resource", async () => {
-    const task = makeTask()
-    const definition = tenantExchangeTasks.find(
-      (item) => item.type === "audit.export"
-    )!
-    mocks.lock.mockResolvedValue({
-      actorId: identity.actorId,
-      type: "members.export",
-      intentFingerprint: task.intentFingerprint,
-      status: "queued",
-    })
-    await expect(
-      definition.authorizeResource({} as TenantTx, task)
-    ).rejects.toMatchObject({ code: "RESOURCE_DENIED" })
-    expect(mocks.finish).not.toHaveBeenCalled()
   })
   it("exports all filtered pages while keeping platform identities private", async () => {
     const task = makeTask()

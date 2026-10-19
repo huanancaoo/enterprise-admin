@@ -39,9 +39,14 @@ export class AppModule {
   ): DynamicModule {
     // 同一动态模块对象供所有消费者导入，任务生产者与运行时只实例化一次。
     const business = BusinessModule.forRoot(jobs);
+    const platform = PlatformModule.forRoot(
+      deployment,
+      `${emailConfig.linkOrigin}/reset-password`,
+    );
     const platformTasks = PlatformTasksModule.forRoot(
       jobs,
       emailConfig.encryptionKey,
+      platform,
     );
     const platformMonitor = PlatformMonitorModule.forRoot(
       platformTasks,
@@ -75,10 +80,7 @@ export class AppModule {
         platformMonitor,
         PlatformSchedulesModule.forRoot(platformMonitor),
         PersonalMediaModule.forRoot(files),
-        PlatformModule.forRoot(
-          deployment,
-          `${emailConfig.linkOrigin}/reset-password`,
-        ),
+        platform,
       ],
     };
   }

@@ -12,9 +12,14 @@ import { PlatformTasksController } from './platform-tasks.controller';
   exports: [PlatformTasks],
 })
 export class PlatformTasksModule {
-  static forRoot(worker: WorkerConfig, encryptionKey: Buffer): DynamicModule {
+  static forRoot(
+    worker: WorkerConfig,
+    encryptionKey: Buffer,
+    platform: DynamicModule,
+  ): DynamicModule {
     return {
       module: PlatformTasksModule,
+      imports: [platform],
       providers: [
         { provide: PLATFORM_TASK_CONFIG, useValue: { worker, encryptionKey } },
       ],

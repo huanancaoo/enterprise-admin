@@ -1,6 +1,5 @@
 import { z } from "zod"
 import {
-  BusinessTaskResultSchema,
   CreateOrganizationInvitationImportSchema,
   InvitationImportReportSchema,
   InvitationImportRowCodeSchema,
@@ -14,46 +13,22 @@ import {
   invitationTenantExecutor,
   nativeInvitationCreator,
 } from "@workspace/database/invitation-command"
-import type { TenantTx } from "@workspace/database/tenant"
-import { defineTask, TaskPermanentError, type TaskContext } from "./contract.ts"
+import { defineBusinessTask } from "./business-task.ts"
 import { parseInvitationImportWorkbook } from "./invitation-import-workbook.ts"
 
 export const InvitationImportTaskInputSchema =
   CreateOrganizationInvitationImportSchema.extend({
     sourceIpHash: z.string().regex(/^[a-f0-9]{64}$/),
   })
-async function authorizeResource(tx: TenantTx, task: TaskContext) {
-  const row = await businessTaskRepository.lock(tx, task.identity.resourceId)
-  if (
-    !row ||
-    row.actorId !== task.identity.actorId ||
-    row.type !== "invitations.import" ||
-    row.intentFingerprint !== task.intentFingerprint ||
-    row.status === "rejected" ||
-    (row.status === "failed" && !row.result)
-  )
-    throw new TaskPermanentError("RESOURCE_DENIED")
-}
-async function committed(tx: TenantTx, task: TaskContext) {
-  const row = await businessTaskRepository.find(tx, task.identity.resourceId)
-  return row && ["completed", "failed"].includes(row.status) && row.result
-    ? {
-        intentFingerprint: row.intentFingerprint,
-        result: BusinessTaskResultSchema.parse(row.result),
-      }
-    : undefined
-}
 export function createOrganizationInvitationImportTask(policy: {
   organization: number
   actor: number
   ip: number
 }) {
-  return defineTask({
+  return defineBusinessTask({
     type: "invitations.import",
     inputSchema: InvitationImportTaskInputSchema,
     permissions: { invitation: ["create"] },
-    authorizeResource,
-    findCommitted: committed,
     async execute(tx, task) {
       const source = await parseInvitationImportWorkbook(
         Buffer.from(task.input.contentBase64, "base64")

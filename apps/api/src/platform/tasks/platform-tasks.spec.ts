@@ -9,13 +9,16 @@ import {
   createPlatformEmployeeImportTemplate,
   parsePlatformEmployeeImportWorkbook,
   PLATFORM_XLSX_MEDIA_TYPE,
+  writePlatformExportWorkbook,
 } from '@workspace/jobs/platform-exchange';
-import type { PlatformTaskReference } from '@workspace/jobs/platform-runtime';
+import {
+  createPlatformTaskRuntime,
+  type PlatformTaskReference,
+} from '@workspace/jobs/platform-runtime';
 import { platformPermissions } from '@workspace/permissions';
 import { verifyPassword } from 'better-auth/crypto';
 import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
-import type { PoolClient } from 'pg';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AuthRuntime } from '../../identity/auth-runtime';
 import type { Identity } from '../../identity/identity.service';
@@ -25,6 +28,10 @@ import type {
   PlatformResourcePurpose,
 } from '../../platform-resources/platform-resource';
 import type { PlatformResources } from '../../platform-resources/platform-resources';
+import { PlatformAudit } from '../platform-audit';
+import { PlatformIdentityManagement } from '../platform-identity-management';
+import { PlatformOrganizations } from '../platform-organizations';
+import { PlatformUsers } from '../platform-users';
 import { PlatformSystem } from '../system/platform-system';
 import {
   decryptPlatformTaskCredential,
@@ -32,11 +39,20 @@ import {
 } from './platform-task-crypto';
 import { PlatformTasks } from './platform-tasks';
 
+// 测试穿过正式执行回调，Redis 调度本身由任务运行时测试覆盖。
+vi.mock('@workspace/jobs/platform-runtime', () => ({
+  createPlatformTaskRuntime: vi.fn(() => ({
+    worker: { isRunning: () => true },
+    close: vi.fn(),
+  })),
+}));
+
 vi.mock('@workspace/jobs/platform-exchange', async (importOriginal) => {
   const actual =
     await importOriginal<typeof import('@workspace/jobs/platform-exchange')>();
   return {
     ...actual,
+    writePlatformExportWorkbook: vi.fn(actual.writePlatformExportWorkbook),
     // 行解析另有工作簿测试；只在报告映射测试注入行错误，执行器和 XLSX 输出保持真实。
     parsePlatformEmployeeImportWorkbook: vi.fn(
       actual.parsePlatformEmployeeImportWorkbook,
@@ -55,16 +71,6 @@ type ExportPage = {
   items: Record<string, unknown>[];
   total?: number;
   window?: { from: string; to: string };
-};
-type TaskInternals = {
-  execute: (reference: PlatformTaskReference) => Promise<void>;
-  exportRows: (
-    actor: Identity,
-    resource: PlatformExportResource,
-    filters: PlatformExportFilters,
-    requestId: string,
-    client: PoolClient,
-  ) => Promise<Record<string, unknown>[]>;
 };
 const actor: Identity = { userId: randomUUID(), sessionId: randomUUID() };
 const inputResourceId = randomUUID();
@@ -191,18 +197,58 @@ function setup() {
       });
     }),
   };
+  const runtime = { pool } as unknown as AuthRuntime;
   const service = new PlatformTasks(
-    { pool } as unknown as AuthRuntime,
+    runtime,
     privateResources as unknown as PlatformResources,
     {
       worker: readWorkerConfig({ REDIS_URL: 'redis://localhost:6379' }),
       encryptionKey,
     },
-    new PlatformSystem({ pool } as unknown as AuthRuntime),
+    new PlatformSystem(runtime),
+    new PlatformUsers(runtime),
+    new PlatformOrganizations(runtime),
+    new PlatformIdentityManagement(runtime, 'https://example.test/reset'),
+    new PlatformAudit(runtime),
   );
+  const execute = (reference: PlatformTaskReference) => {
+    service.start();
+    return vi
+      .mocked(createPlatformTaskRuntime)
+      .mock.lastCall![1].execute(reference);
+  };
+  const executeExport = async (
+    resource: PlatformExportResource,
+    filters: PlatformExportFilters,
+    requestId: string,
+  ) => {
+    const submitted = await service.export(
+      actor,
+      { resource, filters },
+      'export-test-key',
+      requestId,
+    );
+    control.claim = {
+      ...submitted,
+      status: 'running',
+      sessionId: actor.sessionId,
+      input: { filters },
+      credentialCiphertext: null,
+    };
+    await execute({
+      scope: 'platform',
+      taskId: submitted.id,
+      actorId: actor.userId,
+      sessionId: actor.sessionId,
+      requestId,
+    });
+    return commands.find((command) => command.operation === 'complete')!.input
+      .result as PlatformTaskResult;
+  };
   return {
     service,
-    internal: service as unknown as TaskInternals,
+    execute,
+    executeExport,
     client,
     pool,
     control,
@@ -224,6 +270,8 @@ beforeAll(async () => {
 });
 beforeEach(() => {
   vi.mocked(parsePlatformEmployeeImportWorkbook).mockReset();
+  vi.mocked(writePlatformExportWorkbook).mockClear();
+  vi.mocked(createPlatformTaskRuntime).mockClear();
 });
 
 describe('平台异步任务业务链', () => {
@@ -422,7 +470,7 @@ describe('平台异步任务业务链', () => {
   });
 
   it('平面导出取全量分页并沿用数据库返回的微秒窗口，不修改原始筛选', async () => {
-    const { internal, client, pool, control } = setup();
+    const { executeExport, client, pool, control, uploads } = setup();
     const pages: unknown[][] = [];
     const filters = {
       actorId: randomUUID(),
@@ -444,14 +492,11 @@ describe('平台异步任务业务链', () => {
           }
         : { items: [{ id: '100' }], total: 101, window };
     };
-    const rows = await internal.exportRows(
-      actor,
-      'audit-events',
-      filters,
-      'audit-export',
-      client as unknown as PoolClient,
-    );
-    expect(rows).toHaveLength(101);
+    const result = await executeExport('audit-events', filters, 'audit-export');
+    expect(result.total).toBe(101);
+    expect(uploads[0].purpose).toBe('task-output');
+    expect(uploads[0].bytes.subarray(0, 2).toString()).toBe('PK');
+    expect(client.release).toHaveBeenCalledTimes(1);
     expect(pages).toHaveLength(2);
     expect(pages[0]).toEqual([
       actor.userId,
@@ -487,13 +532,13 @@ describe('平台异步任务业务链', () => {
       pool.query.mock.calls.filter(([sql]) =>
         sql.includes('read_platform_access'),
       ),
-    ).toHaveLength(2);
+    ).toHaveLength(3);
   });
 
   it.each(['menus', 'departments'] as const)(
     '%s 导出按父节点递归且保持当前筛选，不丢子孙或重复祖先',
     async (resource) => {
-      const { internal, control, client } = setup();
+      const { executeExport, control, client } = setup();
       const parent = randomUUID();
       const sibling = randomUUID();
       const child = randomUUID();
@@ -538,14 +583,18 @@ describe('平台异步任务业务链', () => {
           };
         return { items: [], ancestors: [] };
       };
-      const rows = await internal.exportRows(
-        actor,
+      const result = await executeExport(
         resource,
         { q: 'sales', status: 'active' },
         'tree-export',
-        client as unknown as PoolClient,
       );
-      expect(rows.map((row) => row.id)).toEqual([parent, sibling, child]);
+      expect(result.total).toBe(3);
+      expect(
+        vi
+          .mocked(writePlatformExportWorkbook)
+          .mock.lastCall![1].map((row) => row.id),
+      ).toEqual([parent, sibling, child]);
+      expect(client.release).toHaveBeenCalledTimes(1);
       expect(requests).toEqual(
         [null, parent, sibling].map((parentId) => ({
           q: 'sales',
@@ -556,8 +605,53 @@ describe('平台异步任务业务链', () => {
     },
   );
 
+  it('导出翻页前失去当前动作会拒绝任务，保留锁释放且不产生文件', async () => {
+    const { executeExport, control, commands, client, uploads } = setup();
+    control.page = () => {
+      control.permissions = [];
+      return {
+        items: Array.from({ length: 100 }, (_, id) => ({ userId: String(id) })),
+        total: 101,
+      };
+    };
+    await expect(
+      executeExport('users', {}, 'revoked-export'),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    expect(commands.find((entry) => entry.operation === 'fail')?.input).toEqual(
+      { status: 'rejected', errorCode: 'FORBIDDEN' },
+    );
+    expect(uploads).toEqual([]);
+    expect(client.release).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['FORBIDDEN', 'AUTHORIZATION_UNAVAILABLE'] as const)(
+    '领域导出错误 %s 仍按任务规则结算，不增加普通组织读取失败审计',
+    async (code) => {
+      const { executeExport, control, commands, pool, client, uploads } =
+        setup();
+      control.page = () => {
+        throw databaseFailure(code);
+      };
+      await expect(
+        executeExport('organizations', {}, 'failed-export'),
+      ).rejects.toMatchObject(
+        code === 'FORBIDDEN' ? { code } : { response: { code } },
+      );
+      expect(commands.some((entry) => entry.operation === 'fail')).toBe(
+        code === 'FORBIDDEN',
+      );
+      expect(
+        pool.query.mock.calls.some(([sql]) =>
+          sql.includes('record_platform_organization_failure'),
+        ),
+      ).toBe(false);
+      expect(uploads).toEqual([]);
+      expect(client.release).toHaveBeenCalledTimes(1);
+    },
+  );
+
   it('导入执行将列错误转换为稳定结果码，真实报告 XLSX 不包含账号凭据', async () => {
-    const { internal, control, commands, uploads, privateResources } = setup();
+    const { execute, control, commands, uploads, privateResources } = setup();
     const id = randomUUID();
     const reference: PlatformTaskReference = {
       scope: 'platform',
@@ -601,7 +695,7 @@ describe('平台异步任务业务链', () => {
       ],
     });
     control.outcome = () => ({ outcome: 'failed', code: 'POST_NOT_FOUND' });
-    await internal.execute(reference);
+    await execute(reference);
     const complete = commands.find((entry) => entry.operation === 'complete')!;
     expect(complete.input.resultResourceId).toBe(outputResourceId);
     expect(complete.input.result).toEqual({

@@ -1,11 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import {
   type ApiErrorCode,
+  type PlatformExportFilters,
   type PlatformUsersQuery,
   type PlatformUsersPage,
   type PlatformUserDetail,
   type PlatformSensitiveProfile,
 } from '@workspace/contracts';
+import type { PoolClient } from 'pg';
+import type { Identity } from '../identity/identity.service';
 import { AuthRuntime } from '../identity/auth-runtime';
 import type { PlatformPrincipal } from './platform-access.service';
 import { rethrowPlatformDatabaseError } from './platform-database-error';
@@ -21,15 +24,42 @@ export class PlatformUsers {
   ): Promise<PlatformUsersPage> {
     return this.call(
       'SELECT public.list_platform_users($1,$2,$3,$4,$5,$6) AS result',
-      [
-        actor.userId,
-        actor.sessionId,
-        query.q ?? null,
-        query.page,
-        query.pageSize,
-        requestId,
-      ],
+      this.listParameters(actor, query, requestId),
     );
+  }
+
+  async exportPage(
+    actor: Pick<Identity, 'userId' | 'sessionId'>,
+    query: PlatformExportFilters & { page?: number; pageSize?: number },
+    requestId: string,
+    client: PoolClient,
+  ): Promise<PlatformUsersPage> {
+    // 导出使用独立动作且沿用任务持锁连接；错误交回任务决定重试与结算。
+    return (
+      await client.query<{ result: PlatformUsersPage }>(
+        'SELECT public.export_platform_users_page($1,$2,$3,$4,$5,$6) AS result',
+        this.listParameters(
+          actor,
+          { ...query, page: query.page ?? 1, pageSize: query.pageSize ?? 100 },
+          requestId,
+        ),
+      )
+    ).rows[0]?.result;
+  }
+
+  private listParameters(
+    actor: Pick<Identity, 'userId' | 'sessionId'>,
+    query: PlatformExportFilters & { page: number; pageSize: number },
+    requestId: string,
+  ): unknown[] {
+    return [
+      actor.userId,
+      actor.sessionId,
+      query.q ?? null,
+      query.page,
+      query.pageSize,
+      requestId,
+    ];
   }
 
   get(

@@ -42,6 +42,10 @@ import { ApiException } from '../../http/api-exception';
 import { AuthRuntime } from '../../identity/auth-runtime';
 import type { Identity } from '../../identity/identity.service';
 import { PlatformResources } from '../../platform-resources/platform-resources';
+import { PlatformAudit } from '../platform-audit';
+import { PlatformIdentityManagement } from '../platform-identity-management';
+import { PlatformOrganizations } from '../platform-organizations';
+import { PlatformUsers } from '../platform-users';
 import { PlatformSystem } from '../system/platform-system';
 import {
   decryptPlatformTaskCredential,
@@ -122,6 +126,10 @@ export class PlatformTasks implements OnApplicationShutdown {
     private readonly privateResources: PlatformResources,
     @Inject(PLATFORM_TASK_CONFIG) private readonly config: PlatformTaskConfig,
     private readonly system: PlatformSystem,
+    private readonly users: PlatformUsers,
+    private readonly organizations: PlatformOrganizations,
+    private readonly identity: PlatformIdentityManagement,
+    private readonly audit: PlatformAudit,
   ) {}
   start(): void {
     this.queueRuntime ??= createPlatformTaskRuntime(this.config.worker, {
@@ -378,25 +386,28 @@ export class PlatformTasks implements OnApplicationShutdown {
     try {
       return (await executor.query<{ result: T }>(sql, params)).rows[0]?.result;
     } catch (error) {
-      const parsed = ApiErrorCodeSchema.safeParse(stableCode(error));
-      if (parsed.success && parsed.data !== 'INTERNAL_ERROR') {
-        const code = parsed.data;
-        const status =
-          code === 'NOT_FOUND'
-            ? 404
-            : ['VERSION_CONFLICT', 'IDEMPOTENCY_KEY_REUSED'].includes(code)
-              ? 409
-              : code === 'VALIDATION_ERROR'
-                ? 400
-                : ['AUDIT_UNAVAILABLE', 'AUTHORIZATION_UNAVAILABLE'].includes(
-                      code,
-                    )
-                  ? 503
-                  : 403;
-        throw new ApiException(status, code);
-      }
-      throw error;
+      this.rethrowQueryError(error);
     }
+  }
+  private rethrowQueryError(error: unknown): never {
+    const parsed = ApiErrorCodeSchema.safeParse(stableCode(error));
+    if (parsed.success && parsed.data !== 'INTERNAL_ERROR') {
+      const code = parsed.data;
+      const status =
+        code === 'NOT_FOUND'
+          ? 404
+          : ['VERSION_CONFLICT', 'IDEMPOTENCY_KEY_REUSED'].includes(code)
+            ? 409
+            : code === 'VALIDATION_ERROR'
+              ? 400
+              : ['AUDIT_UNAVAILABLE', 'AUTHORIZATION_UNAVAILABLE'].includes(
+                    code,
+                  )
+                ? 503
+                : 403;
+      throw new ApiException(status, code);
+    }
+    throw error;
   }
   private async execute(reference: PlatformTaskReference): Promise<void> {
     const client = await this.runtime.pool.connect();
@@ -590,16 +601,13 @@ export class PlatformTasks implements OnApplicationShutdown {
     }
     return rows;
   }
-  private exportPage(
+  private async exportPage(
     actor: Identity,
     resource: PlatformExportResource,
     q: PlatformExportFilters & { page?: number; pageSize?: number },
     requestId: string,
     client: PoolClient,
   ): Promise<ExportPage> {
-    const common = [actor.userId, actor.sessionId];
-    const page = q.page ?? 1;
-    const size = q.pageSize ?? 100;
     switch (resource) {
       case 'employees':
         return this.system.employees.exportPage(actor, q, requestId, client);
@@ -623,65 +631,37 @@ export class PlatformTasks implements OnApplicationShutdown {
       case 'parameters':
         return this.system.parameters.exportPage(actor, q, requestId, client);
     }
-    if (resource === 'users')
-      return this.query(
-        'SELECT public.export_platform_users_page($1,$2,$3,$4,$5,$6) AS result',
-        [...common, q.q ?? null, page, size, requestId],
-        client,
-      );
-    if (resource === 'organizations')
-      return this.query(
-        'SELECT public.export_platform_organizations_page($1,$2,$3,$4,$5,$6,$7,$8,$9) AS result',
-        [
-          ...common,
-          q.q ?? null,
-          q.status ?? null,
-          page,
-          size,
-          q.sortBy ?? 'createdAt',
-          q.sortOrder ?? 'desc',
-          requestId,
-        ],
-        client,
-      );
-    if (resource === 'sessions')
-      return this.query(
-        'SELECT public.export_platform_sessions_page($1,$2,$3,$4,$5,$6,$7) AS result',
-        [...common, q.q ?? null, q.userId ?? null, page, size, requestId],
-        client,
-      );
-    if (resource === 'login-events')
-      return this.query(
-        'SELECT public.export_platform_login_logs_page($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) AS result',
-        [
-          ...common,
-          q.q ?? null,
-          q.userId ?? null,
-          q.result ?? null,
-          q.method ?? null,
-          q.from ?? null,
-          q.to ?? null,
-          page,
-          size,
-          requestId,
-        ],
-        client,
-      );
-    return this.query(
-      'SELECT public.export_platform_audit_events_page($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) AS result',
-      [
-        ...common,
-        q.from ?? null,
-        q.to ?? null,
-        q.organizationId ?? null,
-        q.actorId ?? null,
-        q.eventCode ?? null,
-        q.result ?? null,
-        page,
-        size,
-        requestId,
-      ],
-      client,
-    );
+    try {
+      switch (resource) {
+        case 'users':
+          return await this.users.exportPage(actor, q, requestId, client);
+        case 'organizations':
+          return await this.organizations.exportPage(
+            actor,
+            q,
+            requestId,
+            client,
+          );
+        case 'sessions':
+          return await this.identity.exportSessionsPage(
+            actor,
+            q,
+            requestId,
+            client,
+          );
+        case 'login-events':
+          return await this.identity.exportLoginEventsPage(
+            actor,
+            q,
+            requestId,
+            client,
+          );
+        case 'audit-events':
+          return await this.audit.exportPage(actor, q, requestId, client);
+      }
+    } catch (error) {
+      // 领域持有读取规则；任务仍按原导出通道转换错误，决定重试或永久结算。
+      this.rethrowQueryError(error);
+    }
   }
 }

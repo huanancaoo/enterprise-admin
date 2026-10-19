@@ -36,6 +36,12 @@ import { PlatformIdentityManagementController } from './platform-identity-manage
     PlatformIdentityManagementController,
     PersonalLoginEventsController,
   ],
+  exports: [
+    PlatformUsers,
+    PlatformOrganizations,
+    PlatformIdentityManagement,
+    PlatformAudit,
+  ],
   providers: [
     PlatformOrganizations,
     PlatformUsers,

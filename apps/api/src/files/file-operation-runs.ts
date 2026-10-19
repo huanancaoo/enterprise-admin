@@ -237,32 +237,12 @@ export async function runOverwrite(
       scope.leaseId,
     ),
   );
-  await objectPlan.prepareTargets();
-  const replacement = await scope.write(async (tx) => {
-    // 旧路径在这之前仍属于原版本。备份核对与删除意图确定后，才规划占据该路径的新副本。
-    await fileRepository.recordSourceDeletionIntent(
-      tx,
-      operationId,
-      archiveObjectId,
-      scope.leaseId,
-    );
-    const [created] = await fileRepository.addObjects(tx, operationId, [
-      {
-        id: replacementObjectId,
-        entryId: fileId,
-        versionId,
-        directory: false,
-        sourceArea: 'staging',
-        sourcePath: [versionId],
-        targetArea: 'files',
-        targetPath: plan.file.path,
-        expectedBytes: newFacts.bytes,
-        expectedSha256: newFacts.sha256,
-      },
-    ]);
-    return created;
+  await objectPlan.replaceSource({
+    archiveObjectId,
+    stagingObjectId,
+    replacementObjectId,
+    content: newFacts,
   });
-  await objectPlan.replaceSource(archiveObjectId, replacement);
   await scope.publish((tx) =>
     fileRepository.commitUpload(tx, operationId, {
       fileId,

@@ -301,14 +301,52 @@ export function createFileWriteObjectPlan(
         (object) =>
           prepared(object, object.directory ? 0 : object.expectedBytes!),
       ),
-    async replaceSource(
-      archiveObjectId: string,
-      replacement: FileOperationObject,
-    ): Promise<void> {
+    async replaceSource({
+      archiveObjectId,
+      stagingObjectId,
+      replacementObjectId,
+      content,
+    }: {
+      archiveObjectId: string;
+      stagingObjectId: string;
+      replacementObjectId: string;
+      content: ContentFacts;
+    }): Promise<void> {
       const archive = plan.objects.find(
         (object) => object.id === archiveObjectId,
       )!;
-      // 调用前的同一事务已持久化删除意图与 replacement；旧源确认删除后才能占据它的路径。
+      const staging = objects.find((object) => object.id === stagingObjectId)!;
+      await plan.prepareTargets([archive], (object) =>
+        prepared(object, object.expectedBytes!),
+      );
+      // 备份核对后，在同一事务记录删除意图与替换对象；中断恢复才能识别已删除但尚未确认的旧源。
+      const replacement = await scope.write(async (tx) => {
+        await fileRepository.recordSourceDeletionIntent(
+          tx,
+          scope.operation.id,
+          archiveObjectId,
+          scope.leaseId,
+        );
+        const [created] = await fileRepository.addObjects(
+          tx,
+          scope.operation.id,
+          [
+            {
+              id: replacementObjectId,
+              entryId: staging.entryId,
+              versionId: staging.versionId,
+              directory: false,
+              sourceArea: staging.targetArea,
+              sourcePath: staging.targetPath,
+              targetArea: archive.sourceArea,
+              targetPath: archive.sourcePath,
+              expectedBytes: content.bytes,
+              expectedSha256: content.sha256,
+            },
+          ],
+        );
+        return created;
+      });
       await plan.remove([{ object: archive, side: 'source' }], deleted);
       const object = writeObject(replacement);
       plan.objects.push(object);

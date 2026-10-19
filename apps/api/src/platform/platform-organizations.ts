@@ -1,12 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import {
   type ApiErrorCode,
+  type PlatformExportFilters,
   type OrganizationTransitionResult,
   type TransitionOrganization,
   type PlatformOrganizationDetail,
   type PlatformOrganizationQuery,
   type PlatformOrganizationPage,
 } from '@workspace/contracts';
+import type { PoolClient } from 'pg';
+import type { Identity } from '../identity/identity.service';
 import { AuthRuntime } from '../identity/auth-runtime';
 import { ApiException } from '../http/api-exception';
 import type { PlatformPrincipal } from './platform-access.service';
@@ -27,18 +30,51 @@ export class PlatformOrganizations {
       'list',
       requestId,
       'SELECT public.list_platform_organizations($1, $2, $3, $4, $5, $6, $7, $8, $9) AS result',
-      [
-        actor.userId,
-        actor.sessionId,
-        query.q ?? null,
-        query.status ?? null,
-        query.page,
-        query.pageSize,
-        query.sortBy,
-        query.sortOrder,
-        requestId,
-      ],
+      this.listParameters(actor, query, requestId),
     );
+  }
+
+  async exportPage(
+    actor: Pick<Identity, 'userId' | 'sessionId'>,
+    query: PlatformExportFilters & { page?: number; pageSize?: number },
+    requestId: string,
+    client: PoolClient,
+  ): Promise<PlatformOrganizationPage> {
+    // 导出失败属于任务结算，不能额外记录普通组织读取失败；连接仍由任务持锁。
+    return (
+      await client.query<{ result: PlatformOrganizationPage }>(
+        'SELECT public.export_platform_organizations_page($1,$2,$3,$4,$5,$6,$7,$8,$9) AS result',
+        this.listParameters(
+          actor,
+          {
+            ...query,
+            page: query.page ?? 1,
+            pageSize: query.pageSize ?? 100,
+            sortBy: query.sortBy ?? 'createdAt',
+            sortOrder: query.sortOrder ?? 'desc',
+          },
+          requestId,
+        ),
+      )
+    ).rows[0]?.result;
+  }
+
+  private listParameters(
+    actor: Pick<Identity, 'userId' | 'sessionId'>,
+    query: PlatformExportFilters & { page: number; pageSize: number },
+    requestId: string,
+  ): unknown[] {
+    return [
+      actor.userId,
+      actor.sessionId,
+      query.q ?? null,
+      query.status ?? null,
+      query.page,
+      query.pageSize,
+      query.sortBy,
+      query.sortOrder,
+      requestId,
+    ];
   }
 
   async get(

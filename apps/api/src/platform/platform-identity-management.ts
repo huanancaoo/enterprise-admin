@@ -3,6 +3,7 @@ import { hashPassword } from 'better-auth/crypto';
 import type { PoolClient } from 'pg';
 import {
   type ApiErrorCode,
+  type PlatformExportFilters,
   type CreatePlatformUser,
   type UpdatePlatformUser,
   type SetPlatformUserStatus,
@@ -176,20 +177,47 @@ export class PlatformIdentityManagement {
   ): Promise<PlatformLoginLogsPage> {
     return this.call(
       'SELECT public.list_platform_login_logs($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) AS result',
-      [
-        actor.userId,
-        actor.sessionId,
-        query.q ?? null,
-        query.userId ?? null,
-        query.result ?? null,
-        query.method ?? null,
-        query.from ?? null,
-        query.to ?? null,
-        query.page,
-        query.pageSize,
-        requestId,
-      ],
+      this.loginEventsParameters(actor, query, requestId),
     );
+  }
+
+  async exportLoginEventsPage(
+    actor: Pick<Identity, 'userId' | 'sessionId'>,
+    query: PlatformExportFilters & { page?: number; pageSize?: number },
+    requestId: string,
+    client: PoolClient,
+  ): Promise<PlatformLoginLogsPage> {
+    // 导出使用独立动作且沿用任务持锁连接；错误交回任务决定重试与结算。
+    return (
+      await client.query<{ result: PlatformLoginLogsPage }>(
+        'SELECT public.export_platform_login_logs_page($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) AS result',
+        this.loginEventsParameters(
+          actor,
+          { ...query, page: query.page ?? 1, pageSize: query.pageSize ?? 100 },
+          requestId,
+        ),
+      )
+    ).rows[0]?.result;
+  }
+
+  private loginEventsParameters(
+    actor: Pick<Identity, 'userId' | 'sessionId'>,
+    query: PlatformExportFilters & { page: number; pageSize: number },
+    requestId: string,
+  ): unknown[] {
+    return [
+      actor.userId,
+      actor.sessionId,
+      query.q ?? null,
+      query.userId ?? null,
+      query.result ?? null,
+      query.method ?? null,
+      query.from ?? null,
+      query.to ?? null,
+      query.page,
+      query.pageSize,
+      requestId,
+    ];
   }
 
   personalLoginEvents(
@@ -220,16 +248,43 @@ export class PlatformIdentityManagement {
   ): Promise<PlatformSessionsPage> {
     return this.call(
       'SELECT public.list_platform_sessions($1,$2,$3,$4,$5,$6,$7) AS result',
-      [
-        actor.userId,
-        actor.sessionId,
-        query.q ?? null,
-        query.userId ?? null,
-        query.page,
-        query.pageSize,
-        requestId,
-      ],
+      this.sessionsParameters(actor, query, requestId),
     );
+  }
+
+  async exportSessionsPage(
+    actor: Pick<Identity, 'userId' | 'sessionId'>,
+    query: PlatformExportFilters & { page?: number; pageSize?: number },
+    requestId: string,
+    client: PoolClient,
+  ): Promise<PlatformSessionsPage> {
+    // 导出使用独立动作且沿用任务持锁连接；错误交回任务决定重试与结算。
+    return (
+      await client.query<{ result: PlatformSessionsPage }>(
+        'SELECT public.export_platform_sessions_page($1,$2,$3,$4,$5,$6,$7) AS result',
+        this.sessionsParameters(
+          actor,
+          { ...query, page: query.page ?? 1, pageSize: query.pageSize ?? 100 },
+          requestId,
+        ),
+      )
+    ).rows[0]?.result;
+  }
+
+  private sessionsParameters(
+    actor: Pick<Identity, 'userId' | 'sessionId'>,
+    query: PlatformExportFilters & { page: number; pageSize: number },
+    requestId: string,
+  ): unknown[] {
+    return [
+      actor.userId,
+      actor.sessionId,
+      query.q ?? null,
+      query.userId ?? null,
+      query.page,
+      query.pageSize,
+      requestId,
+    ];
   }
 
   revokeSession(

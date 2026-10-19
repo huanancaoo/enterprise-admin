@@ -1,5 +1,4 @@
 import {
-  BusinessTaskResultSchema,
   CreateAuditExportSchema,
   CreateMemberExportSchema,
   type CreateAuditExport,
@@ -9,39 +8,13 @@ import { auditRepository } from "@workspace/database/repositories/audit"
 import { businessTaskRepository } from "@workspace/database/repositories/business-tasks"
 import { organizationExchangeRepository } from "@workspace/database/repositories/organization-exchange"
 import type { TenantTx } from "@workspace/database/tenant"
-import { defineTask, TaskPermanentError, type TaskContext } from "./contract.ts"
+import type { TaskContext } from "./contract.ts"
+import { defineBusinessTask } from "./business-task.ts"
 import {
   assertOrganizationExportCapacity,
   ORGANIZATION_EXPORT_PAGE_SIZE,
   writeOrganizationExportArtifact,
 } from "./organization-export-artifact.ts"
-
-async function authorizeResource(
-  tx: TenantTx,
-  task: TaskContext,
-  type: string
-) {
-  const row = await businessTaskRepository.lock(tx, task.identity.resourceId)
-  if (
-    !row ||
-    row.actorId !== task.identity.actorId ||
-    row.type !== type ||
-    row.intentFingerprint !== task.intentFingerprint ||
-    row.status === "rejected" ||
-    (row.status === "failed" && !row.result)
-  )
-    throw new TaskPermanentError("RESOURCE_DENIED")
-}
-
-async function committed(tx: TenantTx, task: TaskContext) {
-  const row = await businessTaskRepository.find(tx, task.identity.resourceId)
-  return row?.status === "completed" && row.result
-    ? {
-        intentFingerprint: row.intentFingerprint,
-        result: BusinessTaskResultSchema.parse(row.result),
-      }
-    : undefined
-}
 
 async function finish(
   tx: TenantTx,
@@ -67,13 +40,10 @@ async function finish(
 }
 
 export const organizationExchangeTasks = [
-  defineTask({
+  defineBusinessTask({
     type: "members.export",
     inputSchema: CreateMemberExportSchema,
     permissions: { member: ["export"] },
-    authorizeResource: (tx, task) =>
-      authorizeResource(tx, task, "members.export"),
-    findCommitted: committed,
     async execute(tx, task: TaskContext<CreateMemberExport>) {
       assertOrganizationExportCapacity(
         await organizationExchangeRepository.countMembers(tx, task.input.filter)
@@ -106,13 +76,10 @@ export const organizationExchangeTasks = [
       )
     },
   }),
-  defineTask({
+  defineBusinessTask({
     type: "audit.export",
     inputSchema: CreateAuditExportSchema,
     permissions: { audit: ["export"] },
-    authorizeResource: (tx, task) =>
-      authorizeResource(tx, task, "audit.export"),
-    findCommitted: committed,
     async execute(tx, task: TaskContext<CreateAuditExport>) {
       const first = await auditRepository.listPage(tx, {
         filter: task.input.filter,
