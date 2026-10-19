@@ -6,7 +6,6 @@ import { useTranslation } from "react-i18next"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import { LoadingState, ErrorState } from "@workspace/admin"
 import {
-  ApiClientError,
   listPlatformTasks,
   getPlatformTask,
   getPlatformTaskResult,
@@ -19,7 +18,7 @@ import {
 import {
   DataTable,
   createDataTableColumnHelper,
-  type DataTableStatus,
+  getDataTableQueryStatus,
 } from "@workspace/admin/data-table"
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
@@ -41,22 +40,6 @@ export type PlatformTasksSearch = {
   taskId?: string
 }
 const columns = createDataTableColumnHelper<PlatformTask>()
-function tableStatus(query: {
-  isError: boolean
-  isPending: boolean
-  isFetching: boolean
-  error: unknown
-}): DataTableStatus {
-  return query.isError
-    ? query.error instanceof ApiClientError && query.error.status === 403
-      ? "forbidden"
-      : "error"
-    : query.isPending
-      ? "loading"
-      : query.isFetching
-        ? "refreshing"
-        : "ready"
-}
 function active(status: PlatformTask["status"]) {
   return status === "pending" || status === "queued" || status === "running"
 }
@@ -181,7 +164,7 @@ export function PlatformTasksPage({
         data={query.data?.items ?? []}
         rowCount={query.data?.total ?? 0}
         getRowId={(item) => item.id}
-        status={tableStatus(query)}
+        status={getDataTableQueryStatus(query)}
         error={query.error?.message}
         onRetry={() => void query.refetch()}
         empty={<p>{t("noTasks")}</p>}

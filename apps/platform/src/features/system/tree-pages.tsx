@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate, useRouteContext, useSearch } from "@tanstack/react-router"
 import { useTranslation } from "react-i18next"
 import {
-  ApiClientError,
   listPlatformMenus,
   createPlatformMenu,
   updatePlatformMenu,
@@ -30,7 +29,7 @@ import { useAuthenticatedSession } from "@workspace/admin/auth"
 import {
   DataTable,
   createDataTableColumnHelper,
-  type DataTableStatus,
+  getDataTableQueryStatus,
 } from "@workspace/admin/data-table"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
@@ -272,15 +271,7 @@ function PlatformTreePage({ kind }: { kind: TreeKind }) {
     [can, enter, kind, statuses, t]
   )
   const filters = search.status ? [{ id: "status", value: search.status }] : []
-  const tableStatus: DataTableStatus = query.isError
-    ? query.error instanceof ApiClientError && query.error.status === 403
-      ? "forbidden"
-      : "error"
-    : query.isPending
-      ? "loading"
-      : query.isFetching
-        ? "refreshing"
-        : "ready"
+  const tableStatus = getDataTableQueryStatus(query)
   const invalidate = async () => {
     await queryClient.invalidateQueries({ queryKey })
     if (kind === "menu")

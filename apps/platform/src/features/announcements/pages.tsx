@@ -15,7 +15,7 @@ import {
   type AnnouncementInboxSearch,
 } from "@workspace/admin"
 import type { FileContentPorts } from "@workspace/admin/rich-text-editor"
-import type { DataTableStatus } from "@workspace/admin/data-table"
+import { getDataTableQueryStatus } from "@workspace/admin/data-table"
 import {
   ApiClientError,
   listPlatformAnnouncements,
@@ -64,22 +64,6 @@ const platformAnnouncementKeys = {
   manage: (userId: string) => ["platform", userId, "announcements"] as const,
   inbox: (userId: string) =>
     ["platform", userId, "announcement-inbox"] as const,
-}
-function status(query: {
-  isError: boolean
-  isPending: boolean
-  isFetching: boolean
-  error: unknown
-}): DataTableStatus {
-  return query.isError
-    ? query.error instanceof ApiClientError && query.error.status === 403
-      ? "forbidden"
-      : "error"
-    : query.isPending
-      ? "loading"
-      : query.isFetching
-        ? "refreshing"
-        : "ready"
 }
 function message(error: unknown) {
   return error instanceof Error ? error.message : String(error)
@@ -130,7 +114,7 @@ export function PlatformAnnouncementsPage({
       total={query.data?.total ?? 0}
       search={search}
       onSearchChange={onSearchChange}
-      status={status(query)}
+      status={getDataTableQueryStatus(query)}
       error={query.error?.message}
       onRetry={() => void query.refetch()}
       permissions={platformAccess.permissions}
@@ -376,7 +360,7 @@ export function PlatformAnnouncementInboxPage({
       search={search}
       onSearchChange={onSearchChange}
       onOpen={(item) => onOpen(item.id)}
-      status={status(query)}
+      status={getDataTableQueryStatus(query)}
       error={query.error?.message}
       onRetry={() => void query.refetch()}
     />
@@ -544,7 +528,7 @@ export function PlatformAnnouncementReadersPage({
       pageSize={search.pageSize}
       onPageChange={(page, pageSize) => onSearchChange({ page, pageSize })}
       onBack={onBack}
-      status={status(query)}
+      status={getDataTableQueryStatus(query)}
       error={query.error?.message}
       onRetry={() => void query.refetch()}
     />

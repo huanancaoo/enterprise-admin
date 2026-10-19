@@ -9,7 +9,6 @@ import {
 } from "@tanstack/react-router"
 import { useTranslation } from "react-i18next"
 import {
-  ApiClientError,
   listPlatformPosts,
   createPlatformPost,
   updatePlatformPost,
@@ -51,7 +50,7 @@ import {
   DataTable,
   DataTableColumnHeader,
   createDataTableColumnHelper,
-  type DataTableStatus,
+  getDataTableQueryStatus,
 } from "@workspace/admin/data-table"
 import { Button } from "@workspace/ui/components/button"
 import { usePlatformAccessFailure } from "../../lib/use-platform-access-failure"
@@ -435,15 +434,7 @@ function PlatformCatalogPage({
   )
   const pagination = { pageIndex: search.page - 1, pageSize: search.pageSize }
   const filters = search.status ? [{ id: "status", value: search.status }] : []
-  const tableStatus: DataTableStatus = query.isError
-    ? query.error instanceof ApiClientError && query.error.status === 403
-      ? "forbidden"
-      : "error"
-    : query.isPending
-      ? "loading"
-      : query.isFetching
-        ? "refreshing"
-        : "ready"
+  const tableStatus = getDataTableQueryStatus(query)
   const changeSearch = (patch: Record<string, unknown>) => {
     if (kind === "dictionaryItem") {
       void navigate({

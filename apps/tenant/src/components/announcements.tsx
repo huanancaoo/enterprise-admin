@@ -13,9 +13,8 @@ import {
   type AnnouncementInboxSearch,
 } from "@workspace/admin"
 import type { FileContentPorts } from "@workspace/admin/rich-text-editor"
-import type { DataTableStatus } from "@workspace/admin/data-table"
+import { getDataTableQueryStatus } from "@workspace/admin/data-table"
 import {
-  ApiClientError,
   listTenantAnnouncements,
   getTenantAnnouncement,
   readTenantAnnouncement,
@@ -37,22 +36,6 @@ const keys = {
       userId,
       "announcements",
     ] as const,
-}
-function tableStatus(query: {
-  isError: boolean
-  isPending: boolean
-  isFetching: boolean
-  error: unknown
-}): DataTableStatus {
-  return query.isError
-    ? query.error instanceof ApiClientError && query.error.status === 403
-      ? "forbidden"
-      : "error"
-    : query.isPending
-      ? "loading"
-      : query.isFetching
-        ? "refreshing"
-        : "ready"
 }
 export function TenantAnnouncementEntry({
   organizationId,
@@ -111,7 +94,7 @@ export function TenantAnnouncementInbox({
       search={search}
       onSearchChange={onSearchChange}
       onOpen={(item) => onOpen(item.id)}
-      status={tableStatus(query)}
+      status={getDataTableQueryStatus(query)}
       error={query.error?.message}
       onRetry={() => void query.refetch()}
     />
