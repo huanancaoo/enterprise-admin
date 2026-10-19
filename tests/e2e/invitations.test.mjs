@@ -72,8 +72,8 @@ describe("invitation management and recipient browser flows", () => {
     await expectUI(
       page.getByRole("alert").filter({ hasText: "邀请已创建。 邮件发送失败" })
     ).toBeVisible()
-    const list = page.getByRole("list", { name: "邀请", exact: true })
-    const row = list.getByRole("listitem").filter({ hasText: recipient.email })
+    const list = page.getByRole("region", { name: "邀请", exact: true })
+    const row = list.getByRole("row").filter({ hasText: recipient.email })
     await expectUI(row).toContainText("待处理")
     await expectUI(row).toContainText("邮件发送失败")
     const resendResponse = page.waitForResponse(
@@ -185,7 +185,7 @@ describe("invitation management and recipient browser flows", () => {
     const created = await response.json()
     await expectUI(dialog).toHaveCount(0)
     await expectUI(
-      page.getByRole("listitem").filter({ hasText: replacement })
+      page.getByRole("row").filter({ hasText: replacement })
     ).toContainText("待处理")
     const persisted = await environment.migrator.query(
       "SELECT id, email, status FROM invitation WHERE organization_id = $1",
@@ -235,10 +235,10 @@ describe("invitation management and recipient browser flows", () => {
     page.on("pageerror", (error) => pageErrors.push(error.message))
     await signIn(page, environment.tenantOrigin, manager)
     await page.goto(`${environment.tenantOrigin}/app/members/${org.id}`)
-    const list = page.getByRole("list", { name: "邀请", exact: true })
+    const list = page.getByRole("region", { name: "邀请", exact: true })
     await expectUI(
       list
-        .getByRole("listitem")
+        .getByRole("row")
         .filter({ hasText: protectedEmail })
         .getByRole("button")
     ).toHaveCount(0)
@@ -291,7 +291,7 @@ describe("invitation management and recipient browser flows", () => {
     expect(invitedResponse.status()).toBe(200)
     const created = await invitedResponse.json()
     await expectUI(dialog).toHaveCount(0)
-    const target = list.getByRole("listitem").filter({ hasText: email })
+    const target = list.getByRole("row").filter({ hasText: email })
     await expectUI(target).toContainText("project-editor")
     await target.getByRole("button", { name: "取消邀请", exact: true }).focus()
     await page.keyboard.press("Enter")
@@ -412,7 +412,7 @@ it("shows the real unknown SMTP result after creation and reload without claimin
         .getByRole("alert")
         .filter({ hasText: "邀请已创建。 邮件投递结果未知" })
     ).toBeVisible()
-    const row = page.getByRole("listitem").filter({ hasText: email })
+    const row = page.getByRole("row").filter({ hasText: email })
     await expectUI(row).toContainText("待处理")
     await expectUI(row).toContainText("邮件投递结果未知")
     await expectUI(row).not.toContainText("邮件发送失败")

@@ -1,16 +1,16 @@
-import type { PoolClient } from 'pg';
 import { Injectable, type OnApplicationShutdown } from '@nestjs/common';
-import { createQueueMonitor, type WorkerConfig } from '@workspace/jobs';
 import type {
   MonitorProbe,
   MonitorQueue,
   PlatformMonitor,
 } from '@workspace/contracts';
-import { AuthRuntime } from '../../identity/auth-runtime';
+import { createQueueMonitor, type WorkerConfig } from '@workspace/jobs';
+import type { PoolClient } from 'pg';
 import { FilesRuntime } from '../../files/files-runtime';
 import { ApiException } from '../../http/api-exception';
+import { AuthRuntime } from '../../identity/auth-runtime';
 import type { PlatformPrincipal } from '../platform-access.service';
-import { PlatformTasks } from '../platform-tasks';
+import { PlatformTasks } from '../tasks/platform-tasks';
 import type { MonitorConfig } from './config';
 import { readPrometheusMonitor } from './prometheus';
 

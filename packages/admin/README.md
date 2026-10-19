@@ -1,6 +1,6 @@
 # @workspace/admin
 
-业务无关的后台组合组件，依赖 `@workspace/ui` 的基础组件。
+业务无关的后台组合组件，依赖 `@workspace/ui` 的基础组件。双端公告协议与阅读状态编排归入 `@workspace/announcements`，应用从该业务包接入。
 
 ## DataTable
 
@@ -31,6 +31,6 @@
 
 DataTable 自带文案使用翻译目录。列标题、业务状态与选项由调用方翻译；名称等租户内容直接来自 API。没有名称搜索能力的页面使用 `showSearch={false}`；使用内置搜索时，调用方将受控状态连接到 URL 与请求，不能额外添加平行的筛选栏。请求使用 `manualFiltering/manualSorting/manualPagination` 和受控分页。列宽拖拽及键盘调整遵循当前文字方向。
 
-Projects 列表示例在 `apps/tenant/src/components/projects-list.stories.tsx`，由公共 Storybook 加载；它以 Router 包装生产 `ProjectsList` 并通过生成客户端调用共享 MSW。ResourceCreate/Edit/Show 随 S7 的真实操作补齐，本阶段没有通用 Resource Engine。
+Projects 列表示例在 `apps/tenant/src/features/projects/projects-list.stories.tsx`，由公共 Storybook 加载；它以 Router 包装生产 `ProjectsList` 并通过生成客户端调用共享 MSW。ResourceCreate/Edit/Show 随 S7 的真实操作补齐，本阶段没有通用 Resource Engine。
 
 `toolbarContent` 承载搜索之前的业务操作，`toolbarFilters` 承载搜索和列筛选之后的常驻条件。提供任一插槽时，即使集合为空，DataTable 也保留工具栏；无权限状态仍不展示工具栏。

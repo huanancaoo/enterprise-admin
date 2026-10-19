@@ -1,34 +1,33 @@
-import { useEffect, useId, useRef, useState } from "react"
+import { getProjectPermissionsOptions } from "@/features/projects/project-access"
 import { useForm, useSelector } from "@tanstack/react-form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { useTranslation } from "react-i18next"
-import {
-  ApiClientError,
-  getOrganizationAccessOptions,
-  projectKeys,
-} from "@workspace/api-client"
 import {
   ErrorState,
   LoadingState,
   PermissionDeniedState,
 } from "@workspace/admin"
+import { useAuthenticatedSession } from "@workspace/admin/auth"
 import type { JSONContent } from "@workspace/admin/rich-text-editor"
 import {
-  ProjectEditorDocumentSchema,
-  SaveProjectEditorContentSchema,
-} from "@workspace/rich-text"
-import { useAuthenticatedSession } from "@workspace/admin/auth"
-import {
-  ProjectContentResponseSchema,
-  type ProjectContentResponse,
-} from "@workspace/contracts/projects"
+  ApiClientError,
+  getOrganizationAccessOptions,
+  projectKeys,
+} from "@workspace/api-client"
+import { type FolderResponse } from "@workspace/contracts/files"
 import {
   SupportedLocaleSchema,
   type SupportedLocale,
 } from "@workspace/contracts/locale"
-import { type FolderResponse } from "@workspace/contracts/files"
+import {
+  ProjectContentResponseSchema,
+  type ProjectContentResponse,
+} from "@workspace/contracts/projects"
 import { localeMeta, supportedLocales } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
+import {
+  ProjectEditorDocumentSchema,
+  SaveProjectEditorContentSchema,
+} from "@workspace/rich-text"
 import { Button } from "@workspace/ui/components/button"
 import {
   Card,
@@ -38,9 +37,9 @@ import {
 } from "@workspace/ui/components/card"
 import {
   Field,
-  FieldLabel,
   FieldDescription,
   FieldError,
+  FieldLabel,
 } from "@workspace/ui/components/field"
 import {
   Select,
@@ -49,21 +48,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select"
+import { useEffect, useId, useRef, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { z } from "zod"
-import { getProjectPermissionsOptions } from "@/components/project-access"
 import { getFilePermissionsOptions } from "../files/file-permissions"
 import {
   fileKeys,
   fileRequestErrorMessage,
   getFileWorkspaceOptions,
 } from "../files/file-queries"
-import { ProjectFileEditor } from "./project-file-editor"
 import {
   createProjectContentPorts,
   createProjectFilePorts,
   type ProjectContentPorts,
   type ProjectFilePorts,
 } from "./project-content-ports"
+import { ProjectFileEditor } from "./project-file-editor"
 
 export function ProjectContent({
   organizationId,

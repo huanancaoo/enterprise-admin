@@ -24,7 +24,8 @@
     "zod": "4.6.5",
     "lucide-react": "1.46.0",
     "react-i18next": "17.0.14",
-    "@tanstack/react-query": "5.102.8"
+    "@tanstack/react-query": "5.102.8",
+    "@workspace/announcements": "workspace:*"
   },
   "devDependencies": {
     "@storybook/react-vite": "10.6.0",

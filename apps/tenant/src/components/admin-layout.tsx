@@ -1,9 +1,29 @@
-import { cloneElement, useEffect, useState } from "react"
-import { Link, Outlet, useNavigate, useParams } from "@tanstack/react-router"
+import { getOrganizationSettingsPermissionsOptions } from "@/features/organization/organization-settings-permissions"
+import { useOrganizationNavigation } from "@/hooks/use-organization-navigation"
+import {
+  useDropStaleOrganizationQueries,
+  useOrganizationWorkspace,
+} from "@/hooks/use-organization-workspace"
+import { authClient } from "@/lib/auth-client"
+import {
+  preserveLocaleOnManualSelection,
+  shouldApplyOrganizationLocale,
+} from "@/lib/organization-locale-sync"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { Link, Outlet, useNavigate, useParams } from "@tanstack/react-router"
 import { AppShell } from "@workspace/admin"
-import { buttonVariants } from "@workspace/ui/components/button"
-import { WorkspaceActions } from "./workspace-actions"
+import {
+  DeviceSessionActions,
+  DeviceSessionMenu,
+  useAuthenticatedSession,
+} from "@workspace/admin/auth"
+import {
+  ApiClientError,
+  getMyPreferencesOptions,
+  getOrganizationAccessOptions,
+  organizationKeys,
+} from "@workspace/api-client"
+import { useUiLocale } from "@workspace/i18n/react"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -12,44 +32,24 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb"
+import { buttonVariants } from "@workspace/ui/components/button"
 import {
-  DeviceSessionMenu,
-  DeviceSessionActions,
-  useAuthenticatedSession,
-} from "@workspace/admin/auth"
-import { useUiLocale } from "@workspace/i18n/react"
-import {
-  ClipboardListIcon,
   BuildingIcon,
-  PlugIcon,
+  ClipboardListIcon,
   FolderKanbanIcon,
   FolderOpenIcon,
+  PlugIcon,
   SettingsIcon,
   ShieldCheckIcon,
   UsersIcon,
 } from "lucide-react"
+import { cloneElement, useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
-import {
-  ApiClientError,
-  getMyPreferencesOptions,
-  getOrganizationAccessOptions,
-  organizationKeys,
-} from "@workspace/api-client"
-import {
-  useDropStaleOrganizationQueries,
-  useOrganizationWorkspace,
-} from "@/hooks/use-organization-workspace"
-import { authClient } from "@/lib/auth-client"
-import { useOrganizationNavigation } from "@/hooks/use-organization-navigation"
-import {
-  preserveLocaleOnManualSelection,
-  shouldApplyOrganizationLocale,
-} from "@/lib/organization-locale-sync"
-import { getOrganizationSettingsPermissionsOptions } from "@/query/organization-settings-permissions"
 import {
   CreateOrganizationDialog,
   OrganizationUnavailable,
 } from "./organization-workspace"
+import { WorkspaceActions } from "./workspace-actions"
 
 export function AdminLayout() {
   const { t, i18n } = useTranslation([

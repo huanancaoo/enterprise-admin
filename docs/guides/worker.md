@@ -2,16 +2,11 @@
 
 Worker 是默认必需的核心运行时。`pnpm dev`、开发 Compose 与每次发布都包含 Worker；没有可选 profile 或跳过开关。API Host 负责受理服务端业务请求，独立 Worker 负责执行已注册的组织业务任务。
 
-当前生产注册表包含 `projects.import` 与 `projects.export`。认证邮件、业务通知和 Webhook 投递、文件操作与保留维护使用各自的 API 运行时；独立 Worker 不加载 API Host。业务通知和 Webhook 的生产自动启动接线状态见[八项能力验收记录](../architecture/framework-completion-validation.md)。
+当前生产任务由[Worker 注册入口](../../apps/worker/src/registry.ts)装配，任务定义见[组织任务集合](../../packages/jobs/src/tenant-exchange.ts)。认证邮件、业务通知和 Webhook 投递、文件操作与保留维护使用各自的 API 运行时；独立 Worker 不加载 API Host。业务通知和 Webhook 的生产自动启动接线状态见[八项能力验收记录](../architecture/framework-completion-validation.md)。
 
 ## 本地启动
 
-先按[数据库说明](../../packages/database/README.md)初始化角色并完成迁移，再配置 Worker：
-
-```sh
-cp apps/worker/.env.example apps/worker/.env
-pnpm dev
-```
+安装、数据库准备、迁移、Worker 配置和全系统启动步骤统一见[仓库快速开始](../../README.md#快速开始)。
 
 Worker 的 `DATABASE_URL` 与 API 使用同一运行数据库和 `app_runtime` 身份，`REDIS_URL` 指向已配置的 Redis。配置含全部默认值与范围的说明见 [Worker README](../../apps/worker/README.md)。单独开发或启动该进程可使用 `pnpm dev:worker` 或 `pnpm --filter worker start`；这些单进程命令不改变默认全系统启动范围。
 
@@ -45,7 +40,7 @@ BullMQ Job ID 是队列去重身份，不能代替持久化业务幂等。Job �
 
 队列尝试失败与业务结果分开记录：业务已经提交后，进程可能在确认完成前死亡；如果重新领取时已经撤权，本次尝试会被拒绝，但此前业务成功事实和成功审计仍保留。不能为了读取历史结果绕过当前授权或 RLS。
 
-Projects 交换任务先在 PostgreSQL 持久化意图，再由正式生产者提交 Redis。入队确认未知时保留同一任务身份，Worker 从持久意图恢复投递；任务状态、结果、通知及事件分别作为业务事实保存。PostgreSQL 与 Redis 不组成跨系统原子事务，不能把一次入队成功视为业务提交。任务 HTTP 与租户后台任务中心聚合这两种业务任务及现有 Files 操作，并保留各来源自己的生命周期。新业务接入见[模块开发指南](create-domain-module.md)；非幂等外部服务副作用需要其领域明确的投递规则。
+Projects 交换任务先在 PostgreSQL 持久化意图，再由正式生产者提交 Redis。入队确认未知时保留同一任务身份，Worker 从持久意图恢复投递；任务状态、结果、通知及事件分别作为业务事实保存。PostgreSQL 与 Redis 不组成跨系统原子事务，不能把一次入队成功视为业务提交。任务 HTTP 与租户后台任务中心聚合已注册的组织业务任务及现有 Files 操作，并保留各来源自己的生命周期。新业务接入见[模块开发指南](create-domain-module.md)；非幂等外部服务副作用需要其领域明确的投递规则。
 
 ## 生产构建与发布
 

@@ -2,6 +2,8 @@
 
 Tenaro 官方开发者文档站。基于 Next.js 与 Fumadocs，内容在 `content/docs`。
 
+本地安装、配置与启动步骤的唯一维护入口是[根 README](../../README.md#快速开始)，公开入门页引用该入口；`docs/guides` 维护能力接入与运行语义，`docs/architecture` 中的历史研究与验收不替代运行指南。API 页面消费已提交的 OpenAPI 快照，快照路径同时声明为 Turbo 构建输入。
+
 ```sh
 pnpm --filter docs dev
 ```

@@ -62,654 +62,6 @@ const withQueryKey = <T extends object, K>(
   return result
 }
 
-export type listTaskCenterResponse200 = {
-  data: TaskCenterPage
-  status: 200
-}
-
-export type listTaskCenterResponseSuccess = listTaskCenterResponse200 & {
-  headers: Headers
-}
-export const getListTaskCenterUrl = (
-  organizationId: string,
-  params?: ListTaskCenterParams
-) => {
-  const normalizedParams = new URLSearchParams()
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : String(value))
-    }
-  })
-
-  const stringifiedParams = normalizedParams.toString()
-
-  return stringifiedParams.length > 0
-    ? `/api/v1/organizations/${organizationId}/task-center?${stringifiedParams}`
-    : `/api/v1/organizations/${organizationId}/task-center`
-}
-
-export const listTaskCenter = async (
-  organizationId: string,
-  params?: ListTaskCenterParams,
-  options?: Parameters<typeof apiClient>[1]
-): Promise<listTaskCenterResponseSuccess> => {
-  return apiClient<listTaskCenterResponseSuccess>(
-    getListTaskCenterUrl(organizationId, params),
-    {
-      ...options,
-      method: "GET",
-    }
-  )
-}
-
-export const getListTaskCenterQueryKey = (
-  organizationId: string,
-  params?: ListTaskCenterParams
-) => {
-  return [
-    `/api/v1/organizations/${organizationId}/task-center`,
-    ...(params ? [params] : []),
-  ] as const
-}
-
-export const getListTaskCenterQueryOptions = <
-  TData = Awaited<ReturnType<typeof listTaskCenter>>,
-  TError = ErrorType<unknown>,
->(
-  organizationId: string,
-  params?: ListTaskCenterParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof listTaskCenter>>, TError, TData>
-    >
-    request?: SecondParameter<typeof apiClient>
-  }
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {}
-
-  const queryKey =
-    queryOptions?.queryKey ?? getListTaskCenterQueryKey(organizationId, params)
-
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof listTaskCenter>>> = ({
-    signal,
-  }) => listTaskCenter(organizationId, params, { signal, ...requestOptions })
-
-  return {
-    queryKey,
-    queryFn,
-    enabled: organizationId !== null && organizationId !== undefined,
-    ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof listTaskCenter>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListTaskCenterQueryResult = NonNullable<
-  Awaited<ReturnType<typeof listTaskCenter>>
->
-export type ListTaskCenterQueryError = ErrorType<unknown>
-
-export function useListTaskCenter<
-  TData = Awaited<ReturnType<typeof listTaskCenter>>,
-  TError = ErrorType<unknown>,
->(
-  organizationId: string,
-  params: undefined | ListTaskCenterParams,
-  options: {
-    query: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof listTaskCenter>>, TError, TData>
-    > &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listTaskCenter>>,
-          TError,
-          Awaited<ReturnType<typeof listTaskCenter>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-export function useListTaskCenter<
-  TData = Awaited<ReturnType<typeof listTaskCenter>>,
-  TError = ErrorType<unknown>,
->(
-  organizationId: string,
-  params?: ListTaskCenterParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof listTaskCenter>>, TError, TData>
-    > &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listTaskCenter>>,
-          TError,
-          Awaited<ReturnType<typeof listTaskCenter>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-export function useListTaskCenter<
-  TData = Awaited<ReturnType<typeof listTaskCenter>>,
-  TError = ErrorType<unknown>,
->(
-  organizationId: string,
-  params?: ListTaskCenterParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof listTaskCenter>>, TError, TData>
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-
-export function useListTaskCenter<
-  TData = Awaited<ReturnType<typeof listTaskCenter>>,
-  TError = ErrorType<unknown>,
->(
-  organizationId: string,
-  params?: ListTaskCenterParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof listTaskCenter>>, TError, TData>
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-} {
-  const queryOptions = getListTaskCenterQueryOptions(
-    organizationId,
-    params,
-    options
-  )
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
-    TData,
-    TError
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-
-  return withQueryKey(query, queryOptions.queryKey)
-}
-
-export type createProjectImportResponse202 = {
-  data: BusinessTask
-  status: 202
-}
-
-export type createProjectImportResponseSuccess =
-  createProjectImportResponse202 & {
-    headers: Headers
-  }
-export const getCreateProjectImportUrl = (organizationId: string) => {
-  return `/api/v1/organizations/${organizationId}/projects/imports`
-}
-
-export const createProjectImport = async (
-  organizationId: string,
-  createProjectImportBody: CreateProjectImport,
-  headers: CreateProjectImportHeaders,
-  options?: Parameters<typeof apiClient>[1]
-): Promise<createProjectImportResponseSuccess> => {
-  const getHeaders = (
-    h?: NonNullable<RequestInit["headers"]>
-  ): Record<string, string | readonly string[]> => {
-    if (!h) return {}
-    if (h instanceof Headers) return Object.fromEntries(h.entries())
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(
-          h as Iterable<Iterable<string>>,
-          (entry) => Array.from(entry) as [string, string]
-        )
-      )
-    }
-    const headers: Record<string, string | readonly string[]> = {}
-    for (const [name, value] of Object.entries<
-      string | readonly string[] | undefined
-    >(h)) {
-      if (value !== undefined) headers[name] = value
-    }
-    return headers
-  }
-  return apiClient<createProjectImportResponseSuccess>(
-    getCreateProjectImportUrl(organizationId),
-    {
-      ...options,
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...headers,
-        ...getHeaders(options?.headers),
-      },
-      body: JSON.stringify(createProjectImportBody),
-    }
-  )
-}
-
-export const getCreateProjectImportMutationKey = () =>
-  ["createProjectImport"] as const
-
-export const getCreateProjectImportMutationOptions = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createProjectImport>>,
-    TError,
-    CreateProjectImportMutationVariables,
-    TContext
-  >
-  request?: SecondParameter<typeof apiClient>
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof createProjectImport>>,
-  TError,
-  CreateProjectImportMutationVariables,
-  TContext
-> => {
-  const mutationKey = getCreateProjectImportMutationKey()
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined }
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof createProjectImport>>,
-    CreateProjectImportMutationVariables
-  > = (props) => {
-    const { organizationId, data, headers } = props ?? {}
-
-    return createProjectImport(organizationId, data, headers, requestOptions)
-  }
-
-  return { mutationFn, ...mutationOptions }
-}
-
-export type CreateProjectImportMutationResult = NonNullable<
-  Awaited<ReturnType<typeof createProjectImport>>
->
-export type CreateProjectImportMutationBody = CreateProjectImport
-export type CreateProjectImportMutationError = ErrorType<unknown>
-export type CreateProjectImportMutationVariables = {
-  organizationId: string
-  data: CreateProjectImport
-  headers: CreateProjectImportHeaders
-}
-
-export const useCreateProjectImport = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof createProjectImport>>,
-      TError,
-      CreateProjectImportMutationVariables,
-      TContext
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseMutationResult<
-  Awaited<ReturnType<typeof createProjectImport>>,
-  TError,
-  CreateProjectImportMutationVariables,
-  TContext
-> => {
-  return useMutation(
-    getCreateProjectImportMutationOptions(options),
-    queryClient
-  )
-}
-export type getBusinessTaskResultResponse200 = {
-  data: Blob
-  status: 200
-}
-
-export type getBusinessTaskResultResponseSuccess =
-  getBusinessTaskResultResponse200 & {
-    headers: Headers
-  }
-export const getGetBusinessTaskResultUrl = (
-  organizationId: string,
-  taskId: string
-) => {
-  return `/api/v1/organizations/${organizationId}/tasks/${taskId}/result`
-}
-
-export const getBusinessTaskResult = async (
-  organizationId: string,
-  taskId: string,
-  options?: Parameters<typeof binaryApiClient>[1]
-): Promise<getBusinessTaskResultResponseSuccess> => {
-  return binaryApiClient<getBusinessTaskResultResponseSuccess>(
-    getGetBusinessTaskResultUrl(organizationId, taskId),
-    {
-      ...options,
-      method: "GET",
-    }
-  )
-}
-
-export const getGetBusinessTaskResultQueryKey = (
-  organizationId: string,
-  taskId: string
-) => {
-  return [
-    `/api/v1/organizations/${organizationId}/tasks/${taskId}/result`,
-  ] as const
-}
-
-export const getGetBusinessTaskResultQueryOptions = <
-  TData = Awaited<ReturnType<typeof getBusinessTaskResult>>,
-  TError = ErrorType<unknown>,
->(
-  organizationId: string,
-  taskId: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getBusinessTaskResult>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof binaryApiClient>
-  }
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {}
-
-  const queryKey =
-    queryOptions?.queryKey ??
-    getGetBusinessTaskResultQueryKey(organizationId, taskId)
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getBusinessTaskResult>>
-  > = ({ signal }) =>
-    getBusinessTaskResult(organizationId, taskId, { signal, ...requestOptions })
-
-  return {
-    queryKey,
-    queryFn,
-    enabled:
-      organizationId !== null &&
-      organizationId !== undefined &&
-      taskId !== null &&
-      taskId !== undefined,
-    ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof getBusinessTaskResult>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type GetBusinessTaskResultQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getBusinessTaskResult>>
->
-export type GetBusinessTaskResultQueryError = ErrorType<unknown>
-
-export function useGetBusinessTaskResult<
-  TData = Awaited<ReturnType<typeof getBusinessTaskResult>>,
-  TError = ErrorType<unknown>,
->(
-  organizationId: string,
-  taskId: string,
-  options: {
-    query: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getBusinessTaskResult>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getBusinessTaskResult>>,
-          TError,
-          Awaited<ReturnType<typeof getBusinessTaskResult>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof binaryApiClient>
-  },
-  queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-export function useGetBusinessTaskResult<
-  TData = Awaited<ReturnType<typeof getBusinessTaskResult>>,
-  TError = ErrorType<unknown>,
->(
-  organizationId: string,
-  taskId: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getBusinessTaskResult>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getBusinessTaskResult>>,
-          TError,
-          Awaited<ReturnType<typeof getBusinessTaskResult>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof binaryApiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-export function useGetBusinessTaskResult<
-  TData = Awaited<ReturnType<typeof getBusinessTaskResult>>,
-  TError = ErrorType<unknown>,
->(
-  organizationId: string,
-  taskId: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getBusinessTaskResult>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof binaryApiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-
-export function useGetBusinessTaskResult<
-  TData = Awaited<ReturnType<typeof getBusinessTaskResult>>,
-  TError = ErrorType<unknown>,
->(
-  organizationId: string,
-  taskId: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getBusinessTaskResult>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof binaryApiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-} {
-  const queryOptions = getGetBusinessTaskResultQueryOptions(
-    organizationId,
-    taskId,
-    options
-  )
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
-    TData,
-    TError
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-
-  return withQueryKey(query, queryOptions.queryKey)
-}
-
-export type createProjectExportResponse202 = {
-  data: BusinessTask
-  status: 202
-}
-
-export type createProjectExportResponseSuccess =
-  createProjectExportResponse202 & {
-    headers: Headers
-  }
-export const getCreateProjectExportUrl = (organizationId: string) => {
-  return `/api/v1/organizations/${organizationId}/projects/exports`
-}
-
-export const createProjectExport = async (
-  organizationId: string,
-  createProjectExportBody: CreateProjectExport,
-  headers: CreateProjectExportHeaders,
-  options?: Parameters<typeof apiClient>[1]
-): Promise<createProjectExportResponseSuccess> => {
-  const getHeaders = (
-    h?: NonNullable<RequestInit["headers"]>
-  ): Record<string, string | readonly string[]> => {
-    if (!h) return {}
-    if (h instanceof Headers) return Object.fromEntries(h.entries())
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(
-          h as Iterable<Iterable<string>>,
-          (entry) => Array.from(entry) as [string, string]
-        )
-      )
-    }
-    const headers: Record<string, string | readonly string[]> = {}
-    for (const [name, value] of Object.entries<
-      string | readonly string[] | undefined
-    >(h)) {
-      if (value !== undefined) headers[name] = value
-    }
-    return headers
-  }
-  return apiClient<createProjectExportResponseSuccess>(
-    getCreateProjectExportUrl(organizationId),
-    {
-      ...options,
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...headers,
-        ...getHeaders(options?.headers),
-      },
-      body: JSON.stringify(createProjectExportBody),
-    }
-  )
-}
-
-export const getCreateProjectExportMutationKey = () =>
-  ["createProjectExport"] as const
-
-export const getCreateProjectExportMutationOptions = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createProjectExport>>,
-    TError,
-    CreateProjectExportMutationVariables,
-    TContext
-  >
-  request?: SecondParameter<typeof apiClient>
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof createProjectExport>>,
-  TError,
-  CreateProjectExportMutationVariables,
-  TContext
-> => {
-  const mutationKey = getCreateProjectExportMutationKey()
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined }
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof createProjectExport>>,
-    CreateProjectExportMutationVariables
-  > = (props) => {
-    const { organizationId, data, headers } = props ?? {}
-
-    return createProjectExport(organizationId, data, headers, requestOptions)
-  }
-
-  return { mutationFn, ...mutationOptions }
-}
-
-export type CreateProjectExportMutationResult = NonNullable<
-  Awaited<ReturnType<typeof createProjectExport>>
->
-export type CreateProjectExportMutationBody = CreateProjectExport
-export type CreateProjectExportMutationError = ErrorType<unknown>
-export type CreateProjectExportMutationVariables = {
-  organizationId: string
-  data: CreateProjectExport
-  headers: CreateProjectExportHeaders
-}
-
-export const useCreateProjectExport = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof createProjectExport>>,
-      TError,
-      CreateProjectExportMutationVariables,
-      TContext
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseMutationResult<
-  Awaited<ReturnType<typeof createProjectExport>>,
-  TError,
-  CreateProjectExportMutationVariables,
-  TContext
-> => {
-  return useMutation(
-    getCreateProjectExportMutationOptions(options),
-    queryClient
-  )
-}
 export type createOrganizationMemberExportResponse202 = {
   data: BusinessTask
   status: 202
@@ -986,6 +338,984 @@ export const useCreateOrganizationAuditExport = <
     queryClient
   )
 }
+export type getOrganizationInvitationImportTemplateResponse200 = {
+  data: Blob
+  status: 200
+}
+
+export type getOrganizationInvitationImportTemplateResponseSuccess =
+  getOrganizationInvitationImportTemplateResponse200 & {
+    headers: Headers
+  }
+export const getGetOrganizationInvitationImportTemplateUrl = (
+  organizationId: string
+) => {
+  return `/api/v1/organizations/${organizationId}/invitations/import-template`
+}
+
+export const getOrganizationInvitationImportTemplate = async (
+  organizationId: string,
+  options?: Parameters<typeof binaryApiClient>[1]
+): Promise<getOrganizationInvitationImportTemplateResponseSuccess> => {
+  return binaryApiClient<getOrganizationInvitationImportTemplateResponseSuccess>(
+    getGetOrganizationInvitationImportTemplateUrl(organizationId),
+    {
+      ...options,
+      method: "GET",
+    }
+  )
+}
+
+export const getGetOrganizationInvitationImportTemplateQueryKey = (
+  organizationId: string
+) => {
+  return [
+    `/api/v1/organizations/${organizationId}/invitations/import-template`,
+  ] as const
+}
+
+export const getGetOrganizationInvitationImportTemplateQueryOptions = <
+  TData = Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
+  TError = ErrorType<unknown>,
+>(
+  organizationId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof binaryApiClient>
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetOrganizationInvitationImportTemplateQueryKey(organizationId)
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>
+  > = ({ signal }) =>
+    getOrganizationInvitationImportTemplate(organizationId, {
+      signal,
+      ...requestOptions,
+    })
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: organizationId !== null && organizationId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetOrganizationInvitationImportTemplateQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>
+>
+export type GetOrganizationInvitationImportTemplateQueryError =
+  ErrorType<unknown>
+
+export function useGetOrganizationInvitationImportTemplate<
+  TData = Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
+  TError = ErrorType<unknown>,
+>(
+  organizationId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
+          TError,
+          Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof binaryApiClient>
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetOrganizationInvitationImportTemplate<
+  TData = Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
+  TError = ErrorType<unknown>,
+>(
+  organizationId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
+          TError,
+          Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof binaryApiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetOrganizationInvitationImportTemplate<
+  TData = Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
+  TError = ErrorType<unknown>,
+>(
+  organizationId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof binaryApiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+
+export function useGetOrganizationInvitationImportTemplate<
+  TData = Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
+  TError = ErrorType<unknown>,
+>(
+  organizationId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof binaryApiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+} {
+  const queryOptions = getGetOrganizationInvitationImportTemplateQueryOptions(
+    organizationId,
+    options
+  )
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+
+  return withQueryKey(query, queryOptions.queryKey)
+}
+
+export type createOrganizationInvitationImportResponse202 = {
+  data: BusinessTask
+  status: 202
+}
+
+export type createOrganizationInvitationImportResponseSuccess =
+  createOrganizationInvitationImportResponse202 & {
+    headers: Headers
+  }
+export const getCreateOrganizationInvitationImportUrl = (
+  organizationId: string
+) => {
+  return `/api/v1/organizations/${organizationId}/invitations/imports`
+}
+
+export const createOrganizationInvitationImport = async (
+  organizationId: string,
+  createOrganizationInvitationImportBody: CreateOrganizationInvitationImport,
+  headers: CreateOrganizationInvitationImportHeaders,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<createOrganizationInvitationImportResponseSuccess> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {}
+    if (h instanceof Headers) return Object.fromEntries(h.entries())
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string]
+        )
+      )
+    }
+    const headers: Record<string, string | readonly string[]> = {}
+    for (const [name, value] of Object.entries<
+      string | readonly string[] | undefined
+    >(h)) {
+      if (value !== undefined) headers[name] = value
+    }
+    return headers
+  }
+  return apiClient<createOrganizationInvitationImportResponseSuccess>(
+    getCreateOrganizationInvitationImportUrl(organizationId),
+    {
+      ...options,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...headers,
+        ...getHeaders(options?.headers),
+      },
+      body: JSON.stringify(createOrganizationInvitationImportBody),
+    }
+  )
+}
+
+export const getCreateOrganizationInvitationImportMutationKey = () =>
+  ["createOrganizationInvitationImport"] as const
+
+export const getCreateOrganizationInvitationImportMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createOrganizationInvitationImport>>,
+    TError,
+    CreateOrganizationInvitationImportMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createOrganizationInvitationImport>>,
+  TError,
+  CreateOrganizationInvitationImportMutationVariables,
+  TContext
+> => {
+  const mutationKey = getCreateOrganizationInvitationImportMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createOrganizationInvitationImport>>,
+    CreateOrganizationInvitationImportMutationVariables
+  > = (props) => {
+    const { organizationId, data, headers } = props ?? {}
+
+    return createOrganizationInvitationImport(
+      organizationId,
+      data,
+      headers,
+      requestOptions
+    )
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type CreateOrganizationInvitationImportMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createOrganizationInvitationImport>>
+>
+export type CreateOrganizationInvitationImportMutationBody =
+  CreateOrganizationInvitationImport
+export type CreateOrganizationInvitationImportMutationError = ErrorType<unknown>
+export type CreateOrganizationInvitationImportMutationVariables = {
+  organizationId: string
+  data: CreateOrganizationInvitationImport
+  headers: CreateOrganizationInvitationImportHeaders
+}
+
+export const useCreateOrganizationInvitationImport = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createOrganizationInvitationImport>>,
+      TError,
+      CreateOrganizationInvitationImportMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof createOrganizationInvitationImport>>,
+  TError,
+  CreateOrganizationInvitationImportMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getCreateOrganizationInvitationImportMutationOptions(options),
+    queryClient
+  )
+}
+export type createProjectImportResponse202 = {
+  data: BusinessTask
+  status: 202
+}
+
+export type createProjectImportResponseSuccess =
+  createProjectImportResponse202 & {
+    headers: Headers
+  }
+export const getCreateProjectImportUrl = (organizationId: string) => {
+  return `/api/v1/organizations/${organizationId}/projects/imports`
+}
+
+export const createProjectImport = async (
+  organizationId: string,
+  createProjectImportBody: CreateProjectImport,
+  headers: CreateProjectImportHeaders,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<createProjectImportResponseSuccess> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {}
+    if (h instanceof Headers) return Object.fromEntries(h.entries())
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string]
+        )
+      )
+    }
+    const headers: Record<string, string | readonly string[]> = {}
+    for (const [name, value] of Object.entries<
+      string | readonly string[] | undefined
+    >(h)) {
+      if (value !== undefined) headers[name] = value
+    }
+    return headers
+  }
+  return apiClient<createProjectImportResponseSuccess>(
+    getCreateProjectImportUrl(organizationId),
+    {
+      ...options,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...headers,
+        ...getHeaders(options?.headers),
+      },
+      body: JSON.stringify(createProjectImportBody),
+    }
+  )
+}
+
+export const getCreateProjectImportMutationKey = () =>
+  ["createProjectImport"] as const
+
+export const getCreateProjectImportMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createProjectImport>>,
+    TError,
+    CreateProjectImportMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createProjectImport>>,
+  TError,
+  CreateProjectImportMutationVariables,
+  TContext
+> => {
+  const mutationKey = getCreateProjectImportMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createProjectImport>>,
+    CreateProjectImportMutationVariables
+  > = (props) => {
+    const { organizationId, data, headers } = props ?? {}
+
+    return createProjectImport(organizationId, data, headers, requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type CreateProjectImportMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createProjectImport>>
+>
+export type CreateProjectImportMutationBody = CreateProjectImport
+export type CreateProjectImportMutationError = ErrorType<unknown>
+export type CreateProjectImportMutationVariables = {
+  organizationId: string
+  data: CreateProjectImport
+  headers: CreateProjectImportHeaders
+}
+
+export const useCreateProjectImport = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createProjectImport>>,
+      TError,
+      CreateProjectImportMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof createProjectImport>>,
+  TError,
+  CreateProjectImportMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getCreateProjectImportMutationOptions(options),
+    queryClient
+  )
+}
+export type createProjectExportResponse202 = {
+  data: BusinessTask
+  status: 202
+}
+
+export type createProjectExportResponseSuccess =
+  createProjectExportResponse202 & {
+    headers: Headers
+  }
+export const getCreateProjectExportUrl = (organizationId: string) => {
+  return `/api/v1/organizations/${organizationId}/projects/exports`
+}
+
+export const createProjectExport = async (
+  organizationId: string,
+  createProjectExportBody: CreateProjectExport,
+  headers: CreateProjectExportHeaders,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<createProjectExportResponseSuccess> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {}
+    if (h instanceof Headers) return Object.fromEntries(h.entries())
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string]
+        )
+      )
+    }
+    const headers: Record<string, string | readonly string[]> = {}
+    for (const [name, value] of Object.entries<
+      string | readonly string[] | undefined
+    >(h)) {
+      if (value !== undefined) headers[name] = value
+    }
+    return headers
+  }
+  return apiClient<createProjectExportResponseSuccess>(
+    getCreateProjectExportUrl(organizationId),
+    {
+      ...options,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...headers,
+        ...getHeaders(options?.headers),
+      },
+      body: JSON.stringify(createProjectExportBody),
+    }
+  )
+}
+
+export const getCreateProjectExportMutationKey = () =>
+  ["createProjectExport"] as const
+
+export const getCreateProjectExportMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createProjectExport>>,
+    TError,
+    CreateProjectExportMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createProjectExport>>,
+  TError,
+  CreateProjectExportMutationVariables,
+  TContext
+> => {
+  const mutationKey = getCreateProjectExportMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createProjectExport>>,
+    CreateProjectExportMutationVariables
+  > = (props) => {
+    const { organizationId, data, headers } = props ?? {}
+
+    return createProjectExport(organizationId, data, headers, requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type CreateProjectExportMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createProjectExport>>
+>
+export type CreateProjectExportMutationBody = CreateProjectExport
+export type CreateProjectExportMutationError = ErrorType<unknown>
+export type CreateProjectExportMutationVariables = {
+  organizationId: string
+  data: CreateProjectExport
+  headers: CreateProjectExportHeaders
+}
+
+export const useCreateProjectExport = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createProjectExport>>,
+      TError,
+      CreateProjectExportMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof createProjectExport>>,
+  TError,
+  CreateProjectExportMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getCreateProjectExportMutationOptions(options),
+    queryClient
+  )
+}
+export type listTaskCenterResponse200 = {
+  data: TaskCenterPage
+  status: 200
+}
+
+export type listTaskCenterResponseSuccess = listTaskCenterResponse200 & {
+  headers: Headers
+}
+export const getListTaskCenterUrl = (
+  organizationId: string,
+  params?: ListTaskCenterParams
+) => {
+  const normalizedParams = new URLSearchParams()
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value))
+    }
+  })
+
+  const stringifiedParams = normalizedParams.toString()
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/organizations/${organizationId}/task-center?${stringifiedParams}`
+    : `/api/v1/organizations/${organizationId}/task-center`
+}
+
+export const listTaskCenter = async (
+  organizationId: string,
+  params?: ListTaskCenterParams,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<listTaskCenterResponseSuccess> => {
+  return apiClient<listTaskCenterResponseSuccess>(
+    getListTaskCenterUrl(organizationId, params),
+    {
+      ...options,
+      method: "GET",
+    }
+  )
+}
+
+export const getListTaskCenterQueryKey = (
+  organizationId: string,
+  params?: ListTaskCenterParams
+) => {
+  return [
+    `/api/v1/organizations/${organizationId}/task-center`,
+    ...(params ? [params] : []),
+  ] as const
+}
+
+export const getListTaskCenterQueryOptions = <
+  TData = Awaited<ReturnType<typeof listTaskCenter>>,
+  TError = ErrorType<unknown>,
+>(
+  organizationId: string,
+  params?: ListTaskCenterParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listTaskCenter>>, TError, TData>
+    >
+    request?: SecondParameter<typeof apiClient>
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListTaskCenterQueryKey(organizationId, params)
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listTaskCenter>>> = ({
+    signal,
+  }) => listTaskCenter(organizationId, params, { signal, ...requestOptions })
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: organizationId !== null && organizationId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listTaskCenter>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListTaskCenterQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listTaskCenter>>
+>
+export type ListTaskCenterQueryError = ErrorType<unknown>
+
+export function useListTaskCenter<
+  TData = Awaited<ReturnType<typeof listTaskCenter>>,
+  TError = ErrorType<unknown>,
+>(
+  organizationId: string,
+  params: undefined | ListTaskCenterParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listTaskCenter>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTaskCenter>>,
+          TError,
+          Awaited<ReturnType<typeof listTaskCenter>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useListTaskCenter<
+  TData = Awaited<ReturnType<typeof listTaskCenter>>,
+  TError = ErrorType<unknown>,
+>(
+  organizationId: string,
+  params?: ListTaskCenterParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listTaskCenter>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTaskCenter>>,
+          TError,
+          Awaited<ReturnType<typeof listTaskCenter>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useListTaskCenter<
+  TData = Awaited<ReturnType<typeof listTaskCenter>>,
+  TError = ErrorType<unknown>,
+>(
+  organizationId: string,
+  params?: ListTaskCenterParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listTaskCenter>>, TError, TData>
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+
+export function useListTaskCenter<
+  TData = Awaited<ReturnType<typeof listTaskCenter>>,
+  TError = ErrorType<unknown>,
+>(
+  organizationId: string,
+  params?: ListTaskCenterParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listTaskCenter>>, TError, TData>
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+} {
+  const queryOptions = getListTaskCenterQueryOptions(
+    organizationId,
+    params,
+    options
+  )
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+
+  return withQueryKey(query, queryOptions.queryKey)
+}
+
+export type getBusinessTaskResultResponse200 = {
+  data: Blob
+  status: 200
+}
+
+export type getBusinessTaskResultResponseSuccess =
+  getBusinessTaskResultResponse200 & {
+    headers: Headers
+  }
+export const getGetBusinessTaskResultUrl = (
+  organizationId: string,
+  taskId: string
+) => {
+  return `/api/v1/organizations/${organizationId}/tasks/${taskId}/result`
+}
+
+export const getBusinessTaskResult = async (
+  organizationId: string,
+  taskId: string,
+  options?: Parameters<typeof binaryApiClient>[1]
+): Promise<getBusinessTaskResultResponseSuccess> => {
+  return binaryApiClient<getBusinessTaskResultResponseSuccess>(
+    getGetBusinessTaskResultUrl(organizationId, taskId),
+    {
+      ...options,
+      method: "GET",
+    }
+  )
+}
+
+export const getGetBusinessTaskResultQueryKey = (
+  organizationId: string,
+  taskId: string
+) => {
+  return [
+    `/api/v1/organizations/${organizationId}/tasks/${taskId}/result`,
+  ] as const
+}
+
+export const getGetBusinessTaskResultQueryOptions = <
+  TData = Awaited<ReturnType<typeof getBusinessTaskResult>>,
+  TError = ErrorType<unknown>,
+>(
+  organizationId: string,
+  taskId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getBusinessTaskResult>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof binaryApiClient>
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetBusinessTaskResultQueryKey(organizationId, taskId)
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getBusinessTaskResult>>
+  > = ({ signal }) =>
+    getBusinessTaskResult(organizationId, taskId, { signal, ...requestOptions })
+
+  return {
+    queryKey,
+    queryFn,
+    enabled:
+      organizationId !== null &&
+      organizationId !== undefined &&
+      taskId !== null &&
+      taskId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getBusinessTaskResult>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetBusinessTaskResultQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getBusinessTaskResult>>
+>
+export type GetBusinessTaskResultQueryError = ErrorType<unknown>
+
+export function useGetBusinessTaskResult<
+  TData = Awaited<ReturnType<typeof getBusinessTaskResult>>,
+  TError = ErrorType<unknown>,
+>(
+  organizationId: string,
+  taskId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getBusinessTaskResult>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getBusinessTaskResult>>,
+          TError,
+          Awaited<ReturnType<typeof getBusinessTaskResult>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof binaryApiClient>
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetBusinessTaskResult<
+  TData = Awaited<ReturnType<typeof getBusinessTaskResult>>,
+  TError = ErrorType<unknown>,
+>(
+  organizationId: string,
+  taskId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getBusinessTaskResult>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getBusinessTaskResult>>,
+          TError,
+          Awaited<ReturnType<typeof getBusinessTaskResult>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof binaryApiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetBusinessTaskResult<
+  TData = Awaited<ReturnType<typeof getBusinessTaskResult>>,
+  TError = ErrorType<unknown>,
+>(
+  organizationId: string,
+  taskId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getBusinessTaskResult>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof binaryApiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+
+export function useGetBusinessTaskResult<
+  TData = Awaited<ReturnType<typeof getBusinessTaskResult>>,
+  TError = ErrorType<unknown>,
+>(
+  organizationId: string,
+  taskId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getBusinessTaskResult>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof binaryApiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+} {
+  const queryOptions = getGetBusinessTaskResultQueryOptions(
+    organizationId,
+    taskId,
+    options
+  )
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+
+  return withQueryKey(query, queryOptions.queryKey)
+}
+
 export type getBusinessTaskResponse200 = {
   data: BusinessTask
   status: 200
@@ -1385,335 +1715,4 @@ export function useListBusinessTasks<
   > & { queryKey: DataTag<QueryKey, TData, TError> }
 
   return withQueryKey(query, queryOptions.queryKey)
-}
-
-export type getOrganizationInvitationImportTemplateResponse200 = {
-  data: Blob
-  status: 200
-}
-
-export type getOrganizationInvitationImportTemplateResponseSuccess =
-  getOrganizationInvitationImportTemplateResponse200 & {
-    headers: Headers
-  }
-export const getGetOrganizationInvitationImportTemplateUrl = (
-  organizationId: string
-) => {
-  return `/api/v1/organizations/${organizationId}/invitations/import-template`
-}
-
-export const getOrganizationInvitationImportTemplate = async (
-  organizationId: string,
-  options?: Parameters<typeof binaryApiClient>[1]
-): Promise<getOrganizationInvitationImportTemplateResponseSuccess> => {
-  return binaryApiClient<getOrganizationInvitationImportTemplateResponseSuccess>(
-    getGetOrganizationInvitationImportTemplateUrl(organizationId),
-    {
-      ...options,
-      method: "GET",
-    }
-  )
-}
-
-export const getGetOrganizationInvitationImportTemplateQueryKey = (
-  organizationId: string
-) => {
-  return [
-    `/api/v1/organizations/${organizationId}/invitations/import-template`,
-  ] as const
-}
-
-export const getGetOrganizationInvitationImportTemplateQueryOptions = <
-  TData = Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
-  TError = ErrorType<unknown>,
->(
-  organizationId: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof binaryApiClient>
-  }
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {}
-
-  const queryKey =
-    queryOptions?.queryKey ??
-    getGetOrganizationInvitationImportTemplateQueryKey(organizationId)
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>
-  > = ({ signal }) =>
-    getOrganizationInvitationImportTemplate(organizationId, {
-      signal,
-      ...requestOptions,
-    })
-
-  return {
-    queryKey,
-    queryFn,
-    enabled: organizationId !== null && organizationId !== undefined,
-    ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type GetOrganizationInvitationImportTemplateQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>
->
-export type GetOrganizationInvitationImportTemplateQueryError =
-  ErrorType<unknown>
-
-export function useGetOrganizationInvitationImportTemplate<
-  TData = Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
-  TError = ErrorType<unknown>,
->(
-  organizationId: string,
-  options: {
-    query: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
-          TError,
-          Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof binaryApiClient>
-  },
-  queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-export function useGetOrganizationInvitationImportTemplate<
-  TData = Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
-  TError = ErrorType<unknown>,
->(
-  organizationId: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
-          TError,
-          Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof binaryApiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-export function useGetOrganizationInvitationImportTemplate<
-  TData = Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
-  TError = ErrorType<unknown>,
->(
-  organizationId: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof binaryApiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-
-export function useGetOrganizationInvitationImportTemplate<
-  TData = Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
-  TError = ErrorType<unknown>,
->(
-  organizationId: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getOrganizationInvitationImportTemplate>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof binaryApiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-} {
-  const queryOptions = getGetOrganizationInvitationImportTemplateQueryOptions(
-    organizationId,
-    options
-  )
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
-    TData,
-    TError
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-
-  return withQueryKey(query, queryOptions.queryKey)
-}
-
-export type createOrganizationInvitationImportResponse202 = {
-  data: BusinessTask
-  status: 202
-}
-
-export type createOrganizationInvitationImportResponseSuccess =
-  createOrganizationInvitationImportResponse202 & {
-    headers: Headers
-  }
-export const getCreateOrganizationInvitationImportUrl = (
-  organizationId: string
-) => {
-  return `/api/v1/organizations/${organizationId}/invitations/imports`
-}
-
-export const createOrganizationInvitationImport = async (
-  organizationId: string,
-  createOrganizationInvitationImportBody: CreateOrganizationInvitationImport,
-  headers: CreateOrganizationInvitationImportHeaders,
-  options?: Parameters<typeof apiClient>[1]
-): Promise<createOrganizationInvitationImportResponseSuccess> => {
-  const getHeaders = (
-    h?: NonNullable<RequestInit["headers"]>
-  ): Record<string, string | readonly string[]> => {
-    if (!h) return {}
-    if (h instanceof Headers) return Object.fromEntries(h.entries())
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(
-          h as Iterable<Iterable<string>>,
-          (entry) => Array.from(entry) as [string, string]
-        )
-      )
-    }
-    const headers: Record<string, string | readonly string[]> = {}
-    for (const [name, value] of Object.entries<
-      string | readonly string[] | undefined
-    >(h)) {
-      if (value !== undefined) headers[name] = value
-    }
-    return headers
-  }
-  return apiClient<createOrganizationInvitationImportResponseSuccess>(
-    getCreateOrganizationInvitationImportUrl(organizationId),
-    {
-      ...options,
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...headers,
-        ...getHeaders(options?.headers),
-      },
-      body: JSON.stringify(createOrganizationInvitationImportBody),
-    }
-  )
-}
-
-export const getCreateOrganizationInvitationImportMutationKey = () =>
-  ["createOrganizationInvitationImport"] as const
-
-export const getCreateOrganizationInvitationImportMutationOptions = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createOrganizationInvitationImport>>,
-    TError,
-    CreateOrganizationInvitationImportMutationVariables,
-    TContext
-  >
-  request?: SecondParameter<typeof apiClient>
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof createOrganizationInvitationImport>>,
-  TError,
-  CreateOrganizationInvitationImportMutationVariables,
-  TContext
-> => {
-  const mutationKey = getCreateOrganizationInvitationImportMutationKey()
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined }
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof createOrganizationInvitationImport>>,
-    CreateOrganizationInvitationImportMutationVariables
-  > = (props) => {
-    const { organizationId, data, headers } = props ?? {}
-
-    return createOrganizationInvitationImport(
-      organizationId,
-      data,
-      headers,
-      requestOptions
-    )
-  }
-
-  return { mutationFn, ...mutationOptions }
-}
-
-export type CreateOrganizationInvitationImportMutationResult = NonNullable<
-  Awaited<ReturnType<typeof createOrganizationInvitationImport>>
->
-export type CreateOrganizationInvitationImportMutationBody =
-  CreateOrganizationInvitationImport
-export type CreateOrganizationInvitationImportMutationError = ErrorType<unknown>
-export type CreateOrganizationInvitationImportMutationVariables = {
-  organizationId: string
-  data: CreateOrganizationInvitationImport
-  headers: CreateOrganizationInvitationImportHeaders
-}
-
-export const useCreateOrganizationInvitationImport = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof createOrganizationInvitationImport>>,
-      TError,
-      CreateOrganizationInvitationImportMutationVariables,
-      TContext
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseMutationResult<
-  Awaited<ReturnType<typeof createOrganizationInvitationImport>>,
-  TError,
-  CreateOrganizationInvitationImportMutationVariables,
-  TContext
-> => {
-  return useMutation(
-    getCreateOrganizationInvitationImportMutationOptions(options),
-    queryClient
-  )
 }

@@ -1,6 +1,3 @@
-import { OrganizationRoleDirectoryQuerySchema } from "@workspace/contracts"
-import { AnnouncementInboxQuerySchema } from "@workspace/contracts/platform-announcements"
-import { taskCenterSearchSchema } from "./features/tasks/task-center-search"
 import {
   createRootRouteWithContext,
   createRoute,
@@ -9,30 +6,33 @@ import {
   Outlet,
   redirect,
 } from "@tanstack/react-router"
-import { AuditEventsQuerySchema } from "@workspace/contracts/audit"
-import { PersonalLoginLogsQuerySchema } from "@workspace/contracts/identity-management"
-import { CapabilityPageQuerySchema } from "@workspace/contracts/framework-capabilities"
-import { FileListQuerySchema } from "@workspace/contracts/files"
-import { ProjectListQuerySchema } from "@workspace/contracts/project-query"
 import {
   LoadingState,
   NotFoundState,
   RouterErrorComponent,
 } from "@workspace/admin"
-import { ForgotPasswordPage } from "@workspace/admin/auth"
 import type { WorkspaceRouterContext } from "@workspace/admin/auth"
+import { ForgotPasswordPage } from "@workspace/admin/auth"
 import { getWorkspaceOrganizationsOptions } from "@workspace/api-client"
+import { OrganizationRoleDirectoryQuerySchema } from "@workspace/contracts"
+import { AuditEventsQuerySchema } from "@workspace/contracts/audit"
+import { FileListQuerySchema } from "@workspace/contracts/files"
+import { CapabilityPageQuerySchema } from "@workspace/contracts/framework-capabilities"
+import { PersonalLoginLogsQuerySchema } from "@workspace/contracts/identity-management"
+import { AnnouncementInboxQuerySchema } from "@workspace/contracts/platform-announcements"
+import { ProjectListQuerySchema } from "@workspace/contracts/project-query"
 import {
   App,
   TenantAcceptInvitationPage,
+  TenantAuthTitlePage,
   TenantEmailVerifiedPage,
   TenantLoginPage,
   TenantMfaPage,
   TenantResetPasswordPage,
-  TenantAuthTitlePage,
 } from "./App"
 import { fileDetailSearchSchema } from "./features/files/file-detail-search"
-import { memberDirectorySearchSchema } from "./query/organization-directory"
+import { memberDirectorySearchSchema } from "./features/organization/organization-directory"
+import { taskCenterSearchSchema } from "./features/tasks/task-center-search"
 
 // 参数校验和权限钩子随路由注册；业务页面由 Router 按导航或预加载意图加载。
 const NotificationsRoute = lazyRouteComponent(
@@ -44,7 +44,7 @@ const TasksRoute = lazyRouteComponent(
   "TasksRoute"
 )
 const ProjectsRoute = lazyRouteComponent(
-  () => import("./components/projects-route"),
+  () => import("./features/projects/projects-route"),
   "ProjectsRoute"
 )
 const IntegrationsRoute = lazyRouteComponent(
@@ -60,7 +60,7 @@ const FileDetailRoute = lazyRouteComponent(
   "FileDetailRoute"
 )
 const ProjectDetailRoute = lazyRouteComponent(
-  () => import("./components/project-detail-route"),
+  () => import("./features/projects/project-detail-route"),
   "ProjectDetailRoute"
 )
 const AdminLayout = lazyRouteComponent(
@@ -68,15 +68,15 @@ const AdminLayout = lazyRouteComponent(
   "AdminLayout"
 )
 const MembersRoute = lazyRouteComponent(
-  () => import("./components/members-route"),
+  () => import("./features/organization/members-route"),
   "MembersRoute"
 )
 const RolesRoute = lazyRouteComponent(
-  () => import("./components/roles-route"),
+  () => import("./features/organization/roles-route"),
   "RolesRoute"
 )
 const AuditEventsRoute = lazyRouteComponent(
-  () => import("./components/audit-events-route"),
+  () => import("./features/organization/audit-events-route"),
   "AuditEventsRoute"
 )
 const OrganizationGate = lazyRouteComponent(
@@ -84,24 +84,24 @@ const OrganizationGate = lazyRouteComponent(
   "OrganizationGate"
 )
 const PersonalLocaleSettingsRoute = lazyRouteComponent(
-  () => import("./components/locale-settings"),
+  () => import("./features/settings/locale-settings"),
   "PersonalLocaleSettingsRoute"
 )
 const PersonalLoginEventsRoute = lazyRouteComponent(
-  () => import("./components/login-events-route"),
+  () => import("./features/settings/login-events-route"),
   "PersonalLoginEventsRoute"
 )
 const OrganizationLocaleSettingsPage = lazyRouteComponent(
-  () => import("./components/locale-settings"),
+  () => import("./features/settings/locale-settings"),
   "OrganizationLocaleSettingsPage"
 )
 
 const TenantAnnouncementInboxRoute = lazyRouteComponent(
-  () => import("./components/announcement-routes"),
+  () => import("./features/announcements/announcement-routes"),
   "TenantAnnouncementInboxRoute"
 )
 const TenantAnnouncementReadRoute = lazyRouteComponent(
-  () => import("./components/announcement-routes"),
+  () => import("./features/announcements/announcement-routes"),
   "TenantAnnouncementReadRoute"
 )
 

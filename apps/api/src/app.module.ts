@@ -1,29 +1,31 @@
-import { PlatformResourcesModule } from './platform-resources/platform-resources.module';
-import { PlatformTasksModule } from './platform/platform-tasks.module';
 import { DynamicModule, Module } from '@nestjs/common';
-import { WebhooksModule } from './webhooks/webhooks.module';
-import { BusinessModule } from './business/business.module';
-import type { WorkerConfig } from '@workspace/jobs';
-import type { EmailConfig } from './email/email-config';
-import { NotificationsModule } from './notifications/notifications.module';
-import { AccessCredentialsModule } from './access-credentials/access-credentials.module';
-import { TelemetryRuntime } from './http/telemetry-runtime';
 import { ScheduleModule } from '@nestjs/schedule';
+import type { WorkerConfig } from '@workspace/jobs';
+import { AccessCredentialsModule } from './access-credentials/access-credentials.module';
+import { AnnouncementsModule } from './announcements/announcements.module';
 import { AuthorizationModule } from './authorization/authorization.module';
-import { EmailModule } from './email/email.module';
+import { BusinessModule } from './business/business.module';
+import { type DeploymentSummary } from './config/deployment-summary';
+import type { EmailConfig } from './email/email-config';
 import { EmailRuntime } from './email/email-runtime';
+import { EmailModule } from './email/email.module';
+import { FilesRuntime } from './files/files-runtime';
+import { FilesModule } from './files/files.module';
+import { TelemetryRuntime } from './http/telemetry-runtime';
 import { AuthRuntime } from './identity/auth-runtime';
 import { IdentityModule } from './identity/identity.module';
 import { LocaleSettingsModule } from './locale-settings/locale-settings.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { OrganizationsModule } from './organizations/organizations.module';
+import { PersonalMediaModule } from './personal-media/personal-media.module';
+import { PlatformResourcesModule } from './platform-resources/platform-resources.module';
+import { PlatformMonitorModule } from './platform/monitor/platform-monitor.module';
 import { PlatformModule } from './platform/platform.module';
+import { PlatformSchedulesModule } from './platform/schedules/platform-schedules.module';
+import { PlatformTasksModule } from './platform/tasks/platform-tasks.module';
 import { ProjectsModule } from './projects/projects.module';
 import { TenancyModule } from './tenancy/tenancy.module';
-import { type DeploymentSummary } from './config/deployment-summary';
-import { PersonalMediaModule } from './personal-media/personal-media.module';
-import { FilesModule } from './files/files.module';
-import { FilesRuntime } from './files/files-runtime';
-import { AnnouncementsModule } from './announcements/announcements.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
 
 @Module({})
 export class AppModule {
@@ -35,6 +37,17 @@ export class AppModule {
     jobs: WorkerConfig,
     emailConfig: EmailConfig,
   ): DynamicModule {
+    // 同一动态模块对象供所有消费者导入，任务生产者与运行时只实例化一次。
+    const business = BusinessModule.forRoot(jobs);
+    const platformTasks = PlatformTasksModule.forRoot(
+      jobs,
+      emailConfig.encryptionKey,
+    );
+    const platformMonitor = PlatformMonitorModule.forRoot(
+      platformTasks,
+      jobs,
+      files,
+    );
     return {
       module: AppModule,
       providers: [TelemetryRuntime],
@@ -46,9 +59,9 @@ export class AppModule {
         EmailModule.forRoot(email),
         AuthorizationModule,
         TenancyModule,
-        OrganizationsModule,
-        ProjectsModule,
-        BusinessModule.forRoot(jobs),
+        OrganizationsModule.forRoot(business),
+        ProjectsModule.forRoot(business),
+        business,
         WebhooksModule.forRoot({
           worker: jobs,
           timeoutMs: 10_000,
@@ -58,7 +71,9 @@ export class AppModule {
         AccessCredentialsModule,
         FilesModule.forRoot(files),
         PlatformResourcesModule.forRoot(files),
-        PlatformTasksModule.forRoot(jobs, emailConfig.encryptionKey, files),
+        platformTasks,
+        platformMonitor,
+        PlatformSchedulesModule.forRoot(platformMonitor),
         PersonalMediaModule.forRoot(files),
         PlatformModule.forRoot(
           deployment,

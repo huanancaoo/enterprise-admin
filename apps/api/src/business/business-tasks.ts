@@ -1,10 +1,18 @@
-import { rethrowTaskAuthorizationError } from '../tenancy/task-authorization-error';
-import { APIError } from 'better-auth/api';
-import {
-  assertInvitationRole,
-  invitationTenantExecutor,
-} from '@workspace/database/invitation-command';
 import { Inject, Injectable, type OnApplicationShutdown } from '@nestjs/common';
+import {
+  BusinessTaskErrorCodeSchema,
+  BusinessTaskSchema,
+  TaskCenterPageSchema,
+  type CapabilityPageQuery,
+} from '@workspace/contracts';
+import { recordBusinessTaskAttempt } from '@workspace/database/business-task-control';
+import { businessTaskRepository } from '@workspace/database/repositories/business-tasks';
+import { createTaskTenantRunner } from '@workspace/database/task-tenant';
+import {
+  createTenantRunner,
+  type TenantContext,
+  type TenantTx,
+} from '@workspace/database/tenant';
 import {
   createTaskEnvelope,
   createTaskProducer,
@@ -16,29 +24,11 @@ import {
   createTenantExchangeTasks,
   tenantTaskPermissions,
 } from '@workspace/jobs/tenant-exchange';
-import { createTaskTenantRunner } from '@workspace/database/task-tenant';
-import { recordBusinessTaskAttempt } from '@workspace/database/business-task-control';
 import { AuthorizationService } from '../authorization/authorization.service';
-import { businessWorkerConfig } from './business-config';
-import {
-  BusinessTaskSchema,
-  BusinessTaskErrorCodeSchema,
-  TaskCenterPageSchema,
-  type CreateProjectExport,
-  type CreateProjectImport,
-  type CreateMemberExport,
-  type CreateAuditExport,
-  type CreateOrganizationInvitationImport,
-  type CapabilityPageQuery,
-} from '@workspace/contracts';
-import {
-  createTenantRunner,
-  type TenantContext,
-} from '@workspace/database/tenant';
-import { businessTaskRepository } from '@workspace/database/repositories/business-tasks';
-import { AuthRuntime } from '../identity/auth-runtime';
 import { ApiException } from '../http/api-exception';
-import { normalizeAuditFilters } from '../organizations/audit-query';
+import { AuthRuntime } from '../identity/auth-runtime';
+import { rethrowTaskAuthorizationError } from '../tenancy/task-authorization-error';
+import { businessWorkerConfig } from './business-config';
 
 @Injectable()
 export class BusinessTasks implements OnApplicationShutdown {
@@ -72,69 +62,12 @@ export class BusinessTasks implements OnApplicationShutdown {
       resultAvailable: row.resultContent !== null,
     });
   }
-  async export(
+  async submit<I extends { format: 'csv' | 'xlsx' }>(
     context: TenantContext,
-    input: CreateProjectExport,
+    input: I,
     idempotencyKey: string,
-  ) {
-    return this.submit(context, input, idempotencyKey, 'projects.export');
-  }
-  async import(
-    context: TenantContext,
-    input: CreateProjectImport,
-    idempotencyKey: string,
-  ) {
-    return this.submit(context, input, idempotencyKey, 'projects.import');
-  }
-  async exportMembers(
-    context: TenantContext,
-    input: CreateMemberExport,
-    key: string,
-  ) {
-    return this.submit(context, input, key, 'members.export');
-  }
-  async exportAudit(
-    context: TenantContext,
-    input: CreateAuditExport,
-    key: string,
-  ) {
-    normalizeAuditFilters(
-      { ...input.filter, page: 1, pageSize: 20 },
-      new Date(),
-    );
-    return this.submit(context, input, key, 'audit.export');
-  }
-  async importInvitations(
-    context: TenantContext,
-    input: CreateOrganizationInvitationImport,
-    key: string,
-    sourceIp?: string,
-  ) {
-    return this.submit(
-      context,
-      {
-        ...input,
-        sourceIpHash: this.runtime.invitationIpHash(sourceIp),
-      },
-      key,
-      'invitations.import',
-    );
-  }
-  private async submit(
-    context: TenantContext,
-    input:
-      | CreateProjectExport
-      | CreateProjectImport
-      | CreateMemberExport
-      | CreateAuditExport
-      | (CreateOrganizationInvitationImport & { sourceIpHash: string }),
-    idempotencyKey: string,
-    type:
-      | 'projects.export'
-      | 'projects.import'
-      | 'members.export'
-      | 'audit.export'
-      | 'invitations.import',
+    type: string,
+    validateInTransaction?: (tx: TenantTx) => Promise<void>,
   ) {
     if (!idempotencyKey?.trim() || idempotencyKey.length > 200)
       throw new ApiException(400, 'VALIDATION_ERROR');
@@ -166,31 +99,9 @@ export class BusinessTasks implements OnApplicationShutdown {
       identity,
       tenantTaskPermissions(this.registry, type),
       async (tx) => {
-        if (type === 'invitations.import') {
-          const invitation = input as CreateOrganizationInvitationImport;
-          try {
-            await assertInvitationRole(
-              invitationTenantExecutor(tx),
-              context.organizationId,
-              context.userId,
-              invitation.role,
-            );
-          } catch (error) {
-            if (error instanceof APIError) {
-              if (
-                error.body?.code === 'FORBIDDEN' ||
-                error.body?.code === 'INVITATION_ROLE_FORBIDDEN'
-              )
-                throw new ApiException(403, 'FORBIDDEN');
-              if (
-                error.body?.code === 'ROLE_NOT_FOUND' ||
-                error.body?.code === 'SINGLE_ROLE_REQUIRED'
-              )
-                throw new ApiException(400, 'VALIDATION_ERROR');
-            }
-            throw error;
-          }
-        }
+        // 领域校验必须处于当前任务事务内，并先于意图写入和幂等冲突检查。
+        // 调用方只提供规则，不创建连接或改变此处的查权、持久化和入队顺序。
+        await validateInTransaction?.(tx);
         const task = await businessTaskRepository.create(tx, {
           id,
           organizationId: context.organizationId,

@@ -19,7 +19,7 @@
 理解整体设计、追溯选型理由或设计跨模块能力时，阅读 [多租户基础架构原文](docs/architecture/multi-tenant-foundation.md) 的相关章节。邮件能力另见 [Email 基础设施原文](docs/architecture/email-infrastructure.md)。这些文档是归档研究；实施决策以用户确认和已接受 ADR 为准，精确版本以当前配置为准，原文建议不自动成为任务范围。
 
 - `apps/tenant` / `apps/platform`：租户后台与平台后台；`apps/api`：HTTP 服务；`apps/docs`：开发者文档站；`apps/storybook`：公共组件工作台。
-- `packages/ui` 放通用 UI，`packages/admin` 放业务无关后台组件；具体业务留在应用内。
+- `packages/ui` 放通用 UI，`packages/admin` 放业务无关后台组件；具体业务留在应用内；双端共用的公告业务集中在 `packages/announcements`，不并入通用后台组件。
 - `packages/contracts` 定义 HTTP Schema，`packages/api-client` 承载客户端；数据库能力位于仅供服务端使用的 `packages/database`。
 - 修改跨包依赖时运行 `pnpm lint:boundaries`。边界规则以 `packages/eslint-config/boundaries/check.mjs` 为准。
 
@@ -50,16 +50,16 @@ pnpm dev
 
 按改动选择检查，测试分层、运行前提与阶段证据见 [测试说明](docs/architecture/testing.md)；具体测试集合以当前脚本和 Vitest 配置为准。
 
-| 改动范围             | 验证入口                                                  |
-| -------------------- | --------------------------------------------------------- |
+| 改动范围             | 验证入口                                                                    |
+| -------------------- | --------------------------------------------------------------------------- |
 | 文档                 | `pnpm --filter docs check:content`；`pnpm exec prettier --check <文件路径>` |
-| 类型或源码           | `pnpm lint`、`pnpm typecheck`，再运行受影响测试           |
-| 工程边界 / API 单元  | `pnpm test:unit`                                          |
-| API HTTP             | `pnpm test:api`                                           |
-| 公共组件交互与无障碍 | `pnpm test:storybook`                                     |
-| 浏览器业务流程       | `pnpm test:e2e`（`tests/e2e`）                            |
-| 数据库 / 租户隔离    | 按数据库说明运行对应验证                                  |
-| 生产构建             | `pnpm build`；单独 Storybook 用 `pnpm build:storybook`    |
+| 类型或源码           | `pnpm lint`、`pnpm typecheck`，再运行受影响测试                             |
+| 工程边界 / API 单元  | `pnpm test:unit`                                                            |
+| API HTTP             | `pnpm test:api`                                                             |
+| 公共组件交互与无障碍 | `pnpm test:storybook`                                                       |
+| 浏览器业务流程       | `pnpm test:e2e`（`tests/e2e`）                                              |
+| 数据库 / 租户隔离    | 按数据库说明运行对应验证                                                    |
+| 生产构建             | `pnpm build`；单独 Storybook 用 `pnpm build:storybook`                      |
 
 浏览器测试前运行 `pnpm --filter storybook exec playwright install chromium`；涉及 Testcontainers 的测试需要可用 Docker。API 单测可用 `pnpm --filter api test -- -t "测试名称"` 聚焦。
 
@@ -67,7 +67,7 @@ pnpm dev
 
 ## 发布与协作
 
-- 发布前检查目标应用的构建配置和产物路径；数据库迁移镜像与发布门禁见数据库说明。`apps/api/README.md` 中的 Nest 模板部署示例不是本项目发布流程；部署目标或流程未明确时先澄清。
+- 发布前检查目标应用的构建配置和产物路径；数据库迁移镜像与发布门禁见数据库说明。API 与发行说明见 `apps/api/README.md`；部署目标或流程未明确时先澄清。
 - 提交、推送和 PR 的授权、命名及检查要求统一遵循 Git 协作规范。
 
 ## Agent skills

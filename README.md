@@ -46,6 +46,7 @@ apps/storybook       公共组件工作台
 apps/worker          核心后台任务运行时（独立 Node/BullMQ）
 packages/ui          通用 UI primitives
 packages/admin       业务无关后台组合层
+packages/announcements 双端共享公告业务
 packages/contracts   HTTP Schema
 packages/api-client  生成客户端
 packages/database    仅供服务端的 Schema、迁移、TenantTx
@@ -72,6 +73,8 @@ flowchart LR
 业务接口在 `/api/v1`，认证在 `/api/auth`，开发文档在 `/api/docs`。打开对方后台的路由不是授权证明；`activeOrganizationId` 只是工作区偏好。
 
 ## 快速开始
+
+本节是当前本地安装、进程配置与启动顺序的唯一维护入口；文档站及各应用 README 引用本节。能力接入和运行语义分别维护在 `docs/guides`，历史验收记录不作为启动指南。
 
 需要 **Node 26.8.2**、**pnpm 12.11.2** 和可用的 **Docker**。版本以根目录 [package.json](package.json) 的 `engines` / `packageManager` 为准。
 

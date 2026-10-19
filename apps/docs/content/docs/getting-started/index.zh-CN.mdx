@@ -9,26 +9,9 @@ locale: zh-CN
 status: published
 ---
 
-需要 **Node 26.8.2**、**pnpm 12.4.1** 和 Docker。版本以仓库根目录 `package.json` 的 `engines` / `packageManager` 为准。
+本地环境包含租户后台、平台后台、API、独立 Worker、文档站与 Storybook。
 
-## 路径
+当前 Node/pnpm 版本、数据库与 Redis 准备、迁移、各进程配置和启动顺序，统一见[仓库快速开始](https://github.com/huanancaoo/enterprise-admin/blob/main/README.md#快速开始)。本页不另维护命令副本。
 
-1. [安装](./install.mdx) 依赖、PostgreSQL、Mailpit 和迁移
-2. [配置](./configure.mdx) API 密钥和 GitHub OAuth
-3. 从仓库根目录启动应用
-
-```bash
-pnpm dev
-```
-
-| 应用      | 地址                         | 单独启动                      |
-| --------- | ---------------------------- | ----------------------------- |
-| 租户后台  | http://localhost:3200        | `pnpm --filter tenant dev`    |
-| 平台后台  | http://localhost:3201        | `pnpm --filter platform dev`  |
-| API       | http://localhost:3000/api/v1 | `pnpm --filter api dev`       |
-| Storybook | http://localhost:6006        | `pnpm --filter storybook dev` |
-| 文档      | http://localhost:3300        | `pnpm --filter docs dev`      |
-
-租户后台可注册、验证邮箱、创建组织，并使用 Projects。认证邮件在 Mailpit 收件箱查看：http://127.0.0.1:8025。
-
-平台后台没有注册入口。API 构建完成后，部署操作者可以使用 `platform admin create --email <email> --name <name> --reason <reason> --password-stdin` 直接创建邮箱已验证的平台管理员；注入专用部署连接 `PLATFORM_ASSIGNMENT_DATABASE_URL`，密码通过标准输入传入。已有且邮箱已验证的用户仍可按 UUID 授予任职。具体授权规则见 [ADR 0002](../adr/0002-platform-assignment.mdx)。
+- [安装与迁移](./install.mdx)
+- [进程配置](./configure.mdx)

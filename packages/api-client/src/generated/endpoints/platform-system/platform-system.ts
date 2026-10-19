@@ -1217,1117 +1217,6 @@ export const useBatchRemovePlatformEmployees = <
     queryClient
   )
 }
-export type getPlatformMenuRegistryResponse200 = {
-  data: PlatformMenuRegistry
-  status: 200
-}
-
-export type getPlatformMenuRegistryResponse400 = {
-  data: ApiError
-  status: 400
-}
-
-export type getPlatformMenuRegistryResponse401 = {
-  data: ApiError
-  status: 401
-}
-
-export type getPlatformMenuRegistryResponse403 = {
-  data: ApiError
-  status: 403
-}
-
-export type getPlatformMenuRegistryResponse404 = {
-  data: ApiError
-  status: 404
-}
-
-export type getPlatformMenuRegistryResponse409 = {
-  data: ApiError
-  status: 409
-}
-
-export type getPlatformMenuRegistryResponse503 = {
-  data: ApiError
-  status: 503
-}
-
-export type getPlatformMenuRegistryResponseSuccess =
-  getPlatformMenuRegistryResponse200 & {
-    headers: Headers
-  }
-export type getPlatformMenuRegistryResponseError = (
-  | getPlatformMenuRegistryResponse400
-  | getPlatformMenuRegistryResponse401
-  | getPlatformMenuRegistryResponse403
-  | getPlatformMenuRegistryResponse404
-  | getPlatformMenuRegistryResponse409
-  | getPlatformMenuRegistryResponse503
-) & {
-  headers: Headers
-}
-
-export const getGetPlatformMenuRegistryUrl = () => {
-  return `/api/v1/platform/menus/registry`
-}
-
-export const getPlatformMenuRegistry = async (
-  options?: Parameters<typeof apiClient>[1]
-): Promise<getPlatformMenuRegistryResponseSuccess> => {
-  return apiClient<getPlatformMenuRegistryResponseSuccess>(
-    getGetPlatformMenuRegistryUrl(),
-    {
-      ...options,
-      method: "GET",
-    }
-  )
-}
-
-export const getGetPlatformMenuRegistryQueryKey = () => {
-  return [`/api/v1/platform/menus/registry`] as const
-}
-
-export const getGetPlatformMenuRegistryQueryOptions = <
-  TData = Awaited<ReturnType<typeof getPlatformMenuRegistry>>,
-  TError = ErrorType<ApiError>,
->(options?: {
-  query?: Partial<
-    UseQueryOptions<
-      Awaited<ReturnType<typeof getPlatformMenuRegistry>>,
-      TError,
-      TData
-    >
-  >
-  request?: SecondParameter<typeof apiClient>
-}) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {}
-
-  const queryKey =
-    queryOptions?.queryKey ?? getGetPlatformMenuRegistryQueryKey()
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getPlatformMenuRegistry>>
-  > = ({ signal }) => getPlatformMenuRegistry({ signal, ...requestOptions })
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof getPlatformMenuRegistry>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type GetPlatformMenuRegistryQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getPlatformMenuRegistry>>
->
-export type GetPlatformMenuRegistryQueryError = ErrorType<ApiError>
-
-export function useGetPlatformMenuRegistry<
-  TData = Awaited<ReturnType<typeof getPlatformMenuRegistry>>,
-  TError = ErrorType<ApiError>,
->(
-  options: {
-    query: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformMenuRegistry>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getPlatformMenuRegistry>>,
-          TError,
-          Awaited<ReturnType<typeof getPlatformMenuRegistry>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-export function useGetPlatformMenuRegistry<
-  TData = Awaited<ReturnType<typeof getPlatformMenuRegistry>>,
-  TError = ErrorType<ApiError>,
->(
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformMenuRegistry>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getPlatformMenuRegistry>>,
-          TError,
-          Awaited<ReturnType<typeof getPlatformMenuRegistry>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-export function useGetPlatformMenuRegistry<
-  TData = Awaited<ReturnType<typeof getPlatformMenuRegistry>>,
-  TError = ErrorType<ApiError>,
->(
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformMenuRegistry>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-
-export function useGetPlatformMenuRegistry<
-  TData = Awaited<ReturnType<typeof getPlatformMenuRegistry>>,
-  TError = ErrorType<ApiError>,
->(
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformMenuRegistry>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-} {
-  const queryOptions = getGetPlatformMenuRegistryQueryOptions(options)
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
-    TData,
-    TError
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-
-  return withQueryKey(query, queryOptions.queryKey)
-}
-
-export type listPlatformNavigationResponse200 = {
-  data: PlatformNavigation
-  status: 200
-}
-
-export type listPlatformNavigationResponse400 = {
-  data: ApiError
-  status: 400
-}
-
-export type listPlatformNavigationResponse401 = {
-  data: ApiError
-  status: 401
-}
-
-export type listPlatformNavigationResponse403 = {
-  data: ApiError
-  status: 403
-}
-
-export type listPlatformNavigationResponse404 = {
-  data: ApiError
-  status: 404
-}
-
-export type listPlatformNavigationResponse409 = {
-  data: ApiError
-  status: 409
-}
-
-export type listPlatformNavigationResponse503 = {
-  data: ApiError
-  status: 503
-}
-
-export type listPlatformNavigationResponseSuccess =
-  listPlatformNavigationResponse200 & {
-    headers: Headers
-  }
-export type listPlatformNavigationResponseError = (
-  | listPlatformNavigationResponse400
-  | listPlatformNavigationResponse401
-  | listPlatformNavigationResponse403
-  | listPlatformNavigationResponse404
-  | listPlatformNavigationResponse409
-  | listPlatformNavigationResponse503
-) & {
-  headers: Headers
-}
-
-export const getListPlatformNavigationUrl = () => {
-  return `/api/v1/platform/navigation`
-}
-
-export const listPlatformNavigation = async (
-  options?: Parameters<typeof apiClient>[1]
-): Promise<listPlatformNavigationResponseSuccess> => {
-  return apiClient<listPlatformNavigationResponseSuccess>(
-    getListPlatformNavigationUrl(),
-    {
-      ...options,
-      method: "GET",
-    }
-  )
-}
-
-export const getListPlatformNavigationQueryKey = () => {
-  return [`/api/v1/platform/navigation`] as const
-}
-
-export const getListPlatformNavigationQueryOptions = <
-  TData = Awaited<ReturnType<typeof listPlatformNavigation>>,
-  TError = ErrorType<ApiError>,
->(options?: {
-  query?: Partial<
-    UseQueryOptions<
-      Awaited<ReturnType<typeof listPlatformNavigation>>,
-      TError,
-      TData
-    >
-  >
-  request?: SecondParameter<typeof apiClient>
-}) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {}
-
-  const queryKey = queryOptions?.queryKey ?? getListPlatformNavigationQueryKey()
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof listPlatformNavigation>>
-  > = ({ signal }) => listPlatformNavigation({ signal, ...requestOptions })
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof listPlatformNavigation>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListPlatformNavigationQueryResult = NonNullable<
-  Awaited<ReturnType<typeof listPlatformNavigation>>
->
-export type ListPlatformNavigationQueryError = ErrorType<ApiError>
-
-export function useListPlatformNavigation<
-  TData = Awaited<ReturnType<typeof listPlatformNavigation>>,
-  TError = ErrorType<ApiError>,
->(
-  options: {
-    query: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listPlatformNavigation>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listPlatformNavigation>>,
-          TError,
-          Awaited<ReturnType<typeof listPlatformNavigation>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-export function useListPlatformNavigation<
-  TData = Awaited<ReturnType<typeof listPlatformNavigation>>,
-  TError = ErrorType<ApiError>,
->(
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listPlatformNavigation>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listPlatformNavigation>>,
-          TError,
-          Awaited<ReturnType<typeof listPlatformNavigation>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-export function useListPlatformNavigation<
-  TData = Awaited<ReturnType<typeof listPlatformNavigation>>,
-  TError = ErrorType<ApiError>,
->(
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listPlatformNavigation>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-
-export function useListPlatformNavigation<
-  TData = Awaited<ReturnType<typeof listPlatformNavigation>>,
-  TError = ErrorType<ApiError>,
->(
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listPlatformNavigation>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-} {
-  const queryOptions = getListPlatformNavigationQueryOptions(options)
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
-    TData,
-    TError
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-
-  return withQueryKey(query, queryOptions.queryKey)
-}
-
-export type refreshPlatformDictionaryCacheResponse200 = {
-  data: PlatformSystemRefreshResult
-  status: 200
-}
-
-export type refreshPlatformDictionaryCacheResponse400 = {
-  data: ApiError
-  status: 400
-}
-
-export type refreshPlatformDictionaryCacheResponse401 = {
-  data: ApiError
-  status: 401
-}
-
-export type refreshPlatformDictionaryCacheResponse403 = {
-  data: ApiError
-  status: 403
-}
-
-export type refreshPlatformDictionaryCacheResponse404 = {
-  data: ApiError
-  status: 404
-}
-
-export type refreshPlatformDictionaryCacheResponse409 = {
-  data: ApiError
-  status: 409
-}
-
-export type refreshPlatformDictionaryCacheResponse503 = {
-  data: ApiError
-  status: 503
-}
-
-export type refreshPlatformDictionaryCacheResponseSuccess =
-  refreshPlatformDictionaryCacheResponse200 & {
-    headers: Headers
-  }
-export type refreshPlatformDictionaryCacheResponseError = (
-  | refreshPlatformDictionaryCacheResponse400
-  | refreshPlatformDictionaryCacheResponse401
-  | refreshPlatformDictionaryCacheResponse403
-  | refreshPlatformDictionaryCacheResponse404
-  | refreshPlatformDictionaryCacheResponse409
-  | refreshPlatformDictionaryCacheResponse503
-) & {
-  headers: Headers
-}
-
-export const getRefreshPlatformDictionaryCacheUrl = () => {
-  return `/api/v1/platform/dictionaries/cache/refresh`
-}
-
-export const refreshPlatformDictionaryCache = async (
-  options?: Parameters<typeof apiClient>[1]
-): Promise<refreshPlatformDictionaryCacheResponseSuccess> => {
-  return apiClient<refreshPlatformDictionaryCacheResponseSuccess>(
-    getRefreshPlatformDictionaryCacheUrl(),
-    {
-      ...options,
-      method: "POST",
-    }
-  )
-}
-
-export const getRefreshPlatformDictionaryCacheMutationKey = () =>
-  ["refreshPlatformDictionaryCache"] as const
-
-export const getRefreshPlatformDictionaryCacheMutationOptions = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof refreshPlatformDictionaryCache>>,
-    TError,
-    void,
-    TContext
-  >
-  request?: SecondParameter<typeof apiClient>
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof refreshPlatformDictionaryCache>>,
-  TError,
-  void,
-  TContext
-> => {
-  const mutationKey = getRefreshPlatformDictionaryCacheMutationKey()
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined }
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof refreshPlatformDictionaryCache>>,
-    void
-  > = () => {
-    return refreshPlatformDictionaryCache(requestOptions)
-  }
-
-  return { mutationFn, ...mutationOptions }
-}
-
-export type RefreshPlatformDictionaryCacheMutationResult = NonNullable<
-  Awaited<ReturnType<typeof refreshPlatformDictionaryCache>>
->
-
-export type RefreshPlatformDictionaryCacheMutationError = ErrorType<ApiError>
-
-export const useRefreshPlatformDictionaryCache = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof refreshPlatformDictionaryCache>>,
-      TError,
-      void,
-      TContext
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseMutationResult<
-  Awaited<ReturnType<typeof refreshPlatformDictionaryCache>>,
-  TError,
-  void,
-  TContext
-> => {
-  return useMutation(
-    getRefreshPlatformDictionaryCacheMutationOptions(options),
-    queryClient
-  )
-}
-export type getPlatformDictionaryByKeyResponse200 = {
-  data: PlatformDictionaryValue
-  status: 200
-}
-
-export type getPlatformDictionaryByKeyResponse400 = {
-  data: ApiError
-  status: 400
-}
-
-export type getPlatformDictionaryByKeyResponse401 = {
-  data: ApiError
-  status: 401
-}
-
-export type getPlatformDictionaryByKeyResponse403 = {
-  data: ApiError
-  status: 403
-}
-
-export type getPlatformDictionaryByKeyResponse404 = {
-  data: ApiError
-  status: 404
-}
-
-export type getPlatformDictionaryByKeyResponse409 = {
-  data: ApiError
-  status: 409
-}
-
-export type getPlatformDictionaryByKeyResponse503 = {
-  data: ApiError
-  status: 503
-}
-
-export type getPlatformDictionaryByKeyResponseSuccess =
-  getPlatformDictionaryByKeyResponse200 & {
-    headers: Headers
-  }
-export type getPlatformDictionaryByKeyResponseError = (
-  | getPlatformDictionaryByKeyResponse400
-  | getPlatformDictionaryByKeyResponse401
-  | getPlatformDictionaryByKeyResponse403
-  | getPlatformDictionaryByKeyResponse404
-  | getPlatformDictionaryByKeyResponse409
-  | getPlatformDictionaryByKeyResponse503
-) & {
-  headers: Headers
-}
-
-export const getGetPlatformDictionaryByKeyUrl = (key: string) => {
-  return `/api/v1/platform/dictionaries/by-key/${key}`
-}
-
-export const getPlatformDictionaryByKey = async (
-  key: string,
-  options?: Parameters<typeof apiClient>[1]
-): Promise<getPlatformDictionaryByKeyResponseSuccess> => {
-  return apiClient<getPlatformDictionaryByKeyResponseSuccess>(
-    getGetPlatformDictionaryByKeyUrl(key),
-    {
-      ...options,
-      method: "GET",
-    }
-  )
-}
-
-export const getGetPlatformDictionaryByKeyQueryKey = (key: string) => {
-  return [`/api/v1/platform/dictionaries/by-key/${key}`] as const
-}
-
-export const getGetPlatformDictionaryByKeyQueryOptions = <
-  TData = Awaited<ReturnType<typeof getPlatformDictionaryByKey>>,
-  TError = ErrorType<ApiError>,
->(
-  key: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformDictionaryByKey>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  }
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {}
-
-  const queryKey =
-    queryOptions?.queryKey ?? getGetPlatformDictionaryByKeyQueryKey(key)
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getPlatformDictionaryByKey>>
-  > = ({ signal }) =>
-    getPlatformDictionaryByKey(key, { signal, ...requestOptions })
-
-  return {
-    queryKey,
-    queryFn,
-    enabled: key !== null && key !== undefined,
-    ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof getPlatformDictionaryByKey>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type GetPlatformDictionaryByKeyQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getPlatformDictionaryByKey>>
->
-export type GetPlatformDictionaryByKeyQueryError = ErrorType<ApiError>
-
-export function useGetPlatformDictionaryByKey<
-  TData = Awaited<ReturnType<typeof getPlatformDictionaryByKey>>,
-  TError = ErrorType<ApiError>,
->(
-  key: string,
-  options: {
-    query: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformDictionaryByKey>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getPlatformDictionaryByKey>>,
-          TError,
-          Awaited<ReturnType<typeof getPlatformDictionaryByKey>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-export function useGetPlatformDictionaryByKey<
-  TData = Awaited<ReturnType<typeof getPlatformDictionaryByKey>>,
-  TError = ErrorType<ApiError>,
->(
-  key: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformDictionaryByKey>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getPlatformDictionaryByKey>>,
-          TError,
-          Awaited<ReturnType<typeof getPlatformDictionaryByKey>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-export function useGetPlatformDictionaryByKey<
-  TData = Awaited<ReturnType<typeof getPlatformDictionaryByKey>>,
-  TError = ErrorType<ApiError>,
->(
-  key: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformDictionaryByKey>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-
-export function useGetPlatformDictionaryByKey<
-  TData = Awaited<ReturnType<typeof getPlatformDictionaryByKey>>,
-  TError = ErrorType<ApiError>,
->(
-  key: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformDictionaryByKey>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-} {
-  const queryOptions = getGetPlatformDictionaryByKeyQueryOptions(key, options)
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
-    TData,
-    TError
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-
-  return withQueryKey(query, queryOptions.queryKey)
-}
-
-export type refreshPlatformParameterCacheResponse200 = {
-  data: PlatformSystemRefreshResult
-  status: 200
-}
-
-export type refreshPlatformParameterCacheResponse400 = {
-  data: ApiError
-  status: 400
-}
-
-export type refreshPlatformParameterCacheResponse401 = {
-  data: ApiError
-  status: 401
-}
-
-export type refreshPlatformParameterCacheResponse403 = {
-  data: ApiError
-  status: 403
-}
-
-export type refreshPlatformParameterCacheResponse404 = {
-  data: ApiError
-  status: 404
-}
-
-export type refreshPlatformParameterCacheResponse409 = {
-  data: ApiError
-  status: 409
-}
-
-export type refreshPlatformParameterCacheResponse503 = {
-  data: ApiError
-  status: 503
-}
-
-export type refreshPlatformParameterCacheResponseSuccess =
-  refreshPlatformParameterCacheResponse200 & {
-    headers: Headers
-  }
-export type refreshPlatformParameterCacheResponseError = (
-  | refreshPlatformParameterCacheResponse400
-  | refreshPlatformParameterCacheResponse401
-  | refreshPlatformParameterCacheResponse403
-  | refreshPlatformParameterCacheResponse404
-  | refreshPlatformParameterCacheResponse409
-  | refreshPlatformParameterCacheResponse503
-) & {
-  headers: Headers
-}
-
-export const getRefreshPlatformParameterCacheUrl = () => {
-  return `/api/v1/platform/parameters/cache/refresh`
-}
-
-export const refreshPlatformParameterCache = async (
-  options?: Parameters<typeof apiClient>[1]
-): Promise<refreshPlatformParameterCacheResponseSuccess> => {
-  return apiClient<refreshPlatformParameterCacheResponseSuccess>(
-    getRefreshPlatformParameterCacheUrl(),
-    {
-      ...options,
-      method: "POST",
-    }
-  )
-}
-
-export const getRefreshPlatformParameterCacheMutationKey = () =>
-  ["refreshPlatformParameterCache"] as const
-
-export const getRefreshPlatformParameterCacheMutationOptions = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof refreshPlatformParameterCache>>,
-    TError,
-    void,
-    TContext
-  >
-  request?: SecondParameter<typeof apiClient>
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof refreshPlatformParameterCache>>,
-  TError,
-  void,
-  TContext
-> => {
-  const mutationKey = getRefreshPlatformParameterCacheMutationKey()
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined }
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof refreshPlatformParameterCache>>,
-    void
-  > = () => {
-    return refreshPlatformParameterCache(requestOptions)
-  }
-
-  return { mutationFn, ...mutationOptions }
-}
-
-export type RefreshPlatformParameterCacheMutationResult = NonNullable<
-  Awaited<ReturnType<typeof refreshPlatformParameterCache>>
->
-
-export type RefreshPlatformParameterCacheMutationError = ErrorType<ApiError>
-
-export const useRefreshPlatformParameterCache = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof refreshPlatformParameterCache>>,
-      TError,
-      void,
-      TContext
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseMutationResult<
-  Awaited<ReturnType<typeof refreshPlatformParameterCache>>,
-  TError,
-  void,
-  TContext
-> => {
-  return useMutation(
-    getRefreshPlatformParameterCacheMutationOptions(options),
-    queryClient
-  )
-}
-export type getPlatformParameterByKeyResponse200 = {
-  data: PlatformParameterValue
-  status: 200
-}
-
-export type getPlatformParameterByKeyResponse400 = {
-  data: ApiError
-  status: 400
-}
-
-export type getPlatformParameterByKeyResponse401 = {
-  data: ApiError
-  status: 401
-}
-
-export type getPlatformParameterByKeyResponse403 = {
-  data: ApiError
-  status: 403
-}
-
-export type getPlatformParameterByKeyResponse404 = {
-  data: ApiError
-  status: 404
-}
-
-export type getPlatformParameterByKeyResponse409 = {
-  data: ApiError
-  status: 409
-}
-
-export type getPlatformParameterByKeyResponse503 = {
-  data: ApiError
-  status: 503
-}
-
-export type getPlatformParameterByKeyResponseSuccess =
-  getPlatformParameterByKeyResponse200 & {
-    headers: Headers
-  }
-export type getPlatformParameterByKeyResponseError = (
-  | getPlatformParameterByKeyResponse400
-  | getPlatformParameterByKeyResponse401
-  | getPlatformParameterByKeyResponse403
-  | getPlatformParameterByKeyResponse404
-  | getPlatformParameterByKeyResponse409
-  | getPlatformParameterByKeyResponse503
-) & {
-  headers: Headers
-}
-
-export const getGetPlatformParameterByKeyUrl = (key: string) => {
-  return `/api/v1/platform/parameters/by-key/${key}`
-}
-
-export const getPlatformParameterByKey = async (
-  key: string,
-  options?: Parameters<typeof apiClient>[1]
-): Promise<getPlatformParameterByKeyResponseSuccess> => {
-  return apiClient<getPlatformParameterByKeyResponseSuccess>(
-    getGetPlatformParameterByKeyUrl(key),
-    {
-      ...options,
-      method: "GET",
-    }
-  )
-}
-
-export const getGetPlatformParameterByKeyQueryKey = (key: string) => {
-  return [`/api/v1/platform/parameters/by-key/${key}`] as const
-}
-
-export const getGetPlatformParameterByKeyQueryOptions = <
-  TData = Awaited<ReturnType<typeof getPlatformParameterByKey>>,
-  TError = ErrorType<ApiError>,
->(
-  key: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformParameterByKey>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  }
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {}
-
-  const queryKey =
-    queryOptions?.queryKey ?? getGetPlatformParameterByKeyQueryKey(key)
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getPlatformParameterByKey>>
-  > = ({ signal }) =>
-    getPlatformParameterByKey(key, { signal, ...requestOptions })
-
-  return {
-    queryKey,
-    queryFn,
-    enabled: key !== null && key !== undefined,
-    ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof getPlatformParameterByKey>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type GetPlatformParameterByKeyQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getPlatformParameterByKey>>
->
-export type GetPlatformParameterByKeyQueryError = ErrorType<ApiError>
-
-export function useGetPlatformParameterByKey<
-  TData = Awaited<ReturnType<typeof getPlatformParameterByKey>>,
-  TError = ErrorType<ApiError>,
->(
-  key: string,
-  options: {
-    query: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformParameterByKey>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getPlatformParameterByKey>>,
-          TError,
-          Awaited<ReturnType<typeof getPlatformParameterByKey>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-export function useGetPlatformParameterByKey<
-  TData = Awaited<ReturnType<typeof getPlatformParameterByKey>>,
-  TError = ErrorType<ApiError>,
->(
-  key: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformParameterByKey>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getPlatformParameterByKey>>,
-          TError,
-          Awaited<ReturnType<typeof getPlatformParameterByKey>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-export function useGetPlatformParameterByKey<
-  TData = Awaited<ReturnType<typeof getPlatformParameterByKey>>,
-  TError = ErrorType<ApiError>,
->(
-  key: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformParameterByKey>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-
-export function useGetPlatformParameterByKey<
-  TData = Awaited<ReturnType<typeof getPlatformParameterByKey>>,
-  TError = ErrorType<ApiError>,
->(
-  key: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformParameterByKey>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-} {
-  const queryOptions = getGetPlatformParameterByKeyQueryOptions(key, options)
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
-    TData,
-    TError
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-
-  return withQueryKey(query, queryOptions.queryKey)
-}
-
 export type listPlatformEmployeesResponse200 = {
   data: PlatformEmployeesPage
   status: 200
@@ -3590,6 +2479,5556 @@ export const useSetPlatformEmployeeRoles = <
     queryClient
   )
 }
+export type getPlatformMenuRegistryResponse200 = {
+  data: PlatformMenuRegistry
+  status: 200
+}
+
+export type getPlatformMenuRegistryResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type getPlatformMenuRegistryResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type getPlatformMenuRegistryResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type getPlatformMenuRegistryResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type getPlatformMenuRegistryResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type getPlatformMenuRegistryResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type getPlatformMenuRegistryResponseSuccess =
+  getPlatformMenuRegistryResponse200 & {
+    headers: Headers
+  }
+export type getPlatformMenuRegistryResponseError = (
+  | getPlatformMenuRegistryResponse400
+  | getPlatformMenuRegistryResponse401
+  | getPlatformMenuRegistryResponse403
+  | getPlatformMenuRegistryResponse404
+  | getPlatformMenuRegistryResponse409
+  | getPlatformMenuRegistryResponse503
+) & {
+  headers: Headers
+}
+
+export const getGetPlatformMenuRegistryUrl = () => {
+  return `/api/v1/platform/menus/registry`
+}
+
+export const getPlatformMenuRegistry = async (
+  options?: Parameters<typeof apiClient>[1]
+): Promise<getPlatformMenuRegistryResponseSuccess> => {
+  return apiClient<getPlatformMenuRegistryResponseSuccess>(
+    getGetPlatformMenuRegistryUrl(),
+    {
+      ...options,
+      method: "GET",
+    }
+  )
+}
+
+export const getGetPlatformMenuRegistryQueryKey = () => {
+  return [`/api/v1/platform/menus/registry`] as const
+}
+
+export const getGetPlatformMenuRegistryQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPlatformMenuRegistry>>,
+  TError = ErrorType<ApiError>,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<ReturnType<typeof getPlatformMenuRegistry>>,
+      TError,
+      TData
+    >
+  >
+  request?: SecondParameter<typeof apiClient>
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetPlatformMenuRegistryQueryKey()
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getPlatformMenuRegistry>>
+  > = ({ signal }) => getPlatformMenuRegistry({ signal, ...requestOptions })
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPlatformMenuRegistry>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetPlatformMenuRegistryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPlatformMenuRegistry>>
+>
+export type GetPlatformMenuRegistryQueryError = ErrorType<ApiError>
+
+export function useGetPlatformMenuRegistry<
+  TData = Awaited<ReturnType<typeof getPlatformMenuRegistry>>,
+  TError = ErrorType<ApiError>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformMenuRegistry>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPlatformMenuRegistry>>,
+          TError,
+          Awaited<ReturnType<typeof getPlatformMenuRegistry>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetPlatformMenuRegistry<
+  TData = Awaited<ReturnType<typeof getPlatformMenuRegistry>>,
+  TError = ErrorType<ApiError>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformMenuRegistry>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPlatformMenuRegistry>>,
+          TError,
+          Awaited<ReturnType<typeof getPlatformMenuRegistry>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetPlatformMenuRegistry<
+  TData = Awaited<ReturnType<typeof getPlatformMenuRegistry>>,
+  TError = ErrorType<ApiError>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformMenuRegistry>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+
+export function useGetPlatformMenuRegistry<
+  TData = Awaited<ReturnType<typeof getPlatformMenuRegistry>>,
+  TError = ErrorType<ApiError>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformMenuRegistry>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+} {
+  const queryOptions = getGetPlatformMenuRegistryQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+
+  return withQueryKey(query, queryOptions.queryKey)
+}
+
+export type listPlatformMenusResponse200 = {
+  data: PlatformMenusTree
+  status: 200
+}
+
+export type listPlatformMenusResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type listPlatformMenusResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type listPlatformMenusResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type listPlatformMenusResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type listPlatformMenusResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type listPlatformMenusResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type listPlatformMenusResponseSuccess = listPlatformMenusResponse200 & {
+  headers: Headers
+}
+export type listPlatformMenusResponseError = (
+  | listPlatformMenusResponse400
+  | listPlatformMenusResponse401
+  | listPlatformMenusResponse403
+  | listPlatformMenusResponse404
+  | listPlatformMenusResponse409
+  | listPlatformMenusResponse503
+) & {
+  headers: Headers
+}
+
+export const getListPlatformMenusUrl = (params?: ListPlatformMenusParams) => {
+  const normalizedParams = new URLSearchParams()
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value))
+    }
+  })
+
+  const stringifiedParams = normalizedParams.toString()
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/platform/menus?${stringifiedParams}`
+    : `/api/v1/platform/menus`
+}
+
+export const listPlatformMenus = async (
+  params?: ListPlatformMenusParams,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<listPlatformMenusResponseSuccess> => {
+  return apiClient<listPlatformMenusResponseSuccess>(
+    getListPlatformMenusUrl(params),
+    {
+      ...options,
+      method: "GET",
+    }
+  )
+}
+
+export const getListPlatformMenusQueryKey = (
+  params?: ListPlatformMenusParams
+) => {
+  return [`/api/v1/platform/menus`, ...(params ? [params] : [])] as const
+}
+
+export const getListPlatformMenusQueryOptions = <
+  TData = Awaited<ReturnType<typeof listPlatformMenus>>,
+  TError = ErrorType<ApiError>,
+>(
+  params?: ListPlatformMenusParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listPlatformMenus>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListPlatformMenusQueryKey(params)
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listPlatformMenus>>
+  > = ({ signal }) => listPlatformMenus(params, { signal, ...requestOptions })
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listPlatformMenus>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListPlatformMenusQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listPlatformMenus>>
+>
+export type ListPlatformMenusQueryError = ErrorType<ApiError>
+
+export function useListPlatformMenus<
+  TData = Awaited<ReturnType<typeof listPlatformMenus>>,
+  TError = ErrorType<ApiError>,
+>(
+  params: undefined | ListPlatformMenusParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listPlatformMenus>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPlatformMenus>>,
+          TError,
+          Awaited<ReturnType<typeof listPlatformMenus>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useListPlatformMenus<
+  TData = Awaited<ReturnType<typeof listPlatformMenus>>,
+  TError = ErrorType<ApiError>,
+>(
+  params?: ListPlatformMenusParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listPlatformMenus>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPlatformMenus>>,
+          TError,
+          Awaited<ReturnType<typeof listPlatformMenus>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useListPlatformMenus<
+  TData = Awaited<ReturnType<typeof listPlatformMenus>>,
+  TError = ErrorType<ApiError>,
+>(
+  params?: ListPlatformMenusParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listPlatformMenus>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+
+export function useListPlatformMenus<
+  TData = Awaited<ReturnType<typeof listPlatformMenus>>,
+  TError = ErrorType<ApiError>,
+>(
+  params?: ListPlatformMenusParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listPlatformMenus>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+} {
+  const queryOptions = getListPlatformMenusQueryOptions(params, options)
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+
+  return withQueryKey(query, queryOptions.queryKey)
+}
+
+export type createPlatformMenuResponse201 = {
+  data: PlatformMenu
+  status: 201
+}
+
+export type createPlatformMenuResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type createPlatformMenuResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type createPlatformMenuResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type createPlatformMenuResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type createPlatformMenuResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type createPlatformMenuResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type createPlatformMenuResponseSuccess =
+  createPlatformMenuResponse201 & {
+    headers: Headers
+  }
+export type createPlatformMenuResponseError = (
+  | createPlatformMenuResponse400
+  | createPlatformMenuResponse401
+  | createPlatformMenuResponse403
+  | createPlatformMenuResponse404
+  | createPlatformMenuResponse409
+  | createPlatformMenuResponse503
+) & {
+  headers: Headers
+}
+
+export const getCreatePlatformMenuUrl = () => {
+  return `/api/v1/platform/menus`
+}
+
+export const createPlatformMenu = async (
+  createPlatformMenuBody: CreatePlatformMenu,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<createPlatformMenuResponseSuccess> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {}
+    if (h instanceof Headers) return Object.fromEntries(h.entries())
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string]
+        )
+      )
+    }
+    const headers: Record<string, string | readonly string[]> = {}
+    for (const [name, value] of Object.entries<
+      string | readonly string[] | undefined
+    >(h)) {
+      if (value !== undefined) headers[name] = value
+    }
+    return headers
+  }
+  return apiClient<createPlatformMenuResponseSuccess>(
+    getCreatePlatformMenuUrl(),
+    {
+      ...options,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...getHeaders(options?.headers),
+      },
+      body: JSON.stringify(createPlatformMenuBody),
+    }
+  )
+}
+
+export const getCreatePlatformMenuMutationKey = () =>
+  ["createPlatformMenu"] as const
+
+export const getCreatePlatformMenuMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createPlatformMenu>>,
+    TError,
+    CreatePlatformMenuMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createPlatformMenu>>,
+  TError,
+  CreatePlatformMenuMutationVariables,
+  TContext
+> => {
+  const mutationKey = getCreatePlatformMenuMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createPlatformMenu>>,
+    CreatePlatformMenuMutationVariables
+  > = (props) => {
+    const { data } = props ?? {}
+
+    return createPlatformMenu(data, requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type CreatePlatformMenuMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createPlatformMenu>>
+>
+export type CreatePlatformMenuMutationBody = CreatePlatformMenu
+export type CreatePlatformMenuMutationError = ErrorType<ApiError>
+export type CreatePlatformMenuMutationVariables = { data: CreatePlatformMenu }
+
+export const useCreatePlatformMenu = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createPlatformMenu>>,
+      TError,
+      CreatePlatformMenuMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof createPlatformMenu>>,
+  TError,
+  CreatePlatformMenuMutationVariables,
+  TContext
+> => {
+  return useMutation(getCreatePlatformMenuMutationOptions(options), queryClient)
+}
+export type getPlatformMenuResponse200 = {
+  data: PlatformMenu
+  status: 200
+}
+
+export type getPlatformMenuResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type getPlatformMenuResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type getPlatformMenuResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type getPlatformMenuResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type getPlatformMenuResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type getPlatformMenuResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type getPlatformMenuResponseSuccess = getPlatformMenuResponse200 & {
+  headers: Headers
+}
+export type getPlatformMenuResponseError = (
+  | getPlatformMenuResponse400
+  | getPlatformMenuResponse401
+  | getPlatformMenuResponse403
+  | getPlatformMenuResponse404
+  | getPlatformMenuResponse409
+  | getPlatformMenuResponse503
+) & {
+  headers: Headers
+}
+
+export const getGetPlatformMenuUrl = (menuId: string) => {
+  return `/api/v1/platform/menus/${menuId}`
+}
+
+export const getPlatformMenu = async (
+  menuId: string,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<getPlatformMenuResponseSuccess> => {
+  return apiClient<getPlatformMenuResponseSuccess>(
+    getGetPlatformMenuUrl(menuId),
+    {
+      ...options,
+      method: "GET",
+    }
+  )
+}
+
+export const getGetPlatformMenuQueryKey = (menuId: string) => {
+  return [`/api/v1/platform/menus/${menuId}`] as const
+}
+
+export const getGetPlatformMenuQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPlatformMenu>>,
+  TError = ErrorType<ApiError>,
+>(
+  menuId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformMenu>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey = queryOptions?.queryKey ?? getGetPlatformMenuQueryKey(menuId)
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getPlatformMenu>>> = ({
+    signal,
+  }) => getPlatformMenu(menuId, { signal, ...requestOptions })
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: menuId !== null && menuId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPlatformMenu>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetPlatformMenuQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPlatformMenu>>
+>
+export type GetPlatformMenuQueryError = ErrorType<ApiError>
+
+export function useGetPlatformMenu<
+  TData = Awaited<ReturnType<typeof getPlatformMenu>>,
+  TError = ErrorType<ApiError>,
+>(
+  menuId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformMenu>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPlatformMenu>>,
+          TError,
+          Awaited<ReturnType<typeof getPlatformMenu>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetPlatformMenu<
+  TData = Awaited<ReturnType<typeof getPlatformMenu>>,
+  TError = ErrorType<ApiError>,
+>(
+  menuId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformMenu>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPlatformMenu>>,
+          TError,
+          Awaited<ReturnType<typeof getPlatformMenu>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetPlatformMenu<
+  TData = Awaited<ReturnType<typeof getPlatformMenu>>,
+  TError = ErrorType<ApiError>,
+>(
+  menuId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformMenu>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+
+export function useGetPlatformMenu<
+  TData = Awaited<ReturnType<typeof getPlatformMenu>>,
+  TError = ErrorType<ApiError>,
+>(
+  menuId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformMenu>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+} {
+  const queryOptions = getGetPlatformMenuQueryOptions(menuId, options)
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+
+  return withQueryKey(query, queryOptions.queryKey)
+}
+
+export type updatePlatformMenuResponse200 = {
+  data: PlatformMenu
+  status: 200
+}
+
+export type updatePlatformMenuResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type updatePlatformMenuResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type updatePlatformMenuResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type updatePlatformMenuResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type updatePlatformMenuResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type updatePlatformMenuResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type updatePlatformMenuResponseSuccess =
+  updatePlatformMenuResponse200 & {
+    headers: Headers
+  }
+export type updatePlatformMenuResponseError = (
+  | updatePlatformMenuResponse400
+  | updatePlatformMenuResponse401
+  | updatePlatformMenuResponse403
+  | updatePlatformMenuResponse404
+  | updatePlatformMenuResponse409
+  | updatePlatformMenuResponse503
+) & {
+  headers: Headers
+}
+
+export const getUpdatePlatformMenuUrl = (menuId: string) => {
+  return `/api/v1/platform/menus/${menuId}`
+}
+
+export const updatePlatformMenu = async (
+  menuId: string,
+  updatePlatformMenuBody: UpdatePlatformMenu,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<updatePlatformMenuResponseSuccess> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {}
+    if (h instanceof Headers) return Object.fromEntries(h.entries())
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string]
+        )
+      )
+    }
+    const headers: Record<string, string | readonly string[]> = {}
+    for (const [name, value] of Object.entries<
+      string | readonly string[] | undefined
+    >(h)) {
+      if (value !== undefined) headers[name] = value
+    }
+    return headers
+  }
+  return apiClient<updatePlatformMenuResponseSuccess>(
+    getUpdatePlatformMenuUrl(menuId),
+    {
+      ...options,
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...getHeaders(options?.headers),
+      },
+      body: JSON.stringify(updatePlatformMenuBody),
+    }
+  )
+}
+
+export const getUpdatePlatformMenuMutationKey = () =>
+  ["updatePlatformMenu"] as const
+
+export const getUpdatePlatformMenuMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updatePlatformMenu>>,
+    TError,
+    UpdatePlatformMenuMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updatePlatformMenu>>,
+  TError,
+  UpdatePlatformMenuMutationVariables,
+  TContext
+> => {
+  const mutationKey = getUpdatePlatformMenuMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updatePlatformMenu>>,
+    UpdatePlatformMenuMutationVariables
+  > = (props) => {
+    const { menuId, data } = props ?? {}
+
+    return updatePlatformMenu(menuId, data, requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type UpdatePlatformMenuMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updatePlatformMenu>>
+>
+export type UpdatePlatformMenuMutationBody = UpdatePlatformMenu
+export type UpdatePlatformMenuMutationError = ErrorType<ApiError>
+export type UpdatePlatformMenuMutationVariables = {
+  menuId: string
+  data: UpdatePlatformMenu
+}
+
+export const useUpdatePlatformMenu = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updatePlatformMenu>>,
+      TError,
+      UpdatePlatformMenuMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof updatePlatformMenu>>,
+  TError,
+  UpdatePlatformMenuMutationVariables,
+  TContext
+> => {
+  return useMutation(getUpdatePlatformMenuMutationOptions(options), queryClient)
+}
+export type deletePlatformMenuResponse200 = {
+  data: PlatformSystemDeleteResult
+  status: 200
+}
+
+export type deletePlatformMenuResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type deletePlatformMenuResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type deletePlatformMenuResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type deletePlatformMenuResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type deletePlatformMenuResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type deletePlatformMenuResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type deletePlatformMenuResponseSuccess =
+  deletePlatformMenuResponse200 & {
+    headers: Headers
+  }
+export type deletePlatformMenuResponseError = (
+  | deletePlatformMenuResponse400
+  | deletePlatformMenuResponse401
+  | deletePlatformMenuResponse403
+  | deletePlatformMenuResponse404
+  | deletePlatformMenuResponse409
+  | deletePlatformMenuResponse503
+) & {
+  headers: Headers
+}
+
+export const getDeletePlatformMenuUrl = (menuId: string) => {
+  return `/api/v1/platform/menus/${menuId}`
+}
+
+export const deletePlatformMenu = async (
+  menuId: string,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<deletePlatformMenuResponseSuccess> => {
+  return apiClient<deletePlatformMenuResponseSuccess>(
+    getDeletePlatformMenuUrl(menuId),
+    {
+      ...options,
+      method: "DELETE",
+    }
+  )
+}
+
+export const getDeletePlatformMenuMutationKey = () =>
+  ["deletePlatformMenu"] as const
+
+export const getDeletePlatformMenuMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deletePlatformMenu>>,
+    TError,
+    DeletePlatformMenuMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deletePlatformMenu>>,
+  TError,
+  DeletePlatformMenuMutationVariables,
+  TContext
+> => {
+  const mutationKey = getDeletePlatformMenuMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deletePlatformMenu>>,
+    DeletePlatformMenuMutationVariables
+  > = (props) => {
+    const { menuId } = props ?? {}
+
+    return deletePlatformMenu(menuId, requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type DeletePlatformMenuMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deletePlatformMenu>>
+>
+
+export type DeletePlatformMenuMutationError = ErrorType<ApiError>
+export type DeletePlatformMenuMutationVariables = { menuId: string }
+
+export const useDeletePlatformMenu = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deletePlatformMenu>>,
+      TError,
+      DeletePlatformMenuMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof deletePlatformMenu>>,
+  TError,
+  DeletePlatformMenuMutationVariables,
+  TContext
+> => {
+  return useMutation(getDeletePlatformMenuMutationOptions(options), queryClient)
+}
+export type setPlatformMenuStatusResponse200 = {
+  data: PlatformMenu
+  status: 200
+}
+
+export type setPlatformMenuStatusResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type setPlatformMenuStatusResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type setPlatformMenuStatusResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type setPlatformMenuStatusResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type setPlatformMenuStatusResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type setPlatformMenuStatusResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type setPlatformMenuStatusResponseSuccess =
+  setPlatformMenuStatusResponse200 & {
+    headers: Headers
+  }
+export type setPlatformMenuStatusResponseError = (
+  | setPlatformMenuStatusResponse400
+  | setPlatformMenuStatusResponse401
+  | setPlatformMenuStatusResponse403
+  | setPlatformMenuStatusResponse404
+  | setPlatformMenuStatusResponse409
+  | setPlatformMenuStatusResponse503
+) & {
+  headers: Headers
+}
+
+export const getSetPlatformMenuStatusUrl = (menuId: string) => {
+  return `/api/v1/platform/menus/${menuId}/status`
+}
+
+export const setPlatformMenuStatus = async (
+  menuId: string,
+  setPlatformSystemStatus: SetPlatformSystemStatus,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<setPlatformMenuStatusResponseSuccess> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {}
+    if (h instanceof Headers) return Object.fromEntries(h.entries())
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string]
+        )
+      )
+    }
+    const headers: Record<string, string | readonly string[]> = {}
+    for (const [name, value] of Object.entries<
+      string | readonly string[] | undefined
+    >(h)) {
+      if (value !== undefined) headers[name] = value
+    }
+    return headers
+  }
+  return apiClient<setPlatformMenuStatusResponseSuccess>(
+    getSetPlatformMenuStatusUrl(menuId),
+    {
+      ...options,
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...getHeaders(options?.headers),
+      },
+      body: JSON.stringify(setPlatformSystemStatus),
+    }
+  )
+}
+
+export const getSetPlatformMenuStatusMutationKey = () =>
+  ["setPlatformMenuStatus"] as const
+
+export const getSetPlatformMenuStatusMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setPlatformMenuStatus>>,
+    TError,
+    SetPlatformMenuStatusMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setPlatformMenuStatus>>,
+  TError,
+  SetPlatformMenuStatusMutationVariables,
+  TContext
+> => {
+  const mutationKey = getSetPlatformMenuStatusMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setPlatformMenuStatus>>,
+    SetPlatformMenuStatusMutationVariables
+  > = (props) => {
+    const { menuId, data } = props ?? {}
+
+    return setPlatformMenuStatus(menuId, data, requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type SetPlatformMenuStatusMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setPlatformMenuStatus>>
+>
+export type SetPlatformMenuStatusMutationBody = SetPlatformSystemStatus
+export type SetPlatformMenuStatusMutationError = ErrorType<ApiError>
+export type SetPlatformMenuStatusMutationVariables = {
+  menuId: string
+  data: SetPlatformSystemStatus
+}
+
+export const useSetPlatformMenuStatus = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof setPlatformMenuStatus>>,
+      TError,
+      SetPlatformMenuStatusMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof setPlatformMenuStatus>>,
+  TError,
+  SetPlatformMenuStatusMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getSetPlatformMenuStatusMutationOptions(options),
+    queryClient
+  )
+}
+export type listPlatformNavigationResponse200 = {
+  data: PlatformNavigation
+  status: 200
+}
+
+export type listPlatformNavigationResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type listPlatformNavigationResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type listPlatformNavigationResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type listPlatformNavigationResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type listPlatformNavigationResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type listPlatformNavigationResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type listPlatformNavigationResponseSuccess =
+  listPlatformNavigationResponse200 & {
+    headers: Headers
+  }
+export type listPlatformNavigationResponseError = (
+  | listPlatformNavigationResponse400
+  | listPlatformNavigationResponse401
+  | listPlatformNavigationResponse403
+  | listPlatformNavigationResponse404
+  | listPlatformNavigationResponse409
+  | listPlatformNavigationResponse503
+) & {
+  headers: Headers
+}
+
+export const getListPlatformNavigationUrl = () => {
+  return `/api/v1/platform/navigation`
+}
+
+export const listPlatformNavigation = async (
+  options?: Parameters<typeof apiClient>[1]
+): Promise<listPlatformNavigationResponseSuccess> => {
+  return apiClient<listPlatformNavigationResponseSuccess>(
+    getListPlatformNavigationUrl(),
+    {
+      ...options,
+      method: "GET",
+    }
+  )
+}
+
+export const getListPlatformNavigationQueryKey = () => {
+  return [`/api/v1/platform/navigation`] as const
+}
+
+export const getListPlatformNavigationQueryOptions = <
+  TData = Awaited<ReturnType<typeof listPlatformNavigation>>,
+  TError = ErrorType<ApiError>,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<ReturnType<typeof listPlatformNavigation>>,
+      TError,
+      TData
+    >
+  >
+  request?: SecondParameter<typeof apiClient>
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey = queryOptions?.queryKey ?? getListPlatformNavigationQueryKey()
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listPlatformNavigation>>
+  > = ({ signal }) => listPlatformNavigation({ signal, ...requestOptions })
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listPlatformNavigation>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListPlatformNavigationQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listPlatformNavigation>>
+>
+export type ListPlatformNavigationQueryError = ErrorType<ApiError>
+
+export function useListPlatformNavigation<
+  TData = Awaited<ReturnType<typeof listPlatformNavigation>>,
+  TError = ErrorType<ApiError>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listPlatformNavigation>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPlatformNavigation>>,
+          TError,
+          Awaited<ReturnType<typeof listPlatformNavigation>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useListPlatformNavigation<
+  TData = Awaited<ReturnType<typeof listPlatformNavigation>>,
+  TError = ErrorType<ApiError>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listPlatformNavigation>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPlatformNavigation>>,
+          TError,
+          Awaited<ReturnType<typeof listPlatformNavigation>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useListPlatformNavigation<
+  TData = Awaited<ReturnType<typeof listPlatformNavigation>>,
+  TError = ErrorType<ApiError>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listPlatformNavigation>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+
+export function useListPlatformNavigation<
+  TData = Awaited<ReturnType<typeof listPlatformNavigation>>,
+  TError = ErrorType<ApiError>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listPlatformNavigation>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+} {
+  const queryOptions = getListPlatformNavigationQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+
+  return withQueryKey(query, queryOptions.queryKey)
+}
+
+export type refreshPlatformDictionaryCacheResponse200 = {
+  data: PlatformSystemRefreshResult
+  status: 200
+}
+
+export type refreshPlatformDictionaryCacheResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type refreshPlatformDictionaryCacheResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type refreshPlatformDictionaryCacheResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type refreshPlatformDictionaryCacheResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type refreshPlatformDictionaryCacheResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type refreshPlatformDictionaryCacheResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type refreshPlatformDictionaryCacheResponseSuccess =
+  refreshPlatformDictionaryCacheResponse200 & {
+    headers: Headers
+  }
+export type refreshPlatformDictionaryCacheResponseError = (
+  | refreshPlatformDictionaryCacheResponse400
+  | refreshPlatformDictionaryCacheResponse401
+  | refreshPlatformDictionaryCacheResponse403
+  | refreshPlatformDictionaryCacheResponse404
+  | refreshPlatformDictionaryCacheResponse409
+  | refreshPlatformDictionaryCacheResponse503
+) & {
+  headers: Headers
+}
+
+export const getRefreshPlatformDictionaryCacheUrl = () => {
+  return `/api/v1/platform/dictionaries/cache/refresh`
+}
+
+export const refreshPlatformDictionaryCache = async (
+  options?: Parameters<typeof apiClient>[1]
+): Promise<refreshPlatformDictionaryCacheResponseSuccess> => {
+  return apiClient<refreshPlatformDictionaryCacheResponseSuccess>(
+    getRefreshPlatformDictionaryCacheUrl(),
+    {
+      ...options,
+      method: "POST",
+    }
+  )
+}
+
+export const getRefreshPlatformDictionaryCacheMutationKey = () =>
+  ["refreshPlatformDictionaryCache"] as const
+
+export const getRefreshPlatformDictionaryCacheMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof refreshPlatformDictionaryCache>>,
+    TError,
+    void,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof refreshPlatformDictionaryCache>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = getRefreshPlatformDictionaryCacheMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof refreshPlatformDictionaryCache>>,
+    void
+  > = () => {
+    return refreshPlatformDictionaryCache(requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type RefreshPlatformDictionaryCacheMutationResult = NonNullable<
+  Awaited<ReturnType<typeof refreshPlatformDictionaryCache>>
+>
+
+export type RefreshPlatformDictionaryCacheMutationError = ErrorType<ApiError>
+
+export const useRefreshPlatformDictionaryCache = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof refreshPlatformDictionaryCache>>,
+      TError,
+      void,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof refreshPlatformDictionaryCache>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(
+    getRefreshPlatformDictionaryCacheMutationOptions(options),
+    queryClient
+  )
+}
+export type getPlatformDictionaryByKeyResponse200 = {
+  data: PlatformDictionaryValue
+  status: 200
+}
+
+export type getPlatformDictionaryByKeyResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type getPlatformDictionaryByKeyResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type getPlatformDictionaryByKeyResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type getPlatformDictionaryByKeyResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type getPlatformDictionaryByKeyResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type getPlatformDictionaryByKeyResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type getPlatformDictionaryByKeyResponseSuccess =
+  getPlatformDictionaryByKeyResponse200 & {
+    headers: Headers
+  }
+export type getPlatformDictionaryByKeyResponseError = (
+  | getPlatformDictionaryByKeyResponse400
+  | getPlatformDictionaryByKeyResponse401
+  | getPlatformDictionaryByKeyResponse403
+  | getPlatformDictionaryByKeyResponse404
+  | getPlatformDictionaryByKeyResponse409
+  | getPlatformDictionaryByKeyResponse503
+) & {
+  headers: Headers
+}
+
+export const getGetPlatformDictionaryByKeyUrl = (key: string) => {
+  return `/api/v1/platform/dictionaries/by-key/${key}`
+}
+
+export const getPlatformDictionaryByKey = async (
+  key: string,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<getPlatformDictionaryByKeyResponseSuccess> => {
+  return apiClient<getPlatformDictionaryByKeyResponseSuccess>(
+    getGetPlatformDictionaryByKeyUrl(key),
+    {
+      ...options,
+      method: "GET",
+    }
+  )
+}
+
+export const getGetPlatformDictionaryByKeyQueryKey = (key: string) => {
+  return [`/api/v1/platform/dictionaries/by-key/${key}`] as const
+}
+
+export const getGetPlatformDictionaryByKeyQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPlatformDictionaryByKey>>,
+  TError = ErrorType<ApiError>,
+>(
+  key: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformDictionaryByKey>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetPlatformDictionaryByKeyQueryKey(key)
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getPlatformDictionaryByKey>>
+  > = ({ signal }) =>
+    getPlatformDictionaryByKey(key, { signal, ...requestOptions })
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: key !== null && key !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPlatformDictionaryByKey>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetPlatformDictionaryByKeyQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPlatformDictionaryByKey>>
+>
+export type GetPlatformDictionaryByKeyQueryError = ErrorType<ApiError>
+
+export function useGetPlatformDictionaryByKey<
+  TData = Awaited<ReturnType<typeof getPlatformDictionaryByKey>>,
+  TError = ErrorType<ApiError>,
+>(
+  key: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformDictionaryByKey>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPlatformDictionaryByKey>>,
+          TError,
+          Awaited<ReturnType<typeof getPlatformDictionaryByKey>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetPlatformDictionaryByKey<
+  TData = Awaited<ReturnType<typeof getPlatformDictionaryByKey>>,
+  TError = ErrorType<ApiError>,
+>(
+  key: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformDictionaryByKey>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPlatformDictionaryByKey>>,
+          TError,
+          Awaited<ReturnType<typeof getPlatformDictionaryByKey>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetPlatformDictionaryByKey<
+  TData = Awaited<ReturnType<typeof getPlatformDictionaryByKey>>,
+  TError = ErrorType<ApiError>,
+>(
+  key: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformDictionaryByKey>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+
+export function useGetPlatformDictionaryByKey<
+  TData = Awaited<ReturnType<typeof getPlatformDictionaryByKey>>,
+  TError = ErrorType<ApiError>,
+>(
+  key: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformDictionaryByKey>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+} {
+  const queryOptions = getGetPlatformDictionaryByKeyQueryOptions(key, options)
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+
+  return withQueryKey(query, queryOptions.queryKey)
+}
+
+export type listPlatformDictionariesResponse200 = {
+  data: PlatformDictionariesPage
+  status: 200
+}
+
+export type listPlatformDictionariesResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type listPlatformDictionariesResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type listPlatformDictionariesResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type listPlatformDictionariesResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type listPlatformDictionariesResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type listPlatformDictionariesResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type listPlatformDictionariesResponseSuccess =
+  listPlatformDictionariesResponse200 & {
+    headers: Headers
+  }
+export type listPlatformDictionariesResponseError = (
+  | listPlatformDictionariesResponse400
+  | listPlatformDictionariesResponse401
+  | listPlatformDictionariesResponse403
+  | listPlatformDictionariesResponse404
+  | listPlatformDictionariesResponse409
+  | listPlatformDictionariesResponse503
+) & {
+  headers: Headers
+}
+
+export const getListPlatformDictionariesUrl = (
+  params?: ListPlatformDictionariesParams
+) => {
+  const normalizedParams = new URLSearchParams()
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value))
+    }
+  })
+
+  const stringifiedParams = normalizedParams.toString()
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/platform/dictionaries?${stringifiedParams}`
+    : `/api/v1/platform/dictionaries`
+}
+
+export const listPlatformDictionaries = async (
+  params?: ListPlatformDictionariesParams,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<listPlatformDictionariesResponseSuccess> => {
+  return apiClient<listPlatformDictionariesResponseSuccess>(
+    getListPlatformDictionariesUrl(params),
+    {
+      ...options,
+      method: "GET",
+    }
+  )
+}
+
+export const getListPlatformDictionariesQueryKey = (
+  params?: ListPlatformDictionariesParams
+) => {
+  return [`/api/v1/platform/dictionaries`, ...(params ? [params] : [])] as const
+}
+
+export const getListPlatformDictionariesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listPlatformDictionaries>>,
+  TError = ErrorType<ApiError>,
+>(
+  params?: ListPlatformDictionariesParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listPlatformDictionaries>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListPlatformDictionariesQueryKey(params)
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listPlatformDictionaries>>
+  > = ({ signal }) =>
+    listPlatformDictionaries(params, { signal, ...requestOptions })
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listPlatformDictionaries>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListPlatformDictionariesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listPlatformDictionaries>>
+>
+export type ListPlatformDictionariesQueryError = ErrorType<ApiError>
+
+export function useListPlatformDictionaries<
+  TData = Awaited<ReturnType<typeof listPlatformDictionaries>>,
+  TError = ErrorType<ApiError>,
+>(
+  params: undefined | ListPlatformDictionariesParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listPlatformDictionaries>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPlatformDictionaries>>,
+          TError,
+          Awaited<ReturnType<typeof listPlatformDictionaries>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useListPlatformDictionaries<
+  TData = Awaited<ReturnType<typeof listPlatformDictionaries>>,
+  TError = ErrorType<ApiError>,
+>(
+  params?: ListPlatformDictionariesParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listPlatformDictionaries>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPlatformDictionaries>>,
+          TError,
+          Awaited<ReturnType<typeof listPlatformDictionaries>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useListPlatformDictionaries<
+  TData = Awaited<ReturnType<typeof listPlatformDictionaries>>,
+  TError = ErrorType<ApiError>,
+>(
+  params?: ListPlatformDictionariesParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listPlatformDictionaries>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+
+export function useListPlatformDictionaries<
+  TData = Awaited<ReturnType<typeof listPlatformDictionaries>>,
+  TError = ErrorType<ApiError>,
+>(
+  params?: ListPlatformDictionariesParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listPlatformDictionaries>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+} {
+  const queryOptions = getListPlatformDictionariesQueryOptions(params, options)
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+
+  return withQueryKey(query, queryOptions.queryKey)
+}
+
+export type createPlatformDictionaryResponse201 = {
+  data: PlatformDictionary
+  status: 201
+}
+
+export type createPlatformDictionaryResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type createPlatformDictionaryResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type createPlatformDictionaryResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type createPlatformDictionaryResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type createPlatformDictionaryResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type createPlatformDictionaryResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type createPlatformDictionaryResponseSuccess =
+  createPlatformDictionaryResponse201 & {
+    headers: Headers
+  }
+export type createPlatformDictionaryResponseError = (
+  | createPlatformDictionaryResponse400
+  | createPlatformDictionaryResponse401
+  | createPlatformDictionaryResponse403
+  | createPlatformDictionaryResponse404
+  | createPlatformDictionaryResponse409
+  | createPlatformDictionaryResponse503
+) & {
+  headers: Headers
+}
+
+export const getCreatePlatformDictionaryUrl = () => {
+  return `/api/v1/platform/dictionaries`
+}
+
+export const createPlatformDictionary = async (
+  createPlatformDictionaryBody: CreatePlatformDictionary,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<createPlatformDictionaryResponseSuccess> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {}
+    if (h instanceof Headers) return Object.fromEntries(h.entries())
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string]
+        )
+      )
+    }
+    const headers: Record<string, string | readonly string[]> = {}
+    for (const [name, value] of Object.entries<
+      string | readonly string[] | undefined
+    >(h)) {
+      if (value !== undefined) headers[name] = value
+    }
+    return headers
+  }
+  return apiClient<createPlatformDictionaryResponseSuccess>(
+    getCreatePlatformDictionaryUrl(),
+    {
+      ...options,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...getHeaders(options?.headers),
+      },
+      body: JSON.stringify(createPlatformDictionaryBody),
+    }
+  )
+}
+
+export const getCreatePlatformDictionaryMutationKey = () =>
+  ["createPlatformDictionary"] as const
+
+export const getCreatePlatformDictionaryMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createPlatformDictionary>>,
+    TError,
+    CreatePlatformDictionaryMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createPlatformDictionary>>,
+  TError,
+  CreatePlatformDictionaryMutationVariables,
+  TContext
+> => {
+  const mutationKey = getCreatePlatformDictionaryMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createPlatformDictionary>>,
+    CreatePlatformDictionaryMutationVariables
+  > = (props) => {
+    const { data } = props ?? {}
+
+    return createPlatformDictionary(data, requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type CreatePlatformDictionaryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createPlatformDictionary>>
+>
+export type CreatePlatformDictionaryMutationBody = CreatePlatformDictionary
+export type CreatePlatformDictionaryMutationError = ErrorType<ApiError>
+export type CreatePlatformDictionaryMutationVariables = {
+  data: CreatePlatformDictionary
+}
+
+export const useCreatePlatformDictionary = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createPlatformDictionary>>,
+      TError,
+      CreatePlatformDictionaryMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof createPlatformDictionary>>,
+  TError,
+  CreatePlatformDictionaryMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getCreatePlatformDictionaryMutationOptions(options),
+    queryClient
+  )
+}
+export type getPlatformDictionaryResponse200 = {
+  data: PlatformDictionary
+  status: 200
+}
+
+export type getPlatformDictionaryResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type getPlatformDictionaryResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type getPlatformDictionaryResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type getPlatformDictionaryResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type getPlatformDictionaryResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type getPlatformDictionaryResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type getPlatformDictionaryResponseSuccess =
+  getPlatformDictionaryResponse200 & {
+    headers: Headers
+  }
+export type getPlatformDictionaryResponseError = (
+  | getPlatformDictionaryResponse400
+  | getPlatformDictionaryResponse401
+  | getPlatformDictionaryResponse403
+  | getPlatformDictionaryResponse404
+  | getPlatformDictionaryResponse409
+  | getPlatformDictionaryResponse503
+) & {
+  headers: Headers
+}
+
+export const getGetPlatformDictionaryUrl = (dictionaryId: string) => {
+  return `/api/v1/platform/dictionaries/${dictionaryId}`
+}
+
+export const getPlatformDictionary = async (
+  dictionaryId: string,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<getPlatformDictionaryResponseSuccess> => {
+  return apiClient<getPlatformDictionaryResponseSuccess>(
+    getGetPlatformDictionaryUrl(dictionaryId),
+    {
+      ...options,
+      method: "GET",
+    }
+  )
+}
+
+export const getGetPlatformDictionaryQueryKey = (dictionaryId: string) => {
+  return [`/api/v1/platform/dictionaries/${dictionaryId}`] as const
+}
+
+export const getGetPlatformDictionaryQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPlatformDictionary>>,
+  TError = ErrorType<ApiError>,
+>(
+  dictionaryId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformDictionary>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetPlatformDictionaryQueryKey(dictionaryId)
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getPlatformDictionary>>
+  > = ({ signal }) =>
+    getPlatformDictionary(dictionaryId, { signal, ...requestOptions })
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: dictionaryId !== null && dictionaryId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPlatformDictionary>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetPlatformDictionaryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPlatformDictionary>>
+>
+export type GetPlatformDictionaryQueryError = ErrorType<ApiError>
+
+export function useGetPlatformDictionary<
+  TData = Awaited<ReturnType<typeof getPlatformDictionary>>,
+  TError = ErrorType<ApiError>,
+>(
+  dictionaryId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformDictionary>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPlatformDictionary>>,
+          TError,
+          Awaited<ReturnType<typeof getPlatformDictionary>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetPlatformDictionary<
+  TData = Awaited<ReturnType<typeof getPlatformDictionary>>,
+  TError = ErrorType<ApiError>,
+>(
+  dictionaryId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformDictionary>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPlatformDictionary>>,
+          TError,
+          Awaited<ReturnType<typeof getPlatformDictionary>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetPlatformDictionary<
+  TData = Awaited<ReturnType<typeof getPlatformDictionary>>,
+  TError = ErrorType<ApiError>,
+>(
+  dictionaryId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformDictionary>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+
+export function useGetPlatformDictionary<
+  TData = Awaited<ReturnType<typeof getPlatformDictionary>>,
+  TError = ErrorType<ApiError>,
+>(
+  dictionaryId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformDictionary>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+} {
+  const queryOptions = getGetPlatformDictionaryQueryOptions(
+    dictionaryId,
+    options
+  )
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+
+  return withQueryKey(query, queryOptions.queryKey)
+}
+
+export type updatePlatformDictionaryResponse200 = {
+  data: PlatformDictionary
+  status: 200
+}
+
+export type updatePlatformDictionaryResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type updatePlatformDictionaryResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type updatePlatformDictionaryResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type updatePlatformDictionaryResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type updatePlatformDictionaryResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type updatePlatformDictionaryResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type updatePlatformDictionaryResponseSuccess =
+  updatePlatformDictionaryResponse200 & {
+    headers: Headers
+  }
+export type updatePlatformDictionaryResponseError = (
+  | updatePlatformDictionaryResponse400
+  | updatePlatformDictionaryResponse401
+  | updatePlatformDictionaryResponse403
+  | updatePlatformDictionaryResponse404
+  | updatePlatformDictionaryResponse409
+  | updatePlatformDictionaryResponse503
+) & {
+  headers: Headers
+}
+
+export const getUpdatePlatformDictionaryUrl = (dictionaryId: string) => {
+  return `/api/v1/platform/dictionaries/${dictionaryId}`
+}
+
+export const updatePlatformDictionary = async (
+  dictionaryId: string,
+  updatePlatformDictionaryBody: UpdatePlatformDictionary,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<updatePlatformDictionaryResponseSuccess> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {}
+    if (h instanceof Headers) return Object.fromEntries(h.entries())
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string]
+        )
+      )
+    }
+    const headers: Record<string, string | readonly string[]> = {}
+    for (const [name, value] of Object.entries<
+      string | readonly string[] | undefined
+    >(h)) {
+      if (value !== undefined) headers[name] = value
+    }
+    return headers
+  }
+  return apiClient<updatePlatformDictionaryResponseSuccess>(
+    getUpdatePlatformDictionaryUrl(dictionaryId),
+    {
+      ...options,
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...getHeaders(options?.headers),
+      },
+      body: JSON.stringify(updatePlatformDictionaryBody),
+    }
+  )
+}
+
+export const getUpdatePlatformDictionaryMutationKey = () =>
+  ["updatePlatformDictionary"] as const
+
+export const getUpdatePlatformDictionaryMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updatePlatformDictionary>>,
+    TError,
+    UpdatePlatformDictionaryMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updatePlatformDictionary>>,
+  TError,
+  UpdatePlatformDictionaryMutationVariables,
+  TContext
+> => {
+  const mutationKey = getUpdatePlatformDictionaryMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updatePlatformDictionary>>,
+    UpdatePlatformDictionaryMutationVariables
+  > = (props) => {
+    const { dictionaryId, data } = props ?? {}
+
+    return updatePlatformDictionary(dictionaryId, data, requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type UpdatePlatformDictionaryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updatePlatformDictionary>>
+>
+export type UpdatePlatformDictionaryMutationBody = UpdatePlatformDictionary
+export type UpdatePlatformDictionaryMutationError = ErrorType<ApiError>
+export type UpdatePlatformDictionaryMutationVariables = {
+  dictionaryId: string
+  data: UpdatePlatformDictionary
+}
+
+export const useUpdatePlatformDictionary = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updatePlatformDictionary>>,
+      TError,
+      UpdatePlatformDictionaryMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof updatePlatformDictionary>>,
+  TError,
+  UpdatePlatformDictionaryMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getUpdatePlatformDictionaryMutationOptions(options),
+    queryClient
+  )
+}
+export type deletePlatformDictionaryResponse200 = {
+  data: PlatformSystemDeleteResult
+  status: 200
+}
+
+export type deletePlatformDictionaryResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type deletePlatformDictionaryResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type deletePlatformDictionaryResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type deletePlatformDictionaryResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type deletePlatformDictionaryResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type deletePlatformDictionaryResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type deletePlatformDictionaryResponseSuccess =
+  deletePlatformDictionaryResponse200 & {
+    headers: Headers
+  }
+export type deletePlatformDictionaryResponseError = (
+  | deletePlatformDictionaryResponse400
+  | deletePlatformDictionaryResponse401
+  | deletePlatformDictionaryResponse403
+  | deletePlatformDictionaryResponse404
+  | deletePlatformDictionaryResponse409
+  | deletePlatformDictionaryResponse503
+) & {
+  headers: Headers
+}
+
+export const getDeletePlatformDictionaryUrl = (dictionaryId: string) => {
+  return `/api/v1/platform/dictionaries/${dictionaryId}`
+}
+
+export const deletePlatformDictionary = async (
+  dictionaryId: string,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<deletePlatformDictionaryResponseSuccess> => {
+  return apiClient<deletePlatformDictionaryResponseSuccess>(
+    getDeletePlatformDictionaryUrl(dictionaryId),
+    {
+      ...options,
+      method: "DELETE",
+    }
+  )
+}
+
+export const getDeletePlatformDictionaryMutationKey = () =>
+  ["deletePlatformDictionary"] as const
+
+export const getDeletePlatformDictionaryMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deletePlatformDictionary>>,
+    TError,
+    DeletePlatformDictionaryMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deletePlatformDictionary>>,
+  TError,
+  DeletePlatformDictionaryMutationVariables,
+  TContext
+> => {
+  const mutationKey = getDeletePlatformDictionaryMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deletePlatformDictionary>>,
+    DeletePlatformDictionaryMutationVariables
+  > = (props) => {
+    const { dictionaryId } = props ?? {}
+
+    return deletePlatformDictionary(dictionaryId, requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type DeletePlatformDictionaryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deletePlatformDictionary>>
+>
+
+export type DeletePlatformDictionaryMutationError = ErrorType<ApiError>
+export type DeletePlatformDictionaryMutationVariables = { dictionaryId: string }
+
+export const useDeletePlatformDictionary = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deletePlatformDictionary>>,
+      TError,
+      DeletePlatformDictionaryMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof deletePlatformDictionary>>,
+  TError,
+  DeletePlatformDictionaryMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getDeletePlatformDictionaryMutationOptions(options),
+    queryClient
+  )
+}
+export type setPlatformDictionaryStatusResponse200 = {
+  data: PlatformDictionary
+  status: 200
+}
+
+export type setPlatformDictionaryStatusResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type setPlatformDictionaryStatusResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type setPlatformDictionaryStatusResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type setPlatformDictionaryStatusResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type setPlatformDictionaryStatusResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type setPlatformDictionaryStatusResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type setPlatformDictionaryStatusResponseSuccess =
+  setPlatformDictionaryStatusResponse200 & {
+    headers: Headers
+  }
+export type setPlatformDictionaryStatusResponseError = (
+  | setPlatformDictionaryStatusResponse400
+  | setPlatformDictionaryStatusResponse401
+  | setPlatformDictionaryStatusResponse403
+  | setPlatformDictionaryStatusResponse404
+  | setPlatformDictionaryStatusResponse409
+  | setPlatformDictionaryStatusResponse503
+) & {
+  headers: Headers
+}
+
+export const getSetPlatformDictionaryStatusUrl = (dictionaryId: string) => {
+  return `/api/v1/platform/dictionaries/${dictionaryId}/status`
+}
+
+export const setPlatformDictionaryStatus = async (
+  dictionaryId: string,
+  setPlatformSystemStatus: SetPlatformSystemStatus,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<setPlatformDictionaryStatusResponseSuccess> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {}
+    if (h instanceof Headers) return Object.fromEntries(h.entries())
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string]
+        )
+      )
+    }
+    const headers: Record<string, string | readonly string[]> = {}
+    for (const [name, value] of Object.entries<
+      string | readonly string[] | undefined
+    >(h)) {
+      if (value !== undefined) headers[name] = value
+    }
+    return headers
+  }
+  return apiClient<setPlatformDictionaryStatusResponseSuccess>(
+    getSetPlatformDictionaryStatusUrl(dictionaryId),
+    {
+      ...options,
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...getHeaders(options?.headers),
+      },
+      body: JSON.stringify(setPlatformSystemStatus),
+    }
+  )
+}
+
+export const getSetPlatformDictionaryStatusMutationKey = () =>
+  ["setPlatformDictionaryStatus"] as const
+
+export const getSetPlatformDictionaryStatusMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setPlatformDictionaryStatus>>,
+    TError,
+    SetPlatformDictionaryStatusMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setPlatformDictionaryStatus>>,
+  TError,
+  SetPlatformDictionaryStatusMutationVariables,
+  TContext
+> => {
+  const mutationKey = getSetPlatformDictionaryStatusMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setPlatformDictionaryStatus>>,
+    SetPlatformDictionaryStatusMutationVariables
+  > = (props) => {
+    const { dictionaryId, data } = props ?? {}
+
+    return setPlatformDictionaryStatus(dictionaryId, data, requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type SetPlatformDictionaryStatusMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setPlatformDictionaryStatus>>
+>
+export type SetPlatformDictionaryStatusMutationBody = SetPlatformSystemStatus
+export type SetPlatformDictionaryStatusMutationError = ErrorType<ApiError>
+export type SetPlatformDictionaryStatusMutationVariables = {
+  dictionaryId: string
+  data: SetPlatformSystemStatus
+}
+
+export const useSetPlatformDictionaryStatus = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof setPlatformDictionaryStatus>>,
+      TError,
+      SetPlatformDictionaryStatusMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof setPlatformDictionaryStatus>>,
+  TError,
+  SetPlatformDictionaryStatusMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getSetPlatformDictionaryStatusMutationOptions(options),
+    queryClient
+  )
+}
+export type listPlatformDictionaryItemsResponse200 = {
+  data: PlatformDictionaryItemsPage
+  status: 200
+}
+
+export type listPlatformDictionaryItemsResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type listPlatformDictionaryItemsResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type listPlatformDictionaryItemsResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type listPlatformDictionaryItemsResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type listPlatformDictionaryItemsResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type listPlatformDictionaryItemsResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type listPlatformDictionaryItemsResponseSuccess =
+  listPlatformDictionaryItemsResponse200 & {
+    headers: Headers
+  }
+export type listPlatformDictionaryItemsResponseError = (
+  | listPlatformDictionaryItemsResponse400
+  | listPlatformDictionaryItemsResponse401
+  | listPlatformDictionaryItemsResponse403
+  | listPlatformDictionaryItemsResponse404
+  | listPlatformDictionaryItemsResponse409
+  | listPlatformDictionaryItemsResponse503
+) & {
+  headers: Headers
+}
+
+export const getListPlatformDictionaryItemsUrl = (
+  dictionaryId: string,
+  params?: ListPlatformDictionaryItemsParams
+) => {
+  const normalizedParams = new URLSearchParams()
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value))
+    }
+  })
+
+  const stringifiedParams = normalizedParams.toString()
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/platform/dictionaries/${dictionaryId}/items?${stringifiedParams}`
+    : `/api/v1/platform/dictionaries/${dictionaryId}/items`
+}
+
+export const listPlatformDictionaryItems = async (
+  dictionaryId: string,
+  params?: ListPlatformDictionaryItemsParams,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<listPlatformDictionaryItemsResponseSuccess> => {
+  return apiClient<listPlatformDictionaryItemsResponseSuccess>(
+    getListPlatformDictionaryItemsUrl(dictionaryId, params),
+    {
+      ...options,
+      method: "GET",
+    }
+  )
+}
+
+export const getListPlatformDictionaryItemsQueryKey = (
+  dictionaryId: string,
+  params?: ListPlatformDictionaryItemsParams
+) => {
+  return [
+    `/api/v1/platform/dictionaries/${dictionaryId}/items`,
+    ...(params ? [params] : []),
+  ] as const
+}
+
+export const getListPlatformDictionaryItemsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listPlatformDictionaryItems>>,
+  TError = ErrorType<ApiError>,
+>(
+  dictionaryId: string,
+  params?: ListPlatformDictionaryItemsParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listPlatformDictionaryItems>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListPlatformDictionaryItemsQueryKey(dictionaryId, params)
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listPlatformDictionaryItems>>
+  > = ({ signal }) =>
+    listPlatformDictionaryItems(dictionaryId, params, {
+      signal,
+      ...requestOptions,
+    })
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: dictionaryId !== null && dictionaryId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listPlatformDictionaryItems>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListPlatformDictionaryItemsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listPlatformDictionaryItems>>
+>
+export type ListPlatformDictionaryItemsQueryError = ErrorType<ApiError>
+
+export function useListPlatformDictionaryItems<
+  TData = Awaited<ReturnType<typeof listPlatformDictionaryItems>>,
+  TError = ErrorType<ApiError>,
+>(
+  dictionaryId: string,
+  params: undefined | ListPlatformDictionaryItemsParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listPlatformDictionaryItems>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPlatformDictionaryItems>>,
+          TError,
+          Awaited<ReturnType<typeof listPlatformDictionaryItems>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useListPlatformDictionaryItems<
+  TData = Awaited<ReturnType<typeof listPlatformDictionaryItems>>,
+  TError = ErrorType<ApiError>,
+>(
+  dictionaryId: string,
+  params?: ListPlatformDictionaryItemsParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listPlatformDictionaryItems>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPlatformDictionaryItems>>,
+          TError,
+          Awaited<ReturnType<typeof listPlatformDictionaryItems>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useListPlatformDictionaryItems<
+  TData = Awaited<ReturnType<typeof listPlatformDictionaryItems>>,
+  TError = ErrorType<ApiError>,
+>(
+  dictionaryId: string,
+  params?: ListPlatformDictionaryItemsParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listPlatformDictionaryItems>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+
+export function useListPlatformDictionaryItems<
+  TData = Awaited<ReturnType<typeof listPlatformDictionaryItems>>,
+  TError = ErrorType<ApiError>,
+>(
+  dictionaryId: string,
+  params?: ListPlatformDictionaryItemsParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listPlatformDictionaryItems>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+} {
+  const queryOptions = getListPlatformDictionaryItemsQueryOptions(
+    dictionaryId,
+    params,
+    options
+  )
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+
+  return withQueryKey(query, queryOptions.queryKey)
+}
+
+export type createPlatformDictionaryItemResponse201 = {
+  data: PlatformDictionaryItem
+  status: 201
+}
+
+export type createPlatformDictionaryItemResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type createPlatformDictionaryItemResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type createPlatformDictionaryItemResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type createPlatformDictionaryItemResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type createPlatformDictionaryItemResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type createPlatformDictionaryItemResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type createPlatformDictionaryItemResponseSuccess =
+  createPlatformDictionaryItemResponse201 & {
+    headers: Headers
+  }
+export type createPlatformDictionaryItemResponseError = (
+  | createPlatformDictionaryItemResponse400
+  | createPlatformDictionaryItemResponse401
+  | createPlatformDictionaryItemResponse403
+  | createPlatformDictionaryItemResponse404
+  | createPlatformDictionaryItemResponse409
+  | createPlatformDictionaryItemResponse503
+) & {
+  headers: Headers
+}
+
+export const getCreatePlatformDictionaryItemUrl = (dictionaryId: string) => {
+  return `/api/v1/platform/dictionaries/${dictionaryId}/items`
+}
+
+export const createPlatformDictionaryItem = async (
+  dictionaryId: string,
+  createPlatformDictionaryItemBody: CreatePlatformDictionaryItem,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<createPlatformDictionaryItemResponseSuccess> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {}
+    if (h instanceof Headers) return Object.fromEntries(h.entries())
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string]
+        )
+      )
+    }
+    const headers: Record<string, string | readonly string[]> = {}
+    for (const [name, value] of Object.entries<
+      string | readonly string[] | undefined
+    >(h)) {
+      if (value !== undefined) headers[name] = value
+    }
+    return headers
+  }
+  return apiClient<createPlatformDictionaryItemResponseSuccess>(
+    getCreatePlatformDictionaryItemUrl(dictionaryId),
+    {
+      ...options,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...getHeaders(options?.headers),
+      },
+      body: JSON.stringify(createPlatformDictionaryItemBody),
+    }
+  )
+}
+
+export const getCreatePlatformDictionaryItemMutationKey = () =>
+  ["createPlatformDictionaryItem"] as const
+
+export const getCreatePlatformDictionaryItemMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createPlatformDictionaryItem>>,
+    TError,
+    CreatePlatformDictionaryItemMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createPlatformDictionaryItem>>,
+  TError,
+  CreatePlatformDictionaryItemMutationVariables,
+  TContext
+> => {
+  const mutationKey = getCreatePlatformDictionaryItemMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createPlatformDictionaryItem>>,
+    CreatePlatformDictionaryItemMutationVariables
+  > = (props) => {
+    const { dictionaryId, data } = props ?? {}
+
+    return createPlatformDictionaryItem(dictionaryId, data, requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type CreatePlatformDictionaryItemMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createPlatformDictionaryItem>>
+>
+export type CreatePlatformDictionaryItemMutationBody =
+  CreatePlatformDictionaryItem
+export type CreatePlatformDictionaryItemMutationError = ErrorType<ApiError>
+export type CreatePlatformDictionaryItemMutationVariables = {
+  dictionaryId: string
+  data: CreatePlatformDictionaryItem
+}
+
+export const useCreatePlatformDictionaryItem = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createPlatformDictionaryItem>>,
+      TError,
+      CreatePlatformDictionaryItemMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof createPlatformDictionaryItem>>,
+  TError,
+  CreatePlatformDictionaryItemMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getCreatePlatformDictionaryItemMutationOptions(options),
+    queryClient
+  )
+}
+export type getPlatformDictionaryItemResponse200 = {
+  data: PlatformDictionaryItem
+  status: 200
+}
+
+export type getPlatformDictionaryItemResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type getPlatformDictionaryItemResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type getPlatformDictionaryItemResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type getPlatformDictionaryItemResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type getPlatformDictionaryItemResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type getPlatformDictionaryItemResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type getPlatformDictionaryItemResponseSuccess =
+  getPlatformDictionaryItemResponse200 & {
+    headers: Headers
+  }
+export type getPlatformDictionaryItemResponseError = (
+  | getPlatformDictionaryItemResponse400
+  | getPlatformDictionaryItemResponse401
+  | getPlatformDictionaryItemResponse403
+  | getPlatformDictionaryItemResponse404
+  | getPlatformDictionaryItemResponse409
+  | getPlatformDictionaryItemResponse503
+) & {
+  headers: Headers
+}
+
+export const getGetPlatformDictionaryItemUrl = (
+  dictionaryId: string,
+  itemId: string
+) => {
+  return `/api/v1/platform/dictionaries/${dictionaryId}/items/${itemId}`
+}
+
+export const getPlatformDictionaryItem = async (
+  dictionaryId: string,
+  itemId: string,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<getPlatformDictionaryItemResponseSuccess> => {
+  return apiClient<getPlatformDictionaryItemResponseSuccess>(
+    getGetPlatformDictionaryItemUrl(dictionaryId, itemId),
+    {
+      ...options,
+      method: "GET",
+    }
+  )
+}
+
+export const getGetPlatformDictionaryItemQueryKey = (
+  dictionaryId: string,
+  itemId: string
+) => {
+  return [
+    `/api/v1/platform/dictionaries/${dictionaryId}/items/${itemId}`,
+  ] as const
+}
+
+export const getGetPlatformDictionaryItemQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPlatformDictionaryItem>>,
+  TError = ErrorType<ApiError>,
+>(
+  dictionaryId: string,
+  itemId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformDictionaryItem>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetPlatformDictionaryItemQueryKey(dictionaryId, itemId)
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getPlatformDictionaryItem>>
+  > = ({ signal }) =>
+    getPlatformDictionaryItem(dictionaryId, itemId, {
+      signal,
+      ...requestOptions,
+    })
+
+  return {
+    queryKey,
+    queryFn,
+    enabled:
+      dictionaryId !== null &&
+      dictionaryId !== undefined &&
+      itemId !== null &&
+      itemId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPlatformDictionaryItem>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetPlatformDictionaryItemQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPlatformDictionaryItem>>
+>
+export type GetPlatformDictionaryItemQueryError = ErrorType<ApiError>
+
+export function useGetPlatformDictionaryItem<
+  TData = Awaited<ReturnType<typeof getPlatformDictionaryItem>>,
+  TError = ErrorType<ApiError>,
+>(
+  dictionaryId: string,
+  itemId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformDictionaryItem>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPlatformDictionaryItem>>,
+          TError,
+          Awaited<ReturnType<typeof getPlatformDictionaryItem>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetPlatformDictionaryItem<
+  TData = Awaited<ReturnType<typeof getPlatformDictionaryItem>>,
+  TError = ErrorType<ApiError>,
+>(
+  dictionaryId: string,
+  itemId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformDictionaryItem>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPlatformDictionaryItem>>,
+          TError,
+          Awaited<ReturnType<typeof getPlatformDictionaryItem>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetPlatformDictionaryItem<
+  TData = Awaited<ReturnType<typeof getPlatformDictionaryItem>>,
+  TError = ErrorType<ApiError>,
+>(
+  dictionaryId: string,
+  itemId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformDictionaryItem>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+
+export function useGetPlatformDictionaryItem<
+  TData = Awaited<ReturnType<typeof getPlatformDictionaryItem>>,
+  TError = ErrorType<ApiError>,
+>(
+  dictionaryId: string,
+  itemId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformDictionaryItem>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+} {
+  const queryOptions = getGetPlatformDictionaryItemQueryOptions(
+    dictionaryId,
+    itemId,
+    options
+  )
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+
+  return withQueryKey(query, queryOptions.queryKey)
+}
+
+export type updatePlatformDictionaryItemResponse200 = {
+  data: PlatformDictionaryItem
+  status: 200
+}
+
+export type updatePlatformDictionaryItemResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type updatePlatformDictionaryItemResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type updatePlatformDictionaryItemResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type updatePlatformDictionaryItemResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type updatePlatformDictionaryItemResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type updatePlatformDictionaryItemResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type updatePlatformDictionaryItemResponseSuccess =
+  updatePlatformDictionaryItemResponse200 & {
+    headers: Headers
+  }
+export type updatePlatformDictionaryItemResponseError = (
+  | updatePlatformDictionaryItemResponse400
+  | updatePlatformDictionaryItemResponse401
+  | updatePlatformDictionaryItemResponse403
+  | updatePlatformDictionaryItemResponse404
+  | updatePlatformDictionaryItemResponse409
+  | updatePlatformDictionaryItemResponse503
+) & {
+  headers: Headers
+}
+
+export const getUpdatePlatformDictionaryItemUrl = (
+  dictionaryId: string,
+  itemId: string
+) => {
+  return `/api/v1/platform/dictionaries/${dictionaryId}/items/${itemId}`
+}
+
+export const updatePlatformDictionaryItem = async (
+  dictionaryId: string,
+  itemId: string,
+  updatePlatformDictionaryItemBody: UpdatePlatformDictionaryItem,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<updatePlatformDictionaryItemResponseSuccess> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {}
+    if (h instanceof Headers) return Object.fromEntries(h.entries())
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string]
+        )
+      )
+    }
+    const headers: Record<string, string | readonly string[]> = {}
+    for (const [name, value] of Object.entries<
+      string | readonly string[] | undefined
+    >(h)) {
+      if (value !== undefined) headers[name] = value
+    }
+    return headers
+  }
+  return apiClient<updatePlatformDictionaryItemResponseSuccess>(
+    getUpdatePlatformDictionaryItemUrl(dictionaryId, itemId),
+    {
+      ...options,
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...getHeaders(options?.headers),
+      },
+      body: JSON.stringify(updatePlatformDictionaryItemBody),
+    }
+  )
+}
+
+export const getUpdatePlatformDictionaryItemMutationKey = () =>
+  ["updatePlatformDictionaryItem"] as const
+
+export const getUpdatePlatformDictionaryItemMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updatePlatformDictionaryItem>>,
+    TError,
+    UpdatePlatformDictionaryItemMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updatePlatformDictionaryItem>>,
+  TError,
+  UpdatePlatformDictionaryItemMutationVariables,
+  TContext
+> => {
+  const mutationKey = getUpdatePlatformDictionaryItemMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updatePlatformDictionaryItem>>,
+    UpdatePlatformDictionaryItemMutationVariables
+  > = (props) => {
+    const { dictionaryId, itemId, data } = props ?? {}
+
+    return updatePlatformDictionaryItem(
+      dictionaryId,
+      itemId,
+      data,
+      requestOptions
+    )
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type UpdatePlatformDictionaryItemMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updatePlatformDictionaryItem>>
+>
+export type UpdatePlatformDictionaryItemMutationBody =
+  UpdatePlatformDictionaryItem
+export type UpdatePlatformDictionaryItemMutationError = ErrorType<ApiError>
+export type UpdatePlatformDictionaryItemMutationVariables = {
+  dictionaryId: string
+  itemId: string
+  data: UpdatePlatformDictionaryItem
+}
+
+export const useUpdatePlatformDictionaryItem = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updatePlatformDictionaryItem>>,
+      TError,
+      UpdatePlatformDictionaryItemMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof updatePlatformDictionaryItem>>,
+  TError,
+  UpdatePlatformDictionaryItemMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getUpdatePlatformDictionaryItemMutationOptions(options),
+    queryClient
+  )
+}
+export type deletePlatformDictionaryItemResponse200 = {
+  data: PlatformSystemDeleteResult
+  status: 200
+}
+
+export type deletePlatformDictionaryItemResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type deletePlatformDictionaryItemResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type deletePlatformDictionaryItemResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type deletePlatformDictionaryItemResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type deletePlatformDictionaryItemResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type deletePlatformDictionaryItemResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type deletePlatformDictionaryItemResponseSuccess =
+  deletePlatformDictionaryItemResponse200 & {
+    headers: Headers
+  }
+export type deletePlatformDictionaryItemResponseError = (
+  | deletePlatformDictionaryItemResponse400
+  | deletePlatformDictionaryItemResponse401
+  | deletePlatformDictionaryItemResponse403
+  | deletePlatformDictionaryItemResponse404
+  | deletePlatformDictionaryItemResponse409
+  | deletePlatformDictionaryItemResponse503
+) & {
+  headers: Headers
+}
+
+export const getDeletePlatformDictionaryItemUrl = (
+  dictionaryId: string,
+  itemId: string
+) => {
+  return `/api/v1/platform/dictionaries/${dictionaryId}/items/${itemId}`
+}
+
+export const deletePlatformDictionaryItem = async (
+  dictionaryId: string,
+  itemId: string,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<deletePlatformDictionaryItemResponseSuccess> => {
+  return apiClient<deletePlatformDictionaryItemResponseSuccess>(
+    getDeletePlatformDictionaryItemUrl(dictionaryId, itemId),
+    {
+      ...options,
+      method: "DELETE",
+    }
+  )
+}
+
+export const getDeletePlatformDictionaryItemMutationKey = () =>
+  ["deletePlatformDictionaryItem"] as const
+
+export const getDeletePlatformDictionaryItemMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deletePlatformDictionaryItem>>,
+    TError,
+    DeletePlatformDictionaryItemMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deletePlatformDictionaryItem>>,
+  TError,
+  DeletePlatformDictionaryItemMutationVariables,
+  TContext
+> => {
+  const mutationKey = getDeletePlatformDictionaryItemMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deletePlatformDictionaryItem>>,
+    DeletePlatformDictionaryItemMutationVariables
+  > = (props) => {
+    const { dictionaryId, itemId } = props ?? {}
+
+    return deletePlatformDictionaryItem(dictionaryId, itemId, requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type DeletePlatformDictionaryItemMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deletePlatformDictionaryItem>>
+>
+
+export type DeletePlatformDictionaryItemMutationError = ErrorType<ApiError>
+export type DeletePlatformDictionaryItemMutationVariables = {
+  dictionaryId: string
+  itemId: string
+}
+
+export const useDeletePlatformDictionaryItem = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deletePlatformDictionaryItem>>,
+      TError,
+      DeletePlatformDictionaryItemMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof deletePlatformDictionaryItem>>,
+  TError,
+  DeletePlatformDictionaryItemMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getDeletePlatformDictionaryItemMutationOptions(options),
+    queryClient
+  )
+}
+export type setPlatformDictionaryItemStatusResponse200 = {
+  data: PlatformDictionaryItem
+  status: 200
+}
+
+export type setPlatformDictionaryItemStatusResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type setPlatformDictionaryItemStatusResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type setPlatformDictionaryItemStatusResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type setPlatformDictionaryItemStatusResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type setPlatformDictionaryItemStatusResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type setPlatformDictionaryItemStatusResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type setPlatformDictionaryItemStatusResponseSuccess =
+  setPlatformDictionaryItemStatusResponse200 & {
+    headers: Headers
+  }
+export type setPlatformDictionaryItemStatusResponseError = (
+  | setPlatformDictionaryItemStatusResponse400
+  | setPlatformDictionaryItemStatusResponse401
+  | setPlatformDictionaryItemStatusResponse403
+  | setPlatformDictionaryItemStatusResponse404
+  | setPlatformDictionaryItemStatusResponse409
+  | setPlatformDictionaryItemStatusResponse503
+) & {
+  headers: Headers
+}
+
+export const getSetPlatformDictionaryItemStatusUrl = (
+  dictionaryId: string,
+  itemId: string
+) => {
+  return `/api/v1/platform/dictionaries/${dictionaryId}/items/${itemId}/status`
+}
+
+export const setPlatformDictionaryItemStatus = async (
+  dictionaryId: string,
+  itemId: string,
+  setPlatformSystemStatus: SetPlatformSystemStatus,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<setPlatformDictionaryItemStatusResponseSuccess> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {}
+    if (h instanceof Headers) return Object.fromEntries(h.entries())
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string]
+        )
+      )
+    }
+    const headers: Record<string, string | readonly string[]> = {}
+    for (const [name, value] of Object.entries<
+      string | readonly string[] | undefined
+    >(h)) {
+      if (value !== undefined) headers[name] = value
+    }
+    return headers
+  }
+  return apiClient<setPlatformDictionaryItemStatusResponseSuccess>(
+    getSetPlatformDictionaryItemStatusUrl(dictionaryId, itemId),
+    {
+      ...options,
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...getHeaders(options?.headers),
+      },
+      body: JSON.stringify(setPlatformSystemStatus),
+    }
+  )
+}
+
+export const getSetPlatformDictionaryItemStatusMutationKey = () =>
+  ["setPlatformDictionaryItemStatus"] as const
+
+export const getSetPlatformDictionaryItemStatusMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setPlatformDictionaryItemStatus>>,
+    TError,
+    SetPlatformDictionaryItemStatusMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setPlatformDictionaryItemStatus>>,
+  TError,
+  SetPlatformDictionaryItemStatusMutationVariables,
+  TContext
+> => {
+  const mutationKey = getSetPlatformDictionaryItemStatusMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setPlatformDictionaryItemStatus>>,
+    SetPlatformDictionaryItemStatusMutationVariables
+  > = (props) => {
+    const { dictionaryId, itemId, data } = props ?? {}
+
+    return setPlatformDictionaryItemStatus(
+      dictionaryId,
+      itemId,
+      data,
+      requestOptions
+    )
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type SetPlatformDictionaryItemStatusMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setPlatformDictionaryItemStatus>>
+>
+export type SetPlatformDictionaryItemStatusMutationBody =
+  SetPlatformSystemStatus
+export type SetPlatformDictionaryItemStatusMutationError = ErrorType<ApiError>
+export type SetPlatformDictionaryItemStatusMutationVariables = {
+  dictionaryId: string
+  itemId: string
+  data: SetPlatformSystemStatus
+}
+
+export const useSetPlatformDictionaryItemStatus = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof setPlatformDictionaryItemStatus>>,
+      TError,
+      SetPlatformDictionaryItemStatusMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof setPlatformDictionaryItemStatus>>,
+  TError,
+  SetPlatformDictionaryItemStatusMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getSetPlatformDictionaryItemStatusMutationOptions(options),
+    queryClient
+  )
+}
+export type refreshPlatformParameterCacheResponse200 = {
+  data: PlatformSystemRefreshResult
+  status: 200
+}
+
+export type refreshPlatformParameterCacheResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type refreshPlatformParameterCacheResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type refreshPlatformParameterCacheResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type refreshPlatformParameterCacheResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type refreshPlatformParameterCacheResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type refreshPlatformParameterCacheResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type refreshPlatformParameterCacheResponseSuccess =
+  refreshPlatformParameterCacheResponse200 & {
+    headers: Headers
+  }
+export type refreshPlatformParameterCacheResponseError = (
+  | refreshPlatformParameterCacheResponse400
+  | refreshPlatformParameterCacheResponse401
+  | refreshPlatformParameterCacheResponse403
+  | refreshPlatformParameterCacheResponse404
+  | refreshPlatformParameterCacheResponse409
+  | refreshPlatformParameterCacheResponse503
+) & {
+  headers: Headers
+}
+
+export const getRefreshPlatformParameterCacheUrl = () => {
+  return `/api/v1/platform/parameters/cache/refresh`
+}
+
+export const refreshPlatformParameterCache = async (
+  options?: Parameters<typeof apiClient>[1]
+): Promise<refreshPlatformParameterCacheResponseSuccess> => {
+  return apiClient<refreshPlatformParameterCacheResponseSuccess>(
+    getRefreshPlatformParameterCacheUrl(),
+    {
+      ...options,
+      method: "POST",
+    }
+  )
+}
+
+export const getRefreshPlatformParameterCacheMutationKey = () =>
+  ["refreshPlatformParameterCache"] as const
+
+export const getRefreshPlatformParameterCacheMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof refreshPlatformParameterCache>>,
+    TError,
+    void,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof refreshPlatformParameterCache>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = getRefreshPlatformParameterCacheMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof refreshPlatformParameterCache>>,
+    void
+  > = () => {
+    return refreshPlatformParameterCache(requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type RefreshPlatformParameterCacheMutationResult = NonNullable<
+  Awaited<ReturnType<typeof refreshPlatformParameterCache>>
+>
+
+export type RefreshPlatformParameterCacheMutationError = ErrorType<ApiError>
+
+export const useRefreshPlatformParameterCache = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof refreshPlatformParameterCache>>,
+      TError,
+      void,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof refreshPlatformParameterCache>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(
+    getRefreshPlatformParameterCacheMutationOptions(options),
+    queryClient
+  )
+}
+export type getPlatformParameterByKeyResponse200 = {
+  data: PlatformParameterValue
+  status: 200
+}
+
+export type getPlatformParameterByKeyResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type getPlatformParameterByKeyResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type getPlatformParameterByKeyResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type getPlatformParameterByKeyResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type getPlatformParameterByKeyResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type getPlatformParameterByKeyResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type getPlatformParameterByKeyResponseSuccess =
+  getPlatformParameterByKeyResponse200 & {
+    headers: Headers
+  }
+export type getPlatformParameterByKeyResponseError = (
+  | getPlatformParameterByKeyResponse400
+  | getPlatformParameterByKeyResponse401
+  | getPlatformParameterByKeyResponse403
+  | getPlatformParameterByKeyResponse404
+  | getPlatformParameterByKeyResponse409
+  | getPlatformParameterByKeyResponse503
+) & {
+  headers: Headers
+}
+
+export const getGetPlatformParameterByKeyUrl = (key: string) => {
+  return `/api/v1/platform/parameters/by-key/${key}`
+}
+
+export const getPlatformParameterByKey = async (
+  key: string,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<getPlatformParameterByKeyResponseSuccess> => {
+  return apiClient<getPlatformParameterByKeyResponseSuccess>(
+    getGetPlatformParameterByKeyUrl(key),
+    {
+      ...options,
+      method: "GET",
+    }
+  )
+}
+
+export const getGetPlatformParameterByKeyQueryKey = (key: string) => {
+  return [`/api/v1/platform/parameters/by-key/${key}`] as const
+}
+
+export const getGetPlatformParameterByKeyQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPlatformParameterByKey>>,
+  TError = ErrorType<ApiError>,
+>(
+  key: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformParameterByKey>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetPlatformParameterByKeyQueryKey(key)
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getPlatformParameterByKey>>
+  > = ({ signal }) =>
+    getPlatformParameterByKey(key, { signal, ...requestOptions })
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: key !== null && key !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPlatformParameterByKey>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetPlatformParameterByKeyQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPlatformParameterByKey>>
+>
+export type GetPlatformParameterByKeyQueryError = ErrorType<ApiError>
+
+export function useGetPlatformParameterByKey<
+  TData = Awaited<ReturnType<typeof getPlatformParameterByKey>>,
+  TError = ErrorType<ApiError>,
+>(
+  key: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformParameterByKey>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPlatformParameterByKey>>,
+          TError,
+          Awaited<ReturnType<typeof getPlatformParameterByKey>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetPlatformParameterByKey<
+  TData = Awaited<ReturnType<typeof getPlatformParameterByKey>>,
+  TError = ErrorType<ApiError>,
+>(
+  key: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformParameterByKey>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPlatformParameterByKey>>,
+          TError,
+          Awaited<ReturnType<typeof getPlatformParameterByKey>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetPlatformParameterByKey<
+  TData = Awaited<ReturnType<typeof getPlatformParameterByKey>>,
+  TError = ErrorType<ApiError>,
+>(
+  key: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformParameterByKey>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+
+export function useGetPlatformParameterByKey<
+  TData = Awaited<ReturnType<typeof getPlatformParameterByKey>>,
+  TError = ErrorType<ApiError>,
+>(
+  key: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformParameterByKey>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+} {
+  const queryOptions = getGetPlatformParameterByKeyQueryOptions(key, options)
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+
+  return withQueryKey(query, queryOptions.queryKey)
+}
+
+export type listPlatformParametersResponse200 = {
+  data: PlatformParametersPage
+  status: 200
+}
+
+export type listPlatformParametersResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type listPlatformParametersResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type listPlatformParametersResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type listPlatformParametersResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type listPlatformParametersResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type listPlatformParametersResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type listPlatformParametersResponseSuccess =
+  listPlatformParametersResponse200 & {
+    headers: Headers
+  }
+export type listPlatformParametersResponseError = (
+  | listPlatformParametersResponse400
+  | listPlatformParametersResponse401
+  | listPlatformParametersResponse403
+  | listPlatformParametersResponse404
+  | listPlatformParametersResponse409
+  | listPlatformParametersResponse503
+) & {
+  headers: Headers
+}
+
+export const getListPlatformParametersUrl = (
+  params?: ListPlatformParametersParams
+) => {
+  const normalizedParams = new URLSearchParams()
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value))
+    }
+  })
+
+  const stringifiedParams = normalizedParams.toString()
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/platform/parameters?${stringifiedParams}`
+    : `/api/v1/platform/parameters`
+}
+
+export const listPlatformParameters = async (
+  params?: ListPlatformParametersParams,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<listPlatformParametersResponseSuccess> => {
+  return apiClient<listPlatformParametersResponseSuccess>(
+    getListPlatformParametersUrl(params),
+    {
+      ...options,
+      method: "GET",
+    }
+  )
+}
+
+export const getListPlatformParametersQueryKey = (
+  params?: ListPlatformParametersParams
+) => {
+  return [`/api/v1/platform/parameters`, ...(params ? [params] : [])] as const
+}
+
+export const getListPlatformParametersQueryOptions = <
+  TData = Awaited<ReturnType<typeof listPlatformParameters>>,
+  TError = ErrorType<ApiError>,
+>(
+  params?: ListPlatformParametersParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listPlatformParameters>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListPlatformParametersQueryKey(params)
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listPlatformParameters>>
+  > = ({ signal }) =>
+    listPlatformParameters(params, { signal, ...requestOptions })
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listPlatformParameters>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListPlatformParametersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listPlatformParameters>>
+>
+export type ListPlatformParametersQueryError = ErrorType<ApiError>
+
+export function useListPlatformParameters<
+  TData = Awaited<ReturnType<typeof listPlatformParameters>>,
+  TError = ErrorType<ApiError>,
+>(
+  params: undefined | ListPlatformParametersParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listPlatformParameters>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPlatformParameters>>,
+          TError,
+          Awaited<ReturnType<typeof listPlatformParameters>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useListPlatformParameters<
+  TData = Awaited<ReturnType<typeof listPlatformParameters>>,
+  TError = ErrorType<ApiError>,
+>(
+  params?: ListPlatformParametersParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listPlatformParameters>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPlatformParameters>>,
+          TError,
+          Awaited<ReturnType<typeof listPlatformParameters>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useListPlatformParameters<
+  TData = Awaited<ReturnType<typeof listPlatformParameters>>,
+  TError = ErrorType<ApiError>,
+>(
+  params?: ListPlatformParametersParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listPlatformParameters>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+
+export function useListPlatformParameters<
+  TData = Awaited<ReturnType<typeof listPlatformParameters>>,
+  TError = ErrorType<ApiError>,
+>(
+  params?: ListPlatformParametersParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listPlatformParameters>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+} {
+  const queryOptions = getListPlatformParametersQueryOptions(params, options)
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+
+  return withQueryKey(query, queryOptions.queryKey)
+}
+
+export type createPlatformParameterResponse201 = {
+  data: PlatformParameter
+  status: 201
+}
+
+export type createPlatformParameterResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type createPlatformParameterResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type createPlatformParameterResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type createPlatformParameterResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type createPlatformParameterResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type createPlatformParameterResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type createPlatformParameterResponseSuccess =
+  createPlatformParameterResponse201 & {
+    headers: Headers
+  }
+export type createPlatformParameterResponseError = (
+  | createPlatformParameterResponse400
+  | createPlatformParameterResponse401
+  | createPlatformParameterResponse403
+  | createPlatformParameterResponse404
+  | createPlatformParameterResponse409
+  | createPlatformParameterResponse503
+) & {
+  headers: Headers
+}
+
+export const getCreatePlatformParameterUrl = () => {
+  return `/api/v1/platform/parameters`
+}
+
+export const createPlatformParameter = async (
+  createPlatformParameterBody: CreatePlatformParameter,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<createPlatformParameterResponseSuccess> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {}
+    if (h instanceof Headers) return Object.fromEntries(h.entries())
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string]
+        )
+      )
+    }
+    const headers: Record<string, string | readonly string[]> = {}
+    for (const [name, value] of Object.entries<
+      string | readonly string[] | undefined
+    >(h)) {
+      if (value !== undefined) headers[name] = value
+    }
+    return headers
+  }
+  return apiClient<createPlatformParameterResponseSuccess>(
+    getCreatePlatformParameterUrl(),
+    {
+      ...options,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...getHeaders(options?.headers),
+      },
+      body: JSON.stringify(createPlatformParameterBody),
+    }
+  )
+}
+
+export const getCreatePlatformParameterMutationKey = () =>
+  ["createPlatformParameter"] as const
+
+export const getCreatePlatformParameterMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createPlatformParameter>>,
+    TError,
+    CreatePlatformParameterMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createPlatformParameter>>,
+  TError,
+  CreatePlatformParameterMutationVariables,
+  TContext
+> => {
+  const mutationKey = getCreatePlatformParameterMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createPlatformParameter>>,
+    CreatePlatformParameterMutationVariables
+  > = (props) => {
+    const { data } = props ?? {}
+
+    return createPlatformParameter(data, requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type CreatePlatformParameterMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createPlatformParameter>>
+>
+export type CreatePlatformParameterMutationBody = CreatePlatformParameter
+export type CreatePlatformParameterMutationError = ErrorType<ApiError>
+export type CreatePlatformParameterMutationVariables = {
+  data: CreatePlatformParameter
+}
+
+export const useCreatePlatformParameter = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createPlatformParameter>>,
+      TError,
+      CreatePlatformParameterMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof createPlatformParameter>>,
+  TError,
+  CreatePlatformParameterMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getCreatePlatformParameterMutationOptions(options),
+    queryClient
+  )
+}
+export type getPlatformParameterResponse200 = {
+  data: PlatformParameter
+  status: 200
+}
+
+export type getPlatformParameterResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type getPlatformParameterResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type getPlatformParameterResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type getPlatformParameterResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type getPlatformParameterResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type getPlatformParameterResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type getPlatformParameterResponseSuccess =
+  getPlatformParameterResponse200 & {
+    headers: Headers
+  }
+export type getPlatformParameterResponseError = (
+  | getPlatformParameterResponse400
+  | getPlatformParameterResponse401
+  | getPlatformParameterResponse403
+  | getPlatformParameterResponse404
+  | getPlatformParameterResponse409
+  | getPlatformParameterResponse503
+) & {
+  headers: Headers
+}
+
+export const getGetPlatformParameterUrl = (parameterId: string) => {
+  return `/api/v1/platform/parameters/${parameterId}`
+}
+
+export const getPlatformParameter = async (
+  parameterId: string,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<getPlatformParameterResponseSuccess> => {
+  return apiClient<getPlatformParameterResponseSuccess>(
+    getGetPlatformParameterUrl(parameterId),
+    {
+      ...options,
+      method: "GET",
+    }
+  )
+}
+
+export const getGetPlatformParameterQueryKey = (parameterId: string) => {
+  return [`/api/v1/platform/parameters/${parameterId}`] as const
+}
+
+export const getGetPlatformParameterQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPlatformParameter>>,
+  TError = ErrorType<ApiError>,
+>(
+  parameterId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformParameter>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetPlatformParameterQueryKey(parameterId)
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getPlatformParameter>>
+  > = ({ signal }) =>
+    getPlatformParameter(parameterId, { signal, ...requestOptions })
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: parameterId !== null && parameterId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPlatformParameter>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetPlatformParameterQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPlatformParameter>>
+>
+export type GetPlatformParameterQueryError = ErrorType<ApiError>
+
+export function useGetPlatformParameter<
+  TData = Awaited<ReturnType<typeof getPlatformParameter>>,
+  TError = ErrorType<ApiError>,
+>(
+  parameterId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformParameter>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPlatformParameter>>,
+          TError,
+          Awaited<ReturnType<typeof getPlatformParameter>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetPlatformParameter<
+  TData = Awaited<ReturnType<typeof getPlatformParameter>>,
+  TError = ErrorType<ApiError>,
+>(
+  parameterId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformParameter>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPlatformParameter>>,
+          TError,
+          Awaited<ReturnType<typeof getPlatformParameter>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+export function useGetPlatformParameter<
+  TData = Awaited<ReturnType<typeof getPlatformParameter>>,
+  TError = ErrorType<ApiError>,
+>(
+  parameterId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformParameter>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+}
+
+export function useGetPlatformParameter<
+  TData = Awaited<ReturnType<typeof getPlatformParameter>>,
+  TError = ErrorType<ApiError>,
+>(
+  parameterId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformParameter>>,
+        TError,
+        TData
+      >
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>
+} {
+  const queryOptions = getGetPlatformParameterQueryOptions(parameterId, options)
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+
+  return withQueryKey(query, queryOptions.queryKey)
+}
+
+export type updatePlatformParameterResponse200 = {
+  data: PlatformParameter
+  status: 200
+}
+
+export type updatePlatformParameterResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type updatePlatformParameterResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type updatePlatformParameterResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type updatePlatformParameterResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type updatePlatformParameterResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type updatePlatformParameterResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type updatePlatformParameterResponseSuccess =
+  updatePlatformParameterResponse200 & {
+    headers: Headers
+  }
+export type updatePlatformParameterResponseError = (
+  | updatePlatformParameterResponse400
+  | updatePlatformParameterResponse401
+  | updatePlatformParameterResponse403
+  | updatePlatformParameterResponse404
+  | updatePlatformParameterResponse409
+  | updatePlatformParameterResponse503
+) & {
+  headers: Headers
+}
+
+export const getUpdatePlatformParameterUrl = (parameterId: string) => {
+  return `/api/v1/platform/parameters/${parameterId}`
+}
+
+export const updatePlatformParameter = async (
+  parameterId: string,
+  updatePlatformParameterBody: UpdatePlatformParameter,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<updatePlatformParameterResponseSuccess> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {}
+    if (h instanceof Headers) return Object.fromEntries(h.entries())
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string]
+        )
+      )
+    }
+    const headers: Record<string, string | readonly string[]> = {}
+    for (const [name, value] of Object.entries<
+      string | readonly string[] | undefined
+    >(h)) {
+      if (value !== undefined) headers[name] = value
+    }
+    return headers
+  }
+  return apiClient<updatePlatformParameterResponseSuccess>(
+    getUpdatePlatformParameterUrl(parameterId),
+    {
+      ...options,
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...getHeaders(options?.headers),
+      },
+      body: JSON.stringify(updatePlatformParameterBody),
+    }
+  )
+}
+
+export const getUpdatePlatformParameterMutationKey = () =>
+  ["updatePlatformParameter"] as const
+
+export const getUpdatePlatformParameterMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updatePlatformParameter>>,
+    TError,
+    UpdatePlatformParameterMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updatePlatformParameter>>,
+  TError,
+  UpdatePlatformParameterMutationVariables,
+  TContext
+> => {
+  const mutationKey = getUpdatePlatformParameterMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updatePlatformParameter>>,
+    UpdatePlatformParameterMutationVariables
+  > = (props) => {
+    const { parameterId, data } = props ?? {}
+
+    return updatePlatformParameter(parameterId, data, requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type UpdatePlatformParameterMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updatePlatformParameter>>
+>
+export type UpdatePlatformParameterMutationBody = UpdatePlatformParameter
+export type UpdatePlatformParameterMutationError = ErrorType<ApiError>
+export type UpdatePlatformParameterMutationVariables = {
+  parameterId: string
+  data: UpdatePlatformParameter
+}
+
+export const useUpdatePlatformParameter = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updatePlatformParameter>>,
+      TError,
+      UpdatePlatformParameterMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof updatePlatformParameter>>,
+  TError,
+  UpdatePlatformParameterMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getUpdatePlatformParameterMutationOptions(options),
+    queryClient
+  )
+}
+export type deletePlatformParameterResponse200 = {
+  data: PlatformSystemDeleteResult
+  status: 200
+}
+
+export type deletePlatformParameterResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type deletePlatformParameterResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type deletePlatformParameterResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type deletePlatformParameterResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type deletePlatformParameterResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type deletePlatformParameterResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type deletePlatformParameterResponseSuccess =
+  deletePlatformParameterResponse200 & {
+    headers: Headers
+  }
+export type deletePlatformParameterResponseError = (
+  | deletePlatformParameterResponse400
+  | deletePlatformParameterResponse401
+  | deletePlatformParameterResponse403
+  | deletePlatformParameterResponse404
+  | deletePlatformParameterResponse409
+  | deletePlatformParameterResponse503
+) & {
+  headers: Headers
+}
+
+export const getDeletePlatformParameterUrl = (parameterId: string) => {
+  return `/api/v1/platform/parameters/${parameterId}`
+}
+
+export const deletePlatformParameter = async (
+  parameterId: string,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<deletePlatformParameterResponseSuccess> => {
+  return apiClient<deletePlatformParameterResponseSuccess>(
+    getDeletePlatformParameterUrl(parameterId),
+    {
+      ...options,
+      method: "DELETE",
+    }
+  )
+}
+
+export const getDeletePlatformParameterMutationKey = () =>
+  ["deletePlatformParameter"] as const
+
+export const getDeletePlatformParameterMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deletePlatformParameter>>,
+    TError,
+    DeletePlatformParameterMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deletePlatformParameter>>,
+  TError,
+  DeletePlatformParameterMutationVariables,
+  TContext
+> => {
+  const mutationKey = getDeletePlatformParameterMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deletePlatformParameter>>,
+    DeletePlatformParameterMutationVariables
+  > = (props) => {
+    const { parameterId } = props ?? {}
+
+    return deletePlatformParameter(parameterId, requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type DeletePlatformParameterMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deletePlatformParameter>>
+>
+
+export type DeletePlatformParameterMutationError = ErrorType<ApiError>
+export type DeletePlatformParameterMutationVariables = { parameterId: string }
+
+export const useDeletePlatformParameter = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deletePlatformParameter>>,
+      TError,
+      DeletePlatformParameterMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof deletePlatformParameter>>,
+  TError,
+  DeletePlatformParameterMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getDeletePlatformParameterMutationOptions(options),
+    queryClient
+  )
+}
+export type setPlatformParameterStatusResponse200 = {
+  data: PlatformParameter
+  status: 200
+}
+
+export type setPlatformParameterStatusResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type setPlatformParameterStatusResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type setPlatformParameterStatusResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type setPlatformParameterStatusResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type setPlatformParameterStatusResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type setPlatformParameterStatusResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type setPlatformParameterStatusResponseSuccess =
+  setPlatformParameterStatusResponse200 & {
+    headers: Headers
+  }
+export type setPlatformParameterStatusResponseError = (
+  | setPlatformParameterStatusResponse400
+  | setPlatformParameterStatusResponse401
+  | setPlatformParameterStatusResponse403
+  | setPlatformParameterStatusResponse404
+  | setPlatformParameterStatusResponse409
+  | setPlatformParameterStatusResponse503
+) & {
+  headers: Headers
+}
+
+export const getSetPlatformParameterStatusUrl = (parameterId: string) => {
+  return `/api/v1/platform/parameters/${parameterId}/status`
+}
+
+export const setPlatformParameterStatus = async (
+  parameterId: string,
+  setPlatformSystemStatus: SetPlatformSystemStatus,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<setPlatformParameterStatusResponseSuccess> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {}
+    if (h instanceof Headers) return Object.fromEntries(h.entries())
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string]
+        )
+      )
+    }
+    const headers: Record<string, string | readonly string[]> = {}
+    for (const [name, value] of Object.entries<
+      string | readonly string[] | undefined
+    >(h)) {
+      if (value !== undefined) headers[name] = value
+    }
+    return headers
+  }
+  return apiClient<setPlatformParameterStatusResponseSuccess>(
+    getSetPlatformParameterStatusUrl(parameterId),
+    {
+      ...options,
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...getHeaders(options?.headers),
+      },
+      body: JSON.stringify(setPlatformSystemStatus),
+    }
+  )
+}
+
+export const getSetPlatformParameterStatusMutationKey = () =>
+  ["setPlatformParameterStatus"] as const
+
+export const getSetPlatformParameterStatusMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setPlatformParameterStatus>>,
+    TError,
+    SetPlatformParameterStatusMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setPlatformParameterStatus>>,
+  TError,
+  SetPlatformParameterStatusMutationVariables,
+  TContext
+> => {
+  const mutationKey = getSetPlatformParameterStatusMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setPlatformParameterStatus>>,
+    SetPlatformParameterStatusMutationVariables
+  > = (props) => {
+    const { parameterId, data } = props ?? {}
+
+    return setPlatformParameterStatus(parameterId, data, requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type SetPlatformParameterStatusMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setPlatformParameterStatus>>
+>
+export type SetPlatformParameterStatusMutationBody = SetPlatformSystemStatus
+export type SetPlatformParameterStatusMutationError = ErrorType<ApiError>
+export type SetPlatformParameterStatusMutationVariables = {
+  parameterId: string
+  data: SetPlatformSystemStatus
+}
+
+export const useSetPlatformParameterStatus = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof setPlatformParameterStatus>>,
+      TError,
+      SetPlatformParameterStatusMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof setPlatformParameterStatus>>,
+  TError,
+  SetPlatformParameterStatusMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getSetPlatformParameterStatusMutationOptions(options),
+    queryClient
+  )
+}
 export type listPlatformRolesResponse200 = {
   data: PlatformRolesPage
   status: 200
@@ -4665,56 +9104,230 @@ export const useSetPlatformRoleStatus = <
     queryClient
   )
 }
-export type listPlatformMenusResponse200 = {
-  data: PlatformMenusTree
+export type setPlatformRolePermissionsResponse200 = {
+  data: PlatformRole
   status: 200
 }
 
-export type listPlatformMenusResponse400 = {
+export type setPlatformRolePermissionsResponse400 = {
   data: ApiError
   status: 400
 }
 
-export type listPlatformMenusResponse401 = {
+export type setPlatformRolePermissionsResponse401 = {
   data: ApiError
   status: 401
 }
 
-export type listPlatformMenusResponse403 = {
+export type setPlatformRolePermissionsResponse403 = {
   data: ApiError
   status: 403
 }
 
-export type listPlatformMenusResponse404 = {
+export type setPlatformRolePermissionsResponse404 = {
   data: ApiError
   status: 404
 }
 
-export type listPlatformMenusResponse409 = {
+export type setPlatformRolePermissionsResponse409 = {
   data: ApiError
   status: 409
 }
 
-export type listPlatformMenusResponse503 = {
+export type setPlatformRolePermissionsResponse503 = {
   data: ApiError
   status: 503
 }
 
-export type listPlatformMenusResponseSuccess = listPlatformMenusResponse200 & {
-  headers: Headers
-}
-export type listPlatformMenusResponseError = (
-  | listPlatformMenusResponse400
-  | listPlatformMenusResponse401
-  | listPlatformMenusResponse403
-  | listPlatformMenusResponse404
-  | listPlatformMenusResponse409
-  | listPlatformMenusResponse503
+export type setPlatformRolePermissionsResponseSuccess =
+  setPlatformRolePermissionsResponse200 & {
+    headers: Headers
+  }
+export type setPlatformRolePermissionsResponseError = (
+  | setPlatformRolePermissionsResponse400
+  | setPlatformRolePermissionsResponse401
+  | setPlatformRolePermissionsResponse403
+  | setPlatformRolePermissionsResponse404
+  | setPlatformRolePermissionsResponse409
+  | setPlatformRolePermissionsResponse503
 ) & {
   headers: Headers
 }
 
-export const getListPlatformMenusUrl = (params?: ListPlatformMenusParams) => {
+export const getSetPlatformRolePermissionsUrl = (roleId: string) => {
+  return `/api/v1/platform/roles/${roleId}/permissions`
+}
+
+export const setPlatformRolePermissions = async (
+  roleId: string,
+  setPlatformRolePermissionsBody: SetPlatformRolePermissions,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<setPlatformRolePermissionsResponseSuccess> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {}
+    if (h instanceof Headers) return Object.fromEntries(h.entries())
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string]
+        )
+      )
+    }
+    const headers: Record<string, string | readonly string[]> = {}
+    for (const [name, value] of Object.entries<
+      string | readonly string[] | undefined
+    >(h)) {
+      if (value !== undefined) headers[name] = value
+    }
+    return headers
+  }
+  return apiClient<setPlatformRolePermissionsResponseSuccess>(
+    getSetPlatformRolePermissionsUrl(roleId),
+    {
+      ...options,
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...getHeaders(options?.headers),
+      },
+      body: JSON.stringify(setPlatformRolePermissionsBody),
+    }
+  )
+}
+
+export const getSetPlatformRolePermissionsMutationKey = () =>
+  ["setPlatformRolePermissions"] as const
+
+export const getSetPlatformRolePermissionsMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setPlatformRolePermissions>>,
+    TError,
+    SetPlatformRolePermissionsMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setPlatformRolePermissions>>,
+  TError,
+  SetPlatformRolePermissionsMutationVariables,
+  TContext
+> => {
+  const mutationKey = getSetPlatformRolePermissionsMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setPlatformRolePermissions>>,
+    SetPlatformRolePermissionsMutationVariables
+  > = (props) => {
+    const { roleId, data } = props ?? {}
+
+    return setPlatformRolePermissions(roleId, data, requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type SetPlatformRolePermissionsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setPlatformRolePermissions>>
+>
+export type SetPlatformRolePermissionsMutationBody = SetPlatformRolePermissions
+export type SetPlatformRolePermissionsMutationError = ErrorType<ApiError>
+export type SetPlatformRolePermissionsMutationVariables = {
+  roleId: string
+  data: SetPlatformRolePermissions
+}
+
+export const useSetPlatformRolePermissions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof setPlatformRolePermissions>>,
+      TError,
+      SetPlatformRolePermissionsMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof setPlatformRolePermissions>>,
+  TError,
+  SetPlatformRolePermissionsMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getSetPlatformRolePermissionsMutationOptions(options),
+    queryClient
+  )
+}
+export type listPlatformRoleEmployeesResponse200 = {
+  data: PlatformEmployeesPage
+  status: 200
+}
+
+export type listPlatformRoleEmployeesResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type listPlatformRoleEmployeesResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type listPlatformRoleEmployeesResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type listPlatformRoleEmployeesResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type listPlatformRoleEmployeesResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type listPlatformRoleEmployeesResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type listPlatformRoleEmployeesResponseSuccess =
+  listPlatformRoleEmployeesResponse200 & {
+    headers: Headers
+  }
+export type listPlatformRoleEmployeesResponseError = (
+  | listPlatformRoleEmployeesResponse400
+  | listPlatformRoleEmployeesResponse401
+  | listPlatformRoleEmployeesResponse403
+  | listPlatformRoleEmployeesResponse404
+  | listPlatformRoleEmployeesResponse409
+  | listPlatformRoleEmployeesResponse503
+) & {
+  headers: Headers
+}
+
+export const getListPlatformRoleEmployeesUrl = (
+  roleId: string,
+  params: ListPlatformRoleEmployeesParams
+) => {
   const normalizedParams = new URLSearchParams()
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -4726,16 +9339,17 @@ export const getListPlatformMenusUrl = (params?: ListPlatformMenusParams) => {
   const stringifiedParams = normalizedParams.toString()
 
   return stringifiedParams.length > 0
-    ? `/api/v1/platform/menus?${stringifiedParams}`
-    : `/api/v1/platform/menus`
+    ? `/api/v1/platform/roles/${roleId}/employees?${stringifiedParams}`
+    : `/api/v1/platform/roles/${roleId}/employees`
 }
 
-export const listPlatformMenus = async (
-  params?: ListPlatformMenusParams,
+export const listPlatformRoleEmployees = async (
+  roleId: string,
+  params: ListPlatformRoleEmployeesParams,
   options?: Parameters<typeof apiClient>[1]
-): Promise<listPlatformMenusResponseSuccess> => {
-  return apiClient<listPlatformMenusResponseSuccess>(
-    getListPlatformMenusUrl(params),
+): Promise<listPlatformRoleEmployeesResponseSuccess> => {
+  return apiClient<listPlatformRoleEmployeesResponseSuccess>(
+    getListPlatformRoleEmployeesUrl(roleId, params),
     {
       ...options,
       method: "GET",
@@ -4743,21 +9357,26 @@ export const listPlatformMenus = async (
   )
 }
 
-export const getListPlatformMenusQueryKey = (
-  params?: ListPlatformMenusParams
+export const getListPlatformRoleEmployeesQueryKey = (
+  roleId: string,
+  params?: ListPlatformRoleEmployeesParams
 ) => {
-  return [`/api/v1/platform/menus`, ...(params ? [params] : [])] as const
+  return [
+    `/api/v1/platform/roles/${roleId}/employees`,
+    ...(params ? [params] : []),
+  ] as const
 }
 
-export const getListPlatformMenusQueryOptions = <
-  TData = Awaited<ReturnType<typeof listPlatformMenus>>,
+export const getListPlatformRoleEmployeesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listPlatformRoleEmployees>>,
   TError = ErrorType<ApiError>,
 >(
-  params?: ListPlatformMenusParams,
+  roleId: string,
+  params: ListPlatformRoleEmployeesParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
-        Awaited<ReturnType<typeof listPlatformMenus>>,
+        Awaited<ReturnType<typeof listPlatformRoleEmployees>>,
         TError,
         TData
       >
@@ -4768,42 +9387,50 @@ export const getListPlatformMenusQueryOptions = <
   const { query: queryOptions, request: requestOptions } = options ?? {}
 
   const queryKey =
-    queryOptions?.queryKey ?? getListPlatformMenusQueryKey(params)
+    queryOptions?.queryKey ??
+    getListPlatformRoleEmployeesQueryKey(roleId, params)
 
   const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof listPlatformMenus>>
-  > = ({ signal }) => listPlatformMenus(params, { signal, ...requestOptions })
+    Awaited<ReturnType<typeof listPlatformRoleEmployees>>
+  > = ({ signal }) =>
+    listPlatformRoleEmployees(roleId, params, { signal, ...requestOptions })
 
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof listPlatformMenus>>,
+  return {
+    queryKey,
+    queryFn,
+    enabled: roleId !== null && roleId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listPlatformRoleEmployees>>,
     TError,
     TData
   > & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
-export type ListPlatformMenusQueryResult = NonNullable<
-  Awaited<ReturnType<typeof listPlatformMenus>>
+export type ListPlatformRoleEmployeesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listPlatformRoleEmployees>>
 >
-export type ListPlatformMenusQueryError = ErrorType<ApiError>
+export type ListPlatformRoleEmployeesQueryError = ErrorType<ApiError>
 
-export function useListPlatformMenus<
-  TData = Awaited<ReturnType<typeof listPlatformMenus>>,
+export function useListPlatformRoleEmployees<
+  TData = Awaited<ReturnType<typeof listPlatformRoleEmployees>>,
   TError = ErrorType<ApiError>,
 >(
-  params: undefined | ListPlatformMenusParams,
+  roleId: string,
+  params: ListPlatformRoleEmployeesParams,
   options: {
     query: Partial<
       UseQueryOptions<
-        Awaited<ReturnType<typeof listPlatformMenus>>,
+        Awaited<ReturnType<typeof listPlatformRoleEmployees>>,
         TError,
         TData
       >
     > &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listPlatformMenus>>,
+          Awaited<ReturnType<typeof listPlatformRoleEmployees>>,
           TError,
-          Awaited<ReturnType<typeof listPlatformMenus>>
+          Awaited<ReturnType<typeof listPlatformRoleEmployees>>
         >,
         "initialData"
       >
@@ -4813,24 +9440,25 @@ export function useListPlatformMenus<
 ): DefinedUseQueryResult<TData, TError> & {
   queryKey: DataTag<QueryKey, TData, TError>
 }
-export function useListPlatformMenus<
-  TData = Awaited<ReturnType<typeof listPlatformMenus>>,
+export function useListPlatformRoleEmployees<
+  TData = Awaited<ReturnType<typeof listPlatformRoleEmployees>>,
   TError = ErrorType<ApiError>,
 >(
-  params?: ListPlatformMenusParams,
+  roleId: string,
+  params: ListPlatformRoleEmployeesParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
-        Awaited<ReturnType<typeof listPlatformMenus>>,
+        Awaited<ReturnType<typeof listPlatformRoleEmployees>>,
         TError,
         TData
       >
     > &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listPlatformMenus>>,
+          Awaited<ReturnType<typeof listPlatformRoleEmployees>>,
           TError,
-          Awaited<ReturnType<typeof listPlatformMenus>>
+          Awaited<ReturnType<typeof listPlatformRoleEmployees>>
         >,
         "initialData"
       >
@@ -4840,15 +9468,16 @@ export function useListPlatformMenus<
 ): UseQueryResult<TData, TError> & {
   queryKey: DataTag<QueryKey, TData, TError>
 }
-export function useListPlatformMenus<
-  TData = Awaited<ReturnType<typeof listPlatformMenus>>,
+export function useListPlatformRoleEmployees<
+  TData = Awaited<ReturnType<typeof listPlatformRoleEmployees>>,
   TError = ErrorType<ApiError>,
 >(
-  params?: ListPlatformMenusParams,
+  roleId: string,
+  params: ListPlatformRoleEmployeesParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
-        Awaited<ReturnType<typeof listPlatformMenus>>,
+        Awaited<ReturnType<typeof listPlatformRoleEmployees>>,
         TError,
         TData
       >
@@ -4860,15 +9489,16 @@ export function useListPlatformMenus<
   queryKey: DataTag<QueryKey, TData, TError>
 }
 
-export function useListPlatformMenus<
-  TData = Awaited<ReturnType<typeof listPlatformMenus>>,
+export function useListPlatformRoleEmployees<
+  TData = Awaited<ReturnType<typeof listPlatformRoleEmployees>>,
   TError = ErrorType<ApiError>,
 >(
-  params?: ListPlatformMenusParams,
+  roleId: string,
+  params: ListPlatformRoleEmployeesParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
-        Awaited<ReturnType<typeof listPlatformMenus>>,
+        Awaited<ReturnType<typeof listPlatformRoleEmployees>>,
         TError,
         TData
       >
@@ -4879,7 +9509,11 @@ export function useListPlatformMenus<
 ): UseQueryResult<TData, TError> & {
   queryKey: DataTag<QueryKey, TData, TError>
 } {
-  const queryOptions = getListPlatformMenusQueryOptions(params, options)
+  const queryOptions = getListPlatformRoleEmployeesQueryOptions(
+    roleId,
+    params,
+    options
+  )
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<
     TData,
@@ -4889,64 +9523,65 @@ export function useListPlatformMenus<
   return withQueryKey(query, queryOptions.queryKey)
 }
 
-export type createPlatformMenuResponse201 = {
-  data: PlatformMenu
-  status: 201
+export type assignPlatformRoleEmployeesResponse200 = {
+  data: PlatformRoleEmployeesMutationResult
+  status: 200
 }
 
-export type createPlatformMenuResponse400 = {
+export type assignPlatformRoleEmployeesResponse400 = {
   data: ApiError
   status: 400
 }
 
-export type createPlatformMenuResponse401 = {
+export type assignPlatformRoleEmployeesResponse401 = {
   data: ApiError
   status: 401
 }
 
-export type createPlatformMenuResponse403 = {
+export type assignPlatformRoleEmployeesResponse403 = {
   data: ApiError
   status: 403
 }
 
-export type createPlatformMenuResponse404 = {
+export type assignPlatformRoleEmployeesResponse404 = {
   data: ApiError
   status: 404
 }
 
-export type createPlatformMenuResponse409 = {
+export type assignPlatformRoleEmployeesResponse409 = {
   data: ApiError
   status: 409
 }
 
-export type createPlatformMenuResponse503 = {
+export type assignPlatformRoleEmployeesResponse503 = {
   data: ApiError
   status: 503
 }
 
-export type createPlatformMenuResponseSuccess =
-  createPlatformMenuResponse201 & {
+export type assignPlatformRoleEmployeesResponseSuccess =
+  assignPlatformRoleEmployeesResponse200 & {
     headers: Headers
   }
-export type createPlatformMenuResponseError = (
-  | createPlatformMenuResponse400
-  | createPlatformMenuResponse401
-  | createPlatformMenuResponse403
-  | createPlatformMenuResponse404
-  | createPlatformMenuResponse409
-  | createPlatformMenuResponse503
+export type assignPlatformRoleEmployeesResponseError = (
+  | assignPlatformRoleEmployeesResponse400
+  | assignPlatformRoleEmployeesResponse401
+  | assignPlatformRoleEmployeesResponse403
+  | assignPlatformRoleEmployeesResponse404
+  | assignPlatformRoleEmployeesResponse409
+  | assignPlatformRoleEmployeesResponse503
 ) & {
   headers: Headers
 }
 
-export const getCreatePlatformMenuUrl = () => {
-  return `/api/v1/platform/menus`
+export const getAssignPlatformRoleEmployeesUrl = (roleId: string) => {
+  return `/api/v1/platform/roles/${roleId}/employees`
 }
 
-export const createPlatformMenu = async (
-  createPlatformMenuBody: CreatePlatformMenu,
+export const assignPlatformRoleEmployees = async (
+  roleId: string,
+  setPlatformRoleEmployees: SetPlatformRoleEmployees,
   options?: Parameters<typeof apiClient>[1]
-): Promise<createPlatformMenuResponseSuccess> => {
+): Promise<assignPlatformRoleEmployeesResponseSuccess> => {
   const getHeaders = (
     h?: NonNullable<RequestInit["headers"]>
   ): Record<string, string | readonly string[]> => {
@@ -4968,8 +9603,8 @@ export const createPlatformMenu = async (
     }
     return headers
   }
-  return apiClient<createPlatformMenuResponseSuccess>(
-    getCreatePlatformMenuUrl(),
+  return apiClient<assignPlatformRoleEmployeesResponseSuccess>(
+    getAssignPlatformRoleEmployeesUrl(roleId),
     {
       ...options,
       method: "POST",
@@ -4977,32 +9612,32 @@ export const createPlatformMenu = async (
         "Content-Type": "application/json",
         ...getHeaders(options?.headers),
       },
-      body: JSON.stringify(createPlatformMenuBody),
+      body: JSON.stringify(setPlatformRoleEmployees),
     }
   )
 }
 
-export const getCreatePlatformMenuMutationKey = () =>
-  ["createPlatformMenu"] as const
+export const getAssignPlatformRoleEmployeesMutationKey = () =>
+  ["assignPlatformRoleEmployees"] as const
 
-export const getCreatePlatformMenuMutationOptions = <
+export const getAssignPlatformRoleEmployeesMutationOptions = <
   TError = ErrorType<ApiError>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createPlatformMenu>>,
+    Awaited<ReturnType<typeof assignPlatformRoleEmployees>>,
     TError,
-    CreatePlatformMenuMutationVariables,
+    AssignPlatformRoleEmployeesMutationVariables,
     TContext
   >
   request?: SecondParameter<typeof apiClient>
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof createPlatformMenu>>,
+  Awaited<ReturnType<typeof assignPlatformRoleEmployees>>,
   TError,
-  CreatePlatformMenuMutationVariables,
+  AssignPlatformRoleEmployeesMutationVariables,
   TContext
 > => {
-  const mutationKey = getCreatePlatformMenuMutationKey()
+  const mutationKey = getAssignPlatformRoleEmployeesMutationKey()
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation &&
       "mutationKey" in options.mutation &&
@@ -5012,731 +9647,219 @@ export const getCreatePlatformMenuMutationOptions = <
     : { mutation: { mutationKey }, request: undefined }
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof createPlatformMenu>>,
-    CreatePlatformMenuMutationVariables
+    Awaited<ReturnType<typeof assignPlatformRoleEmployees>>,
+    AssignPlatformRoleEmployeesMutationVariables
   > = (props) => {
-    const { data } = props ?? {}
+    const { roleId, data } = props ?? {}
 
-    return createPlatformMenu(data, requestOptions)
+    return assignPlatformRoleEmployees(roleId, data, requestOptions)
   }
 
   return { mutationFn, ...mutationOptions }
 }
 
-export type CreatePlatformMenuMutationResult = NonNullable<
-  Awaited<ReturnType<typeof createPlatformMenu>>
+export type AssignPlatformRoleEmployeesMutationResult = NonNullable<
+  Awaited<ReturnType<typeof assignPlatformRoleEmployees>>
 >
-export type CreatePlatformMenuMutationBody = CreatePlatformMenu
-export type CreatePlatformMenuMutationError = ErrorType<ApiError>
-export type CreatePlatformMenuMutationVariables = { data: CreatePlatformMenu }
+export type AssignPlatformRoleEmployeesMutationBody = SetPlatformRoleEmployees
+export type AssignPlatformRoleEmployeesMutationError = ErrorType<ApiError>
+export type AssignPlatformRoleEmployeesMutationVariables = {
+  roleId: string
+  data: SetPlatformRoleEmployees
+}
 
-export const useCreatePlatformMenu = <
+export const useAssignPlatformRoleEmployees = <
   TError = ErrorType<ApiError>,
   TContext = unknown,
 >(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof createPlatformMenu>>,
+      Awaited<ReturnType<typeof assignPlatformRoleEmployees>>,
       TError,
-      CreatePlatformMenuMutationVariables,
+      AssignPlatformRoleEmployeesMutationVariables,
       TContext
     >
     request?: SecondParameter<typeof apiClient>
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof createPlatformMenu>>,
+  Awaited<ReturnType<typeof assignPlatformRoleEmployees>>,
   TError,
-  CreatePlatformMenuMutationVariables,
-  TContext
-> => {
-  return useMutation(getCreatePlatformMenuMutationOptions(options), queryClient)
-}
-export type getPlatformMenuResponse200 = {
-  data: PlatformMenu
-  status: 200
-}
-
-export type getPlatformMenuResponse400 = {
-  data: ApiError
-  status: 400
-}
-
-export type getPlatformMenuResponse401 = {
-  data: ApiError
-  status: 401
-}
-
-export type getPlatformMenuResponse403 = {
-  data: ApiError
-  status: 403
-}
-
-export type getPlatformMenuResponse404 = {
-  data: ApiError
-  status: 404
-}
-
-export type getPlatformMenuResponse409 = {
-  data: ApiError
-  status: 409
-}
-
-export type getPlatformMenuResponse503 = {
-  data: ApiError
-  status: 503
-}
-
-export type getPlatformMenuResponseSuccess = getPlatformMenuResponse200 & {
-  headers: Headers
-}
-export type getPlatformMenuResponseError = (
-  | getPlatformMenuResponse400
-  | getPlatformMenuResponse401
-  | getPlatformMenuResponse403
-  | getPlatformMenuResponse404
-  | getPlatformMenuResponse409
-  | getPlatformMenuResponse503
-) & {
-  headers: Headers
-}
-
-export const getGetPlatformMenuUrl = (menuId: string) => {
-  return `/api/v1/platform/menus/${menuId}`
-}
-
-export const getPlatformMenu = async (
-  menuId: string,
-  options?: Parameters<typeof apiClient>[1]
-): Promise<getPlatformMenuResponseSuccess> => {
-  return apiClient<getPlatformMenuResponseSuccess>(
-    getGetPlatformMenuUrl(menuId),
-    {
-      ...options,
-      method: "GET",
-    }
-  )
-}
-
-export const getGetPlatformMenuQueryKey = (menuId: string) => {
-  return [`/api/v1/platform/menus/${menuId}`] as const
-}
-
-export const getGetPlatformMenuQueryOptions = <
-  TData = Awaited<ReturnType<typeof getPlatformMenu>>,
-  TError = ErrorType<ApiError>,
->(
-  menuId: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformMenu>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  }
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {}
-
-  const queryKey = queryOptions?.queryKey ?? getGetPlatformMenuQueryKey(menuId)
-
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getPlatformMenu>>> = ({
-    signal,
-  }) => getPlatformMenu(menuId, { signal, ...requestOptions })
-
-  return {
-    queryKey,
-    queryFn,
-    enabled: menuId !== null && menuId !== undefined,
-    ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof getPlatformMenu>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type GetPlatformMenuQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getPlatformMenu>>
->
-export type GetPlatformMenuQueryError = ErrorType<ApiError>
-
-export function useGetPlatformMenu<
-  TData = Awaited<ReturnType<typeof getPlatformMenu>>,
-  TError = ErrorType<ApiError>,
->(
-  menuId: string,
-  options: {
-    query: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformMenu>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getPlatformMenu>>,
-          TError,
-          Awaited<ReturnType<typeof getPlatformMenu>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-export function useGetPlatformMenu<
-  TData = Awaited<ReturnType<typeof getPlatformMenu>>,
-  TError = ErrorType<ApiError>,
->(
-  menuId: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformMenu>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getPlatformMenu>>,
-          TError,
-          Awaited<ReturnType<typeof getPlatformMenu>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-export function useGetPlatformMenu<
-  TData = Awaited<ReturnType<typeof getPlatformMenu>>,
-  TError = ErrorType<ApiError>,
->(
-  menuId: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformMenu>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-
-export function useGetPlatformMenu<
-  TData = Awaited<ReturnType<typeof getPlatformMenu>>,
-  TError = ErrorType<ApiError>,
->(
-  menuId: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformMenu>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-} {
-  const queryOptions = getGetPlatformMenuQueryOptions(menuId, options)
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
-    TData,
-    TError
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-
-  return withQueryKey(query, queryOptions.queryKey)
-}
-
-export type updatePlatformMenuResponse200 = {
-  data: PlatformMenu
-  status: 200
-}
-
-export type updatePlatformMenuResponse400 = {
-  data: ApiError
-  status: 400
-}
-
-export type updatePlatformMenuResponse401 = {
-  data: ApiError
-  status: 401
-}
-
-export type updatePlatformMenuResponse403 = {
-  data: ApiError
-  status: 403
-}
-
-export type updatePlatformMenuResponse404 = {
-  data: ApiError
-  status: 404
-}
-
-export type updatePlatformMenuResponse409 = {
-  data: ApiError
-  status: 409
-}
-
-export type updatePlatformMenuResponse503 = {
-  data: ApiError
-  status: 503
-}
-
-export type updatePlatformMenuResponseSuccess =
-  updatePlatformMenuResponse200 & {
-    headers: Headers
-  }
-export type updatePlatformMenuResponseError = (
-  | updatePlatformMenuResponse400
-  | updatePlatformMenuResponse401
-  | updatePlatformMenuResponse403
-  | updatePlatformMenuResponse404
-  | updatePlatformMenuResponse409
-  | updatePlatformMenuResponse503
-) & {
-  headers: Headers
-}
-
-export const getUpdatePlatformMenuUrl = (menuId: string) => {
-  return `/api/v1/platform/menus/${menuId}`
-}
-
-export const updatePlatformMenu = async (
-  menuId: string,
-  updatePlatformMenuBody: UpdatePlatformMenu,
-  options?: Parameters<typeof apiClient>[1]
-): Promise<updatePlatformMenuResponseSuccess> => {
-  const getHeaders = (
-    h?: NonNullable<RequestInit["headers"]>
-  ): Record<string, string | readonly string[]> => {
-    if (!h) return {}
-    if (h instanceof Headers) return Object.fromEntries(h.entries())
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(
-          h as Iterable<Iterable<string>>,
-          (entry) => Array.from(entry) as [string, string]
-        )
-      )
-    }
-    const headers: Record<string, string | readonly string[]> = {}
-    for (const [name, value] of Object.entries<
-      string | readonly string[] | undefined
-    >(h)) {
-      if (value !== undefined) headers[name] = value
-    }
-    return headers
-  }
-  return apiClient<updatePlatformMenuResponseSuccess>(
-    getUpdatePlatformMenuUrl(menuId),
-    {
-      ...options,
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        ...getHeaders(options?.headers),
-      },
-      body: JSON.stringify(updatePlatformMenuBody),
-    }
-  )
-}
-
-export const getUpdatePlatformMenuMutationKey = () =>
-  ["updatePlatformMenu"] as const
-
-export const getUpdatePlatformMenuMutationOptions = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof updatePlatformMenu>>,
-    TError,
-    UpdatePlatformMenuMutationVariables,
-    TContext
-  >
-  request?: SecondParameter<typeof apiClient>
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof updatePlatformMenu>>,
-  TError,
-  UpdatePlatformMenuMutationVariables,
-  TContext
-> => {
-  const mutationKey = getUpdatePlatformMenuMutationKey()
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined }
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof updatePlatformMenu>>,
-    UpdatePlatformMenuMutationVariables
-  > = (props) => {
-    const { menuId, data } = props ?? {}
-
-    return updatePlatformMenu(menuId, data, requestOptions)
-  }
-
-  return { mutationFn, ...mutationOptions }
-}
-
-export type UpdatePlatformMenuMutationResult = NonNullable<
-  Awaited<ReturnType<typeof updatePlatformMenu>>
->
-export type UpdatePlatformMenuMutationBody = UpdatePlatformMenu
-export type UpdatePlatformMenuMutationError = ErrorType<ApiError>
-export type UpdatePlatformMenuMutationVariables = {
-  menuId: string
-  data: UpdatePlatformMenu
-}
-
-export const useUpdatePlatformMenu = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof updatePlatformMenu>>,
-      TError,
-      UpdatePlatformMenuMutationVariables,
-      TContext
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseMutationResult<
-  Awaited<ReturnType<typeof updatePlatformMenu>>,
-  TError,
-  UpdatePlatformMenuMutationVariables,
-  TContext
-> => {
-  return useMutation(getUpdatePlatformMenuMutationOptions(options), queryClient)
-}
-export type deletePlatformMenuResponse200 = {
-  data: PlatformSystemDeleteResult
-  status: 200
-}
-
-export type deletePlatformMenuResponse400 = {
-  data: ApiError
-  status: 400
-}
-
-export type deletePlatformMenuResponse401 = {
-  data: ApiError
-  status: 401
-}
-
-export type deletePlatformMenuResponse403 = {
-  data: ApiError
-  status: 403
-}
-
-export type deletePlatformMenuResponse404 = {
-  data: ApiError
-  status: 404
-}
-
-export type deletePlatformMenuResponse409 = {
-  data: ApiError
-  status: 409
-}
-
-export type deletePlatformMenuResponse503 = {
-  data: ApiError
-  status: 503
-}
-
-export type deletePlatformMenuResponseSuccess =
-  deletePlatformMenuResponse200 & {
-    headers: Headers
-  }
-export type deletePlatformMenuResponseError = (
-  | deletePlatformMenuResponse400
-  | deletePlatformMenuResponse401
-  | deletePlatformMenuResponse403
-  | deletePlatformMenuResponse404
-  | deletePlatformMenuResponse409
-  | deletePlatformMenuResponse503
-) & {
-  headers: Headers
-}
-
-export const getDeletePlatformMenuUrl = (menuId: string) => {
-  return `/api/v1/platform/menus/${menuId}`
-}
-
-export const deletePlatformMenu = async (
-  menuId: string,
-  options?: Parameters<typeof apiClient>[1]
-): Promise<deletePlatformMenuResponseSuccess> => {
-  return apiClient<deletePlatformMenuResponseSuccess>(
-    getDeletePlatformMenuUrl(menuId),
-    {
-      ...options,
-      method: "DELETE",
-    }
-  )
-}
-
-export const getDeletePlatformMenuMutationKey = () =>
-  ["deletePlatformMenu"] as const
-
-export const getDeletePlatformMenuMutationOptions = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof deletePlatformMenu>>,
-    TError,
-    DeletePlatformMenuMutationVariables,
-    TContext
-  >
-  request?: SecondParameter<typeof apiClient>
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof deletePlatformMenu>>,
-  TError,
-  DeletePlatformMenuMutationVariables,
-  TContext
-> => {
-  const mutationKey = getDeletePlatformMenuMutationKey()
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined }
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof deletePlatformMenu>>,
-    DeletePlatformMenuMutationVariables
-  > = (props) => {
-    const { menuId } = props ?? {}
-
-    return deletePlatformMenu(menuId, requestOptions)
-  }
-
-  return { mutationFn, ...mutationOptions }
-}
-
-export type DeletePlatformMenuMutationResult = NonNullable<
-  Awaited<ReturnType<typeof deletePlatformMenu>>
->
-
-export type DeletePlatformMenuMutationError = ErrorType<ApiError>
-export type DeletePlatformMenuMutationVariables = { menuId: string }
-
-export const useDeletePlatformMenu = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof deletePlatformMenu>>,
-      TError,
-      DeletePlatformMenuMutationVariables,
-      TContext
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseMutationResult<
-  Awaited<ReturnType<typeof deletePlatformMenu>>,
-  TError,
-  DeletePlatformMenuMutationVariables,
-  TContext
-> => {
-  return useMutation(getDeletePlatformMenuMutationOptions(options), queryClient)
-}
-export type setPlatformMenuStatusResponse200 = {
-  data: PlatformMenu
-  status: 200
-}
-
-export type setPlatformMenuStatusResponse400 = {
-  data: ApiError
-  status: 400
-}
-
-export type setPlatformMenuStatusResponse401 = {
-  data: ApiError
-  status: 401
-}
-
-export type setPlatformMenuStatusResponse403 = {
-  data: ApiError
-  status: 403
-}
-
-export type setPlatformMenuStatusResponse404 = {
-  data: ApiError
-  status: 404
-}
-
-export type setPlatformMenuStatusResponse409 = {
-  data: ApiError
-  status: 409
-}
-
-export type setPlatformMenuStatusResponse503 = {
-  data: ApiError
-  status: 503
-}
-
-export type setPlatformMenuStatusResponseSuccess =
-  setPlatformMenuStatusResponse200 & {
-    headers: Headers
-  }
-export type setPlatformMenuStatusResponseError = (
-  | setPlatformMenuStatusResponse400
-  | setPlatformMenuStatusResponse401
-  | setPlatformMenuStatusResponse403
-  | setPlatformMenuStatusResponse404
-  | setPlatformMenuStatusResponse409
-  | setPlatformMenuStatusResponse503
-) & {
-  headers: Headers
-}
-
-export const getSetPlatformMenuStatusUrl = (menuId: string) => {
-  return `/api/v1/platform/menus/${menuId}/status`
-}
-
-export const setPlatformMenuStatus = async (
-  menuId: string,
-  setPlatformSystemStatus: SetPlatformSystemStatus,
-  options?: Parameters<typeof apiClient>[1]
-): Promise<setPlatformMenuStatusResponseSuccess> => {
-  const getHeaders = (
-    h?: NonNullable<RequestInit["headers"]>
-  ): Record<string, string | readonly string[]> => {
-    if (!h) return {}
-    if (h instanceof Headers) return Object.fromEntries(h.entries())
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(
-          h as Iterable<Iterable<string>>,
-          (entry) => Array.from(entry) as [string, string]
-        )
-      )
-    }
-    const headers: Record<string, string | readonly string[]> = {}
-    for (const [name, value] of Object.entries<
-      string | readonly string[] | undefined
-    >(h)) {
-      if (value !== undefined) headers[name] = value
-    }
-    return headers
-  }
-  return apiClient<setPlatformMenuStatusResponseSuccess>(
-    getSetPlatformMenuStatusUrl(menuId),
-    {
-      ...options,
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        ...getHeaders(options?.headers),
-      },
-      body: JSON.stringify(setPlatformSystemStatus),
-    }
-  )
-}
-
-export const getSetPlatformMenuStatusMutationKey = () =>
-  ["setPlatformMenuStatus"] as const
-
-export const getSetPlatformMenuStatusMutationOptions = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof setPlatformMenuStatus>>,
-    TError,
-    SetPlatformMenuStatusMutationVariables,
-    TContext
-  >
-  request?: SecondParameter<typeof apiClient>
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof setPlatformMenuStatus>>,
-  TError,
-  SetPlatformMenuStatusMutationVariables,
-  TContext
-> => {
-  const mutationKey = getSetPlatformMenuStatusMutationKey()
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined }
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof setPlatformMenuStatus>>,
-    SetPlatformMenuStatusMutationVariables
-  > = (props) => {
-    const { menuId, data } = props ?? {}
-
-    return setPlatformMenuStatus(menuId, data, requestOptions)
-  }
-
-  return { mutationFn, ...mutationOptions }
-}
-
-export type SetPlatformMenuStatusMutationResult = NonNullable<
-  Awaited<ReturnType<typeof setPlatformMenuStatus>>
->
-export type SetPlatformMenuStatusMutationBody = SetPlatformSystemStatus
-export type SetPlatformMenuStatusMutationError = ErrorType<ApiError>
-export type SetPlatformMenuStatusMutationVariables = {
-  menuId: string
-  data: SetPlatformSystemStatus
-}
-
-export const useSetPlatformMenuStatus = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof setPlatformMenuStatus>>,
-      TError,
-      SetPlatformMenuStatusMutationVariables,
-      TContext
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseMutationResult<
-  Awaited<ReturnType<typeof setPlatformMenuStatus>>,
-  TError,
-  SetPlatformMenuStatusMutationVariables,
+  AssignPlatformRoleEmployeesMutationVariables,
   TContext
 > => {
   return useMutation(
-    getSetPlatformMenuStatusMutationOptions(options),
+    getAssignPlatformRoleEmployeesMutationOptions(options),
+    queryClient
+  )
+}
+export type revokePlatformRoleEmployeesResponse200 = {
+  data: PlatformRoleEmployeesMutationResult
+  status: 200
+}
+
+export type revokePlatformRoleEmployeesResponse400 = {
+  data: ApiError
+  status: 400
+}
+
+export type revokePlatformRoleEmployeesResponse401 = {
+  data: ApiError
+  status: 401
+}
+
+export type revokePlatformRoleEmployeesResponse403 = {
+  data: ApiError
+  status: 403
+}
+
+export type revokePlatformRoleEmployeesResponse404 = {
+  data: ApiError
+  status: 404
+}
+
+export type revokePlatformRoleEmployeesResponse409 = {
+  data: ApiError
+  status: 409
+}
+
+export type revokePlatformRoleEmployeesResponse503 = {
+  data: ApiError
+  status: 503
+}
+
+export type revokePlatformRoleEmployeesResponseSuccess =
+  revokePlatformRoleEmployeesResponse200 & {
+    headers: Headers
+  }
+export type revokePlatformRoleEmployeesResponseError = (
+  | revokePlatformRoleEmployeesResponse400
+  | revokePlatformRoleEmployeesResponse401
+  | revokePlatformRoleEmployeesResponse403
+  | revokePlatformRoleEmployeesResponse404
+  | revokePlatformRoleEmployeesResponse409
+  | revokePlatformRoleEmployeesResponse503
+) & {
+  headers: Headers
+}
+
+export const getRevokePlatformRoleEmployeesUrl = (roleId: string) => {
+  return `/api/v1/platform/roles/${roleId}/employees`
+}
+
+export const revokePlatformRoleEmployees = async (
+  roleId: string,
+  setPlatformRoleEmployees: SetPlatformRoleEmployees,
+  options?: Parameters<typeof apiClient>[1]
+): Promise<revokePlatformRoleEmployeesResponseSuccess> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {}
+    if (h instanceof Headers) return Object.fromEntries(h.entries())
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string]
+        )
+      )
+    }
+    const headers: Record<string, string | readonly string[]> = {}
+    for (const [name, value] of Object.entries<
+      string | readonly string[] | undefined
+    >(h)) {
+      if (value !== undefined) headers[name] = value
+    }
+    return headers
+  }
+  return apiClient<revokePlatformRoleEmployeesResponseSuccess>(
+    getRevokePlatformRoleEmployeesUrl(roleId),
+    {
+      ...options,
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        ...getHeaders(options?.headers),
+      },
+      body: JSON.stringify(setPlatformRoleEmployees),
+    }
+  )
+}
+
+export const getRevokePlatformRoleEmployeesMutationKey = () =>
+  ["revokePlatformRoleEmployees"] as const
+
+export const getRevokePlatformRoleEmployeesMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof revokePlatformRoleEmployees>>,
+    TError,
+    RevokePlatformRoleEmployeesMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiClient>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof revokePlatformRoleEmployees>>,
+  TError,
+  RevokePlatformRoleEmployeesMutationVariables,
+  TContext
+> => {
+  const mutationKey = getRevokePlatformRoleEmployeesMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof revokePlatformRoleEmployees>>,
+    RevokePlatformRoleEmployeesMutationVariables
+  > = (props) => {
+    const { roleId, data } = props ?? {}
+
+    return revokePlatformRoleEmployees(roleId, data, requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type RevokePlatformRoleEmployeesMutationResult = NonNullable<
+  Awaited<ReturnType<typeof revokePlatformRoleEmployees>>
+>
+export type RevokePlatformRoleEmployeesMutationBody = SetPlatformRoleEmployees
+export type RevokePlatformRoleEmployeesMutationError = ErrorType<ApiError>
+export type RevokePlatformRoleEmployeesMutationVariables = {
+  roleId: string
+  data: SetPlatformRoleEmployees
+}
+
+export const useRevokePlatformRoleEmployees = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof revokePlatformRoleEmployees>>,
+      TError,
+      RevokePlatformRoleEmployeesMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiClient>
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof revokePlatformRoleEmployees>>,
+  TError,
+  RevokePlatformRoleEmployeesMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getRevokePlatformRoleEmployeesMutationOptions(options),
     queryClient
   )
 }
@@ -7908,4129 +12031,6 @@ export const useSetPlatformPostStatus = <
 > => {
   return useMutation(
     getSetPlatformPostStatusMutationOptions(options),
-    queryClient
-  )
-}
-export type listPlatformDictionariesResponse200 = {
-  data: PlatformDictionariesPage
-  status: 200
-}
-
-export type listPlatformDictionariesResponse400 = {
-  data: ApiError
-  status: 400
-}
-
-export type listPlatformDictionariesResponse401 = {
-  data: ApiError
-  status: 401
-}
-
-export type listPlatformDictionariesResponse403 = {
-  data: ApiError
-  status: 403
-}
-
-export type listPlatformDictionariesResponse404 = {
-  data: ApiError
-  status: 404
-}
-
-export type listPlatformDictionariesResponse409 = {
-  data: ApiError
-  status: 409
-}
-
-export type listPlatformDictionariesResponse503 = {
-  data: ApiError
-  status: 503
-}
-
-export type listPlatformDictionariesResponseSuccess =
-  listPlatformDictionariesResponse200 & {
-    headers: Headers
-  }
-export type listPlatformDictionariesResponseError = (
-  | listPlatformDictionariesResponse400
-  | listPlatformDictionariesResponse401
-  | listPlatformDictionariesResponse403
-  | listPlatformDictionariesResponse404
-  | listPlatformDictionariesResponse409
-  | listPlatformDictionariesResponse503
-) & {
-  headers: Headers
-}
-
-export const getListPlatformDictionariesUrl = (
-  params?: ListPlatformDictionariesParams
-) => {
-  const normalizedParams = new URLSearchParams()
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : String(value))
-    }
-  })
-
-  const stringifiedParams = normalizedParams.toString()
-
-  return stringifiedParams.length > 0
-    ? `/api/v1/platform/dictionaries?${stringifiedParams}`
-    : `/api/v1/platform/dictionaries`
-}
-
-export const listPlatformDictionaries = async (
-  params?: ListPlatformDictionariesParams,
-  options?: Parameters<typeof apiClient>[1]
-): Promise<listPlatformDictionariesResponseSuccess> => {
-  return apiClient<listPlatformDictionariesResponseSuccess>(
-    getListPlatformDictionariesUrl(params),
-    {
-      ...options,
-      method: "GET",
-    }
-  )
-}
-
-export const getListPlatformDictionariesQueryKey = (
-  params?: ListPlatformDictionariesParams
-) => {
-  return [`/api/v1/platform/dictionaries`, ...(params ? [params] : [])] as const
-}
-
-export const getListPlatformDictionariesQueryOptions = <
-  TData = Awaited<ReturnType<typeof listPlatformDictionaries>>,
-  TError = ErrorType<ApiError>,
->(
-  params?: ListPlatformDictionariesParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listPlatformDictionaries>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  }
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {}
-
-  const queryKey =
-    queryOptions?.queryKey ?? getListPlatformDictionariesQueryKey(params)
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof listPlatformDictionaries>>
-  > = ({ signal }) =>
-    listPlatformDictionaries(params, { signal, ...requestOptions })
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof listPlatformDictionaries>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListPlatformDictionariesQueryResult = NonNullable<
-  Awaited<ReturnType<typeof listPlatformDictionaries>>
->
-export type ListPlatformDictionariesQueryError = ErrorType<ApiError>
-
-export function useListPlatformDictionaries<
-  TData = Awaited<ReturnType<typeof listPlatformDictionaries>>,
-  TError = ErrorType<ApiError>,
->(
-  params: undefined | ListPlatformDictionariesParams,
-  options: {
-    query: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listPlatformDictionaries>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listPlatformDictionaries>>,
-          TError,
-          Awaited<ReturnType<typeof listPlatformDictionaries>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-export function useListPlatformDictionaries<
-  TData = Awaited<ReturnType<typeof listPlatformDictionaries>>,
-  TError = ErrorType<ApiError>,
->(
-  params?: ListPlatformDictionariesParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listPlatformDictionaries>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listPlatformDictionaries>>,
-          TError,
-          Awaited<ReturnType<typeof listPlatformDictionaries>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-export function useListPlatformDictionaries<
-  TData = Awaited<ReturnType<typeof listPlatformDictionaries>>,
-  TError = ErrorType<ApiError>,
->(
-  params?: ListPlatformDictionariesParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listPlatformDictionaries>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-
-export function useListPlatformDictionaries<
-  TData = Awaited<ReturnType<typeof listPlatformDictionaries>>,
-  TError = ErrorType<ApiError>,
->(
-  params?: ListPlatformDictionariesParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listPlatformDictionaries>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-} {
-  const queryOptions = getListPlatformDictionariesQueryOptions(params, options)
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
-    TData,
-    TError
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-
-  return withQueryKey(query, queryOptions.queryKey)
-}
-
-export type createPlatformDictionaryResponse201 = {
-  data: PlatformDictionary
-  status: 201
-}
-
-export type createPlatformDictionaryResponse400 = {
-  data: ApiError
-  status: 400
-}
-
-export type createPlatformDictionaryResponse401 = {
-  data: ApiError
-  status: 401
-}
-
-export type createPlatformDictionaryResponse403 = {
-  data: ApiError
-  status: 403
-}
-
-export type createPlatformDictionaryResponse404 = {
-  data: ApiError
-  status: 404
-}
-
-export type createPlatformDictionaryResponse409 = {
-  data: ApiError
-  status: 409
-}
-
-export type createPlatformDictionaryResponse503 = {
-  data: ApiError
-  status: 503
-}
-
-export type createPlatformDictionaryResponseSuccess =
-  createPlatformDictionaryResponse201 & {
-    headers: Headers
-  }
-export type createPlatformDictionaryResponseError = (
-  | createPlatformDictionaryResponse400
-  | createPlatformDictionaryResponse401
-  | createPlatformDictionaryResponse403
-  | createPlatformDictionaryResponse404
-  | createPlatformDictionaryResponse409
-  | createPlatformDictionaryResponse503
-) & {
-  headers: Headers
-}
-
-export const getCreatePlatformDictionaryUrl = () => {
-  return `/api/v1/platform/dictionaries`
-}
-
-export const createPlatformDictionary = async (
-  createPlatformDictionaryBody: CreatePlatformDictionary,
-  options?: Parameters<typeof apiClient>[1]
-): Promise<createPlatformDictionaryResponseSuccess> => {
-  const getHeaders = (
-    h?: NonNullable<RequestInit["headers"]>
-  ): Record<string, string | readonly string[]> => {
-    if (!h) return {}
-    if (h instanceof Headers) return Object.fromEntries(h.entries())
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(
-          h as Iterable<Iterable<string>>,
-          (entry) => Array.from(entry) as [string, string]
-        )
-      )
-    }
-    const headers: Record<string, string | readonly string[]> = {}
-    for (const [name, value] of Object.entries<
-      string | readonly string[] | undefined
-    >(h)) {
-      if (value !== undefined) headers[name] = value
-    }
-    return headers
-  }
-  return apiClient<createPlatformDictionaryResponseSuccess>(
-    getCreatePlatformDictionaryUrl(),
-    {
-      ...options,
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...getHeaders(options?.headers),
-      },
-      body: JSON.stringify(createPlatformDictionaryBody),
-    }
-  )
-}
-
-export const getCreatePlatformDictionaryMutationKey = () =>
-  ["createPlatformDictionary"] as const
-
-export const getCreatePlatformDictionaryMutationOptions = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createPlatformDictionary>>,
-    TError,
-    CreatePlatformDictionaryMutationVariables,
-    TContext
-  >
-  request?: SecondParameter<typeof apiClient>
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof createPlatformDictionary>>,
-  TError,
-  CreatePlatformDictionaryMutationVariables,
-  TContext
-> => {
-  const mutationKey = getCreatePlatformDictionaryMutationKey()
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined }
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof createPlatformDictionary>>,
-    CreatePlatformDictionaryMutationVariables
-  > = (props) => {
-    const { data } = props ?? {}
-
-    return createPlatformDictionary(data, requestOptions)
-  }
-
-  return { mutationFn, ...mutationOptions }
-}
-
-export type CreatePlatformDictionaryMutationResult = NonNullable<
-  Awaited<ReturnType<typeof createPlatformDictionary>>
->
-export type CreatePlatformDictionaryMutationBody = CreatePlatformDictionary
-export type CreatePlatformDictionaryMutationError = ErrorType<ApiError>
-export type CreatePlatformDictionaryMutationVariables = {
-  data: CreatePlatformDictionary
-}
-
-export const useCreatePlatformDictionary = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof createPlatformDictionary>>,
-      TError,
-      CreatePlatformDictionaryMutationVariables,
-      TContext
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseMutationResult<
-  Awaited<ReturnType<typeof createPlatformDictionary>>,
-  TError,
-  CreatePlatformDictionaryMutationVariables,
-  TContext
-> => {
-  return useMutation(
-    getCreatePlatformDictionaryMutationOptions(options),
-    queryClient
-  )
-}
-export type getPlatformDictionaryResponse200 = {
-  data: PlatformDictionary
-  status: 200
-}
-
-export type getPlatformDictionaryResponse400 = {
-  data: ApiError
-  status: 400
-}
-
-export type getPlatformDictionaryResponse401 = {
-  data: ApiError
-  status: 401
-}
-
-export type getPlatformDictionaryResponse403 = {
-  data: ApiError
-  status: 403
-}
-
-export type getPlatformDictionaryResponse404 = {
-  data: ApiError
-  status: 404
-}
-
-export type getPlatformDictionaryResponse409 = {
-  data: ApiError
-  status: 409
-}
-
-export type getPlatformDictionaryResponse503 = {
-  data: ApiError
-  status: 503
-}
-
-export type getPlatformDictionaryResponseSuccess =
-  getPlatformDictionaryResponse200 & {
-    headers: Headers
-  }
-export type getPlatformDictionaryResponseError = (
-  | getPlatformDictionaryResponse400
-  | getPlatformDictionaryResponse401
-  | getPlatformDictionaryResponse403
-  | getPlatformDictionaryResponse404
-  | getPlatformDictionaryResponse409
-  | getPlatformDictionaryResponse503
-) & {
-  headers: Headers
-}
-
-export const getGetPlatformDictionaryUrl = (dictionaryId: string) => {
-  return `/api/v1/platform/dictionaries/${dictionaryId}`
-}
-
-export const getPlatformDictionary = async (
-  dictionaryId: string,
-  options?: Parameters<typeof apiClient>[1]
-): Promise<getPlatformDictionaryResponseSuccess> => {
-  return apiClient<getPlatformDictionaryResponseSuccess>(
-    getGetPlatformDictionaryUrl(dictionaryId),
-    {
-      ...options,
-      method: "GET",
-    }
-  )
-}
-
-export const getGetPlatformDictionaryQueryKey = (dictionaryId: string) => {
-  return [`/api/v1/platform/dictionaries/${dictionaryId}`] as const
-}
-
-export const getGetPlatformDictionaryQueryOptions = <
-  TData = Awaited<ReturnType<typeof getPlatformDictionary>>,
-  TError = ErrorType<ApiError>,
->(
-  dictionaryId: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformDictionary>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  }
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {}
-
-  const queryKey =
-    queryOptions?.queryKey ?? getGetPlatformDictionaryQueryKey(dictionaryId)
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getPlatformDictionary>>
-  > = ({ signal }) =>
-    getPlatformDictionary(dictionaryId, { signal, ...requestOptions })
-
-  return {
-    queryKey,
-    queryFn,
-    enabled: dictionaryId !== null && dictionaryId !== undefined,
-    ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof getPlatformDictionary>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type GetPlatformDictionaryQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getPlatformDictionary>>
->
-export type GetPlatformDictionaryQueryError = ErrorType<ApiError>
-
-export function useGetPlatformDictionary<
-  TData = Awaited<ReturnType<typeof getPlatformDictionary>>,
-  TError = ErrorType<ApiError>,
->(
-  dictionaryId: string,
-  options: {
-    query: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformDictionary>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getPlatformDictionary>>,
-          TError,
-          Awaited<ReturnType<typeof getPlatformDictionary>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-export function useGetPlatformDictionary<
-  TData = Awaited<ReturnType<typeof getPlatformDictionary>>,
-  TError = ErrorType<ApiError>,
->(
-  dictionaryId: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformDictionary>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getPlatformDictionary>>,
-          TError,
-          Awaited<ReturnType<typeof getPlatformDictionary>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-export function useGetPlatformDictionary<
-  TData = Awaited<ReturnType<typeof getPlatformDictionary>>,
-  TError = ErrorType<ApiError>,
->(
-  dictionaryId: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformDictionary>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-
-export function useGetPlatformDictionary<
-  TData = Awaited<ReturnType<typeof getPlatformDictionary>>,
-  TError = ErrorType<ApiError>,
->(
-  dictionaryId: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformDictionary>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-} {
-  const queryOptions = getGetPlatformDictionaryQueryOptions(
-    dictionaryId,
-    options
-  )
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
-    TData,
-    TError
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-
-  return withQueryKey(query, queryOptions.queryKey)
-}
-
-export type updatePlatformDictionaryResponse200 = {
-  data: PlatformDictionary
-  status: 200
-}
-
-export type updatePlatformDictionaryResponse400 = {
-  data: ApiError
-  status: 400
-}
-
-export type updatePlatformDictionaryResponse401 = {
-  data: ApiError
-  status: 401
-}
-
-export type updatePlatformDictionaryResponse403 = {
-  data: ApiError
-  status: 403
-}
-
-export type updatePlatformDictionaryResponse404 = {
-  data: ApiError
-  status: 404
-}
-
-export type updatePlatformDictionaryResponse409 = {
-  data: ApiError
-  status: 409
-}
-
-export type updatePlatformDictionaryResponse503 = {
-  data: ApiError
-  status: 503
-}
-
-export type updatePlatformDictionaryResponseSuccess =
-  updatePlatformDictionaryResponse200 & {
-    headers: Headers
-  }
-export type updatePlatformDictionaryResponseError = (
-  | updatePlatformDictionaryResponse400
-  | updatePlatformDictionaryResponse401
-  | updatePlatformDictionaryResponse403
-  | updatePlatformDictionaryResponse404
-  | updatePlatformDictionaryResponse409
-  | updatePlatformDictionaryResponse503
-) & {
-  headers: Headers
-}
-
-export const getUpdatePlatformDictionaryUrl = (dictionaryId: string) => {
-  return `/api/v1/platform/dictionaries/${dictionaryId}`
-}
-
-export const updatePlatformDictionary = async (
-  dictionaryId: string,
-  updatePlatformDictionaryBody: UpdatePlatformDictionary,
-  options?: Parameters<typeof apiClient>[1]
-): Promise<updatePlatformDictionaryResponseSuccess> => {
-  const getHeaders = (
-    h?: NonNullable<RequestInit["headers"]>
-  ): Record<string, string | readonly string[]> => {
-    if (!h) return {}
-    if (h instanceof Headers) return Object.fromEntries(h.entries())
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(
-          h as Iterable<Iterable<string>>,
-          (entry) => Array.from(entry) as [string, string]
-        )
-      )
-    }
-    const headers: Record<string, string | readonly string[]> = {}
-    for (const [name, value] of Object.entries<
-      string | readonly string[] | undefined
-    >(h)) {
-      if (value !== undefined) headers[name] = value
-    }
-    return headers
-  }
-  return apiClient<updatePlatformDictionaryResponseSuccess>(
-    getUpdatePlatformDictionaryUrl(dictionaryId),
-    {
-      ...options,
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        ...getHeaders(options?.headers),
-      },
-      body: JSON.stringify(updatePlatformDictionaryBody),
-    }
-  )
-}
-
-export const getUpdatePlatformDictionaryMutationKey = () =>
-  ["updatePlatformDictionary"] as const
-
-export const getUpdatePlatformDictionaryMutationOptions = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof updatePlatformDictionary>>,
-    TError,
-    UpdatePlatformDictionaryMutationVariables,
-    TContext
-  >
-  request?: SecondParameter<typeof apiClient>
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof updatePlatformDictionary>>,
-  TError,
-  UpdatePlatformDictionaryMutationVariables,
-  TContext
-> => {
-  const mutationKey = getUpdatePlatformDictionaryMutationKey()
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined }
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof updatePlatformDictionary>>,
-    UpdatePlatformDictionaryMutationVariables
-  > = (props) => {
-    const { dictionaryId, data } = props ?? {}
-
-    return updatePlatformDictionary(dictionaryId, data, requestOptions)
-  }
-
-  return { mutationFn, ...mutationOptions }
-}
-
-export type UpdatePlatformDictionaryMutationResult = NonNullable<
-  Awaited<ReturnType<typeof updatePlatformDictionary>>
->
-export type UpdatePlatformDictionaryMutationBody = UpdatePlatformDictionary
-export type UpdatePlatformDictionaryMutationError = ErrorType<ApiError>
-export type UpdatePlatformDictionaryMutationVariables = {
-  dictionaryId: string
-  data: UpdatePlatformDictionary
-}
-
-export const useUpdatePlatformDictionary = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof updatePlatformDictionary>>,
-      TError,
-      UpdatePlatformDictionaryMutationVariables,
-      TContext
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseMutationResult<
-  Awaited<ReturnType<typeof updatePlatformDictionary>>,
-  TError,
-  UpdatePlatformDictionaryMutationVariables,
-  TContext
-> => {
-  return useMutation(
-    getUpdatePlatformDictionaryMutationOptions(options),
-    queryClient
-  )
-}
-export type deletePlatformDictionaryResponse200 = {
-  data: PlatformSystemDeleteResult
-  status: 200
-}
-
-export type deletePlatformDictionaryResponse400 = {
-  data: ApiError
-  status: 400
-}
-
-export type deletePlatformDictionaryResponse401 = {
-  data: ApiError
-  status: 401
-}
-
-export type deletePlatformDictionaryResponse403 = {
-  data: ApiError
-  status: 403
-}
-
-export type deletePlatformDictionaryResponse404 = {
-  data: ApiError
-  status: 404
-}
-
-export type deletePlatformDictionaryResponse409 = {
-  data: ApiError
-  status: 409
-}
-
-export type deletePlatformDictionaryResponse503 = {
-  data: ApiError
-  status: 503
-}
-
-export type deletePlatformDictionaryResponseSuccess =
-  deletePlatformDictionaryResponse200 & {
-    headers: Headers
-  }
-export type deletePlatformDictionaryResponseError = (
-  | deletePlatformDictionaryResponse400
-  | deletePlatformDictionaryResponse401
-  | deletePlatformDictionaryResponse403
-  | deletePlatformDictionaryResponse404
-  | deletePlatformDictionaryResponse409
-  | deletePlatformDictionaryResponse503
-) & {
-  headers: Headers
-}
-
-export const getDeletePlatformDictionaryUrl = (dictionaryId: string) => {
-  return `/api/v1/platform/dictionaries/${dictionaryId}`
-}
-
-export const deletePlatformDictionary = async (
-  dictionaryId: string,
-  options?: Parameters<typeof apiClient>[1]
-): Promise<deletePlatformDictionaryResponseSuccess> => {
-  return apiClient<deletePlatformDictionaryResponseSuccess>(
-    getDeletePlatformDictionaryUrl(dictionaryId),
-    {
-      ...options,
-      method: "DELETE",
-    }
-  )
-}
-
-export const getDeletePlatformDictionaryMutationKey = () =>
-  ["deletePlatformDictionary"] as const
-
-export const getDeletePlatformDictionaryMutationOptions = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof deletePlatformDictionary>>,
-    TError,
-    DeletePlatformDictionaryMutationVariables,
-    TContext
-  >
-  request?: SecondParameter<typeof apiClient>
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof deletePlatformDictionary>>,
-  TError,
-  DeletePlatformDictionaryMutationVariables,
-  TContext
-> => {
-  const mutationKey = getDeletePlatformDictionaryMutationKey()
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined }
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof deletePlatformDictionary>>,
-    DeletePlatformDictionaryMutationVariables
-  > = (props) => {
-    const { dictionaryId } = props ?? {}
-
-    return deletePlatformDictionary(dictionaryId, requestOptions)
-  }
-
-  return { mutationFn, ...mutationOptions }
-}
-
-export type DeletePlatformDictionaryMutationResult = NonNullable<
-  Awaited<ReturnType<typeof deletePlatformDictionary>>
->
-
-export type DeletePlatformDictionaryMutationError = ErrorType<ApiError>
-export type DeletePlatformDictionaryMutationVariables = { dictionaryId: string }
-
-export const useDeletePlatformDictionary = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof deletePlatformDictionary>>,
-      TError,
-      DeletePlatformDictionaryMutationVariables,
-      TContext
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseMutationResult<
-  Awaited<ReturnType<typeof deletePlatformDictionary>>,
-  TError,
-  DeletePlatformDictionaryMutationVariables,
-  TContext
-> => {
-  return useMutation(
-    getDeletePlatformDictionaryMutationOptions(options),
-    queryClient
-  )
-}
-export type setPlatformDictionaryStatusResponse200 = {
-  data: PlatformDictionary
-  status: 200
-}
-
-export type setPlatformDictionaryStatusResponse400 = {
-  data: ApiError
-  status: 400
-}
-
-export type setPlatformDictionaryStatusResponse401 = {
-  data: ApiError
-  status: 401
-}
-
-export type setPlatformDictionaryStatusResponse403 = {
-  data: ApiError
-  status: 403
-}
-
-export type setPlatformDictionaryStatusResponse404 = {
-  data: ApiError
-  status: 404
-}
-
-export type setPlatformDictionaryStatusResponse409 = {
-  data: ApiError
-  status: 409
-}
-
-export type setPlatformDictionaryStatusResponse503 = {
-  data: ApiError
-  status: 503
-}
-
-export type setPlatformDictionaryStatusResponseSuccess =
-  setPlatformDictionaryStatusResponse200 & {
-    headers: Headers
-  }
-export type setPlatformDictionaryStatusResponseError = (
-  | setPlatformDictionaryStatusResponse400
-  | setPlatformDictionaryStatusResponse401
-  | setPlatformDictionaryStatusResponse403
-  | setPlatformDictionaryStatusResponse404
-  | setPlatformDictionaryStatusResponse409
-  | setPlatformDictionaryStatusResponse503
-) & {
-  headers: Headers
-}
-
-export const getSetPlatformDictionaryStatusUrl = (dictionaryId: string) => {
-  return `/api/v1/platform/dictionaries/${dictionaryId}/status`
-}
-
-export const setPlatformDictionaryStatus = async (
-  dictionaryId: string,
-  setPlatformSystemStatus: SetPlatformSystemStatus,
-  options?: Parameters<typeof apiClient>[1]
-): Promise<setPlatformDictionaryStatusResponseSuccess> => {
-  const getHeaders = (
-    h?: NonNullable<RequestInit["headers"]>
-  ): Record<string, string | readonly string[]> => {
-    if (!h) return {}
-    if (h instanceof Headers) return Object.fromEntries(h.entries())
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(
-          h as Iterable<Iterable<string>>,
-          (entry) => Array.from(entry) as [string, string]
-        )
-      )
-    }
-    const headers: Record<string, string | readonly string[]> = {}
-    for (const [name, value] of Object.entries<
-      string | readonly string[] | undefined
-    >(h)) {
-      if (value !== undefined) headers[name] = value
-    }
-    return headers
-  }
-  return apiClient<setPlatformDictionaryStatusResponseSuccess>(
-    getSetPlatformDictionaryStatusUrl(dictionaryId),
-    {
-      ...options,
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        ...getHeaders(options?.headers),
-      },
-      body: JSON.stringify(setPlatformSystemStatus),
-    }
-  )
-}
-
-export const getSetPlatformDictionaryStatusMutationKey = () =>
-  ["setPlatformDictionaryStatus"] as const
-
-export const getSetPlatformDictionaryStatusMutationOptions = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof setPlatformDictionaryStatus>>,
-    TError,
-    SetPlatformDictionaryStatusMutationVariables,
-    TContext
-  >
-  request?: SecondParameter<typeof apiClient>
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof setPlatformDictionaryStatus>>,
-  TError,
-  SetPlatformDictionaryStatusMutationVariables,
-  TContext
-> => {
-  const mutationKey = getSetPlatformDictionaryStatusMutationKey()
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined }
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof setPlatformDictionaryStatus>>,
-    SetPlatformDictionaryStatusMutationVariables
-  > = (props) => {
-    const { dictionaryId, data } = props ?? {}
-
-    return setPlatformDictionaryStatus(dictionaryId, data, requestOptions)
-  }
-
-  return { mutationFn, ...mutationOptions }
-}
-
-export type SetPlatformDictionaryStatusMutationResult = NonNullable<
-  Awaited<ReturnType<typeof setPlatformDictionaryStatus>>
->
-export type SetPlatformDictionaryStatusMutationBody = SetPlatformSystemStatus
-export type SetPlatformDictionaryStatusMutationError = ErrorType<ApiError>
-export type SetPlatformDictionaryStatusMutationVariables = {
-  dictionaryId: string
-  data: SetPlatformSystemStatus
-}
-
-export const useSetPlatformDictionaryStatus = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof setPlatformDictionaryStatus>>,
-      TError,
-      SetPlatformDictionaryStatusMutationVariables,
-      TContext
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseMutationResult<
-  Awaited<ReturnType<typeof setPlatformDictionaryStatus>>,
-  TError,
-  SetPlatformDictionaryStatusMutationVariables,
-  TContext
-> => {
-  return useMutation(
-    getSetPlatformDictionaryStatusMutationOptions(options),
-    queryClient
-  )
-}
-export type listPlatformParametersResponse200 = {
-  data: PlatformParametersPage
-  status: 200
-}
-
-export type listPlatformParametersResponse400 = {
-  data: ApiError
-  status: 400
-}
-
-export type listPlatformParametersResponse401 = {
-  data: ApiError
-  status: 401
-}
-
-export type listPlatformParametersResponse403 = {
-  data: ApiError
-  status: 403
-}
-
-export type listPlatformParametersResponse404 = {
-  data: ApiError
-  status: 404
-}
-
-export type listPlatformParametersResponse409 = {
-  data: ApiError
-  status: 409
-}
-
-export type listPlatformParametersResponse503 = {
-  data: ApiError
-  status: 503
-}
-
-export type listPlatformParametersResponseSuccess =
-  listPlatformParametersResponse200 & {
-    headers: Headers
-  }
-export type listPlatformParametersResponseError = (
-  | listPlatformParametersResponse400
-  | listPlatformParametersResponse401
-  | listPlatformParametersResponse403
-  | listPlatformParametersResponse404
-  | listPlatformParametersResponse409
-  | listPlatformParametersResponse503
-) & {
-  headers: Headers
-}
-
-export const getListPlatformParametersUrl = (
-  params?: ListPlatformParametersParams
-) => {
-  const normalizedParams = new URLSearchParams()
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : String(value))
-    }
-  })
-
-  const stringifiedParams = normalizedParams.toString()
-
-  return stringifiedParams.length > 0
-    ? `/api/v1/platform/parameters?${stringifiedParams}`
-    : `/api/v1/platform/parameters`
-}
-
-export const listPlatformParameters = async (
-  params?: ListPlatformParametersParams,
-  options?: Parameters<typeof apiClient>[1]
-): Promise<listPlatformParametersResponseSuccess> => {
-  return apiClient<listPlatformParametersResponseSuccess>(
-    getListPlatformParametersUrl(params),
-    {
-      ...options,
-      method: "GET",
-    }
-  )
-}
-
-export const getListPlatformParametersQueryKey = (
-  params?: ListPlatformParametersParams
-) => {
-  return [`/api/v1/platform/parameters`, ...(params ? [params] : [])] as const
-}
-
-export const getListPlatformParametersQueryOptions = <
-  TData = Awaited<ReturnType<typeof listPlatformParameters>>,
-  TError = ErrorType<ApiError>,
->(
-  params?: ListPlatformParametersParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listPlatformParameters>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  }
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {}
-
-  const queryKey =
-    queryOptions?.queryKey ?? getListPlatformParametersQueryKey(params)
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof listPlatformParameters>>
-  > = ({ signal }) =>
-    listPlatformParameters(params, { signal, ...requestOptions })
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof listPlatformParameters>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListPlatformParametersQueryResult = NonNullable<
-  Awaited<ReturnType<typeof listPlatformParameters>>
->
-export type ListPlatformParametersQueryError = ErrorType<ApiError>
-
-export function useListPlatformParameters<
-  TData = Awaited<ReturnType<typeof listPlatformParameters>>,
-  TError = ErrorType<ApiError>,
->(
-  params: undefined | ListPlatformParametersParams,
-  options: {
-    query: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listPlatformParameters>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listPlatformParameters>>,
-          TError,
-          Awaited<ReturnType<typeof listPlatformParameters>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-export function useListPlatformParameters<
-  TData = Awaited<ReturnType<typeof listPlatformParameters>>,
-  TError = ErrorType<ApiError>,
->(
-  params?: ListPlatformParametersParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listPlatformParameters>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listPlatformParameters>>,
-          TError,
-          Awaited<ReturnType<typeof listPlatformParameters>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-export function useListPlatformParameters<
-  TData = Awaited<ReturnType<typeof listPlatformParameters>>,
-  TError = ErrorType<ApiError>,
->(
-  params?: ListPlatformParametersParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listPlatformParameters>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-
-export function useListPlatformParameters<
-  TData = Awaited<ReturnType<typeof listPlatformParameters>>,
-  TError = ErrorType<ApiError>,
->(
-  params?: ListPlatformParametersParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listPlatformParameters>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-} {
-  const queryOptions = getListPlatformParametersQueryOptions(params, options)
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
-    TData,
-    TError
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-
-  return withQueryKey(query, queryOptions.queryKey)
-}
-
-export type createPlatformParameterResponse201 = {
-  data: PlatformParameter
-  status: 201
-}
-
-export type createPlatformParameterResponse400 = {
-  data: ApiError
-  status: 400
-}
-
-export type createPlatformParameterResponse401 = {
-  data: ApiError
-  status: 401
-}
-
-export type createPlatformParameterResponse403 = {
-  data: ApiError
-  status: 403
-}
-
-export type createPlatformParameterResponse404 = {
-  data: ApiError
-  status: 404
-}
-
-export type createPlatformParameterResponse409 = {
-  data: ApiError
-  status: 409
-}
-
-export type createPlatformParameterResponse503 = {
-  data: ApiError
-  status: 503
-}
-
-export type createPlatformParameterResponseSuccess =
-  createPlatformParameterResponse201 & {
-    headers: Headers
-  }
-export type createPlatformParameterResponseError = (
-  | createPlatformParameterResponse400
-  | createPlatformParameterResponse401
-  | createPlatformParameterResponse403
-  | createPlatformParameterResponse404
-  | createPlatformParameterResponse409
-  | createPlatformParameterResponse503
-) & {
-  headers: Headers
-}
-
-export const getCreatePlatformParameterUrl = () => {
-  return `/api/v1/platform/parameters`
-}
-
-export const createPlatformParameter = async (
-  createPlatformParameterBody: CreatePlatformParameter,
-  options?: Parameters<typeof apiClient>[1]
-): Promise<createPlatformParameterResponseSuccess> => {
-  const getHeaders = (
-    h?: NonNullable<RequestInit["headers"]>
-  ): Record<string, string | readonly string[]> => {
-    if (!h) return {}
-    if (h instanceof Headers) return Object.fromEntries(h.entries())
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(
-          h as Iterable<Iterable<string>>,
-          (entry) => Array.from(entry) as [string, string]
-        )
-      )
-    }
-    const headers: Record<string, string | readonly string[]> = {}
-    for (const [name, value] of Object.entries<
-      string | readonly string[] | undefined
-    >(h)) {
-      if (value !== undefined) headers[name] = value
-    }
-    return headers
-  }
-  return apiClient<createPlatformParameterResponseSuccess>(
-    getCreatePlatformParameterUrl(),
-    {
-      ...options,
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...getHeaders(options?.headers),
-      },
-      body: JSON.stringify(createPlatformParameterBody),
-    }
-  )
-}
-
-export const getCreatePlatformParameterMutationKey = () =>
-  ["createPlatformParameter"] as const
-
-export const getCreatePlatformParameterMutationOptions = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createPlatformParameter>>,
-    TError,
-    CreatePlatformParameterMutationVariables,
-    TContext
-  >
-  request?: SecondParameter<typeof apiClient>
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof createPlatformParameter>>,
-  TError,
-  CreatePlatformParameterMutationVariables,
-  TContext
-> => {
-  const mutationKey = getCreatePlatformParameterMutationKey()
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined }
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof createPlatformParameter>>,
-    CreatePlatformParameterMutationVariables
-  > = (props) => {
-    const { data } = props ?? {}
-
-    return createPlatformParameter(data, requestOptions)
-  }
-
-  return { mutationFn, ...mutationOptions }
-}
-
-export type CreatePlatformParameterMutationResult = NonNullable<
-  Awaited<ReturnType<typeof createPlatformParameter>>
->
-export type CreatePlatformParameterMutationBody = CreatePlatformParameter
-export type CreatePlatformParameterMutationError = ErrorType<ApiError>
-export type CreatePlatformParameterMutationVariables = {
-  data: CreatePlatformParameter
-}
-
-export const useCreatePlatformParameter = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof createPlatformParameter>>,
-      TError,
-      CreatePlatformParameterMutationVariables,
-      TContext
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseMutationResult<
-  Awaited<ReturnType<typeof createPlatformParameter>>,
-  TError,
-  CreatePlatformParameterMutationVariables,
-  TContext
-> => {
-  return useMutation(
-    getCreatePlatformParameterMutationOptions(options),
-    queryClient
-  )
-}
-export type getPlatformParameterResponse200 = {
-  data: PlatformParameter
-  status: 200
-}
-
-export type getPlatformParameterResponse400 = {
-  data: ApiError
-  status: 400
-}
-
-export type getPlatformParameterResponse401 = {
-  data: ApiError
-  status: 401
-}
-
-export type getPlatformParameterResponse403 = {
-  data: ApiError
-  status: 403
-}
-
-export type getPlatformParameterResponse404 = {
-  data: ApiError
-  status: 404
-}
-
-export type getPlatformParameterResponse409 = {
-  data: ApiError
-  status: 409
-}
-
-export type getPlatformParameterResponse503 = {
-  data: ApiError
-  status: 503
-}
-
-export type getPlatformParameterResponseSuccess =
-  getPlatformParameterResponse200 & {
-    headers: Headers
-  }
-export type getPlatformParameterResponseError = (
-  | getPlatformParameterResponse400
-  | getPlatformParameterResponse401
-  | getPlatformParameterResponse403
-  | getPlatformParameterResponse404
-  | getPlatformParameterResponse409
-  | getPlatformParameterResponse503
-) & {
-  headers: Headers
-}
-
-export const getGetPlatformParameterUrl = (parameterId: string) => {
-  return `/api/v1/platform/parameters/${parameterId}`
-}
-
-export const getPlatformParameter = async (
-  parameterId: string,
-  options?: Parameters<typeof apiClient>[1]
-): Promise<getPlatformParameterResponseSuccess> => {
-  return apiClient<getPlatformParameterResponseSuccess>(
-    getGetPlatformParameterUrl(parameterId),
-    {
-      ...options,
-      method: "GET",
-    }
-  )
-}
-
-export const getGetPlatformParameterQueryKey = (parameterId: string) => {
-  return [`/api/v1/platform/parameters/${parameterId}`] as const
-}
-
-export const getGetPlatformParameterQueryOptions = <
-  TData = Awaited<ReturnType<typeof getPlatformParameter>>,
-  TError = ErrorType<ApiError>,
->(
-  parameterId: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformParameter>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  }
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {}
-
-  const queryKey =
-    queryOptions?.queryKey ?? getGetPlatformParameterQueryKey(parameterId)
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getPlatformParameter>>
-  > = ({ signal }) =>
-    getPlatformParameter(parameterId, { signal, ...requestOptions })
-
-  return {
-    queryKey,
-    queryFn,
-    enabled: parameterId !== null && parameterId !== undefined,
-    ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof getPlatformParameter>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type GetPlatformParameterQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getPlatformParameter>>
->
-export type GetPlatformParameterQueryError = ErrorType<ApiError>
-
-export function useGetPlatformParameter<
-  TData = Awaited<ReturnType<typeof getPlatformParameter>>,
-  TError = ErrorType<ApiError>,
->(
-  parameterId: string,
-  options: {
-    query: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformParameter>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getPlatformParameter>>,
-          TError,
-          Awaited<ReturnType<typeof getPlatformParameter>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-export function useGetPlatformParameter<
-  TData = Awaited<ReturnType<typeof getPlatformParameter>>,
-  TError = ErrorType<ApiError>,
->(
-  parameterId: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformParameter>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getPlatformParameter>>,
-          TError,
-          Awaited<ReturnType<typeof getPlatformParameter>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-export function useGetPlatformParameter<
-  TData = Awaited<ReturnType<typeof getPlatformParameter>>,
-  TError = ErrorType<ApiError>,
->(
-  parameterId: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformParameter>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-
-export function useGetPlatformParameter<
-  TData = Awaited<ReturnType<typeof getPlatformParameter>>,
-  TError = ErrorType<ApiError>,
->(
-  parameterId: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformParameter>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-} {
-  const queryOptions = getGetPlatformParameterQueryOptions(parameterId, options)
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
-    TData,
-    TError
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-
-  return withQueryKey(query, queryOptions.queryKey)
-}
-
-export type updatePlatformParameterResponse200 = {
-  data: PlatformParameter
-  status: 200
-}
-
-export type updatePlatformParameterResponse400 = {
-  data: ApiError
-  status: 400
-}
-
-export type updatePlatformParameterResponse401 = {
-  data: ApiError
-  status: 401
-}
-
-export type updatePlatformParameterResponse403 = {
-  data: ApiError
-  status: 403
-}
-
-export type updatePlatformParameterResponse404 = {
-  data: ApiError
-  status: 404
-}
-
-export type updatePlatformParameterResponse409 = {
-  data: ApiError
-  status: 409
-}
-
-export type updatePlatformParameterResponse503 = {
-  data: ApiError
-  status: 503
-}
-
-export type updatePlatformParameterResponseSuccess =
-  updatePlatformParameterResponse200 & {
-    headers: Headers
-  }
-export type updatePlatformParameterResponseError = (
-  | updatePlatformParameterResponse400
-  | updatePlatformParameterResponse401
-  | updatePlatformParameterResponse403
-  | updatePlatformParameterResponse404
-  | updatePlatformParameterResponse409
-  | updatePlatformParameterResponse503
-) & {
-  headers: Headers
-}
-
-export const getUpdatePlatformParameterUrl = (parameterId: string) => {
-  return `/api/v1/platform/parameters/${parameterId}`
-}
-
-export const updatePlatformParameter = async (
-  parameterId: string,
-  updatePlatformParameterBody: UpdatePlatformParameter,
-  options?: Parameters<typeof apiClient>[1]
-): Promise<updatePlatformParameterResponseSuccess> => {
-  const getHeaders = (
-    h?: NonNullable<RequestInit["headers"]>
-  ): Record<string, string | readonly string[]> => {
-    if (!h) return {}
-    if (h instanceof Headers) return Object.fromEntries(h.entries())
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(
-          h as Iterable<Iterable<string>>,
-          (entry) => Array.from(entry) as [string, string]
-        )
-      )
-    }
-    const headers: Record<string, string | readonly string[]> = {}
-    for (const [name, value] of Object.entries<
-      string | readonly string[] | undefined
-    >(h)) {
-      if (value !== undefined) headers[name] = value
-    }
-    return headers
-  }
-  return apiClient<updatePlatformParameterResponseSuccess>(
-    getUpdatePlatformParameterUrl(parameterId),
-    {
-      ...options,
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        ...getHeaders(options?.headers),
-      },
-      body: JSON.stringify(updatePlatformParameterBody),
-    }
-  )
-}
-
-export const getUpdatePlatformParameterMutationKey = () =>
-  ["updatePlatformParameter"] as const
-
-export const getUpdatePlatformParameterMutationOptions = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof updatePlatformParameter>>,
-    TError,
-    UpdatePlatformParameterMutationVariables,
-    TContext
-  >
-  request?: SecondParameter<typeof apiClient>
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof updatePlatformParameter>>,
-  TError,
-  UpdatePlatformParameterMutationVariables,
-  TContext
-> => {
-  const mutationKey = getUpdatePlatformParameterMutationKey()
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined }
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof updatePlatformParameter>>,
-    UpdatePlatformParameterMutationVariables
-  > = (props) => {
-    const { parameterId, data } = props ?? {}
-
-    return updatePlatformParameter(parameterId, data, requestOptions)
-  }
-
-  return { mutationFn, ...mutationOptions }
-}
-
-export type UpdatePlatformParameterMutationResult = NonNullable<
-  Awaited<ReturnType<typeof updatePlatformParameter>>
->
-export type UpdatePlatformParameterMutationBody = UpdatePlatformParameter
-export type UpdatePlatformParameterMutationError = ErrorType<ApiError>
-export type UpdatePlatformParameterMutationVariables = {
-  parameterId: string
-  data: UpdatePlatformParameter
-}
-
-export const useUpdatePlatformParameter = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof updatePlatformParameter>>,
-      TError,
-      UpdatePlatformParameterMutationVariables,
-      TContext
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseMutationResult<
-  Awaited<ReturnType<typeof updatePlatformParameter>>,
-  TError,
-  UpdatePlatformParameterMutationVariables,
-  TContext
-> => {
-  return useMutation(
-    getUpdatePlatformParameterMutationOptions(options),
-    queryClient
-  )
-}
-export type deletePlatformParameterResponse200 = {
-  data: PlatformSystemDeleteResult
-  status: 200
-}
-
-export type deletePlatformParameterResponse400 = {
-  data: ApiError
-  status: 400
-}
-
-export type deletePlatformParameterResponse401 = {
-  data: ApiError
-  status: 401
-}
-
-export type deletePlatformParameterResponse403 = {
-  data: ApiError
-  status: 403
-}
-
-export type deletePlatformParameterResponse404 = {
-  data: ApiError
-  status: 404
-}
-
-export type deletePlatformParameterResponse409 = {
-  data: ApiError
-  status: 409
-}
-
-export type deletePlatformParameterResponse503 = {
-  data: ApiError
-  status: 503
-}
-
-export type deletePlatformParameterResponseSuccess =
-  deletePlatformParameterResponse200 & {
-    headers: Headers
-  }
-export type deletePlatformParameterResponseError = (
-  | deletePlatformParameterResponse400
-  | deletePlatformParameterResponse401
-  | deletePlatformParameterResponse403
-  | deletePlatformParameterResponse404
-  | deletePlatformParameterResponse409
-  | deletePlatformParameterResponse503
-) & {
-  headers: Headers
-}
-
-export const getDeletePlatformParameterUrl = (parameterId: string) => {
-  return `/api/v1/platform/parameters/${parameterId}`
-}
-
-export const deletePlatformParameter = async (
-  parameterId: string,
-  options?: Parameters<typeof apiClient>[1]
-): Promise<deletePlatformParameterResponseSuccess> => {
-  return apiClient<deletePlatformParameterResponseSuccess>(
-    getDeletePlatformParameterUrl(parameterId),
-    {
-      ...options,
-      method: "DELETE",
-    }
-  )
-}
-
-export const getDeletePlatformParameterMutationKey = () =>
-  ["deletePlatformParameter"] as const
-
-export const getDeletePlatformParameterMutationOptions = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof deletePlatformParameter>>,
-    TError,
-    DeletePlatformParameterMutationVariables,
-    TContext
-  >
-  request?: SecondParameter<typeof apiClient>
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof deletePlatformParameter>>,
-  TError,
-  DeletePlatformParameterMutationVariables,
-  TContext
-> => {
-  const mutationKey = getDeletePlatformParameterMutationKey()
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined }
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof deletePlatformParameter>>,
-    DeletePlatformParameterMutationVariables
-  > = (props) => {
-    const { parameterId } = props ?? {}
-
-    return deletePlatformParameter(parameterId, requestOptions)
-  }
-
-  return { mutationFn, ...mutationOptions }
-}
-
-export type DeletePlatformParameterMutationResult = NonNullable<
-  Awaited<ReturnType<typeof deletePlatformParameter>>
->
-
-export type DeletePlatformParameterMutationError = ErrorType<ApiError>
-export type DeletePlatformParameterMutationVariables = { parameterId: string }
-
-export const useDeletePlatformParameter = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof deletePlatformParameter>>,
-      TError,
-      DeletePlatformParameterMutationVariables,
-      TContext
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseMutationResult<
-  Awaited<ReturnType<typeof deletePlatformParameter>>,
-  TError,
-  DeletePlatformParameterMutationVariables,
-  TContext
-> => {
-  return useMutation(
-    getDeletePlatformParameterMutationOptions(options),
-    queryClient
-  )
-}
-export type setPlatformParameterStatusResponse200 = {
-  data: PlatformParameter
-  status: 200
-}
-
-export type setPlatformParameterStatusResponse400 = {
-  data: ApiError
-  status: 400
-}
-
-export type setPlatformParameterStatusResponse401 = {
-  data: ApiError
-  status: 401
-}
-
-export type setPlatformParameterStatusResponse403 = {
-  data: ApiError
-  status: 403
-}
-
-export type setPlatformParameterStatusResponse404 = {
-  data: ApiError
-  status: 404
-}
-
-export type setPlatformParameterStatusResponse409 = {
-  data: ApiError
-  status: 409
-}
-
-export type setPlatformParameterStatusResponse503 = {
-  data: ApiError
-  status: 503
-}
-
-export type setPlatformParameterStatusResponseSuccess =
-  setPlatformParameterStatusResponse200 & {
-    headers: Headers
-  }
-export type setPlatformParameterStatusResponseError = (
-  | setPlatformParameterStatusResponse400
-  | setPlatformParameterStatusResponse401
-  | setPlatformParameterStatusResponse403
-  | setPlatformParameterStatusResponse404
-  | setPlatformParameterStatusResponse409
-  | setPlatformParameterStatusResponse503
-) & {
-  headers: Headers
-}
-
-export const getSetPlatformParameterStatusUrl = (parameterId: string) => {
-  return `/api/v1/platform/parameters/${parameterId}/status`
-}
-
-export const setPlatformParameterStatus = async (
-  parameterId: string,
-  setPlatformSystemStatus: SetPlatformSystemStatus,
-  options?: Parameters<typeof apiClient>[1]
-): Promise<setPlatformParameterStatusResponseSuccess> => {
-  const getHeaders = (
-    h?: NonNullable<RequestInit["headers"]>
-  ): Record<string, string | readonly string[]> => {
-    if (!h) return {}
-    if (h instanceof Headers) return Object.fromEntries(h.entries())
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(
-          h as Iterable<Iterable<string>>,
-          (entry) => Array.from(entry) as [string, string]
-        )
-      )
-    }
-    const headers: Record<string, string | readonly string[]> = {}
-    for (const [name, value] of Object.entries<
-      string | readonly string[] | undefined
-    >(h)) {
-      if (value !== undefined) headers[name] = value
-    }
-    return headers
-  }
-  return apiClient<setPlatformParameterStatusResponseSuccess>(
-    getSetPlatformParameterStatusUrl(parameterId),
-    {
-      ...options,
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        ...getHeaders(options?.headers),
-      },
-      body: JSON.stringify(setPlatformSystemStatus),
-    }
-  )
-}
-
-export const getSetPlatformParameterStatusMutationKey = () =>
-  ["setPlatformParameterStatus"] as const
-
-export const getSetPlatformParameterStatusMutationOptions = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof setPlatformParameterStatus>>,
-    TError,
-    SetPlatformParameterStatusMutationVariables,
-    TContext
-  >
-  request?: SecondParameter<typeof apiClient>
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof setPlatformParameterStatus>>,
-  TError,
-  SetPlatformParameterStatusMutationVariables,
-  TContext
-> => {
-  const mutationKey = getSetPlatformParameterStatusMutationKey()
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined }
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof setPlatformParameterStatus>>,
-    SetPlatformParameterStatusMutationVariables
-  > = (props) => {
-    const { parameterId, data } = props ?? {}
-
-    return setPlatformParameterStatus(parameterId, data, requestOptions)
-  }
-
-  return { mutationFn, ...mutationOptions }
-}
-
-export type SetPlatformParameterStatusMutationResult = NonNullable<
-  Awaited<ReturnType<typeof setPlatformParameterStatus>>
->
-export type SetPlatformParameterStatusMutationBody = SetPlatformSystemStatus
-export type SetPlatformParameterStatusMutationError = ErrorType<ApiError>
-export type SetPlatformParameterStatusMutationVariables = {
-  parameterId: string
-  data: SetPlatformSystemStatus
-}
-
-export const useSetPlatformParameterStatus = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof setPlatformParameterStatus>>,
-      TError,
-      SetPlatformParameterStatusMutationVariables,
-      TContext
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseMutationResult<
-  Awaited<ReturnType<typeof setPlatformParameterStatus>>,
-  TError,
-  SetPlatformParameterStatusMutationVariables,
-  TContext
-> => {
-  return useMutation(
-    getSetPlatformParameterStatusMutationOptions(options),
-    queryClient
-  )
-}
-export type setPlatformRolePermissionsResponse200 = {
-  data: PlatformRole
-  status: 200
-}
-
-export type setPlatformRolePermissionsResponse400 = {
-  data: ApiError
-  status: 400
-}
-
-export type setPlatformRolePermissionsResponse401 = {
-  data: ApiError
-  status: 401
-}
-
-export type setPlatformRolePermissionsResponse403 = {
-  data: ApiError
-  status: 403
-}
-
-export type setPlatformRolePermissionsResponse404 = {
-  data: ApiError
-  status: 404
-}
-
-export type setPlatformRolePermissionsResponse409 = {
-  data: ApiError
-  status: 409
-}
-
-export type setPlatformRolePermissionsResponse503 = {
-  data: ApiError
-  status: 503
-}
-
-export type setPlatformRolePermissionsResponseSuccess =
-  setPlatformRolePermissionsResponse200 & {
-    headers: Headers
-  }
-export type setPlatformRolePermissionsResponseError = (
-  | setPlatformRolePermissionsResponse400
-  | setPlatformRolePermissionsResponse401
-  | setPlatformRolePermissionsResponse403
-  | setPlatformRolePermissionsResponse404
-  | setPlatformRolePermissionsResponse409
-  | setPlatformRolePermissionsResponse503
-) & {
-  headers: Headers
-}
-
-export const getSetPlatformRolePermissionsUrl = (roleId: string) => {
-  return `/api/v1/platform/roles/${roleId}/permissions`
-}
-
-export const setPlatformRolePermissions = async (
-  roleId: string,
-  setPlatformRolePermissionsBody: SetPlatformRolePermissions,
-  options?: Parameters<typeof apiClient>[1]
-): Promise<setPlatformRolePermissionsResponseSuccess> => {
-  const getHeaders = (
-    h?: NonNullable<RequestInit["headers"]>
-  ): Record<string, string | readonly string[]> => {
-    if (!h) return {}
-    if (h instanceof Headers) return Object.fromEntries(h.entries())
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(
-          h as Iterable<Iterable<string>>,
-          (entry) => Array.from(entry) as [string, string]
-        )
-      )
-    }
-    const headers: Record<string, string | readonly string[]> = {}
-    for (const [name, value] of Object.entries<
-      string | readonly string[] | undefined
-    >(h)) {
-      if (value !== undefined) headers[name] = value
-    }
-    return headers
-  }
-  return apiClient<setPlatformRolePermissionsResponseSuccess>(
-    getSetPlatformRolePermissionsUrl(roleId),
-    {
-      ...options,
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        ...getHeaders(options?.headers),
-      },
-      body: JSON.stringify(setPlatformRolePermissionsBody),
-    }
-  )
-}
-
-export const getSetPlatformRolePermissionsMutationKey = () =>
-  ["setPlatformRolePermissions"] as const
-
-export const getSetPlatformRolePermissionsMutationOptions = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof setPlatformRolePermissions>>,
-    TError,
-    SetPlatformRolePermissionsMutationVariables,
-    TContext
-  >
-  request?: SecondParameter<typeof apiClient>
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof setPlatformRolePermissions>>,
-  TError,
-  SetPlatformRolePermissionsMutationVariables,
-  TContext
-> => {
-  const mutationKey = getSetPlatformRolePermissionsMutationKey()
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined }
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof setPlatformRolePermissions>>,
-    SetPlatformRolePermissionsMutationVariables
-  > = (props) => {
-    const { roleId, data } = props ?? {}
-
-    return setPlatformRolePermissions(roleId, data, requestOptions)
-  }
-
-  return { mutationFn, ...mutationOptions }
-}
-
-export type SetPlatformRolePermissionsMutationResult = NonNullable<
-  Awaited<ReturnType<typeof setPlatformRolePermissions>>
->
-export type SetPlatformRolePermissionsMutationBody = SetPlatformRolePermissions
-export type SetPlatformRolePermissionsMutationError = ErrorType<ApiError>
-export type SetPlatformRolePermissionsMutationVariables = {
-  roleId: string
-  data: SetPlatformRolePermissions
-}
-
-export const useSetPlatformRolePermissions = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof setPlatformRolePermissions>>,
-      TError,
-      SetPlatformRolePermissionsMutationVariables,
-      TContext
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseMutationResult<
-  Awaited<ReturnType<typeof setPlatformRolePermissions>>,
-  TError,
-  SetPlatformRolePermissionsMutationVariables,
-  TContext
-> => {
-  return useMutation(
-    getSetPlatformRolePermissionsMutationOptions(options),
-    queryClient
-  )
-}
-export type listPlatformRoleEmployeesResponse200 = {
-  data: PlatformEmployeesPage
-  status: 200
-}
-
-export type listPlatformRoleEmployeesResponse400 = {
-  data: ApiError
-  status: 400
-}
-
-export type listPlatformRoleEmployeesResponse401 = {
-  data: ApiError
-  status: 401
-}
-
-export type listPlatformRoleEmployeesResponse403 = {
-  data: ApiError
-  status: 403
-}
-
-export type listPlatformRoleEmployeesResponse404 = {
-  data: ApiError
-  status: 404
-}
-
-export type listPlatformRoleEmployeesResponse409 = {
-  data: ApiError
-  status: 409
-}
-
-export type listPlatformRoleEmployeesResponse503 = {
-  data: ApiError
-  status: 503
-}
-
-export type listPlatformRoleEmployeesResponseSuccess =
-  listPlatformRoleEmployeesResponse200 & {
-    headers: Headers
-  }
-export type listPlatformRoleEmployeesResponseError = (
-  | listPlatformRoleEmployeesResponse400
-  | listPlatformRoleEmployeesResponse401
-  | listPlatformRoleEmployeesResponse403
-  | listPlatformRoleEmployeesResponse404
-  | listPlatformRoleEmployeesResponse409
-  | listPlatformRoleEmployeesResponse503
-) & {
-  headers: Headers
-}
-
-export const getListPlatformRoleEmployeesUrl = (
-  roleId: string,
-  params: ListPlatformRoleEmployeesParams
-) => {
-  const normalizedParams = new URLSearchParams()
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : String(value))
-    }
-  })
-
-  const stringifiedParams = normalizedParams.toString()
-
-  return stringifiedParams.length > 0
-    ? `/api/v1/platform/roles/${roleId}/employees?${stringifiedParams}`
-    : `/api/v1/platform/roles/${roleId}/employees`
-}
-
-export const listPlatformRoleEmployees = async (
-  roleId: string,
-  params: ListPlatformRoleEmployeesParams,
-  options?: Parameters<typeof apiClient>[1]
-): Promise<listPlatformRoleEmployeesResponseSuccess> => {
-  return apiClient<listPlatformRoleEmployeesResponseSuccess>(
-    getListPlatformRoleEmployeesUrl(roleId, params),
-    {
-      ...options,
-      method: "GET",
-    }
-  )
-}
-
-export const getListPlatformRoleEmployeesQueryKey = (
-  roleId: string,
-  params?: ListPlatformRoleEmployeesParams
-) => {
-  return [
-    `/api/v1/platform/roles/${roleId}/employees`,
-    ...(params ? [params] : []),
-  ] as const
-}
-
-export const getListPlatformRoleEmployeesQueryOptions = <
-  TData = Awaited<ReturnType<typeof listPlatformRoleEmployees>>,
-  TError = ErrorType<ApiError>,
->(
-  roleId: string,
-  params: ListPlatformRoleEmployeesParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listPlatformRoleEmployees>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  }
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {}
-
-  const queryKey =
-    queryOptions?.queryKey ??
-    getListPlatformRoleEmployeesQueryKey(roleId, params)
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof listPlatformRoleEmployees>>
-  > = ({ signal }) =>
-    listPlatformRoleEmployees(roleId, params, { signal, ...requestOptions })
-
-  return {
-    queryKey,
-    queryFn,
-    enabled: roleId !== null && roleId !== undefined,
-    ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof listPlatformRoleEmployees>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListPlatformRoleEmployeesQueryResult = NonNullable<
-  Awaited<ReturnType<typeof listPlatformRoleEmployees>>
->
-export type ListPlatformRoleEmployeesQueryError = ErrorType<ApiError>
-
-export function useListPlatformRoleEmployees<
-  TData = Awaited<ReturnType<typeof listPlatformRoleEmployees>>,
-  TError = ErrorType<ApiError>,
->(
-  roleId: string,
-  params: ListPlatformRoleEmployeesParams,
-  options: {
-    query: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listPlatformRoleEmployees>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listPlatformRoleEmployees>>,
-          TError,
-          Awaited<ReturnType<typeof listPlatformRoleEmployees>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-export function useListPlatformRoleEmployees<
-  TData = Awaited<ReturnType<typeof listPlatformRoleEmployees>>,
-  TError = ErrorType<ApiError>,
->(
-  roleId: string,
-  params: ListPlatformRoleEmployeesParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listPlatformRoleEmployees>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listPlatformRoleEmployees>>,
-          TError,
-          Awaited<ReturnType<typeof listPlatformRoleEmployees>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-export function useListPlatformRoleEmployees<
-  TData = Awaited<ReturnType<typeof listPlatformRoleEmployees>>,
-  TError = ErrorType<ApiError>,
->(
-  roleId: string,
-  params: ListPlatformRoleEmployeesParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listPlatformRoleEmployees>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-
-export function useListPlatformRoleEmployees<
-  TData = Awaited<ReturnType<typeof listPlatformRoleEmployees>>,
-  TError = ErrorType<ApiError>,
->(
-  roleId: string,
-  params: ListPlatformRoleEmployeesParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listPlatformRoleEmployees>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-} {
-  const queryOptions = getListPlatformRoleEmployeesQueryOptions(
-    roleId,
-    params,
-    options
-  )
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
-    TData,
-    TError
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-
-  return withQueryKey(query, queryOptions.queryKey)
-}
-
-export type assignPlatformRoleEmployeesResponse200 = {
-  data: PlatformRoleEmployeesMutationResult
-  status: 200
-}
-
-export type assignPlatformRoleEmployeesResponse400 = {
-  data: ApiError
-  status: 400
-}
-
-export type assignPlatformRoleEmployeesResponse401 = {
-  data: ApiError
-  status: 401
-}
-
-export type assignPlatformRoleEmployeesResponse403 = {
-  data: ApiError
-  status: 403
-}
-
-export type assignPlatformRoleEmployeesResponse404 = {
-  data: ApiError
-  status: 404
-}
-
-export type assignPlatformRoleEmployeesResponse409 = {
-  data: ApiError
-  status: 409
-}
-
-export type assignPlatformRoleEmployeesResponse503 = {
-  data: ApiError
-  status: 503
-}
-
-export type assignPlatformRoleEmployeesResponseSuccess =
-  assignPlatformRoleEmployeesResponse200 & {
-    headers: Headers
-  }
-export type assignPlatformRoleEmployeesResponseError = (
-  | assignPlatformRoleEmployeesResponse400
-  | assignPlatformRoleEmployeesResponse401
-  | assignPlatformRoleEmployeesResponse403
-  | assignPlatformRoleEmployeesResponse404
-  | assignPlatformRoleEmployeesResponse409
-  | assignPlatformRoleEmployeesResponse503
-) & {
-  headers: Headers
-}
-
-export const getAssignPlatformRoleEmployeesUrl = (roleId: string) => {
-  return `/api/v1/platform/roles/${roleId}/employees`
-}
-
-export const assignPlatformRoleEmployees = async (
-  roleId: string,
-  setPlatformRoleEmployees: SetPlatformRoleEmployees,
-  options?: Parameters<typeof apiClient>[1]
-): Promise<assignPlatformRoleEmployeesResponseSuccess> => {
-  const getHeaders = (
-    h?: NonNullable<RequestInit["headers"]>
-  ): Record<string, string | readonly string[]> => {
-    if (!h) return {}
-    if (h instanceof Headers) return Object.fromEntries(h.entries())
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(
-          h as Iterable<Iterable<string>>,
-          (entry) => Array.from(entry) as [string, string]
-        )
-      )
-    }
-    const headers: Record<string, string | readonly string[]> = {}
-    for (const [name, value] of Object.entries<
-      string | readonly string[] | undefined
-    >(h)) {
-      if (value !== undefined) headers[name] = value
-    }
-    return headers
-  }
-  return apiClient<assignPlatformRoleEmployeesResponseSuccess>(
-    getAssignPlatformRoleEmployeesUrl(roleId),
-    {
-      ...options,
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...getHeaders(options?.headers),
-      },
-      body: JSON.stringify(setPlatformRoleEmployees),
-    }
-  )
-}
-
-export const getAssignPlatformRoleEmployeesMutationKey = () =>
-  ["assignPlatformRoleEmployees"] as const
-
-export const getAssignPlatformRoleEmployeesMutationOptions = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof assignPlatformRoleEmployees>>,
-    TError,
-    AssignPlatformRoleEmployeesMutationVariables,
-    TContext
-  >
-  request?: SecondParameter<typeof apiClient>
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof assignPlatformRoleEmployees>>,
-  TError,
-  AssignPlatformRoleEmployeesMutationVariables,
-  TContext
-> => {
-  const mutationKey = getAssignPlatformRoleEmployeesMutationKey()
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined }
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof assignPlatformRoleEmployees>>,
-    AssignPlatformRoleEmployeesMutationVariables
-  > = (props) => {
-    const { roleId, data } = props ?? {}
-
-    return assignPlatformRoleEmployees(roleId, data, requestOptions)
-  }
-
-  return { mutationFn, ...mutationOptions }
-}
-
-export type AssignPlatformRoleEmployeesMutationResult = NonNullable<
-  Awaited<ReturnType<typeof assignPlatformRoleEmployees>>
->
-export type AssignPlatformRoleEmployeesMutationBody = SetPlatformRoleEmployees
-export type AssignPlatformRoleEmployeesMutationError = ErrorType<ApiError>
-export type AssignPlatformRoleEmployeesMutationVariables = {
-  roleId: string
-  data: SetPlatformRoleEmployees
-}
-
-export const useAssignPlatformRoleEmployees = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof assignPlatformRoleEmployees>>,
-      TError,
-      AssignPlatformRoleEmployeesMutationVariables,
-      TContext
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseMutationResult<
-  Awaited<ReturnType<typeof assignPlatformRoleEmployees>>,
-  TError,
-  AssignPlatformRoleEmployeesMutationVariables,
-  TContext
-> => {
-  return useMutation(
-    getAssignPlatformRoleEmployeesMutationOptions(options),
-    queryClient
-  )
-}
-export type revokePlatformRoleEmployeesResponse200 = {
-  data: PlatformRoleEmployeesMutationResult
-  status: 200
-}
-
-export type revokePlatformRoleEmployeesResponse400 = {
-  data: ApiError
-  status: 400
-}
-
-export type revokePlatformRoleEmployeesResponse401 = {
-  data: ApiError
-  status: 401
-}
-
-export type revokePlatformRoleEmployeesResponse403 = {
-  data: ApiError
-  status: 403
-}
-
-export type revokePlatformRoleEmployeesResponse404 = {
-  data: ApiError
-  status: 404
-}
-
-export type revokePlatformRoleEmployeesResponse409 = {
-  data: ApiError
-  status: 409
-}
-
-export type revokePlatformRoleEmployeesResponse503 = {
-  data: ApiError
-  status: 503
-}
-
-export type revokePlatformRoleEmployeesResponseSuccess =
-  revokePlatformRoleEmployeesResponse200 & {
-    headers: Headers
-  }
-export type revokePlatformRoleEmployeesResponseError = (
-  | revokePlatformRoleEmployeesResponse400
-  | revokePlatformRoleEmployeesResponse401
-  | revokePlatformRoleEmployeesResponse403
-  | revokePlatformRoleEmployeesResponse404
-  | revokePlatformRoleEmployeesResponse409
-  | revokePlatformRoleEmployeesResponse503
-) & {
-  headers: Headers
-}
-
-export const getRevokePlatformRoleEmployeesUrl = (roleId: string) => {
-  return `/api/v1/platform/roles/${roleId}/employees`
-}
-
-export const revokePlatformRoleEmployees = async (
-  roleId: string,
-  setPlatformRoleEmployees: SetPlatformRoleEmployees,
-  options?: Parameters<typeof apiClient>[1]
-): Promise<revokePlatformRoleEmployeesResponseSuccess> => {
-  const getHeaders = (
-    h?: NonNullable<RequestInit["headers"]>
-  ): Record<string, string | readonly string[]> => {
-    if (!h) return {}
-    if (h instanceof Headers) return Object.fromEntries(h.entries())
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(
-          h as Iterable<Iterable<string>>,
-          (entry) => Array.from(entry) as [string, string]
-        )
-      )
-    }
-    const headers: Record<string, string | readonly string[]> = {}
-    for (const [name, value] of Object.entries<
-      string | readonly string[] | undefined
-    >(h)) {
-      if (value !== undefined) headers[name] = value
-    }
-    return headers
-  }
-  return apiClient<revokePlatformRoleEmployeesResponseSuccess>(
-    getRevokePlatformRoleEmployeesUrl(roleId),
-    {
-      ...options,
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-        ...getHeaders(options?.headers),
-      },
-      body: JSON.stringify(setPlatformRoleEmployees),
-    }
-  )
-}
-
-export const getRevokePlatformRoleEmployeesMutationKey = () =>
-  ["revokePlatformRoleEmployees"] as const
-
-export const getRevokePlatformRoleEmployeesMutationOptions = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof revokePlatformRoleEmployees>>,
-    TError,
-    RevokePlatformRoleEmployeesMutationVariables,
-    TContext
-  >
-  request?: SecondParameter<typeof apiClient>
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof revokePlatformRoleEmployees>>,
-  TError,
-  RevokePlatformRoleEmployeesMutationVariables,
-  TContext
-> => {
-  const mutationKey = getRevokePlatformRoleEmployeesMutationKey()
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined }
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof revokePlatformRoleEmployees>>,
-    RevokePlatformRoleEmployeesMutationVariables
-  > = (props) => {
-    const { roleId, data } = props ?? {}
-
-    return revokePlatformRoleEmployees(roleId, data, requestOptions)
-  }
-
-  return { mutationFn, ...mutationOptions }
-}
-
-export type RevokePlatformRoleEmployeesMutationResult = NonNullable<
-  Awaited<ReturnType<typeof revokePlatformRoleEmployees>>
->
-export type RevokePlatformRoleEmployeesMutationBody = SetPlatformRoleEmployees
-export type RevokePlatformRoleEmployeesMutationError = ErrorType<ApiError>
-export type RevokePlatformRoleEmployeesMutationVariables = {
-  roleId: string
-  data: SetPlatformRoleEmployees
-}
-
-export const useRevokePlatformRoleEmployees = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof revokePlatformRoleEmployees>>,
-      TError,
-      RevokePlatformRoleEmployeesMutationVariables,
-      TContext
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseMutationResult<
-  Awaited<ReturnType<typeof revokePlatformRoleEmployees>>,
-  TError,
-  RevokePlatformRoleEmployeesMutationVariables,
-  TContext
-> => {
-  return useMutation(
-    getRevokePlatformRoleEmployeesMutationOptions(options),
-    queryClient
-  )
-}
-export type listPlatformDictionaryItemsResponse200 = {
-  data: PlatformDictionaryItemsPage
-  status: 200
-}
-
-export type listPlatformDictionaryItemsResponse400 = {
-  data: ApiError
-  status: 400
-}
-
-export type listPlatformDictionaryItemsResponse401 = {
-  data: ApiError
-  status: 401
-}
-
-export type listPlatformDictionaryItemsResponse403 = {
-  data: ApiError
-  status: 403
-}
-
-export type listPlatformDictionaryItemsResponse404 = {
-  data: ApiError
-  status: 404
-}
-
-export type listPlatformDictionaryItemsResponse409 = {
-  data: ApiError
-  status: 409
-}
-
-export type listPlatformDictionaryItemsResponse503 = {
-  data: ApiError
-  status: 503
-}
-
-export type listPlatformDictionaryItemsResponseSuccess =
-  listPlatformDictionaryItemsResponse200 & {
-    headers: Headers
-  }
-export type listPlatformDictionaryItemsResponseError = (
-  | listPlatformDictionaryItemsResponse400
-  | listPlatformDictionaryItemsResponse401
-  | listPlatformDictionaryItemsResponse403
-  | listPlatformDictionaryItemsResponse404
-  | listPlatformDictionaryItemsResponse409
-  | listPlatformDictionaryItemsResponse503
-) & {
-  headers: Headers
-}
-
-export const getListPlatformDictionaryItemsUrl = (
-  dictionaryId: string,
-  params?: ListPlatformDictionaryItemsParams
-) => {
-  const normalizedParams = new URLSearchParams()
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : String(value))
-    }
-  })
-
-  const stringifiedParams = normalizedParams.toString()
-
-  return stringifiedParams.length > 0
-    ? `/api/v1/platform/dictionaries/${dictionaryId}/items?${stringifiedParams}`
-    : `/api/v1/platform/dictionaries/${dictionaryId}/items`
-}
-
-export const listPlatformDictionaryItems = async (
-  dictionaryId: string,
-  params?: ListPlatformDictionaryItemsParams,
-  options?: Parameters<typeof apiClient>[1]
-): Promise<listPlatformDictionaryItemsResponseSuccess> => {
-  return apiClient<listPlatformDictionaryItemsResponseSuccess>(
-    getListPlatformDictionaryItemsUrl(dictionaryId, params),
-    {
-      ...options,
-      method: "GET",
-    }
-  )
-}
-
-export const getListPlatformDictionaryItemsQueryKey = (
-  dictionaryId: string,
-  params?: ListPlatformDictionaryItemsParams
-) => {
-  return [
-    `/api/v1/platform/dictionaries/${dictionaryId}/items`,
-    ...(params ? [params] : []),
-  ] as const
-}
-
-export const getListPlatformDictionaryItemsQueryOptions = <
-  TData = Awaited<ReturnType<typeof listPlatformDictionaryItems>>,
-  TError = ErrorType<ApiError>,
->(
-  dictionaryId: string,
-  params?: ListPlatformDictionaryItemsParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listPlatformDictionaryItems>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  }
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {}
-
-  const queryKey =
-    queryOptions?.queryKey ??
-    getListPlatformDictionaryItemsQueryKey(dictionaryId, params)
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof listPlatformDictionaryItems>>
-  > = ({ signal }) =>
-    listPlatformDictionaryItems(dictionaryId, params, {
-      signal,
-      ...requestOptions,
-    })
-
-  return {
-    queryKey,
-    queryFn,
-    enabled: dictionaryId !== null && dictionaryId !== undefined,
-    ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof listPlatformDictionaryItems>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListPlatformDictionaryItemsQueryResult = NonNullable<
-  Awaited<ReturnType<typeof listPlatformDictionaryItems>>
->
-export type ListPlatformDictionaryItemsQueryError = ErrorType<ApiError>
-
-export function useListPlatformDictionaryItems<
-  TData = Awaited<ReturnType<typeof listPlatformDictionaryItems>>,
-  TError = ErrorType<ApiError>,
->(
-  dictionaryId: string,
-  params: undefined | ListPlatformDictionaryItemsParams,
-  options: {
-    query: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listPlatformDictionaryItems>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listPlatformDictionaryItems>>,
-          TError,
-          Awaited<ReturnType<typeof listPlatformDictionaryItems>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-export function useListPlatformDictionaryItems<
-  TData = Awaited<ReturnType<typeof listPlatformDictionaryItems>>,
-  TError = ErrorType<ApiError>,
->(
-  dictionaryId: string,
-  params?: ListPlatformDictionaryItemsParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listPlatformDictionaryItems>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listPlatformDictionaryItems>>,
-          TError,
-          Awaited<ReturnType<typeof listPlatformDictionaryItems>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-export function useListPlatformDictionaryItems<
-  TData = Awaited<ReturnType<typeof listPlatformDictionaryItems>>,
-  TError = ErrorType<ApiError>,
->(
-  dictionaryId: string,
-  params?: ListPlatformDictionaryItemsParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listPlatformDictionaryItems>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-
-export function useListPlatformDictionaryItems<
-  TData = Awaited<ReturnType<typeof listPlatformDictionaryItems>>,
-  TError = ErrorType<ApiError>,
->(
-  dictionaryId: string,
-  params?: ListPlatformDictionaryItemsParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listPlatformDictionaryItems>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-} {
-  const queryOptions = getListPlatformDictionaryItemsQueryOptions(
-    dictionaryId,
-    params,
-    options
-  )
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
-    TData,
-    TError
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-
-  return withQueryKey(query, queryOptions.queryKey)
-}
-
-export type createPlatformDictionaryItemResponse201 = {
-  data: PlatformDictionaryItem
-  status: 201
-}
-
-export type createPlatformDictionaryItemResponse400 = {
-  data: ApiError
-  status: 400
-}
-
-export type createPlatformDictionaryItemResponse401 = {
-  data: ApiError
-  status: 401
-}
-
-export type createPlatformDictionaryItemResponse403 = {
-  data: ApiError
-  status: 403
-}
-
-export type createPlatformDictionaryItemResponse404 = {
-  data: ApiError
-  status: 404
-}
-
-export type createPlatformDictionaryItemResponse409 = {
-  data: ApiError
-  status: 409
-}
-
-export type createPlatformDictionaryItemResponse503 = {
-  data: ApiError
-  status: 503
-}
-
-export type createPlatformDictionaryItemResponseSuccess =
-  createPlatformDictionaryItemResponse201 & {
-    headers: Headers
-  }
-export type createPlatformDictionaryItemResponseError = (
-  | createPlatformDictionaryItemResponse400
-  | createPlatformDictionaryItemResponse401
-  | createPlatformDictionaryItemResponse403
-  | createPlatformDictionaryItemResponse404
-  | createPlatformDictionaryItemResponse409
-  | createPlatformDictionaryItemResponse503
-) & {
-  headers: Headers
-}
-
-export const getCreatePlatformDictionaryItemUrl = (dictionaryId: string) => {
-  return `/api/v1/platform/dictionaries/${dictionaryId}/items`
-}
-
-export const createPlatformDictionaryItem = async (
-  dictionaryId: string,
-  createPlatformDictionaryItemBody: CreatePlatformDictionaryItem,
-  options?: Parameters<typeof apiClient>[1]
-): Promise<createPlatformDictionaryItemResponseSuccess> => {
-  const getHeaders = (
-    h?: NonNullable<RequestInit["headers"]>
-  ): Record<string, string | readonly string[]> => {
-    if (!h) return {}
-    if (h instanceof Headers) return Object.fromEntries(h.entries())
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(
-          h as Iterable<Iterable<string>>,
-          (entry) => Array.from(entry) as [string, string]
-        )
-      )
-    }
-    const headers: Record<string, string | readonly string[]> = {}
-    for (const [name, value] of Object.entries<
-      string | readonly string[] | undefined
-    >(h)) {
-      if (value !== undefined) headers[name] = value
-    }
-    return headers
-  }
-  return apiClient<createPlatformDictionaryItemResponseSuccess>(
-    getCreatePlatformDictionaryItemUrl(dictionaryId),
-    {
-      ...options,
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...getHeaders(options?.headers),
-      },
-      body: JSON.stringify(createPlatformDictionaryItemBody),
-    }
-  )
-}
-
-export const getCreatePlatformDictionaryItemMutationKey = () =>
-  ["createPlatformDictionaryItem"] as const
-
-export const getCreatePlatformDictionaryItemMutationOptions = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createPlatformDictionaryItem>>,
-    TError,
-    CreatePlatformDictionaryItemMutationVariables,
-    TContext
-  >
-  request?: SecondParameter<typeof apiClient>
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof createPlatformDictionaryItem>>,
-  TError,
-  CreatePlatformDictionaryItemMutationVariables,
-  TContext
-> => {
-  const mutationKey = getCreatePlatformDictionaryItemMutationKey()
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined }
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof createPlatformDictionaryItem>>,
-    CreatePlatformDictionaryItemMutationVariables
-  > = (props) => {
-    const { dictionaryId, data } = props ?? {}
-
-    return createPlatformDictionaryItem(dictionaryId, data, requestOptions)
-  }
-
-  return { mutationFn, ...mutationOptions }
-}
-
-export type CreatePlatformDictionaryItemMutationResult = NonNullable<
-  Awaited<ReturnType<typeof createPlatformDictionaryItem>>
->
-export type CreatePlatformDictionaryItemMutationBody =
-  CreatePlatformDictionaryItem
-export type CreatePlatformDictionaryItemMutationError = ErrorType<ApiError>
-export type CreatePlatformDictionaryItemMutationVariables = {
-  dictionaryId: string
-  data: CreatePlatformDictionaryItem
-}
-
-export const useCreatePlatformDictionaryItem = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof createPlatformDictionaryItem>>,
-      TError,
-      CreatePlatformDictionaryItemMutationVariables,
-      TContext
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseMutationResult<
-  Awaited<ReturnType<typeof createPlatformDictionaryItem>>,
-  TError,
-  CreatePlatformDictionaryItemMutationVariables,
-  TContext
-> => {
-  return useMutation(
-    getCreatePlatformDictionaryItemMutationOptions(options),
-    queryClient
-  )
-}
-export type getPlatformDictionaryItemResponse200 = {
-  data: PlatformDictionaryItem
-  status: 200
-}
-
-export type getPlatformDictionaryItemResponse400 = {
-  data: ApiError
-  status: 400
-}
-
-export type getPlatformDictionaryItemResponse401 = {
-  data: ApiError
-  status: 401
-}
-
-export type getPlatformDictionaryItemResponse403 = {
-  data: ApiError
-  status: 403
-}
-
-export type getPlatformDictionaryItemResponse404 = {
-  data: ApiError
-  status: 404
-}
-
-export type getPlatformDictionaryItemResponse409 = {
-  data: ApiError
-  status: 409
-}
-
-export type getPlatformDictionaryItemResponse503 = {
-  data: ApiError
-  status: 503
-}
-
-export type getPlatformDictionaryItemResponseSuccess =
-  getPlatformDictionaryItemResponse200 & {
-    headers: Headers
-  }
-export type getPlatformDictionaryItemResponseError = (
-  | getPlatformDictionaryItemResponse400
-  | getPlatformDictionaryItemResponse401
-  | getPlatformDictionaryItemResponse403
-  | getPlatformDictionaryItemResponse404
-  | getPlatformDictionaryItemResponse409
-  | getPlatformDictionaryItemResponse503
-) & {
-  headers: Headers
-}
-
-export const getGetPlatformDictionaryItemUrl = (
-  dictionaryId: string,
-  itemId: string
-) => {
-  return `/api/v1/platform/dictionaries/${dictionaryId}/items/${itemId}`
-}
-
-export const getPlatformDictionaryItem = async (
-  dictionaryId: string,
-  itemId: string,
-  options?: Parameters<typeof apiClient>[1]
-): Promise<getPlatformDictionaryItemResponseSuccess> => {
-  return apiClient<getPlatformDictionaryItemResponseSuccess>(
-    getGetPlatformDictionaryItemUrl(dictionaryId, itemId),
-    {
-      ...options,
-      method: "GET",
-    }
-  )
-}
-
-export const getGetPlatformDictionaryItemQueryKey = (
-  dictionaryId: string,
-  itemId: string
-) => {
-  return [
-    `/api/v1/platform/dictionaries/${dictionaryId}/items/${itemId}`,
-  ] as const
-}
-
-export const getGetPlatformDictionaryItemQueryOptions = <
-  TData = Awaited<ReturnType<typeof getPlatformDictionaryItem>>,
-  TError = ErrorType<ApiError>,
->(
-  dictionaryId: string,
-  itemId: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformDictionaryItem>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  }
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {}
-
-  const queryKey =
-    queryOptions?.queryKey ??
-    getGetPlatformDictionaryItemQueryKey(dictionaryId, itemId)
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getPlatformDictionaryItem>>
-  > = ({ signal }) =>
-    getPlatformDictionaryItem(dictionaryId, itemId, {
-      signal,
-      ...requestOptions,
-    })
-
-  return {
-    queryKey,
-    queryFn,
-    enabled:
-      dictionaryId !== null &&
-      dictionaryId !== undefined &&
-      itemId !== null &&
-      itemId !== undefined,
-    ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof getPlatformDictionaryItem>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type GetPlatformDictionaryItemQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getPlatformDictionaryItem>>
->
-export type GetPlatformDictionaryItemQueryError = ErrorType<ApiError>
-
-export function useGetPlatformDictionaryItem<
-  TData = Awaited<ReturnType<typeof getPlatformDictionaryItem>>,
-  TError = ErrorType<ApiError>,
->(
-  dictionaryId: string,
-  itemId: string,
-  options: {
-    query: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformDictionaryItem>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getPlatformDictionaryItem>>,
-          TError,
-          Awaited<ReturnType<typeof getPlatformDictionaryItem>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-export function useGetPlatformDictionaryItem<
-  TData = Awaited<ReturnType<typeof getPlatformDictionaryItem>>,
-  TError = ErrorType<ApiError>,
->(
-  dictionaryId: string,
-  itemId: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformDictionaryItem>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getPlatformDictionaryItem>>,
-          TError,
-          Awaited<ReturnType<typeof getPlatformDictionaryItem>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-export function useGetPlatformDictionaryItem<
-  TData = Awaited<ReturnType<typeof getPlatformDictionaryItem>>,
-  TError = ErrorType<ApiError>,
->(
-  dictionaryId: string,
-  itemId: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformDictionaryItem>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-}
-
-export function useGetPlatformDictionaryItem<
-  TData = Awaited<ReturnType<typeof getPlatformDictionaryItem>>,
-  TError = ErrorType<ApiError>,
->(
-  dictionaryId: string,
-  itemId: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getPlatformDictionaryItem>>,
-        TError,
-        TData
-      >
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>
-} {
-  const queryOptions = getGetPlatformDictionaryItemQueryOptions(
-    dictionaryId,
-    itemId,
-    options
-  )
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
-    TData,
-    TError
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-
-  return withQueryKey(query, queryOptions.queryKey)
-}
-
-export type updatePlatformDictionaryItemResponse200 = {
-  data: PlatformDictionaryItem
-  status: 200
-}
-
-export type updatePlatformDictionaryItemResponse400 = {
-  data: ApiError
-  status: 400
-}
-
-export type updatePlatformDictionaryItemResponse401 = {
-  data: ApiError
-  status: 401
-}
-
-export type updatePlatformDictionaryItemResponse403 = {
-  data: ApiError
-  status: 403
-}
-
-export type updatePlatformDictionaryItemResponse404 = {
-  data: ApiError
-  status: 404
-}
-
-export type updatePlatformDictionaryItemResponse409 = {
-  data: ApiError
-  status: 409
-}
-
-export type updatePlatformDictionaryItemResponse503 = {
-  data: ApiError
-  status: 503
-}
-
-export type updatePlatformDictionaryItemResponseSuccess =
-  updatePlatformDictionaryItemResponse200 & {
-    headers: Headers
-  }
-export type updatePlatformDictionaryItemResponseError = (
-  | updatePlatformDictionaryItemResponse400
-  | updatePlatformDictionaryItemResponse401
-  | updatePlatformDictionaryItemResponse403
-  | updatePlatformDictionaryItemResponse404
-  | updatePlatformDictionaryItemResponse409
-  | updatePlatformDictionaryItemResponse503
-) & {
-  headers: Headers
-}
-
-export const getUpdatePlatformDictionaryItemUrl = (
-  dictionaryId: string,
-  itemId: string
-) => {
-  return `/api/v1/platform/dictionaries/${dictionaryId}/items/${itemId}`
-}
-
-export const updatePlatformDictionaryItem = async (
-  dictionaryId: string,
-  itemId: string,
-  updatePlatformDictionaryItemBody: UpdatePlatformDictionaryItem,
-  options?: Parameters<typeof apiClient>[1]
-): Promise<updatePlatformDictionaryItemResponseSuccess> => {
-  const getHeaders = (
-    h?: NonNullable<RequestInit["headers"]>
-  ): Record<string, string | readonly string[]> => {
-    if (!h) return {}
-    if (h instanceof Headers) return Object.fromEntries(h.entries())
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(
-          h as Iterable<Iterable<string>>,
-          (entry) => Array.from(entry) as [string, string]
-        )
-      )
-    }
-    const headers: Record<string, string | readonly string[]> = {}
-    for (const [name, value] of Object.entries<
-      string | readonly string[] | undefined
-    >(h)) {
-      if (value !== undefined) headers[name] = value
-    }
-    return headers
-  }
-  return apiClient<updatePlatformDictionaryItemResponseSuccess>(
-    getUpdatePlatformDictionaryItemUrl(dictionaryId, itemId),
-    {
-      ...options,
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        ...getHeaders(options?.headers),
-      },
-      body: JSON.stringify(updatePlatformDictionaryItemBody),
-    }
-  )
-}
-
-export const getUpdatePlatformDictionaryItemMutationKey = () =>
-  ["updatePlatformDictionaryItem"] as const
-
-export const getUpdatePlatformDictionaryItemMutationOptions = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof updatePlatformDictionaryItem>>,
-    TError,
-    UpdatePlatformDictionaryItemMutationVariables,
-    TContext
-  >
-  request?: SecondParameter<typeof apiClient>
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof updatePlatformDictionaryItem>>,
-  TError,
-  UpdatePlatformDictionaryItemMutationVariables,
-  TContext
-> => {
-  const mutationKey = getUpdatePlatformDictionaryItemMutationKey()
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined }
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof updatePlatformDictionaryItem>>,
-    UpdatePlatformDictionaryItemMutationVariables
-  > = (props) => {
-    const { dictionaryId, itemId, data } = props ?? {}
-
-    return updatePlatformDictionaryItem(
-      dictionaryId,
-      itemId,
-      data,
-      requestOptions
-    )
-  }
-
-  return { mutationFn, ...mutationOptions }
-}
-
-export type UpdatePlatformDictionaryItemMutationResult = NonNullable<
-  Awaited<ReturnType<typeof updatePlatformDictionaryItem>>
->
-export type UpdatePlatformDictionaryItemMutationBody =
-  UpdatePlatformDictionaryItem
-export type UpdatePlatformDictionaryItemMutationError = ErrorType<ApiError>
-export type UpdatePlatformDictionaryItemMutationVariables = {
-  dictionaryId: string
-  itemId: string
-  data: UpdatePlatformDictionaryItem
-}
-
-export const useUpdatePlatformDictionaryItem = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof updatePlatformDictionaryItem>>,
-      TError,
-      UpdatePlatformDictionaryItemMutationVariables,
-      TContext
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseMutationResult<
-  Awaited<ReturnType<typeof updatePlatformDictionaryItem>>,
-  TError,
-  UpdatePlatformDictionaryItemMutationVariables,
-  TContext
-> => {
-  return useMutation(
-    getUpdatePlatformDictionaryItemMutationOptions(options),
-    queryClient
-  )
-}
-export type deletePlatformDictionaryItemResponse200 = {
-  data: PlatformSystemDeleteResult
-  status: 200
-}
-
-export type deletePlatformDictionaryItemResponse400 = {
-  data: ApiError
-  status: 400
-}
-
-export type deletePlatformDictionaryItemResponse401 = {
-  data: ApiError
-  status: 401
-}
-
-export type deletePlatformDictionaryItemResponse403 = {
-  data: ApiError
-  status: 403
-}
-
-export type deletePlatformDictionaryItemResponse404 = {
-  data: ApiError
-  status: 404
-}
-
-export type deletePlatformDictionaryItemResponse409 = {
-  data: ApiError
-  status: 409
-}
-
-export type deletePlatformDictionaryItemResponse503 = {
-  data: ApiError
-  status: 503
-}
-
-export type deletePlatformDictionaryItemResponseSuccess =
-  deletePlatformDictionaryItemResponse200 & {
-    headers: Headers
-  }
-export type deletePlatformDictionaryItemResponseError = (
-  | deletePlatformDictionaryItemResponse400
-  | deletePlatformDictionaryItemResponse401
-  | deletePlatformDictionaryItemResponse403
-  | deletePlatformDictionaryItemResponse404
-  | deletePlatformDictionaryItemResponse409
-  | deletePlatformDictionaryItemResponse503
-) & {
-  headers: Headers
-}
-
-export const getDeletePlatformDictionaryItemUrl = (
-  dictionaryId: string,
-  itemId: string
-) => {
-  return `/api/v1/platform/dictionaries/${dictionaryId}/items/${itemId}`
-}
-
-export const deletePlatformDictionaryItem = async (
-  dictionaryId: string,
-  itemId: string,
-  options?: Parameters<typeof apiClient>[1]
-): Promise<deletePlatformDictionaryItemResponseSuccess> => {
-  return apiClient<deletePlatformDictionaryItemResponseSuccess>(
-    getDeletePlatformDictionaryItemUrl(dictionaryId, itemId),
-    {
-      ...options,
-      method: "DELETE",
-    }
-  )
-}
-
-export const getDeletePlatformDictionaryItemMutationKey = () =>
-  ["deletePlatformDictionaryItem"] as const
-
-export const getDeletePlatformDictionaryItemMutationOptions = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof deletePlatformDictionaryItem>>,
-    TError,
-    DeletePlatformDictionaryItemMutationVariables,
-    TContext
-  >
-  request?: SecondParameter<typeof apiClient>
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof deletePlatformDictionaryItem>>,
-  TError,
-  DeletePlatformDictionaryItemMutationVariables,
-  TContext
-> => {
-  const mutationKey = getDeletePlatformDictionaryItemMutationKey()
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined }
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof deletePlatformDictionaryItem>>,
-    DeletePlatformDictionaryItemMutationVariables
-  > = (props) => {
-    const { dictionaryId, itemId } = props ?? {}
-
-    return deletePlatformDictionaryItem(dictionaryId, itemId, requestOptions)
-  }
-
-  return { mutationFn, ...mutationOptions }
-}
-
-export type DeletePlatformDictionaryItemMutationResult = NonNullable<
-  Awaited<ReturnType<typeof deletePlatformDictionaryItem>>
->
-
-export type DeletePlatformDictionaryItemMutationError = ErrorType<ApiError>
-export type DeletePlatformDictionaryItemMutationVariables = {
-  dictionaryId: string
-  itemId: string
-}
-
-export const useDeletePlatformDictionaryItem = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof deletePlatformDictionaryItem>>,
-      TError,
-      DeletePlatformDictionaryItemMutationVariables,
-      TContext
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseMutationResult<
-  Awaited<ReturnType<typeof deletePlatformDictionaryItem>>,
-  TError,
-  DeletePlatformDictionaryItemMutationVariables,
-  TContext
-> => {
-  return useMutation(
-    getDeletePlatformDictionaryItemMutationOptions(options),
-    queryClient
-  )
-}
-export type setPlatformDictionaryItemStatusResponse200 = {
-  data: PlatformDictionaryItem
-  status: 200
-}
-
-export type setPlatformDictionaryItemStatusResponse400 = {
-  data: ApiError
-  status: 400
-}
-
-export type setPlatformDictionaryItemStatusResponse401 = {
-  data: ApiError
-  status: 401
-}
-
-export type setPlatformDictionaryItemStatusResponse403 = {
-  data: ApiError
-  status: 403
-}
-
-export type setPlatformDictionaryItemStatusResponse404 = {
-  data: ApiError
-  status: 404
-}
-
-export type setPlatformDictionaryItemStatusResponse409 = {
-  data: ApiError
-  status: 409
-}
-
-export type setPlatformDictionaryItemStatusResponse503 = {
-  data: ApiError
-  status: 503
-}
-
-export type setPlatformDictionaryItemStatusResponseSuccess =
-  setPlatformDictionaryItemStatusResponse200 & {
-    headers: Headers
-  }
-export type setPlatformDictionaryItemStatusResponseError = (
-  | setPlatformDictionaryItemStatusResponse400
-  | setPlatformDictionaryItemStatusResponse401
-  | setPlatformDictionaryItemStatusResponse403
-  | setPlatformDictionaryItemStatusResponse404
-  | setPlatformDictionaryItemStatusResponse409
-  | setPlatformDictionaryItemStatusResponse503
-) & {
-  headers: Headers
-}
-
-export const getSetPlatformDictionaryItemStatusUrl = (
-  dictionaryId: string,
-  itemId: string
-) => {
-  return `/api/v1/platform/dictionaries/${dictionaryId}/items/${itemId}/status`
-}
-
-export const setPlatformDictionaryItemStatus = async (
-  dictionaryId: string,
-  itemId: string,
-  setPlatformSystemStatus: SetPlatformSystemStatus,
-  options?: Parameters<typeof apiClient>[1]
-): Promise<setPlatformDictionaryItemStatusResponseSuccess> => {
-  const getHeaders = (
-    h?: NonNullable<RequestInit["headers"]>
-  ): Record<string, string | readonly string[]> => {
-    if (!h) return {}
-    if (h instanceof Headers) return Object.fromEntries(h.entries())
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(
-          h as Iterable<Iterable<string>>,
-          (entry) => Array.from(entry) as [string, string]
-        )
-      )
-    }
-    const headers: Record<string, string | readonly string[]> = {}
-    for (const [name, value] of Object.entries<
-      string | readonly string[] | undefined
-    >(h)) {
-      if (value !== undefined) headers[name] = value
-    }
-    return headers
-  }
-  return apiClient<setPlatformDictionaryItemStatusResponseSuccess>(
-    getSetPlatformDictionaryItemStatusUrl(dictionaryId, itemId),
-    {
-      ...options,
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        ...getHeaders(options?.headers),
-      },
-      body: JSON.stringify(setPlatformSystemStatus),
-    }
-  )
-}
-
-export const getSetPlatformDictionaryItemStatusMutationKey = () =>
-  ["setPlatformDictionaryItemStatus"] as const
-
-export const getSetPlatformDictionaryItemStatusMutationOptions = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof setPlatformDictionaryItemStatus>>,
-    TError,
-    SetPlatformDictionaryItemStatusMutationVariables,
-    TContext
-  >
-  request?: SecondParameter<typeof apiClient>
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof setPlatformDictionaryItemStatus>>,
-  TError,
-  SetPlatformDictionaryItemStatusMutationVariables,
-  TContext
-> => {
-  const mutationKey = getSetPlatformDictionaryItemStatusMutationKey()
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined }
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof setPlatformDictionaryItemStatus>>,
-    SetPlatformDictionaryItemStatusMutationVariables
-  > = (props) => {
-    const { dictionaryId, itemId, data } = props ?? {}
-
-    return setPlatformDictionaryItemStatus(
-      dictionaryId,
-      itemId,
-      data,
-      requestOptions
-    )
-  }
-
-  return { mutationFn, ...mutationOptions }
-}
-
-export type SetPlatformDictionaryItemStatusMutationResult = NonNullable<
-  Awaited<ReturnType<typeof setPlatformDictionaryItemStatus>>
->
-export type SetPlatformDictionaryItemStatusMutationBody =
-  SetPlatformSystemStatus
-export type SetPlatformDictionaryItemStatusMutationError = ErrorType<ApiError>
-export type SetPlatformDictionaryItemStatusMutationVariables = {
-  dictionaryId: string
-  itemId: string
-  data: SetPlatformSystemStatus
-}
-
-export const useSetPlatformDictionaryItemStatus = <
-  TError = ErrorType<ApiError>,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof setPlatformDictionaryItemStatus>>,
-      TError,
-      SetPlatformDictionaryItemStatusMutationVariables,
-      TContext
-    >
-    request?: SecondParameter<typeof apiClient>
-  },
-  queryClient?: QueryClient
-): UseMutationResult<
-  Awaited<ReturnType<typeof setPlatformDictionaryItemStatus>>,
-  TError,
-  SetPlatformDictionaryItemStatusMutationVariables,
-  TContext
-> => {
-  return useMutation(
-    getSetPlatformDictionaryItemStatusMutationOptions(options),
     queryClient
   )
 }

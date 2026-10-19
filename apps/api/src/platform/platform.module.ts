@@ -1,34 +1,32 @@
-import { PlatformSystem } from './platform-system';
-import { PlatformSystemController } from './platform-system.controller';
-import { PlatformStoragePolicyService } from './platform-storage-policy';
-import { PlatformStoragePolicyController } from './platform-storage-policy.controller';
 import { Module, type DynamicModule } from '@nestjs/common';
 import {
   PLATFORM_DEPLOYMENT_SUMMARY,
   type DeploymentSummary,
 } from '../config/deployment-summary';
-import { PlatformSettings } from './platform-settings';
-import { PlatformSettingsController } from './platform-settings.controller';
-import { PlatformAccessService } from './platform-access.service';
-import { PlatformController } from './platform.controller';
-import { PlatformGuard } from './platform.guard';
+import { PlatformAccessModule } from './platform-access.module';
 import { PlatformOrganizations } from './platform-organizations';
 import { PlatformOrganizationsController } from './platform-organizations.controller';
+import { PlatformSettings } from './platform-settings';
+import { PlatformSettingsController } from './platform-settings.controller';
+import { PlatformStoragePolicyService } from './platform-storage-policy';
+import { PlatformStoragePolicyController } from './platform-storage-policy.controller';
 import { PlatformUsers } from './platform-users';
 import { PlatformUsersController } from './platform-users.controller';
+import { PlatformController } from './platform.controller';
+import { PlatformSystemModule } from './system/platform-system.module';
 
+import { PersonalLoginEventsController } from './personal-login-events.controller';
 import { PlatformAudit } from './platform-audit';
 import { PlatformAuditController } from './platform-audit.controller';
 import {
-  PlatformIdentityManagement,
   PLATFORM_PASSWORD_RESET_REDIRECT,
+  PlatformIdentityManagement,
 } from './platform-identity-management';
 import { PlatformIdentityManagementController } from './platform-identity-management.controller';
-import { PersonalLoginEventsController } from './personal-login-events.controller';
 
 @Module({
+  imports: [PlatformAccessModule, PlatformSystemModule],
   controllers: [
-    PlatformSystemController,
     PlatformController,
     PlatformOrganizationsController,
     PlatformUsersController,
@@ -39,9 +37,6 @@ import { PersonalLoginEventsController } from './personal-login-events.controlle
     PersonalLoginEventsController,
   ],
   providers: [
-    PlatformSystem,
-    PlatformAccessService,
-    PlatformGuard,
     PlatformOrganizations,
     PlatformUsers,
     PlatformAudit,

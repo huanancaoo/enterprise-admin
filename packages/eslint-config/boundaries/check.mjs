@@ -9,6 +9,7 @@ const allowed = {
   "apps/tenant": [
     "packages/ui",
     "packages/admin",
+    "packages/announcements",
     "packages/contracts",
     "packages/api-client",
     "packages/permissions",
@@ -19,6 +20,7 @@ const allowed = {
   "apps/platform": [
     "packages/ui",
     "packages/admin",
+    "packages/announcements",
     "packages/contracts",
     "packages/api-client",
     "packages/permissions",
@@ -28,6 +30,7 @@ const allowed = {
   "apps/storybook": [
     "packages/ui",
     "packages/admin",
+    "packages/announcements",
     "packages/contracts",
     "packages/api-client",
     "packages/permissions",
@@ -65,6 +68,12 @@ const allowed = {
     "packages/permissions",
     "packages/i18n",
     "packages/rich-text",
+  ],
+  "packages/announcements": [
+    "packages/admin",
+    "packages/ui",
+    "packages/contracts",
+    "packages/i18n",
   ],
   "packages/contracts": [],
   "packages/rich-text": ["packages/contracts"],

@@ -3,7 +3,13 @@
   "extends": ["//"],
   "tasks": {
     "build": {
-      "outputs": [".next/**", "!.next/cache/**"]
+      "outputs": [".next/**", "!.next/cache/**"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        ".env*",
+        "$TURBO_ROOT$/apps/api/openapi/openapi.json",
+        "$TURBO_ROOT$/apps/api/openapi/auth-openapi.json"
+      ]
     }
   }
 }

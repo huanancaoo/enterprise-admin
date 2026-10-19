@@ -1,0 +1,33 @@
+{
+  "name": "@workspace/announcements",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@workspace/admin": "workspace:*",
+    "@workspace/ui": "workspace:*",
+    "@workspace/contracts": "workspace:*",
+    "@workspace/i18n": "workspace:*",
+    "@tanstack/react-query": "5.102.8",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-i18next": "17.0.14",
+    "lucide-react": "1.46.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@workspace/eslint-config": "workspace:*",
+    "@workspace/typescript-config": "workspace:*",
+    "eslint": "10.10.0",
+    "typescript": "6.0.3"
+  }
+}

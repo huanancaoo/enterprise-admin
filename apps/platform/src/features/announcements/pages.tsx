@@ -1,62 +1,64 @@
-import { useMemo, useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useRouteContext } from "@tanstack/react-router"
-import { useTranslation } from "react-i18next"
-import { z } from "zod"
-import { useAuthenticatedSession } from "@workspace/admin/auth"
 import {
-  AnnouncementEntry,
-  AnnouncementInbox,
-  AnnouncementArticle,
   ErrorState,
   LoadingState,
   PermissionDeniedState,
+} from "@workspace/admin"
+import { useAuthenticatedSession } from "@workspace/admin/auth"
+import { getDataTableQueryStatus } from "@workspace/admin/data-table"
+import type { FileContentPorts } from "@workspace/admin/rich-text-editor"
+import {
+  AnnouncementArticle,
+  AnnouncementEntry,
+  AnnouncementInbox,
   saveAnnouncementResource,
-  useAnnouncementUnreadQuery,
   useAnnouncementInboxQuery,
   useAnnouncementReading,
+  useAnnouncementUnreadQuery,
   type AnnouncementInboxSearch,
-} from "@workspace/admin"
-import type { FileContentPorts } from "@workspace/admin/rich-text-editor"
-import { getDataTableQueryStatus } from "@workspace/admin/data-table"
+} from "@workspace/announcements"
 import {
   ApiClientError,
-  listPlatformAnnouncements,
   createPlatformAnnouncement,
-  getPlatformAnnouncement,
-  updatePlatformAnnouncement,
-  publishPlatformAnnouncement,
-  withdrawPlatformAnnouncement,
   deletePlatformAnnouncement,
-  listPlatformAnnouncementReaders,
-  uploadPlatformAnnouncementMedia,
-  getPlatformAnnouncementMedia,
-  listPlatformAnnouncementInbox,
+  getPlatformAnnouncement,
   getPlatformAnnouncementInboxMedia,
+  getPlatformAnnouncementMedia,
   getPlatformAnnouncementReading,
+  listPlatformAnnouncementInbox,
+  listPlatformAnnouncementReaders,
+  listPlatformAnnouncements,
+  publishPlatformAnnouncement,
   readPlatformAnnouncement,
+  updatePlatformAnnouncement,
+  uploadPlatformAnnouncementMedia,
+  withdrawPlatformAnnouncement,
 } from "@workspace/api-client"
 import {
-  AnnouncementPageSchema,
-  AnnouncementDetailSchema,
   AnnouncementAttachmentSchema,
-  AnnouncementRichTextDocumentSchema,
+  AnnouncementDetailSchema,
+  AnnouncementPageSchema,
   AnnouncementReadersPageSchema,
-  CreateAnnouncementSchema,
-  UpdateAnnouncementSchema,
-  PublishAnnouncementSchema,
+  AnnouncementRichTextDocumentSchema,
   AnnouncementVersionSchema,
+  CreateAnnouncementSchema,
+  PublishAnnouncementSchema,
   ReadAnnouncementSchema,
+  UpdateAnnouncementSchema,
 } from "@workspace/contracts/platform-announcements"
+import { useMemo, useState } from "react"
+import { useTranslation } from "react-i18next"
+import { z } from "zod"
 import { usePlatformAccessFailure } from "../../lib/use-platform-access-failure"
-import {
-  AnnouncementList,
-  type AnnouncementManagementSearch,
-} from "./announcement-list"
 import {
   AnnouncementEditor,
   type AnnouncementDraftValue,
 } from "./announcement-editor"
+import {
+  AnnouncementList,
+  type AnnouncementManagementSearch,
+} from "./announcement-list"
 import { AnnouncementOrganizationsField } from "./announcement-organizations"
 import { AnnouncementReaders } from "./announcement-readers"
 
@@ -348,7 +350,9 @@ export function PlatformAnnouncementInboxPage({
     platformAnnouncementKeys.inbox(user.id),
     search,
     (signal) =>
-      listPlatformAnnouncementInbox(search, { signal }).then((reply) => reply.data),
+      listPlatformAnnouncementInbox(search, { signal }).then(
+        (reply) => reply.data
+      )
   )
   usePlatformAccessFailure(query.error)
   return (
@@ -370,8 +374,8 @@ export function PlatformAnnouncementEntry({ onOpen }: { onOpen: () => void }) {
     platformAnnouncementKeys.inbox(user.id),
     (signal) =>
       listPlatformAnnouncementInbox({ page: 1, pageSize: 1 }, { signal }).then(
-        (reply) => reply.data,
-      ),
+        (reply) => reply.data
+      )
   )
   usePlatformAccessFailure(query.error)
   return (
@@ -399,12 +403,12 @@ export function PlatformAnnouncementReadPage({
     contentScopeKey: ["announcement-reading", user.id, announcementId],
     load: (signal) =>
       getPlatformAnnouncementReading(announcementId, { signal }).then(
-        (reply) => reply.data,
+        (reply) => reply.data
       ),
     markRead: (publicationId) =>
       readPlatformAnnouncement(
         announcementId,
-        ReadAnnouncementSchema.parse({ publicationId }),
+        ReadAnnouncementSchema.parse({ publicationId })
       ).then((reply) => reply.data),
     invalidate: () =>
       client.invalidateQueries({
@@ -415,14 +419,14 @@ export function PlatformAnnouncementReadPage({
         await getPlatformAnnouncementInboxMedia(
           reference.fileId,
           { versionId: reference.versionId },
-          { signal },
+          { signal }
         )
       ).data,
     downloadFile: async (reference) =>
       saveAnnouncementResource(
         await getPlatformAnnouncementInboxMedia(reference.fileId, {
           versionId: reference.versionId,
-        }),
+        })
       ),
     getFileErrorMessage: message,
     onMarkError: (error) => {

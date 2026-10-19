@@ -1,21 +1,20 @@
 import { Module } from '@nestjs/common';
+import { PlatformAccessModule } from '../platform/platform-access.module';
 import { TenancyModule } from '../tenancy/tenancy.module';
-import { PlatformAccessService } from '../platform/platform-access.service';
-import { PlatformGuard } from '../platform/platform.guard';
 import { Announcements } from './announcements';
 import {
-  PlatformAnnouncementsController,
   PlatformAnnouncementInboxController,
+  PlatformAnnouncementsController,
   TenantAnnouncementsController,
 } from './announcements.controller';
 
 @Module({
-  imports: [TenancyModule],
+  imports: [TenancyModule, PlatformAccessModule],
   controllers: [
     PlatformAnnouncementsController,
     PlatformAnnouncementInboxController,
     TenantAnnouncementsController,
   ],
-  providers: [Announcements, PlatformAccessService, PlatformGuard],
+  providers: [Announcements],
 })
 export class AnnouncementsModule {}

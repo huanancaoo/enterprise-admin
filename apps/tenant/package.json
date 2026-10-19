@@ -27,7 +27,8 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-i18next": "17.0.14",
-    "zod": "4.6.5"
+    "zod": "4.6.5",
+    "@workspace/announcements": "workspace:*"
   },
   "devDependencies": {
     "@storybook/react-vite": "10.6.0",

@@ -1,7 +1,7 @@
-import { PlatformSchedules } from './platform/schedules/service';
-import { PlatformTasks } from './platform/platform-tasks';
 import type { INestApplication } from '@nestjs/common';
 import { NotificationEmailDelivery } from './notifications/notification-email-delivery';
+import { PlatformSchedules } from './platform/schedules/service';
+import { PlatformTasks } from './platform/tasks/platform-tasks';
 import { WebhookDelivery } from './webhooks/webhook-delivery';
 
 export function startBusinessDeliveries(app: INestApplication): void {

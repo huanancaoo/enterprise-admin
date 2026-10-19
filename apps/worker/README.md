@@ -1,8 +1,8 @@
 # Worker
 
-Worker 是默认启用的核心运行时，以独立 Node 进程执行组织成员授权业务任务。生产注册表当前为空；本次交付只证明任务基础设施，没有新增异步业务或管理页面，也不启动 API、邮件或 Files 运行时。
+Worker 是默认启用的核心运行时，以独立 Node 进程执行组织成员授权业务任务。生产任务由 [registry](src/registry.ts) 装配，执行项目交换、组织导出和邀请导入；不启动 API、邮件或 Files 运行时。
 
-从 `.env.example` 配置 `.env`，由 `pnpm --filter worker dev` 或 `pnpm --filter worker start` 启动。本机启动使用 `.env`，生产 `pnpm --filter worker start:prod` 使用部署环境注入；启动和退出均不执行迁移。
+首次安装与启动顺序统一见[仓库快速开始](../../README.md#快速开始)。本机启动使用 `.env`，生产 `pnpm --filter worker start:prod` 使用部署环境注入；启动和退出均不执行迁移。
 
 数据库身份必须是 `app_runtime` 且没有超级用户或 BYPASSRLS 权限。进程先建立数据库连接并校验真实角色，再等待 BullMQ 的 Redis 连接就绪，最后输出结构化 `worker_ready`。SIGTERM/SIGINT 停止领取新任务并等待活动任务；超过关闭期限非零退出。部署的停止期限须大于 `WORKER_SHUTDOWN_MS`，以便应用完成正常关闭。
 

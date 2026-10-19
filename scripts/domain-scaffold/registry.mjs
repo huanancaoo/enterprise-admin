@@ -155,7 +155,7 @@ export function register(path, text, input) {
       variable("organizationPages"),
       `${d}: { to: "/app/${d}/$organizationId", matches: /^\\/app\\/${d}\\//, titleKey: "${d}:title", preserveOnCreate: true, discardProjectSearch: true, search: { page: 1, pageSize: 20, sortBy: "createdAt", sortOrder: "desc" } },`
     )
-  } else if (path === "apps/tenant/src/components/roles-route.tsx") {
+  } else if (path === "apps/tenant/src/features/organization/roles-route.tsx") {
     add(
       variable("permissionLabelKeys"),
       ["read", "create", "delete"]
@@ -190,7 +190,7 @@ export const integrationPaths = [
   "apps/tenant/src/router.tsx",
   "apps/tenant/src/components/admin-layout.tsx",
   "apps/tenant/src/lib/organization-location.ts",
-  "apps/tenant/src/components/roles-route.tsx",
+  "apps/tenant/src/features/organization/roles-route.tsx",
   "packages/database/test/database.test.ts",
   "packages/contracts/src/index.ts",
   "packages/api-client/src/index.ts",

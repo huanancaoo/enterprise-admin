@@ -7,6 +7,7 @@ export default defineConfig({
       "../../apps/tenant/src/**/*.{ts,tsx}",
       "../../apps/platform/src/**/*.{ts,tsx}",
       "../admin/src/**/*.{ts,tsx}",
+      "../announcements/src/**/*.{ts,tsx}",
       "../../apps/storybook/src/form-dialog-example.tsx",
     ],
     output: "src/locales/{{language}}/{{namespace}}.json",

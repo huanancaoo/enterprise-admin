@@ -112,7 +112,7 @@ describe("页面组织结构：真实 API 导航与授权", () => {
     ).toHaveAttribute("aria-current", "page")
     await switchOrganization(page, north, south)
     await expectUI(page).toHaveURL(
-      new RegExp(`/app/organizations/${south.id}/roles$`)
+      (url) => url.pathname === `/app/organizations/${south.id}/roles`
     )
     await expectUI(
       page.getByText("navigation-south", { exact: true })
@@ -232,7 +232,12 @@ describe("页面组织结构：真实 API 导航与授权", () => {
     const page = await pageFor(member)
     await page.goto(`${environment.tenantOrigin}/app/members/${allowed.id}`)
     await expectUI(
-      page.getByRole("list", { name: "成员", exact: true })
+      page.getByRole("table").filter({
+        has: page.getByRole("columnheader", {
+          name: "成员账号",
+          exact: true,
+        }),
+      })
     ).toBeVisible()
     await expectUI(
       management(page).getByRole("link", { name: "常规设置", exact: true })
@@ -289,7 +294,12 @@ describe("页面组织结构：真实 API 导航与授权", () => {
     await page.goto(`${environment.tenantOrigin}/app/members/${foreign.id}`)
     await expectUI(page.getByRole("alert")).toBeVisible()
     await expectUI(
-      page.getByRole("list", { name: "成员", exact: true })
+      page.getByRole("table").filter({
+        has: page.getByRole("columnheader", {
+          name: "成员账号",
+          exact: true,
+        }),
+      })
     ).toHaveCount(0)
   })
 

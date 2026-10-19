@@ -1,8 +1,8 @@
-import { TenantAnnouncementEntry } from "./announcements"
 import { Link, useLocation, useNavigate } from "@tanstack/react-router"
+import { Button, buttonVariants } from "@workspace/ui/components/button"
 import { BellIcon, ListTodoIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
-import { Button, buttonVariants } from "@workspace/ui/components/button"
+import { TenantAnnouncementEntry } from "../features/announcements/announcements"
 
 // 普通页面与文件工作区共用入口，任务和通知始终绑定当前组织。
 export function WorkspaceActions({

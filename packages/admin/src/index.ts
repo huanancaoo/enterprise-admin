@@ -1,70 +1,49 @@
-export { Pagination } from "./components/pagination"
-export {
-  AdminDirectionProvider,
-  LocaleSwitcher,
-  ThemeSwitcher,
-  TenantSwitcher,
-  PermissionGate,
-  ThemeProvider,
-} from "./components/workspace"
 export { useTheme } from "@workspace/ui/components/theme-provider"
-export type {
-  LocaleSwitcherProps,
-  ThemeSwitcherProps,
-  Theme,
-} from "./components/workspace"
 export { AppSidebar } from "./components/app-sidebar"
-export type { AppShellProps } from "./components/page"
 export type { AppSidebarProps } from "./components/app-sidebar"
+export { ConfirmDangerAction } from "./components/confirm-danger-action"
+export type { ConfirmDangerActionProps } from "./components/confirm-danger-action"
 export { NavMain } from "./components/nav-main"
 export type { NavMainItem, NavMainProps } from "./components/nav-main"
 export { NavUser } from "./components/nav-user"
 export type { NavUserProps, SidebarUser } from "./components/nav-user"
+export {
+  AppShell,
+  EmptyState,
+  ErrorState,
+  FilterBar,
+  FormDialog,
+  LoadingState,
+  NotFoundContent,
+  NotFoundState,
+  PageHeader,
+  PermissionDeniedState,
+  ResourceList,
+  RouterErrorComponent,
+} from "./components/page"
+export type { AppShellProps } from "./components/page"
+export { Pagination } from "./components/pagination"
 export { TeamSwitcher } from "./components/team-switcher"
 export type { SidebarTeam, TeamSwitcherProps } from "./components/team-switcher"
 export {
-  AppShell,
-  PageHeader,
-  FilterBar,
-  ResourceList,
-  FormDialog,
-  LoadingState,
-  EmptyState,
-  ErrorState,
-  NotFoundState,
-  NotFoundContent,
-  RouterErrorComponent,
-  PermissionDeniedState,
-} from "./components/page"
+  AdminDirectionProvider,
+  LocaleSwitcher,
+  PermissionGate,
+  TenantSwitcher,
+  ThemeProvider,
+  ThemeSwitcher,
+} from "./components/workspace"
+export type {
+  LocaleSwitcherProps,
+  Theme,
+  ThemeSwitcherProps,
+} from "./components/workspace"
 export { useDocumentTitle } from "./hooks/use-document-title"
-export { ConfirmDangerAction } from "./components/confirm-danger-action"
-export type { ConfirmDangerActionProps } from "./components/confirm-danger-action"
 
 export { PersonalAvatar } from "./components/personal-avatar"
 export { PersonalAvatarSettings } from "./components/personal-avatar-settings"
 
 export { PersonalSecuritySettings } from "./components/personal-security-settings"
 
-export {
-  AnnouncementEntry,
-  AnnouncementInbox,
-  AnnouncementArticle,
-} from "./components/announcement-components"
-export type {
-  AnnouncementReading,
-  AnnouncementInboxSearch,
-  AnnouncementInboxItem,
-  AnnouncementAttachment,
-} from "./components/announcement-components"
-
-export { saveAnnouncementResource } from "./lib/announcement-resource"
-export {
-  useAnnouncementUnreadQuery,
-  useAnnouncementInboxQuery,
-  useAnnouncementReading,
-} from "./announcement-session"
-export {
-  IDEMPOTENCY_KEY_HEADER,
-  nextIdempotencyAttempt,
-} from "./idempotency"
+export { IDEMPOTENCY_KEY_HEADER, nextIdempotencyAttempt } from "./idempotency"
 export type { IdempotencyAttempt } from "./idempotency"

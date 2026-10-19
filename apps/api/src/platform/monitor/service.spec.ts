@@ -1,9 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AuthRuntime } from '../../identity/auth-runtime';
-import type { FilesRuntime } from '../../files/files-runtime';
-import type { PlatformTasks } from '../platform-tasks';
-import type { PlatformPrincipal } from '../platform-access.service';
 import { PlatformMonitorSchema } from '@workspace/contracts';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { FilesRuntime } from '../../files/files-runtime';
+import type { AuthRuntime } from '../../identity/auth-runtime';
+import type { PlatformPrincipal } from '../platform-access.service';
+import type { PlatformTasks } from '../tasks/platform-tasks';
 import {
   PlatformMonitorService,
   probeMonitorDependency,

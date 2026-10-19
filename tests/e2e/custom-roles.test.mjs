@@ -124,22 +124,31 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
     await expectUI(
       page.getByRole("heading", { name: "角色", exact: true })
     ).toBeVisible()
-    const builtIn = page.getByRole("region", { name: "内置角色", exact: true })
-    const builtInMember = builtIn
-      .getByRole("listitem")
-      .filter({ has: page.getByText("成员", { exact: true }) })
+    const builtInMember = page.getByRole("row").filter({
+      has: page.getByRole("cell", { name: "成员", exact: true }),
+    })
+    await builtInMember.locator("summary").click()
     await expectUI(builtInMember).toContainText("项目：查看")
     await expectUI(builtInMember).toContainText("文件：查看")
     await expectUI(builtInMember).toContainText("文件夹：查看")
     await expectUI(builtInMember).toContainText("成员：查看目录")
-    await expectUI(builtInMember).toContainText("权限数：5")
+    await expectUI(builtInMember).toContainText("5 项权限")
     await expectUI(builtInMember).not.toContainText("项目：编辑")
-    await expectUI(builtIn.getByRole("button")).toHaveCount(0)
-    await page.getByLabel("角色标识", { exact: true }).fill("project-reader")
+    await expectUI(
+      builtInMember.getByRole("button", { name: /修改权限|删除角色/ })
+    ).toHaveCount(0)
+    await page.getByRole("button", { name: "创建角色", exact: true }).click()
+    const creation = page.getByRole("dialog", { name: "创建角色", exact: true })
+    await creation
+      .getByLabel("角色标识", { exact: true })
+      .fill("project-reader")
     await page
       .getByRole("checkbox", { name: "项目：查看", exact: true })
       .check()
-    await page.getByRole("button", { name: "创建角色", exact: true }).click()
+    await creation
+      .getByRole("button", { name: "创建角色", exact: true })
+      .click()
+    await expectUI(creation).toHaveCount(0)
     await expectUI(
       page.getByText("project-reader", { exact: true })
     ).toBeVisible()
@@ -155,8 +164,10 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
 
       .getByRole("link", { name: "成员与邀请", exact: true })
       .click()
-    const list = page.getByRole("list", { name: "成员", exact: true })
-    const row = list.getByRole("listitem").filter({ hasText: member.email })
+    const list = page.getByRole("table").filter({
+      has: page.getByRole("columnheader", { name: "成员账号", exact: true }),
+    })
+    const row = list.getByRole("row").filter({ hasText: member.email })
     await row.getByRole("button", { name: "更改角色", exact: true }).click()
     const dialog = page.getByRole("dialog")
     await dialog.getByLabel("角色", { exact: true }).click()
@@ -234,9 +245,11 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
       .getByRole("navigation", { name: "组织管理", exact: true })
       .getByRole("link", { name: "成员与邀请", exact: true })
       .click()
-    const list = page.getByRole("list", { name: "成员", exact: true })
+    const list = page.getByRole("table").filter({
+      has: page.getByRole("columnheader", { name: "成员账号", exact: true }),
+    })
     const row = (account) =>
-      list.getByRole("listitem").filter({ hasText: account.email })
+      list.getByRole("row").filter({ hasText: account.email })
     await expectUI(
       row(target).getByRole("button", { name: "更改角色", exact: true })
     ).toBeVisible()
@@ -299,7 +312,11 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
     expect((await removed).status()).toBe(200)
     await expectUI(dialog).toHaveCount(0)
     await expectUI(row(target)).toHaveCount(0)
-    await expectUI(page.getByLabel("搜索成员…", { exact: true })).toBeFocused()
+    await expectUI(
+      page
+        .getByRole("heading", { name: "成员", exact: true })
+        .locator('xpath=ancestor::div[@tabindex="-1"][1]')
+    ).toBeFocused()
     expect(
       (
         await environment.migrator.query(
@@ -372,8 +389,9 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
       .getByRole("navigation", { name: "组织管理", exact: true })
       .getByRole("link", { name: "角色权限", exact: true })
       .click()
-    const row = page.getByRole("listitem").filter({ hasText: "project-editor" })
-    await expectUI(row).toContainText("成员：1；有效邀请：0")
+    const row = page.getByRole("row").filter({ hasText: "project-editor" })
+    await expectUI(row.getByRole("cell").nth(3)).toHaveText("1")
+    await expectUI(row.getByRole("cell").nth(4)).toHaveText("0")
     await row.getByRole("button", { name: "修改权限", exact: true }).click()
     const dialog = page.getByRole("dialog")
     await expectUI(dialog).toContainText("成员：1；有效邀请：0")
@@ -522,9 +540,7 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
     await expectUI(page.locator("html")).toHaveAttribute("lang", labels.lang)
     await expectUI(page.locator("html")).toHaveAttribute("dir", labels.dir)
     await page.setViewportSize(labels.viewport)
-    const row = page
-      .getByRole("listitem")
-      .filter({ hasText: "keyboard-editor" })
+    const row = page.getByRole("row").filter({ hasText: "keyboard-editor" })
     const edit = row.getByRole("button", { name: labels.edit, exact: true })
     await edit.focus()
     await page.keyboard.press("Enter")
@@ -599,7 +615,14 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
       .press("Enter")
     await expectUI(dialog).toHaveCount(0)
     await expectUI(row).toHaveCount(0)
-    await expectUI(page.locator("#custom-roles-title")).toBeFocused()
+    await expectUI(
+      page
+        .getByRole("heading", {
+          name: labels.lang === "ar" ? "الأدوار" : "Roles",
+          exact: true,
+        })
+        .locator('xpath=ancestor::div[@tabindex="-1"][1]')
+    ).toBeFocused()
   })
 
   it("在阿语 RTL 下支持键盘创建、校验错误和重复角色错误", async () => {
@@ -636,20 +659,33 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
     await expectUI(
       page.getByRole("heading", { name: "الأدوار", exact: true })
     ).toBeVisible()
-    const roleKey = page.getByLabel("مفتاح الدور", { exact: true })
+    const openCreation = page.getByRole("button", {
+      name: "إنشاء دور",
+      exact: true,
+    })
+    await openCreation.click()
+    const creation = page.getByRole("dialog", {
+      name: "إنشاء دور",
+      exact: true,
+    })
+    const roleKey = creation.getByLabel("مفتاح الدور", { exact: true })
     await expectUI(roleKey).toBeVisible()
     await expectUI(
-      page.getByText(
-        "استخدم 3–48 حرفاً صغيراً أو رقماً أو شرطة. المفاتيح التي تبدأ بـ platform محجوزة. لا يمكن تغيير المفتاح لاحقاً.",
-        { exact: true }
-      )
+      creation
+        .locator('[data-slot="field-description"]')
+        .getByText(
+          "استخدم 3–48 حرفاً صغيراً أو رقماً أو شرطة. المفاتيح التي تبدأ بـ platform محجوزة. لا يمكن تغيير المفتاح لاحقاً.",
+          { exact: true }
+        )
     ).toBeVisible()
     await expectUI(
-      page.getByRole("button", { name: "إنشاء دور", exact: true })
+      creation.getByRole("button", { name: "إنشاء دور", exact: true })
     ).toBeVisible()
 
     await roleKey.fill("platformer")
-    await page.getByRole("button", { name: "إنشاء دور", exact: true }).click()
+    await creation
+      .getByRole("button", { name: "إنشاء دور", exact: true })
+      .click()
     await expectUI(roleKey).toHaveAttribute("aria-invalid", "true")
     await expectUI(
       page.getByText(
@@ -675,7 +711,11 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
     for (let index = 0; index < checkboxCount; index += 1) {
       await page.keyboard.press("Tab")
     }
-    const createButton = page.getByRole("button", {
+    await expectUI(
+      creation.getByRole("button", { name: "إلغاء", exact: true })
+    ).toBeFocused()
+    await page.keyboard.press("Tab")
+    const createButton = creation.getByRole("button", {
       name: "إنشاء دور",
       exact: true,
     })
@@ -692,7 +732,7 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
       },
       { times: 1 }
     )
-    const creationForm = page.locator("form").filter({ has: roleKey })
+    const creationForm = creation.locator("form")
     try {
       await page.keyboard.press("Enter")
       await submitted.promise
@@ -706,9 +746,9 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
     await expectUI(
       page.getByText("-keyboard-reader", { exact: true })
     ).toBeVisible()
-    await expectUI(creationForm).toHaveAttribute("aria-busy", "false")
+    await expectUI(creation).toHaveCount(0)
+    await openCreation.click()
     await expectUI(roleKey).toHaveValue("")
-
     await roleKey.fill("-keyboard-reader")
     await permission.check()
     await createButton.click()
@@ -734,7 +774,7 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
     await expectUI(
       page.getByText("-corrected-reader", { exact: true })
     ).toBeVisible()
-    await expectUI(roleKey).toHaveValue("")
+    await expectUI(creation).toHaveCount(0)
     const persisted = await environment.migrator.query(
       "SELECT role, permission FROM organization_role WHERE organization_id = $1 ORDER BY role",
       [organization.id]

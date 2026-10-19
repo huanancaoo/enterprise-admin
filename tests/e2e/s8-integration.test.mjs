@@ -178,14 +178,21 @@ describe("S8 cross-feature browser acceptance", () => {
       .getByRole("navigation", { name: "组织管理", exact: true })
       .getByRole("link", { name: "角色权限", exact: true })
       .click()
-    await page.getByLabel("角色标识", { exact: true }).fill("acceptance-editor")
+    await page.getByRole("button", { name: "创建角色", exact: true }).click()
+    const creation = page.getByRole("dialog", { name: "创建角色", exact: true })
+    await creation
+      .getByLabel("角色标识", { exact: true })
+      .fill("acceptance-editor")
     await page
       .getByRole("checkbox", { name: "项目：查看", exact: true })
       .check()
     await page
       .getByRole("checkbox", { name: "项目：编辑", exact: true })
       .check()
-    await page.getByRole("button", { name: "创建角色", exact: true }).click()
+    await creation
+      .getByRole("button", { name: "创建角色", exact: true })
+      .click()
+    await expectUI(creation).toHaveCount(0)
     await expectUI(
       page.getByText("acceptance-editor", { exact: true })
     ).toBeVisible()
@@ -203,8 +210,8 @@ describe("S8 cross-feature browser acceptance", () => {
     await dialog.getByRole("button", { name: "发送邀请", exact: true }).click()
     await expectUI(dialog).toHaveCount(0)
     const invite = page
-      .getByRole("list", { name: "邀请", exact: true })
-      .getByRole("listitem")
+      .getByRole("region", { name: "邀请", exact: true })
+      .getByRole("row")
       .filter({ hasText: recipient.email })
     await expectUI(invite).toContainText("待处理")
     const invitationMail = await waitForMail(
@@ -266,8 +273,14 @@ describe("S8 cross-feature browser acceptance", () => {
 
       await page.reload()
       const memberRow = page
-        .getByRole("list", { name: "成员", exact: true })
-        .getByRole("listitem")
+        .getByRole("table")
+        .filter({
+          has: page.getByRole("columnheader", {
+            name: "成员账号",
+            exact: true,
+          }),
+        })
+        .getByRole("row")
         .filter({ hasText: recipient.email })
       await memberRow
         .getByRole("button", { name: "更改角色", exact: true })
@@ -310,9 +323,10 @@ describe("S8 cross-feature browser acceptance", () => {
         .getByRole("link", { name: "角色权限", exact: true })
         .click()
       const role = page
-        .getByRole("listitem")
+        .getByRole("row")
         .filter({ hasText: "acceptance-editor" })
-      await expectUI(role).toContainText("成员：1；有效邀请：0")
+      await expectUI(role.getByRole("cell").nth(3)).toHaveText("1")
+      await expectUI(role.getByRole("cell").nth(4)).toHaveText("0")
       await role.getByRole("button", { name: "修改权限", exact: true }).click()
       await dialog
         .getByRole("checkbox", { name: "项目：编辑", exact: true })
@@ -406,7 +420,8 @@ describe("S8 cross-feature browser acceptance", () => {
         .getByRole("navigation", { name: "组织管理", exact: true })
         .getByRole("link", { name: "角色权限", exact: true })
         .click()
-      await expectUI(role).toContainText("成员：0；有效邀请：0")
+      await expectUI(role.getByRole("cell").nth(3)).toHaveText("0")
+      await expectUI(role.getByRole("cell").nth(4)).toHaveText("0")
       await role.getByRole("button", { name: "删除角色", exact: true }).click()
       await dialog
         .getByRole("button", { name: "确认删除", exact: true })

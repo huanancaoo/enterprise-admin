@@ -1,11 +1,14 @@
 import type { Meta, StoryObj } from "@storybook/react-vite"
-import { fn, expect, userEvent, waitFor, within } from "storybook/test"
-import { AnnouncementInbox, AnnouncementArticle } from "@workspace/admin"
-import { AnnouncementList } from "./announcement-list"
+import {
+  AnnouncementArticle,
+  AnnouncementInbox,
+} from "@workspace/announcements"
+import { expect, fn, userEvent, waitFor, within } from "storybook/test"
 import {
   AnnouncementEditor,
   type AnnouncementDraftValue,
 } from "./announcement-editor"
+import { AnnouncementList } from "./announcement-list"
 
 const summary = {
   id: "announcement-draft",

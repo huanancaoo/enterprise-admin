@@ -38,6 +38,8 @@ pnpm typecheck
 
 一个足够验证接入路径的最小领域包含 UUID、组织 ID、名称、列表、创建和删除；创建/删除写成功审计。它不需要队列、第二套认证、第二个 SQL Pool 或第二个 Query Client。
 
+租户前端按 `features/<domain>` 收拢页面、业务组件、查询、权限读取与 Storybook 场景。`components` 只保存应用壳与跨领域组合；新增领域及 Projects 参考实现遵循同一归属规则。
+
 ## 正式注册位置
 
 | 层         | 需要修改的入口                                                                                                                                                 | 接入后应验证的结果                                                                |
