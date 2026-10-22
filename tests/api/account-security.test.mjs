@@ -111,6 +111,66 @@ describe("native account security", () => {
     )
   })
 
+  it("revokes the new session when successful login auditing is unavailable", async () => {
+    const { baseURL, migrator } = environment
+    const account = await signUpVerified(baseURL, origin, migrator)
+    const userAgent = `audit-unavailable-${randomUUID()}`
+    const sessions = () =>
+      migrator.query(
+        "SELECT id FROM public.session WHERE user_id = $1 ORDER BY id",
+        [account.user.id]
+      )
+    const before = await sessions()
+    await migrator.query(`
+      CREATE FUNCTION public.test_reject_login_audit() RETURNS trigger LANGUAGE plpgsql AS $$
+      BEGIN
+        IF NEW.user_agent = '${userAgent}' THEN
+          RAISE EXCEPTION 'injected login audit failure';
+        END IF;
+        RETURN NEW;
+      END $$;
+      CREATE TRIGGER test_reject_login_audit BEFORE INSERT ON public.login_events
+        FOR EACH ROW EXECUTE FUNCTION public.test_reject_login_audit();
+    `)
+    try {
+      const signIn = (password) =>
+        fetch(`${baseURL}/api/auth/sign-in/email`, {
+          method: "POST",
+          headers: {
+            origin,
+            "content-type": "application/json",
+            "user-agent": userAgent,
+          },
+          body: JSON.stringify({ email: account.email, password }),
+        })
+      const rejected = await signIn(account.password)
+      expect(rejected.status).toBe(503)
+      expect(await rejected.json()).toMatchObject({ code: "AUDIT_UNAVAILABLE" })
+      expect((await sessions()).rows).toEqual(before.rows)
+
+      const rejectedSession = await fetch(`${baseURL}/api/auth/get-session`, {
+        headers: { cookie: responseCookie(rejected) },
+      })
+      expect(await rejectedSession.json()).toBeNull()
+      const existingSession = await fetch(`${baseURL}/api/auth/get-session`, {
+        headers: { cookie: account.cookie },
+      })
+      expect((await existingSession.json()).user.id).toBe(account.user.id)
+
+      const failed = await signIn("incorrect-password")
+      expect(failed.status).toBe(401)
+      expect(await failed.json()).toMatchObject({
+        code: "INVALID_EMAIL_OR_PASSWORD",
+      })
+      expect((await sessions()).rows).toEqual(before.rows)
+    } finally {
+      await migrator.query(`
+        DROP TRIGGER test_reject_login_audit ON public.login_events;
+        DROP FUNCTION public.test_reject_login_audit();
+      `)
+    }
+  })
+
   it("rejects a suspended session and does not restore it after the account resumes", async () => {
     const { baseURL, migrator } = environment
     const account = await signUpVerified(baseURL, origin, migrator)

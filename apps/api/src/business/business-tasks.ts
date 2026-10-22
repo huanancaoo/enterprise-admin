@@ -1,11 +1,9 @@
 import { Inject, Injectable, type OnApplicationShutdown } from '@nestjs/common';
 import {
-  BusinessTaskErrorCodeSchema,
   BusinessTaskSchema,
   TaskCenterPageSchema,
   type CapabilityPageQuery,
 } from '@workspace/contracts';
-import { recordBusinessTaskAttempt } from '@workspace/database/business-task-control';
 import { businessTaskRepository } from '@workspace/database/repositories/business-tasks';
 import { createTaskTenantRunner } from '@workspace/database/task-tenant';
 import {
@@ -20,6 +18,7 @@ import {
   TaskPermanentError,
   type WorkerConfig,
 } from '@workspace/jobs';
+import { recordBusinessTaskProgress } from '@workspace/jobs/business-task-progress';
 import {
   createTenantExchangeTasks,
   tenantTaskPermissions,
@@ -132,26 +131,20 @@ export class BusinessTasks implements OnApplicationShutdown {
       .submit(request)
       .catch(async (error: unknown) => {
         if (!(error instanceof TaskPermanentError)) throw error;
-        const parsed = BusinessTaskErrorCodeSchema.safeParse(error.code);
         // 意图已经提交，生产者永久拒绝也要立即持久结算，恢复权限不能重新派发旧意图。
-        await recordBusinessTaskAttempt(
+        await recordBusinessTaskProgress(
           this.runtime.pool,
           { ...identity, intentFingerprint },
-          'rejected',
-          parsed.success ? parsed.data : 'EXECUTION_FAILED',
+          { kind: 'permanent-rejection', code: error.code },
         );
-        return { status: 'rejected' } as const;
+        return null;
       });
-    if (
-      submission.status === 'enqueued' ||
-      submission.status === 'already_exists'
-    ) {
-      await createTenantRunner(this.runtime.pool)(
-        context,
-        (tx) => businessTaskRepository.markQueued(tx, id),
-        'write',
+    if (submission)
+      await recordBusinessTaskProgress(
+        this.runtime.pool,
+        { ...identity, intentFingerprint },
+        { kind: 'submission', context, outcome: submission },
       );
-    }
     return this.get(context, id);
   }
   async get(context: TenantContext, id: string) {

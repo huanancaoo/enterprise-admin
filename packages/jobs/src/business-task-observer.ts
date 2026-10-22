@@ -1,6 +1,8 @@
-import { BusinessTaskErrorCodeSchema } from "@workspace/contracts"
 import type { Worker, Job } from "bullmq"
-import { recordBusinessTaskAttempt } from "@workspace/database/business-task-control"
+import {
+  recordBusinessTaskProgress,
+  type BusinessTaskObservation,
+} from "./business-task-progress.ts"
 import {
   readTaskEnvelope,
   type RegisteredTask,
@@ -9,15 +11,17 @@ import {
 
 export function observeBusinessTasks(
   worker: Worker<TaskEnvelope>,
-  pool: Parameters<typeof recordBusinessTaskAttempt>[0],
+  pool: Parameters<typeof recordBusinessTaskProgress>[0],
   attempts: number,
   registry: readonly RegisteredTask[]
 ) {
   const pending = new Set<Promise<void>>()
   const record = (
     job: Job<TaskEnvelope> | undefined,
-    status: "running" | "failed" | "rejected",
-    code: string | null
+    observation: Extract<
+      BusinessTaskObservation,
+      { kind: "worker-active" | "worker-failed" }
+    >
   ) => {
     if (!job || !registry.some((task) => task.type === job.name)) return
     let task: ReturnType<typeof readTaskEnvelope>
@@ -33,11 +37,10 @@ export function observeBusinessTasks(
       )
       return
     }
-    const work = recordBusinessTaskAttempt(
+    const work = recordBusinessTaskProgress(
       pool,
       { ...task.identity, intentFingerprint: task.intentFingerprint },
-      status,
-      code
+      observation
     ).catch(() => {
       console.error(
         JSON.stringify({
@@ -50,20 +53,20 @@ export function observeBusinessTasks(
     pending.add(work)
     void work.finally(() => pending.delete(work))
   }
-  const active = (job: Job<TaskEnvelope>) => record(job, "running", null)
+  const active = (job: Job<TaskEnvelope>) =>
+    record(job, { kind: "worker-active" })
   const failed = (job: Job<TaskEnvelope> | undefined, error: Error) => {
     if (
       !job ||
       (error.name !== "UnrecoverableError" && job.attemptsMade < attempts)
     )
       return
-    const errorCode = BusinessTaskErrorCodeSchema.safeParse(job.failedReason)
-    const code = errorCode.success ? errorCode.data : "EXECUTION_FAILED"
-    record(
-      job,
-      error.name === "UnrecoverableError" ? "rejected" : "failed",
-      code
-    )
+    // 只把实时终态交给业务任务；重试中的失败仍由队列持有。
+    record(job, {
+      kind: "worker-failed",
+      unrecoverable: error.name === "UnrecoverableError",
+      failedReason: job.failedReason,
+    })
   }
   worker.on("active", active)
   worker.on("failed", failed)

@@ -47,9 +47,7 @@ import {
 } from "./auth-transaction.ts"
 import {
   getAuthRequestContext,
-  setLoginAuditPromise,
-  setLoginAttempt,
-  takeLoginAttempt,
+  createLoginAudit,
 } from "./auth-request-context.ts"
 import { readRoleReferences } from "./role-references.ts"
 import { readPlatformDefaultLocale } from "./platform-locale.ts"
@@ -286,6 +284,7 @@ export function createAuth(
   const transactionalAdapter = createTransactionalAuthAdapter(pool)
 
   const sessionFacts = createSessionFacts(pool, transactionalAdapter)
+  const loginAudit = createLoginAudit(pool)
 
   function rethrowSessionError(error: unknown): never {
     const value = error as { message?: string }
@@ -319,60 +318,6 @@ export function createAuth(
     if (!active) throw new APIError("UNAUTHORIZED")
   }
 
-  async function recordLoginEvent(input: {
-    userId?: string | null
-    email?: string | null
-    method: "email" | "github" | "totp"
-    result: "succeeded" | "failed"
-    reason?: string | null
-  }) {
-    const request = getAuthRequestContext()
-    await pool.query(
-      "SELECT public.record_login_event($1::uuid, $2, $3, $4, $5, $6, $7, $8)",
-      [
-        input.userId ?? null,
-        input.email ?? null,
-        input.method,
-        input.result,
-        input.reason ?? null,
-        request?.clientIp ?? null,
-        request?.userAgent ?? null,
-        request?.requestId ?? null,
-      ]
-    )
-  }
-
-  function loginFailureReason(error: unknown) {
-    const value = error as {
-      body?: { code?: unknown }
-      code?: unknown
-      message?: unknown
-    }
-    const candidate =
-      typeof value?.body?.code === "string"
-        ? value.body.code
-        : typeof value?.message === "string"
-          ? value.message
-          : typeof value?.code === "string"
-            ? value.code
-            : ""
-    if (
-      candidate === "ACCOUNT_SUSPENDED" ||
-      candidate === "PASSWORD_LOGIN_LOCKED"
-    )
-      return candidate
-    if (candidate === "AUTHORIZATION_UNAVAILABLE") return candidate
-    if (candidate === "INVALID_EMAIL_OR_PASSWORD") return "INVALID_CREDENTIALS"
-    if (candidate === "EMAIL_NOT_VERIFIED") return candidate
-    if (
-      candidate === "INVALID_CODE" ||
-      candidate === "INVALID_TOTP" ||
-      candidate === "INVALID_BACKUP_CODE"
-    )
-      return "INVALID_OTP"
-    return "AUTHENTICATION_FAILED"
-  }
-
   const publicSessionPaths = new Set([
     "/callback/github",
     "/forgot-password",
@@ -386,54 +331,6 @@ export function createAuth(
     "/sign-up/email",
     "/verify-email",
   ])
-
-  const terminalLoginAuditPlugin = {
-    id: "terminal-login-audit",
-    hooks: {
-      after: [
-        {
-          matcher: () => true,
-          handler: createAuthMiddleware(async (ctx) => {
-            const attempt = takeLoginAttempt()
-            if (!attempt) return
-            const result = ctx.context.returned
-            if (result instanceof APIError) {
-              await recordLoginEvent({
-                email: attempt.email,
-                method: attempt.method,
-                result: "failed",
-                reason: loginFailureReason(result),
-              }).catch(() => {
-                console.error({
-                  event: "login.audit.unavailable",
-                  requestId: getAuthRequestContext()?.requestId,
-                })
-              })
-              return
-            }
-            const session = ctx.context.newSession
-            if (!session) return
-            try {
-              await recordLoginEvent({
-                userId: session.user.id,
-                email: session.user.email,
-                method: attempt.method,
-                result: "succeeded",
-              })
-            } catch {
-              await ctx.context.internalAdapter.deleteSession(
-                session.session.token
-              )
-              throw new APIError(503, {
-                code: "AUDIT_UNAVAILABLE",
-                message: "AUDIT_UNAVAILABLE",
-              })
-            }
-          }),
-        },
-      ],
-    },
-  } as BetterAuthPlugin
 
   type InvitationEmailData = Omit<
     Parameters<AuthEmailHooks["sendInvitationEmail"]>[0],
@@ -1055,26 +952,7 @@ export function createAuth(
         })
       },
     },
-    onAPIError: {
-      onError: (error) => {
-        const attempt = takeLoginAttempt()
-        if (!attempt) return
-        setLoginAuditPromise(
-          recordLoginEvent({
-            userId: null,
-            email: attempt.email,
-            method: attempt.method,
-            result: "failed",
-            reason: loginFailureReason(error),
-          }).catch(() => {
-            console.error({
-              event: "login.audit.unavailable",
-              requestId: getAuthRequestContext()?.requestId,
-            })
-          })
-        )
-      },
-    },
+    onAPIError: { onError: loginAudit.onError },
     emailVerification: {
       sendOnSignUp: true,
       sendOnSignIn: true,
@@ -1296,7 +1174,7 @@ export function createAuth(
       before: createAuthMiddleware(async (ctx) => {
         if (ctx.path === "/sign-in/email") {
           const email = (ctx.body as { email?: unknown } | undefined)?.email
-          setLoginAttempt({
+          loginAudit.attempt({
             method: "email",
             email:
               typeof email === "string"
@@ -1315,7 +1193,7 @@ export function createAuth(
             }
           }
         } else if (ctx.path.startsWith("/callback/")) {
-          setLoginAttempt({ method: "github" })
+          loginAudit.attempt({ method: "github" })
         }
         const currentSession = await getSessionFromCtx(ctx, {
           disableCookieCache: true,
@@ -1337,7 +1215,7 @@ export function createAuth(
           (ctx.path === "/two-factor/verify-totp" ||
             ctx.path === "/two-factor/verify-backup-code")
         ) {
-          setLoginAttempt({ method: "totp" })
+          loginAudit.attempt({ method: "totp" })
         }
         if (ctx.path === "/change-password") {
           // 改密后的会话存续是服务端策略，调用方不能选择保留其他已登录会话。
@@ -1486,7 +1364,7 @@ export function createAuth(
       ),
       // 登录页读 cookie；已登录会话从 user.lastLoginMethod 展示，必须写库。
       lastLoginMethod({ storeInDatabase: true }),
-      terminalLoginAuditPlugin,
+      loginAudit.plugin,
     ],
   })
   // 用具名原生 API 类型保持声明文件可序列化；运行方法仍由注册的插件生成。

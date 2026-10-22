@@ -4,6 +4,7 @@ import { createRequire } from "node:module"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { startTestApplication } from "../setup/test-runtime.mjs"
 import { signUpVerified } from "../setup/complete-signup.mjs"
+import { recordBusinessTaskProgress } from "../../packages/jobs/src/business-task-progress.ts"
 const require = createRequire(
   new URL("../../packages/jobs/package.json", import.meta.url)
 )
@@ -255,44 +256,185 @@ describe("tenant organization exports", () => {
     })
     expect(denied.status).toBe(403)
   })
-  it("settles worksheet capacity rejection once through the restricted database function", async () => {
+  async function progressFixture() {
     const f = await fixture()
     const task = await submit(f, "/members/exports", {
       format: "xlsx",
       filter: {},
     })
     const stored = await environment.observer.query(
-      "SELECT intent_fingerprint FROM business_tasks WHERE id=$1",
+      "SELECT intent_fingerprint, job_id FROM business_tasks WHERE id=$1",
       [task.id]
     )
-    const args = [
-      f.organization.id,
-      f.owner.user.id,
-      task.id,
-      stored.rows[0].intent_fingerprint,
-      "rejected",
-      "TOO_MANY_ROWS",
-    ]
-    const transition = () =>
-      environment.runtime.pool.query(
-        "SELECT public.record_business_task_attempt($1,$2,$3,$4,$5,$6) AS changed",
-        args
-      )
-    expect((await transition()).rows[0].changed).toBe(true)
-    expect((await transition()).rows[0].changed).toBe(false)
-    const response = await fetch(`${f.url}/tasks/${task.id}`, {
-      headers: f.headers,
-    })
-    expect(response.status).toBe(200)
-    expect(await response.json()).toMatchObject({
-      status: "rejected",
-      errorCode: "TOO_MANY_ROWS",
-      resultAvailable: false,
-    })
-    const facts = await environment.observer.query(
-      "SELECT event_code FROM audit_events WHERE organization_id=$1 AND resource_id=$2 AND event_code='task.rejected'",
-      [f.organization.id, task.id]
+    const membership = await environment.observer.query(
+      "SELECT id FROM member WHERE organization_id=$1 AND user_id=$2",
+      [f.organization.id, f.owner.user.id]
     )
-    expect(facts.rowCount).toBe(1)
+    const binding = {
+      organizationId: f.organization.id,
+      actorId: f.owner.user.id,
+      resourceId: task.id,
+      intentFingerprint: stored.rows[0].intent_fingerprint,
+    }
+    const context = {
+      organizationId: f.organization.id,
+      userId: f.owner.user.id,
+      membershipId: membership.rows[0].id,
+      requestId: randomUUID(),
+      locale: "zh-CN",
+    }
+    return {
+      ...f,
+      task,
+      context,
+      jobId: stored.rows[0].job_id,
+      record: (observation) =>
+        recordBusinessTaskProgress(
+          environment.runtime.pool,
+          binding,
+          observation
+        ),
+      async read() {
+        const response = await fetch(`${f.url}/tasks/${task.id}`, {
+          headers: f.headers,
+        })
+        expect(response.status).toBe(200)
+        return response.json()
+      },
+    }
+  }
+
+  it("keeps submission acknowledgements distinct from recovery and ignores late observations", async () => {
+    const f = await progressFixture()
+    const active = { status: "already_exists", state: "active", jobId: f.jobId }
+    await f.record({ kind: "submission", context: f.context, outcome: active })
+    expect((await f.read()).status).toBe("queued")
+    await f.record({ kind: "recovery", outcome: active })
+    expect((await f.read()).status).toBe("running")
+    const enqueued = { status: "enqueued", jobId: f.jobId }
+    await f.record({
+      kind: "submission",
+      context: f.context,
+      outcome: enqueued,
+    })
+    await f.record({ kind: "recovery", outcome: enqueued })
+    expect((await f.read()).status).toBe("running")
+    const failed = {
+      status: "already_exists",
+      state: "failed",
+      failureCode: "PERMISSION_DENIED",
+      jobId: f.jobId,
+    }
+    await f.record({ kind: "submission", context: f.context, outcome: failed })
+    expect((await f.read()).status).toBe("running")
+    await f.record({ kind: "recovery", outcome: failed })
+    await f.record({ kind: "recovery", outcome: failed })
+    await f.record({ kind: "worker-active" })
+    await f.record({
+      kind: "worker-failed",
+      unrecoverable: false,
+      failedReason: "EXECUTION_FAILED",
+    })
+    expect(await f.read()).toMatchObject({
+      status: "rejected",
+      errorCode: "PERMISSION_DENIED",
+    })
+    const audit = await environment.observer.query(
+      "SELECT event_code FROM audit_events WHERE organization_id=$1 AND resource_id=$2 AND event_code IN ('task.rejected','task.failed')",
+      [f.organization.id, f.task.id]
+    )
+    expect(audit.rows).toEqual([{ event_code: "task.rejected" }])
   })
+
+  it("requires an active organization for a submission acknowledgement but still records its permanent rejection", async () => {
+    const f = await progressFixture()
+    await environment.migrator.query(
+      "UPDATE organization_status SET status='SUSPENDED' WHERE organization_id=$1",
+      [f.organization.id]
+    )
+    await expect(
+      f.record({
+        kind: "submission",
+        context: f.context,
+        outcome: { status: "enqueued", jobId: f.jobId },
+      })
+    ).rejects.toMatchObject({ cause: { code: "ORS02" } })
+    const stored = () =>
+      environment.observer.query(
+        "SELECT status, error_code FROM business_tasks WHERE id=$1",
+        [f.task.id]
+      )
+    expect((await stored()).rows).toEqual([
+      { status: "queued", error_code: null },
+    ])
+    await f.record({
+      kind: "permanent-rejection",
+      code: "ORGANIZATION_SUSPENDED",
+    })
+    expect((await stored()).rows).toEqual([
+      {
+        status: "rejected",
+        error_code: "ORGANIZATION_SUSPENDED",
+      },
+    ])
+  })
+
+  it.each([
+    [true, "rejected"],
+    [false, "failed"],
+  ])(
+    "settles a Worker failure using its unrecoverable flag %s as %s",
+    async (unrecoverable, status) => {
+      const f = await progressFixture()
+      await f.record({ kind: "worker-active" })
+      expect((await f.read()).status).toBe("running")
+      await f.record({
+        kind: "worker-failed",
+        unrecoverable,
+        failedReason: "TOO_MANY_ROWS",
+      })
+      expect(await f.read()).toMatchObject({
+        status,
+        errorCode: "TOO_MANY_ROWS",
+      })
+    }
+  )
+
+  it.each([
+    ["TOO_MANY_ROWS", "rejected"],
+    ["PERMISSION_DENIED", "rejected"],
+    ["EXECUTION_FAILED", "failed"],
+  ])(
+    "recovers %s once as %s after a Worker observation is lost",
+    async (code, status) => {
+      const f = await progressFixture()
+      const task = f.task
+      const transition = () =>
+        f.record({
+          kind: "recovery",
+          outcome: {
+            status: "already_exists",
+            state: "failed",
+            failureCode: code,
+            jobId: f.jobId,
+          },
+        })
+      await transition()
+      await transition()
+      const response = await fetch(`${f.url}/tasks/${task.id}`, {
+        headers: f.headers,
+      })
+      expect(response.status).toBe(200)
+      expect(await response.json()).toMatchObject({
+        status,
+        errorCode: code,
+        resultAvailable: false,
+      })
+      const facts = await environment.observer.query(
+        "SELECT event_code FROM audit_events WHERE organization_id=$1 AND resource_id=$2 AND event_code=$3",
+        [f.organization.id, task.id, `task.${status}`]
+      )
+      expect(facts.rowCount).toBe(1)
+    }
+  )
 })

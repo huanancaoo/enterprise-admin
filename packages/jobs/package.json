@@ -32,6 +32,10 @@
     "vitest": "4.1.11"
   },
   "exports": {
+    "./business-task-progress": {
+      "types": "./dist/business-task-progress.d.ts",
+      "default": "./dist/business-task-progress.js"
+    },
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"

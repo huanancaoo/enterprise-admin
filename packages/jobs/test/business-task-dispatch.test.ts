@@ -8,7 +8,6 @@ import { startBusinessTaskDispatch } from "../src/business-task-dispatch.ts"
 
 const mocks = vi.hoisted(() => ({
   scopes: vi.fn(),
-  record: vi.fn(),
   run: vi.fn<TaskTenantRunner>(),
   find: vi.fn(),
   submit: vi.fn(),
@@ -19,7 +18,6 @@ vi.mock("@workspace/database/task-tenant", () => ({
 }))
 vi.mock("@workspace/database/business-task-control", () => ({
   pendingBusinessTaskScopes: mocks.scopes,
-  recordBusinessTaskAttempt: mocks.record,
 }))
 vi.mock("@workspace/database/repositories/business-tasks", () => ({
   businessTaskRepository: { find: mocks.find },
@@ -61,53 +59,53 @@ beforeEach(() => {
   })
 })
 
-describe("business task failed-queue recovery", () => {
-  it.each([
-    ["TOO_MANY_ROWS", "rejected"],
-    ["PERMISSION_DENIED", "rejected"],
-    ["EXECUTION_FAILED", "failed"],
-  ])(
-    "settles persisted %s as %s after the Worker callback is lost",
-    async (code, status) => {
-      mocks.submit.mockResolvedValue({
-        status: "already_exists",
-        state: "failed",
-        failureCode: code,
-      })
-      const pool = {} as Parameters<typeof startBusinessTaskDispatch>[0]
-      const stop = startBusinessTaskDispatch(
-        pool,
-        readWorkerConfig({ REDIS_URL: "redis://127.0.0.1:6379" }),
-        registry
-      )
-      try {
-        await expect
-          .poll(() => mocks.record.mock.calls)
-          .toEqual([
-            [
-              pool,
-              {
-                organizationId: scope.organization_id,
-                actorId: scope.actor_id,
-                resourceId: scope.id,
-                locale: scope.locale,
-                requestId: scope.request_id,
-                intentFingerprint: scope.intent_fingerprint,
-              },
-              status,
-              code,
-            ],
-          ])
-        expect(mocks.run).toHaveBeenCalledWith(
-          expect.objectContaining({ organizationId: scope.organization_id }),
-          { member: ["export"] },
-          expect.any(Function)
-        )
-        expect(mocks.submit).toHaveBeenCalledTimes(1)
-      } finally {
-        await stop()
+describe("business task recovery dispatch", () => {
+  it("reads authorized input and waits for the current submission before closing", async () => {
+    let finishSubmission!: (outcome: {
+      status: "unknown"
+      jobId: string
+    }) => void
+    const submission = new Promise<{ status: "unknown"; jobId: string }>(
+      (resolve) => {
+        finishSubmission = resolve
       }
+    )
+    mocks.submit.mockReturnValue(submission)
+    const pool = {} as Parameters<typeof startBusinessTaskDispatch>[0]
+    const stop = startBusinessTaskDispatch(
+      pool,
+      readWorkerConfig({ REDIS_URL: "redis://127.0.0.1:6379" }),
+      registry
+    )
+    let closed: Promise<void> | undefined
+    try {
+      await expect.poll(() => mocks.submit.mock.calls.length).toBe(1)
+      const identity = {
+        organizationId: scope.organization_id,
+        actorId: scope.actor_id,
+        resourceId: scope.id,
+        locale: scope.locale,
+        requestId: scope.request_id,
+      }
+      expect(mocks.run).toHaveBeenCalledWith(
+        identity,
+        { member: ["export"] },
+        expect.any(Function)
+      )
+      expect(mocks.submit).toHaveBeenCalledWith({
+        type: scope.type,
+        identity,
+        idempotencyKey: "recovery",
+        input: { format: "xlsx", filter: {} },
+      })
+      closed = stop()
+      expect(mocks.close).not.toHaveBeenCalled()
+      finishSubmission({ status: "unknown", jobId: "recovery-job" })
+      await closed
       expect(mocks.close).toHaveBeenCalledOnce()
+    } finally {
+      finishSubmission({ status: "unknown", jobId: "recovery-job" })
+      await (closed ?? stop())
     }
-  )
+  })
 })

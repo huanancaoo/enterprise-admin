@@ -1,13 +1,10 @@
-import { BusinessTaskErrorCodeSchema } from "@workspace/contracts"
 import { createTaskTenantRunner } from "@workspace/database/task-tenant"
-import {
-  pendingBusinessTaskScopes,
-  recordBusinessTaskAttempt,
-} from "@workspace/database/business-task-control"
+import { pendingBusinessTaskScopes } from "@workspace/database/business-task-control"
 import { businessTaskRepository } from "@workspace/database/repositories/business-tasks"
 import { getTask, type RegisteredTask, type TaskRequest } from "./contract.ts"
 import { createTaskProducer, taskErrorCode } from "./runtime.ts"
 import type { WorkerConfig } from "./config.ts"
+import { recordBusinessTaskProgress } from "./business-task-progress.ts"
 
 export function startBusinessTaskDispatch(
   pool: Parameters<typeof createTaskTenantRunner>[0],
@@ -60,43 +57,17 @@ export function startBusinessTaskDispatch(
             ...identity,
             intentFingerprint: scope.intent_fingerprint,
           }
-          if (outcome.status === "enqueued")
-            await recordBusinessTaskAttempt(pool, binding, "queued", null)
-          if (outcome.status === "already_exists") {
-            if (outcome.state === "active")
-              await recordBusinessTaskAttempt(pool, binding, "running", null)
-            else if (outcome.state === "failed") {
-              const parsed = BusinessTaskErrorCodeSchema.safeParse(
-                outcome.failureCode
-              )
-              const code = parsed.success ? parsed.data : "EXECUTION_FAILED"
-              await recordBusinessTaskAttempt(
-                pool,
-                binding,
-                [
-                  "PERMISSION_DENIED",
-                  "MEMBERSHIP_REQUIRED",
-                  "ORGANIZATION_SUSPENDED",
-                  "RESOURCE_DENIED",
-                  "TOO_MANY_ROWS",
-                ].includes(code)
-                  ? "rejected"
-                  : "failed",
-                code
-              )
-            } else
-              await recordBusinessTaskAttempt(pool, binding, "queued", null)
-          }
+          await recordBusinessTaskProgress(pool, binding, {
+            kind: "recovery",
+            outcome,
+          })
         } catch (error) {
           const rawCode = taskErrorCode(error)
-          const parsed = BusinessTaskErrorCodeSchema.safeParse(rawCode)
-          const code = parsed.success ? parsed.data : "EXECUTION_FAILED"
           if (rawCode)
-            await recordBusinessTaskAttempt(
+            await recordBusinessTaskProgress(
               pool,
               { ...identity, intentFingerprint: scope.intent_fingerprint },
-              "rejected",
-              code
+              { kind: "permanent-rejection", code: rawCode }
             )
           else throw error
         }
