@@ -204,7 +204,6 @@ function AuditFilters({
     <filters.Subscribe selector={(state) => state.isSubmitting}>
       {(busy) => (
         <form
-          className="basis-full"
           noValidate
           aria-busy={busy || loading}
           onSubmit={(event) => {
@@ -455,6 +454,16 @@ function AuditWorkspace({
         description={t("organization:auditDescription")}
       />
 
+      {/* 筛选表单独立布局，避免表格错误恢复时其内部字段区域折叠。 */}
+      {status !== "forbidden" && (
+        <AuditFilters
+          organizationId={organizationId}
+          key={JSON.stringify(search)}
+          search={search}
+          loading={page.isFetching}
+          onApply={(next) => navigate({ search: next })}
+        />
+      )}
       <DataTable
         columns={columns}
         data={accessDenied ? EMPTY_EVENTS : (page.data?.items ?? EMPTY_EVENTS)}
@@ -480,15 +489,6 @@ function AuditWorkspace({
             organizationId={organizationId}
             resource="audit"
             filters={page.data ? { ...search, ...page.data.window } : null}
-          />
-        }
-        toolbarFilters={
-          <AuditFilters
-            organizationId={organizationId}
-            key={JSON.stringify(search)}
-            search={search}
-            loading={page.isFetching}
-            onApply={(next) => navigate({ search: next })}
           />
         }
         onGlobalFilterChange={(updater) => {

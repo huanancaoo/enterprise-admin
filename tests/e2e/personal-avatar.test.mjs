@@ -129,6 +129,11 @@ async function decoded(locator) {
     )
     .toBe(true)
 }
+function memberDirectory(page) {
+  return page.getByRole("table").filter({
+    has: page.getByRole("columnheader", { name: "成员账号", exact: true }),
+  })
+}
 async function selectLocale(page, name, option, languageLabel = "语言") {
   await page.getByRole("button", { name: new RegExp(name) }).click()
   const language = page.getByRole("menuitem", {
@@ -307,17 +312,16 @@ describe.each(["Local", "RustFS"])("个人头像正式产品 / %s", (backend) =>
       )
       await directory.goto(environment.tenantOrigin + `/app/members/${org.id}`)
       await decoded(
-        directory
-          .getByRole("list", { name: "成员", exact: true })
-          .getByAltText("Platform operator", { exact: true })
+        memberDirectory(directory).getByAltText("Platform operator", {
+          exact: true,
+        })
       )
       const read = await response
       expect(read.status()).toBe(200)
       expect(new URL(read.url()).searchParams.get("organizationId")).toBe(
         org.id
       )
-      const visibleBytes = await directory
-        .getByRole("list", { name: "成员", exact: true })
+      const visibleBytes = await memberDirectory(directory)
         .getByAltText("Platform operator", { exact: true })
         .evaluate(async (image) =>
           Array.from(
@@ -356,10 +360,12 @@ describe.each(["Local", "RustFS"])("个人头像正式产品 / %s", (backend) =>
         '[data-slot="sidebar-footer"] [data-personal-avatar] img'
       )
     ).toHaveCount(0)
+    const ownerRow = memberDirectory(directory)
+      .getByRole("row")
+      .filter({ hasText: owner.user.email })
+    await expectUI(ownerRow).toBeVisible()
     await expectUI(
-      directory
-        .getByRole("list", { name: "成员", exact: true })
-        .getByAltText("Platform operator", { exact: true })
+      ownerRow.getByAltText("Platform operator", { exact: true })
     ).toHaveCount(0)
   })
 
@@ -545,9 +551,7 @@ describe.each(["Local", "RustFS"])("个人头像正式产品 / %s", (backend) =>
     await attach(context, viewer.cookie, environment.tenantOrigin)
     await page.goto(environment.tenantOrigin + `/app/members/${org.id}`)
     await decoded(
-      page
-        .getByRole("list", { name: "成员", exact: true })
-        .getByAltText("Platform operator", { exact: true })
+      memberDirectory(page).getByAltText("Platform operator", { exact: true })
     )
     const access = await fetch(
       environment.baseURL + `/api/v1/organizations/${org.id}/role-access`,
@@ -580,8 +584,9 @@ describe.each(["Local", "RustFS"])("个人头像正式产品 / %s", (backend) =>
     expect(revoked.status, await revoked.clone().text()).toBe(200)
     await page.reload()
     await expectUI(
-      page.getByRole("list", { name: "成员", exact: true })
-    ).toHaveCount(0)
+      page.getByRole("heading", { name: "无权访问", exact: true })
+    ).toBeVisible()
+    await expectUI(memberDirectory(page)).toHaveCount(0)
     expect((await content(viewer, media.media.id, org.id)).status).toBe(404)
     const suspended = await fetch(
       environment.baseURL + `/api/v1/platform/organizations/${org.id}/suspend`,

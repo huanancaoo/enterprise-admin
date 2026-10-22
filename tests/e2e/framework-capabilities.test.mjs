@@ -257,9 +257,7 @@ describe("通用能力正式浏览器、Worker和外部接收端", () => {
           page.waitForEvent("download"),
           detail.getByRole("button", { name: "下载结果", exact: true }).click(),
         ])
-        expect(download.suggestedFilename()).toBe(
-          `projects-${taskId}.${format}`
-        )
+        expect(download.suggestedFilename()).toBe(`task-${taskId}.${format}`)
         const bytes = await readFile(await download.path())
         let names
         if (format === "csv")

@@ -282,14 +282,15 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await expectUI(search).toHaveValue("成员目录用户")
     await expectUI(
       page
-        .getByRole("list", { name: "成员", exact: true })
-        .locator("li")
+        .getByRole("row")
         .filter({ hasText: "members-directory-browser@example.test" })
     ).toBeVisible()
     await search.fill("没有匹配的成员")
     await search.press("Enter")
     await expectUI(
-      page.getByText("没有匹配的成员", { exact: true })
+      page.getByRole("status").filter({
+        hasText: "没有符合当前筛选条件的数据。",
+      })
     ).toBeVisible()
     await page.goBack()
     await expectUI(search).toHaveValue("成员目录用户")
@@ -298,9 +299,11 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
       const customRoleUrl = new URL(url)
       customRoleUrl.searchParams.set("role", role)
       await page.goto(customRoleUrl.href)
-      await expectUI(page.getByLabel("角色", { exact: true })).toContainText(
-        role
-      )
+      await expectUI(
+        page
+          .locator('[data-slot="data-table-toolbar"]')
+          .getByRole("button", { name: /^角色/ })
+      ).toContainText(role)
       await search.fill("动态角色搜索")
       await search.press("Enter")
       await expectUI(page).toHaveURL(
@@ -382,7 +385,9 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
       .getByRole("navigation", { name: "组织管理", exact: true })
       .getByRole("link", { name: "成员与邀请", exact: true })
       .click()
-    const list = page.getByRole("list", { name: "成员", exact: true })
+    const list = page.getByRole("table").filter({
+      has: page.getByRole("columnheader", { name: "成员账号", exact: true }),
+    })
     await expectUI(list.getByText(owner.email, { exact: true })).toBeVisible()
     const search = page.getByLabel("搜索成员…", { exact: true })
     await search.fill("目录所有者")
@@ -457,9 +462,21 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
       .getByRole("navigation", { name: "组织管理", exact: true })
       .getByRole("link", { name: "成员与邀请", exact: true })
       .click()
-    const list = page.getByRole("list", { name: "成员", exact: true })
+    const list = page.getByRole("table").filter({
+      has: page.getByRole("columnheader", { name: "成员账号", exact: true }),
+    })
     const row = (account) =>
-      list.getByRole("listitem").filter({ hasText: account.email })
+      list.getByRole("row").filter({ hasText: account.email })
+    const directoryTitle = page
+      .getByRole("heading", { name: "成员", exact: true })
+      .locator('xpath=ancestor::*[@tabindex="-1"][1]')
+    const roleFilter = page
+      .locator('[data-slot="data-table-toolbar"]')
+      .getByRole("button", { name: /^角色/ })
+    const roleOptions = page.getByRole("dialog", {
+      name: "筛选 角色",
+      exact: true,
+    })
     const dialog = page.getByRole("dialog")
     await page.getByRole("button", { name: "退出组织", exact: true }).click()
     await dialog.getByRole("button", { name: "退出组织", exact: true }).click()
@@ -477,8 +494,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await selectAdminLocale(page, "成员管理用户", "Language", "العربية")
     await expectUI(page.locator("html")).toHaveAttribute("dir", "rtl")
     await page
-      .getByRole("list", { name: "الأعضاء", exact: true })
-      .getByRole("listitem")
+      .getByRole("row")
       .filter({ hasText: successor.email })
       .getByRole("button", { name: "تغيير الدور", exact: true })
       .click()
@@ -535,14 +551,13 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await expectUI(
       row(successor).getByText("所有者", { exact: true })
     ).toBeVisible()
-    await expectUI(
-      row(successor).getByRole("button", { name: "更改角色", exact: true })
-    ).toBeFocused()
+    await expectUI(directoryTitle).toBeFocused()
 
-    await page.getByLabel("角色", { exact: true }).click()
-    await page.getByRole("option", { name: "成员", exact: true }).click()
-    await page.getByLabel("搜索成员…", { exact: true }).press("Enter")
+    await roleFilter.click()
+    await roleOptions.getByRole("option", { name: "成员", exact: true }).click()
     await expectUI(page).toHaveURL(/[?&]role=member/)
+    await page.keyboard.press("Escape")
+    await expectUI(roleOptions).toBeHidden()
     await row(removable)
       .getByRole("button", { name: "更改角色", exact: true })
       .click()
@@ -550,10 +565,14 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await page.getByRole("option", { name: "管理员", exact: true }).click()
     await dialog.getByRole("button", { name: "保存", exact: true }).click()
     await expectUI(row(removable)).toHaveCount(0)
-    await expectUI(page.getByLabel("搜索成员…", { exact: true })).toBeFocused()
-    await page.getByLabel("角色", { exact: true }).click()
-    await page.getByRole("option", { name: "全部角色", exact: true }).click()
-    await page.getByLabel("搜索成员…", { exact: true }).press("Enter")
+    await expectUI(directoryTitle).toBeFocused()
+    await roleFilter.click()
+    await roleOptions
+      .getByRole("option", { name: "清除筛选", exact: true })
+      .click()
+    await expectUI(page).toHaveURL((url) => !url.searchParams.has("role"))
+    await page.keyboard.press("Escape")
+    await expectUI(roleOptions).toBeHidden()
     await expectUI(
       row(removable).getByText("管理员", { exact: true })
     ).toBeVisible()
@@ -568,7 +587,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
       .click()
     await dialog.getByRole("button", { name: "移除成员", exact: true }).click()
     await expectUI(row(removable)).toHaveCount(0)
-    await expectUI(page.getByLabel("搜索成员…", { exact: true })).toBeFocused()
+    await expectUI(directoryTitle).toBeFocused()
     await row(owner)
       .getByRole("button", { name: "更改角色", exact: true })
       .click()
@@ -579,7 +598,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await expectUI(
       row(owner).getByRole("button", { name: "更改角色", exact: true })
     ).toHaveCount(0)
-    await expectUI(page.getByLabel("搜索成员…", { exact: true })).toBeFocused()
+    await expectUI(directoryTitle).toBeFocused()
     await page.getByRole("button", { name: "退出组织", exact: true }).click()
     await dialog.getByRole("button", { name: "退出组织", exact: true }).click()
     await expectUI(page).toHaveURL(/\/app\/select-organization/)
@@ -1118,7 +1137,13 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     ).toBeVisible()
     expect(listFailureInjected).toBe(true)
     allowListRecovery = true
+    const recoveredListResponse = waitForAuditList(() => true)
     await page.getByRole("button", { name: "重试", exact: true }).click()
+    const recoveredList = await (await recoveredListResponse).json()
+    expect(recoveredList.items.length).toBeGreaterThan(0)
+    await expectUI(page.getByRole("table").getByRole("row")).toHaveCount(
+      recoveredList.items.length + 1
+    )
     await expectUI(
       page.getByRole("heading", { name: "操作日志", exact: true })
     ).toBeVisible()
@@ -1128,7 +1153,6 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     const tooOld = new Date(Date.now() - 91 * 24 * 60 * 60 * 1_000)
       .toISOString()
       .slice(0, 10)
-    await page.getByRole("button", { name: "高级筛选", exact: true }).click()
     const fromFilter = page.getByLabel("开始日期", { exact: true })
     const toFilter = page.getByLabel("结束日期", { exact: true })
     await fromFilter.fill(tooOld)
@@ -1142,7 +1166,13 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
 
     await fromFilter.fill(today)
     await toFilter.fill(today)
-    await page.getByLabel("操作者 ID", { exact: true }).fill(tenant.userId)
+    const actorFilter = page.getByRole("combobox", {
+      name: "操作者",
+      exact: true,
+    })
+    await actorFilter.click()
+    await page.getByRole("option", { name: userName, exact: true }).click()
+    await expectUI(actorFilter).toContainText(userName)
     await page.getByLabel("资源类型", { exact: true }).fill("project")
     await page.getByLabel("资源 ID", { exact: true }).fill(resourceId)
     const filteredByAdvancedURL = page.waitForURL(
@@ -1171,6 +1201,10 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     const firstPageResponse = await filteredByResult
     const firstPageData = await firstPageResponse.json()
     await expectUI(page).toHaveURL(/result=succeeded/)
+    await page.keyboard.press("Escape")
+    await expectUI(
+      page.getByRole("dialog", { name: "筛选 结果", exact: true })
+    ).toBeHidden()
 
     const filterParams = new URL(page.url()).searchParams
     expect(filterParams.get("from")).toBe(`${today}T00:00:00.000Z`)
