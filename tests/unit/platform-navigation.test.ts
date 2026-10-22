@@ -5,7 +5,7 @@ import {
   platformPages,
 } from "../../apps/platform/src/features/system/platform-pages"
 
-const titles = { monitor: "Runtime", schedules: "Schedules" }
+const titles = { monitor: "Runtime", schedules: "Schedules", files: "Files" }
 const node = (
   name: string,
   extra: Partial<PlatformNavigationItem> = {}
@@ -34,7 +34,7 @@ describe("platform page navigation", () => {
       expect(model.items[0]?.target).toEqual(page.target)
       expect(page.validateSearch(page.target.search)).toBeDefined()
       expect(model.section?.name).toBe(
-        key === "monitor" || key === "schedules"
+        key === "monitor" || key === "schedules" || key === "files"
           ? titles[key]
           : "configured name"
       )

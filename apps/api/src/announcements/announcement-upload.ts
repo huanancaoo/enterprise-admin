@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { mkdtemp, open, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -17,6 +18,7 @@ export async function readAnnouncementUpload(request: Request) {
   let name = '';
   let mimeType = '';
   let bytes = 0;
+  const hash = createHash('sha256');
   let invalid = false;
   let tooLarge = false;
   let seen = false;
@@ -46,6 +48,7 @@ export async function readAnnouncementUpload(request: Request) {
             for await (const value of stream) {
               const chunk = Buffer.from(value as Uint8Array);
               bytes += chunk.length;
+              hash.update(chunk);
               if (bytes <= maximumBytes) await file.writeFile(chunk);
               else tooLarge = true;
             }
@@ -83,7 +86,14 @@ export async function readAnnouncementUpload(request: Request) {
         decoder.destroy();
       }
     }
-    return { name, mimeType, bytes, source: createReadStream(path), dispose };
+    return {
+      name,
+      mimeType,
+      bytes,
+      sha256: hash.digest('hex'),
+      source: createReadStream(path),
+      dispose,
+    };
   } catch (error) {
     await Promise.allSettled(writes);
     await dispose();

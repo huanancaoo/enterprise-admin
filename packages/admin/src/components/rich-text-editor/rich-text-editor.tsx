@@ -8,7 +8,8 @@ import { createRichTextExtensions } from "./extensions"
 import { Toolbar } from "./toolbar"
 import { FileContentContext, type FileContentPorts } from "./file-context"
 import { useImageUploads } from "./use-image-uploads"
-import type { UploadImage } from "./insert-image"
+import { insertFileImage, type UploadImage } from "./insert-image"
+import type { FileVersionReference } from "@workspace/contracts/files"
 import { Button } from "@workspace/ui/components/button"
 import { useTranslation } from "react-i18next"
 
@@ -17,17 +18,22 @@ type RichTextEditorBaseProps = FileContentPorts & {
   value: JSONContent
   className?: string
   id?: string
+  ariaLabel?: string
 }
 
 export type RichTextEditorProps =
   | (RichTextEditorBaseProps & {
       editable?: true
       onChange: (value: JSONContent) => void
+      onPickImage?: (
+        signal: AbortSignal
+      ) => Promise<FileVersionReference | null>
       onUploadImage?: UploadImage
     })
   | (RichTextEditorBaseProps & {
       editable: false
       onChange?: never
+      onPickImage?: never
       onUploadImage?: never
     })
 
@@ -64,7 +70,13 @@ export function RichTextEditor(props: RichTextEditorProps) {
         onImages: canUpload ? onImages : undefined,
       }),
       editorProps: {
-        attributes: id ? { id } : {},
+        attributes: {
+          ...(id ? { id } : {}),
+          ...(isEditable && props.ariaLabel
+            ? { role: "textbox", "aria-multiline": "true" }
+            : {}),
+          ...(props.ariaLabel ? { "aria-label": props.ariaLabel } : {}),
+        },
       },
       onUpdate: ({ editor: current }) => {
         onChangeEvent(current.getJSON())
@@ -80,6 +92,44 @@ export function RichTextEditor(props: RichTextEditorProps) {
   React.useEffect(() => {
     enqueueRef.current = uploads.enqueue
   }, [uploads.enqueue])
+  const picker = React.useRef<AbortController | null>(null)
+  const [pickError, setPickError] = React.useState<string>()
+  React.useEffect(
+    () => () => {
+      picker.current?.abort()
+      picker.current = null
+    },
+    [props.contentScopeKey]
+  )
+  async function pickImage() {
+    if (!props.onPickImage || picker.current) return
+    const request = new AbortController()
+    let position = editor.state.selection.from
+    const mapPosition = ({
+      transaction,
+    }: {
+      transaction: import("@tiptap/pm/state").Transaction
+    }) => {
+      position = transaction.mapping.map(position)
+    }
+    editor.on("transaction", mapPosition)
+    picker.current = request
+    setPickError(undefined)
+    // 异步上传仍可能插入节点；跟随事务映射光标，避免选中文件落入过期位置。
+    editor.setEditable(false)
+    try {
+      const reference = await props.onPickImage(request.signal)
+      if (!request.signal.aborted && reference)
+        insertFileImage(editor, reference, "", position)
+    } catch (error) {
+      if (!request.signal.aborted)
+        setPickError(props.getFileErrorMessage(error))
+    } finally {
+      editor.off("transaction", mapPosition)
+      if (!editor.isDestroyed) editor.setEditable(isEditable)
+      if (picker.current === request) picker.current = null
+    }
+  }
   function uploadLabel(item: (typeof uploads.items)[number]) {
     const name = item.file.name
     switch (item.status) {
@@ -123,7 +173,15 @@ export function RichTextEditor(props: RichTextEditorProps) {
             <Toolbar
               density={variant}
               onImages={canUpload ? uploads.enqueue : undefined}
+              onPickImage={
+                props.onPickImage ? () => void pickImage() : undefined
+              }
             />
+          )}
+          {pickError && (
+            <p role="alert" className="p-3 text-sm text-destructive">
+              {pickError}
+            </p>
           )}
           {uploads.items.length > 0 && (
             <ul

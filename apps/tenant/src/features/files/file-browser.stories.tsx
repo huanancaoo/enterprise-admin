@@ -263,13 +263,14 @@ export const SearchAndLocate: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const search = canvas.getByRole("textbox", {
-      name: "Search files and folders in this organization",
+      name: "Search files and folders",
     })
     await userEvent.type(search, "inside")
     await userEvent.keyboard("{Enter}")
-    await expect(
-      canvas.getByText(/Searching this organization/)
-    ).toHaveAttribute("role", "status")
+    await expect(canvas.getByText(/Searching the library/)).toHaveAttribute(
+      "role",
+      "status"
+    )
     await userEvent.click(canvas.getByRole("button", { name: "Manuals" }))
     await expect(
       canvas.getByRole("button", { name: "inside.png" })
@@ -447,7 +448,7 @@ export const Chinese: Story = {
       canvas.getByRole("navigation", { name: "文件夹导航" })
     ).toBeVisible()
     await expect(
-      canvas.getByRole("textbox", { name: "搜索本组织的文件和文件夹" })
+      canvas.getByRole("textbox", { name: "搜索文件和文件夹" })
     ).toBeVisible()
   },
 }

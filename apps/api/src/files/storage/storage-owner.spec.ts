@@ -1,7 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { assertSameOwner, platformStorageOwner, storageKey } from './storage';
+import {
+  assertSameOwner,
+  platformStorageOwner,
+  platformFileStorageOwner,
+  storageKey,
+} from './storage';
 
 describe('平台物理资源命名空间', () => {
+  it('文件库和任务资源的同名对象有不同物理地址，常规复制不能跨越归属', () => {
+    const location = {
+      area: 'files' as const,
+      segments: ['00000000-0000-4000-8000-000000000123'],
+    };
+    const task = { ...location, owner: platformStorageOwner };
+    const library = { ...location, owner: platformFileStorageOwner };
+    expect(storageKey(task)).not.toBe(storageKey(library));
+    expect(() => assertSameOwner(task, library)).toThrow(
+      'STORAGE_OWNER_MISMATCH',
+    );
+  });
   it('组织、个人、平台即使 UUID 相同也使用独立目录，供 Local 和 S3 共用', () => {
     const address = { area: 'files' as const, segments: ['resource'] };
     expect(

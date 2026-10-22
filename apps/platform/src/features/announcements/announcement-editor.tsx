@@ -49,17 +49,23 @@ export function AnnouncementEditor({
   ports,
   onUploadImage,
   onUploadAttachment,
+  onPickImage,
+  onPickAttachment,
   onSave,
   onBack,
 }: {
   mode: "create" | "edit"
   initialValue: AnnouncementDraftValue
   ports: FileContentPorts
-  onUploadImage: NonNullable<RichTextEditorProps["onUploadImage"]>
-  onUploadAttachment: (
+  onUploadImage?: NonNullable<RichTextEditorProps["onUploadImage"]>
+  onUploadAttachment?: (
     file: File,
     signal: AbortSignal
   ) => Promise<AnnouncementAttachment>
+  onPickImage?: RichTextEditorProps["onPickImage"]
+  onPickAttachment?: (
+    signal: AbortSignal
+  ) => Promise<AnnouncementAttachment | null>
   onSave: (value: AnnouncementDraftValue) => Promise<void>
   onBack: () => void
 }) {
@@ -67,7 +73,16 @@ export function AnnouncementEditor({
   const id = useId()
   const [error, setError] = useState<string | null>(null)
   const [uploads, setUploads] = useState(0)
+  const attachmentPickerButton = useRef<HTMLButtonElement>(null)
+  const restoreAttachmentFocus = useRef(false)
   const attachmentControllers = useRef(new Set<AbortController>())
+  useEffect(() => {
+    // 选择期间按钮被禁用；等表单解除忙碌状态后再归还焦点，弹窗自身无法聚焦禁用按钮。
+    if (uploads === 0 && restoreAttachmentFocus.current) {
+      restoreAttachmentFocus.current = false
+      attachmentPickerButton.current?.focus()
+    }
+  }, [uploads])
   useEffect(() => {
     const controllers = attachmentControllers.current
     return () => {
@@ -111,7 +126,7 @@ export function AnnouncementEditor({
   ) => {
     setUploads((value) => value + 1)
     try {
-      return await onUploadImage(file, options)
+      return await onUploadImage!(file, options)
     } finally {
       setUploads((value) => value - 1)
     }
@@ -226,10 +241,14 @@ export function AnnouncementEditor({
                         >
                           <RichTextEditor
                             id={`${id}-content`}
+                            ariaLabel={t("body")}
                             variant="document"
                             value={field.state.value as JSONContent}
                             onChange={field.handleChange}
-                            onUploadImage={uploadImage}
+                            onUploadImage={
+                              onUploadImage ? uploadImage : undefined
+                            }
+                            onPickImage={onPickImage}
                             className="rounded-xl"
                             {...ports}
                           />
@@ -254,7 +273,10 @@ export function AnnouncementEditor({
                           <ul className="space-y-2">
                             {field.state.value.map((file, index) => (
                               <li
-                                key={file.fileId}
+                                key={JSON.stringify([
+                                  file.fileId,
+                                  file.versionId,
+                                ])}
                                 className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2"
                               >
                                 <span className="min-w-0 text-sm break-words">
@@ -274,34 +296,84 @@ export function AnnouncementEditor({
                             ))}
                           </ul>
                         )}
-                        <Input
-                          id={`${id}-attachments`}
-                          type="file"
-                          disabled={uploads > 0}
-                          aria-label={t("uploadAttachment")}
-                          onChange={(event) => {
-                            const file = event.target.files?.[0]
-                            event.target.value = ""
-                            if (!file) return
-                            setError(null)
-                            setUploads((value) => value + 1)
-                            const controller = new AbortController()
-                            attachmentControllers.current.add(controller)
-                            void onUploadAttachment(file, controller.signal)
-                              .then((result) => field.pushValue(result))
-                              .catch((cause: unknown) =>
-                                setError(
-                                  cause instanceof Error
-                                    ? cause.message
-                                    : t("common:operationFailed")
+                        {onPickAttachment && (
+                          <Button
+                            ref={attachmentPickerButton}
+                            type="button"
+                            variant="outline"
+                            disabled={uploads > 0}
+                            onClick={() => {
+                              const controller = new AbortController()
+                              attachmentControllers.current.add(controller)
+                              setUploads((value) => value + 1)
+                              setError(null)
+                              void onPickAttachment(controller.signal)
+                                .then((result) => {
+                                  if (
+                                    result &&
+                                    !controller.signal.aborted &&
+                                    !field.state.value.some(
+                                      (item) =>
+                                        item.fileId === result.fileId &&
+                                        item.versionId === result.versionId
+                                    )
+                                  )
+                                    field.pushValue(result)
+                                })
+                                .catch((cause: unknown) => {
+                                  if (!controller.signal.aborted)
+                                    setError(
+                                      cause instanceof Error
+                                        ? cause.message
+                                        : t("common:operationFailed")
+                                    )
+                                })
+                                .finally(() => {
+                                  attachmentControllers.current.delete(
+                                    controller
+                                  )
+                                  if (!controller.signal.aborted) {
+                                    restoreAttachmentFocus.current = true
+                                    setUploads((value) => value - 1)
+                                  }
+                                })
+                            }}
+                          >
+                            {t("selectLibraryAttachment")}
+                          </Button>
+                        )}
+                        {onUploadAttachment && (
+                          <Input
+                            id={`${id}-attachments`}
+                            type="file"
+                            disabled={uploads > 0}
+                            aria-label={t("uploadAttachment")}
+                            onChange={(event) => {
+                              const file = event.target.files?.[0]
+                              event.target.value = ""
+                              if (!file) return
+                              setError(null)
+                              setUploads((value) => value + 1)
+                              const controller = new AbortController()
+                              attachmentControllers.current.add(controller)
+                              void onUploadAttachment!(file, controller.signal)
+                                .then((result) => field.pushValue(result))
+                                .catch((cause: unknown) =>
+                                  setError(
+                                    cause instanceof Error
+                                      ? cause.message
+                                      : t("common:operationFailed")
+                                  )
                                 )
-                              )
-                              .finally(() => {
-                                attachmentControllers.current.delete(controller)
-                                setUploads((value) => value - 1)
-                              })
-                          }}
-                        />
+                                .finally(() => {
+                                  attachmentControllers.current.delete(
+                                    controller
+                                  )
+                                  setUploads((value) => value - 1)
+                                })
+                            }}
+                          />
+                        )}
                         {invalid && (
                           <FieldError errors={field.state.meta.errors} />
                         )}

@@ -11,12 +11,14 @@ import {
   type ContentFacts,
   type FileStorage,
   type StorageAddress,
+  type StorageOwner,
 } from './storage/storage';
 
 type Side = 'source' | 'target';
-type PlannedObject = {
+export type PlannedObject = {
   id: string;
   directory: boolean;
+  sourceOwner?: StorageOwner;
   sourceArea: StorageAddress['area'] | null;
   sourcePath: string[] | null;
   targetArea: StorageAddress['area'] | null;
@@ -76,10 +78,10 @@ function contentFacts(object: PlannedObject): ContentFacts {
 }
 
 // 对象阶段只在已持有物理锁和有效租约的入口运行；授权、发布与结算仍由各入口负责。
-class FileObjectPlan {
+export class FileObjectPlan {
   constructor(
     readonly objects: PlannedObject[],
-    private readonly organizationId: string,
+    private readonly owner: StorageOwner,
     private readonly storage: FileStorage,
     private readonly signal: AbortSignal,
   ) {}
@@ -89,7 +91,8 @@ class FileObjectPlan {
     const segments = side === 'source' ? object.sourcePath : object.targetPath;
     if (!area || !segments) throw new StorageError('STORAGE_RESPONSE_INVALID');
     return {
-      owner: { kind: 'organization', id: this.organizationId },
+      owner:
+        side === 'source' ? (object.sourceOwner ?? this.owner) : this.owner,
       area,
       segments,
     };
@@ -145,6 +148,7 @@ class FileObjectPlan {
     for (const deletion of deletions) {
       const address = this.address(deletion.object, deletion.side);
       const key = JSON.stringify([
+        address.owner,
         address.area,
         address.segments,
         deletion.object.directory,
@@ -216,6 +220,8 @@ class FileObjectPlan {
       // 失败的新目标可能占据旧源路径；先确认其删除，再恢复旧源，后续不能删除恢复物。
       const replacements = this.pending('target').filter(
         ({ object: candidate }) =>
+          JSON.stringify(this.address(candidate, 'target').owner) ===
+            JSON.stringify(source.owner) &&
           candidate.targetArea === source.area &&
           JSON.stringify(candidate.targetPath) ===
             JSON.stringify(source.segments),
@@ -260,7 +266,7 @@ export function createFileWriteObjectPlan(
 ) {
   const plan = new FileObjectPlan(
     objects.map(writeObject),
-    context.organizationId,
+    { kind: 'organization', id: context.organizationId },
     scope.storage,
     scope.signal,
   );
@@ -381,7 +387,7 @@ export async function reconcileFileObjectPlan(
       expectedBytes: object.expected_bytes,
       expectedSha256: object.expected_sha256,
     })),
-    job.organizationId,
+    { kind: 'organization', id: job.organizationId },
     storage,
     signal,
   );

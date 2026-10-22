@@ -2,8 +2,7 @@ import type { StoredRead } from '../files/storage/storage';
 import type { Identity } from '../identity/identity.service';
 
 export type PlatformResourceActor = Pick<Identity, 'userId' | 'sessionId'>;
-export type PlatformResourcePurpose =
-  'announcement' | 'task-input' | 'task-output';
+export type PlatformResourcePurpose = 'task-input' | 'task-output';
 
 export interface PlatformResource {
   id: string;

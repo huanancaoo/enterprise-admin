@@ -592,7 +592,7 @@ export const CancelSaving: Story = {
     ).toBeDisabled()
     await expect(content.getByRole("button", { name: "Cancel" })).toBeDisabled()
     await userEvent.keyboard("{Escape}")
-    await expect(popup).toBeVisible()
+    await waitFor(() => expect(popup).toBeVisible())
   },
 }
 export const CancelUnavailable: Story = {

@@ -24,6 +24,8 @@ export const platformPermissionStatements = {
   dictionary: ["read", "create", "update", "delete", "export", "refresh"],
   parameter: ["read", "create", "update", "delete", "export", "refresh"],
   announcement: ["read", "create", "update", "delete", "publish", "readers"],
+  file: ["read", "create", "update", "delete", "restore", "purge"],
+  folder: ["read", "create", "update", "delete"],
   task: ["read", "download"],
   monitor: ["read"],
   schedule: ["read", "manage", "run"],

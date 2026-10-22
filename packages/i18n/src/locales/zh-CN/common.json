@@ -57,6 +57,7 @@
   "pagination": "分页",
   "permissionDenied": "无权访问",
   "permissionDescription": "你没有执行此操作的权限。",
+  "pickLibraryImage": "从文件库插入图片",
   "pinBottom": "固定到底部",
   "pinColumn": "固定 {{title}}",
   "pinnedEnd": "固定在结束侧",

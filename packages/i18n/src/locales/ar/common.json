@@ -57,6 +57,7 @@
   "pagination": "ترقيم الصفحات",
   "permissionDenied": "الوصول غير مسموح",
   "permissionDescription": "ليس لديك إذن لتنفيذ هذا الإجراء.",
+  "pickLibraryImage": "إدراج صورة من الملفات",
   "pinBottom": "تثبيت في الأسفل",
   "pinColumn": "تثبيت {{title}}",
   "pinnedEnd": "مثبت في النهاية",

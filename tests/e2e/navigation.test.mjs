@@ -319,6 +319,7 @@ describe("页面组织结构：真实 API 导航与授权", () => {
       expect(await main(page).getByRole("link").allTextContents()).toEqual([
         "组织管理",
         "全局账号",
+        ...(role === "platform_admin" ? ["文件"] : []),
         "平台设置",
       ])
       await expectUI(

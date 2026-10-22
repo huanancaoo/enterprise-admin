@@ -141,7 +141,7 @@ describe('平台私有资源边界', () => {
           : Promise.resolve({ rows: [] }),
       );
       await expect(
-        service.create(actor, 'announcement', input(), 'revoked-request'),
+        service.create(actor, 'task-input', input(), 'revoked-request'),
       ).rejects.toMatchObject({ response: { code } });
       expect(client.query).toHaveBeenLastCalledWith('ROLLBACK');
       expect(storage.remove).toHaveBeenCalledWith(

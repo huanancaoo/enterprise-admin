@@ -19,6 +19,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { PersonalMediaModule } from './personal-media/personal-media.module';
 import { PlatformResourcesModule } from './platform-resources/platform-resources.module';
+import { PlatformFilesModule } from './platform-files/platform-files.module';
 import { PlatformMonitorModule } from './platform/monitor/platform-monitor.module';
 import { PlatformModule } from './platform/platform.module';
 import { PlatformSchedulesModule } from './platform/schedules/platform-schedules.module';
@@ -75,6 +76,7 @@ export class AppModule {
         NotificationsModule.forRoot({ email: emailConfig, worker: jobs }),
         AccessCredentialsModule,
         FilesModule.forRoot(files),
+        PlatformFilesModule.forRoot(files),
         PlatformResourcesModule.forRoot(files),
         platformTasks,
         platformMonitor,

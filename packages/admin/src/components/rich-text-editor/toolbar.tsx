@@ -53,6 +53,7 @@ import { IMAGE_ACCEPT } from "./insert-image"
 type ToolbarProps = {
   density: "field" | "document"
   onImages?: (files: File[]) => void
+  onPickImage?: () => void
 }
 
 type ToolbarState = {
@@ -175,7 +176,7 @@ function ToolbarIconButton({
   )
 }
 
-export function Toolbar({ density, onImages }: ToolbarProps) {
+export function Toolbar({ density, onImages, onPickImage }: ToolbarProps) {
   const { t } = useTranslation("common")
   const { editor } = useTiptap()
   const fileInputRef = React.useRef<HTMLInputElement>(null)
@@ -457,6 +458,16 @@ export function Toolbar({ density, onImages }: ToolbarProps) {
               </div>
             </PopoverContent>
           </Popover>
+          {onPickImage && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onPickImage}
+            >
+              {t("pickLibraryImage")}
+            </Button>
+          )}
           {onImages && (
             <>
               <ToolbarIconButton

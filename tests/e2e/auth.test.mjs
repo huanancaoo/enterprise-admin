@@ -273,7 +273,10 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
       .getByRole("link", { name: "成员与邀请", exact: true })
       .click()
     const search = page.getByLabel("搜索成员…", { exact: true })
+    const searchForm = page.locator("form").filter({ has: search })
     await search.fill("成员目录用户")
+    // 初次查询期间允许填写，但提交按钮仍禁用，Enter 不会提交筛选。
+    await expectUI(searchForm).toHaveAttribute("aria-busy", "false")
     await search.press("Enter")
     await expectUI(page).toHaveURL(/[?&]q=/)
     const url = page.url()
@@ -286,6 +289,7 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
         .filter({ hasText: "members-directory-browser@example.test" })
     ).toBeVisible()
     await search.fill("没有匹配的成员")
+    await expectUI(searchForm).toHaveAttribute("aria-busy", "false")
     await search.press("Enter")
     await expectUI(
       page.getByRole("status").filter({

@@ -10,6 +10,9 @@ const { FilesRuntime } = require("../../apps/api/dist/files/files-runtime.js")
 const {
   FileMaintenance,
 } = require("../../apps/api/dist/files/file-maintenance.js")
+const {
+  PlatformFiles,
+} = require("../../apps/api/dist/platform-files/platform-files.js")
 const { S3Client, CreateBucketCommand } = require("@aws-sdk/client-s3")
 const versions = JSON.parse(
   await readFile("docs/architecture/versions.json", "utf8")
@@ -20,6 +23,7 @@ const {mkdir} = require('node:fs/promises');
 const {createApplication} = require('./apps/api/dist/create-application.js');
 const {FilesRuntime} = require('./apps/api/dist/files/files-runtime.js');
 const {FileMaintenance} = require('./apps/api/dist/files/file-maintenance.js');
+const {PlatformFiles} = require('./apps/api/dist/platform-files/platform-files.js');
 const config=JSON.parse(process.env.FILES_TEST_CONFIG);
 const input=JSON.parse(process.argv[1]);
 (async()=>{
@@ -29,7 +33,8 @@ const input=JSON.parse(process.argv[1]);
     await app.init();
     const storage=app.get(FilesRuntime).requireStorage();
     let result;
-    if(input.method==='maintenance') result=await app.get(FileMaintenance)[input.action](...(input.arguments??[]));
+    if(input.method==='platformMaintenance') result=await app.get(PlatformFiles).maintain();
+    else if(input.method==='maintenance') result=await app.get(FileMaintenance)[input.action](...(input.arguments??[]));
     else if(input.method==='write') {
       const body=Buffer.from(input.base64,'base64');
       result=await storage.write(input.address,(async function*(){yield body})(),body.length);
@@ -121,6 +126,8 @@ export async function startFilesEnvironment(kind, resources) {
     environment.filesBaseURL = environment.baseURL
     const storage = environment.app.get(FilesRuntime).requireStorage()
     invoke = async (input) => {
+      if (input.method === "platformMaintenance")
+        return environment.app.get(PlatformFiles).maintain()
       if (input.method === "maintenance")
         return environment.app
           .get(FileMaintenance)
@@ -167,6 +174,7 @@ export async function startFilesEnvironment(kind, resources) {
       removeDirectory: (address) =>
         invoke({ method: "removeDirectory", arguments: [address] }),
     },
+    platformMaintenance: () => invoke({ method: "platformMaintenance" }),
     maintenance: (action, ...arguments_) =>
       invoke({ method: "maintenance", action, arguments: arguments_ }),
   }

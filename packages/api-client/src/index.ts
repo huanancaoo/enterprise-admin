@@ -193,3 +193,5 @@ export {
   listOrganizationRoleDirectory,
   listOrganizationInvitationDirectory,
 } from "./generated/endpoints/organization-directories/organization-directories"
+
+export * from "./generated/endpoints/platform-files/platform-files"

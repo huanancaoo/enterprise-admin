@@ -422,7 +422,7 @@ describe.each(["RustFS", "Local"])(
       await page.getByRole("button", { name: "大小", exact: true }).click()
       expect(new URL(page.url()).searchParams.get("sortBy")).toBe("size")
       const search = page.getByRole("textbox", {
-        name: "搜索本组织的文件和文件夹",
+        name: "搜索文件和文件夹",
         exact: true,
       })
       await search.fill("内部")
@@ -436,7 +436,7 @@ describe.each(["RustFS", "Local"])(
       expect(new URL(page.url()).searchParams.get("name")).toBe("内部")
       await page.reload()
       await expectUI(
-        page.getByText("在本组织中搜索“内部”", { exact: true })
+        page.getByText("在文件库中搜索“内部”", { exact: true })
       ).toBeVisible()
       await page
         .locator("tbody")

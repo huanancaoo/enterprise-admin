@@ -3,7 +3,6 @@ import { createHash } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { create as contentDisposition } from 'content-disposition';
 import type { Request, Response } from 'express';
-import { z } from 'zod';
 import {
   ApiErrorCodeSchema,
   AnnouncementDeletedSchema,
@@ -22,12 +21,15 @@ import {
 import { announcementRepository } from '@workspace/database/repositories/announcements';
 import { AuthRuntime } from '../identity/auth-runtime';
 import type { PlatformPrincipal } from '../platform/platform-access.service';
-import { PlatformResources } from '../platform-resources/platform-resources';
+import {
+  PlatformFiles,
+  PlatformFileMediaSchema,
+} from '../platform-files/platform-files';
 import { ApiException } from '../http/api-exception';
 import { readAnnouncementUpload } from './announcement-upload';
 
 type Actor = Pick<PlatformPrincipal, 'userId' | 'sessionId'>;
-const mediaResult = z.strictObject({ id: z.uuid() });
+const mediaResult = PlatformFileMediaSchema;
 
 export function announcementError(error: unknown): never {
   // TenantRunner 的 Drizzle 查询把 PostgreSQL 异常放在 cause；业务码只认 P0001。
@@ -74,7 +76,7 @@ function inboxResult(operation: string, value: unknown) {
 export class Announcements {
   constructor(
     private readonly runtime: AuthRuntime,
-    private readonly resources: PlatformResources,
+    private readonly files: PlatformFiles,
   ) {}
 
   async manage(
@@ -163,19 +165,7 @@ export class Announcements {
   async upload(actor: Actor, request: Request, requestId: string) {
     const input = await readAnnouncementUpload(request);
     try {
-      const resource = await this.resources.create(
-        actor,
-        'announcement',
-        input,
-        requestId,
-      );
-      return {
-        fileId: resource.id,
-        versionId: resource.id,
-        name: resource.name,
-        mimeType: resource.mimeType,
-        byteSize: resource.bytes,
-      };
+      return await this.files.uploadAnnouncement(actor, input, requestId);
     } finally {
       input.source.destroy();
       await input.dispose();
@@ -190,11 +180,19 @@ export class Announcements {
     response: Response,
     management = false,
   ) {
-    if (id !== versionId) throw new ApiException(404, 'NOT_FOUND');
     const requestId = response.locals.requestId as string;
-    if (management) await this.manage(actor, 'media', id, {}, requestId);
-    else await this.inbox(actor, organizationId, 'media', id, {}, requestId);
-    return this.stream(id, response);
+    return this.stream(response, () =>
+      management
+        ? this.manage(actor, 'media', id, { versionId }, requestId)
+        : this.inbox(
+            actor,
+            organizationId,
+            'media',
+            id,
+            { versionId },
+            requestId,
+          ),
+    );
   }
 
   async tenantMedia(
@@ -203,13 +201,13 @@ export class Announcements {
     versionId: string,
     response: Response,
   ) {
-    if (id !== versionId) throw new ApiException(404, 'NOT_FOUND');
-    await this.tenantInbox(context, 'media', id, {});
-    return this.stream(id, response);
+    return this.stream(response, () =>
+      this.tenantInbox(context, 'media', id, { versionId }),
+    );
   }
 
-  private async stream(id: string, response: Response) {
-    const { resource, read } = await this.resources.openInternal(id);
+  private async stream(response: Response, authorize: () => Promise<unknown>) {
+    const { resource, read } = await this.files.openReference(authorize);
     response.setHeader('Cache-Control', 'private, no-store');
     response.setHeader('X-Content-Type-Options', 'nosniff');
     const body = Readable.from(

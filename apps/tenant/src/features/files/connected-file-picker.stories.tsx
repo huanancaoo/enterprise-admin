@@ -182,7 +182,7 @@ export const ServerPaginationAndOrganizationSearch: Story = {
       )
     ).toBe(true)
     const search = dialog.getByRole("textbox", {
-      name: "Search files and folders in this organization",
+      name: "Search files and folders",
     })
     await userEvent.type(search, "portrait")
     await userEvent.keyboard("{Enter}")

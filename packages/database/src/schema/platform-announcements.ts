@@ -24,6 +24,7 @@ export const platformAnnouncements = pgTable(
       .notNull()
       .default(sql`'{}'::uuid[]`),
     content: jsonb("content").$type<Record<string, unknown>>().notNull(),
+    // 附件数组保存不可变版本 ID，文件名称和当前版本可以继续演进。
     attachments: uuid("attachments")
       .array()
       .notNull()
@@ -70,6 +71,7 @@ export const platformAnnouncementPublications = pgTable(
     audience: text("audience").notNull(),
     organizationIds: uuid("organization_ids").array().notNull(),
     content: jsonb("content").$type<Record<string, unknown>>().notNull(),
+    // 附件数组保存不可变版本 ID，文件名称和当前版本可以继续演进。
     attachments: uuid("attachments").array().notNull(),
     publishedBy: uuid("published_by").notNull(),
     publishedAt: timestamp("published_at", { withTimezone: true })
@@ -96,20 +98,5 @@ export const platformAnnouncementReads = pgTable(
   (t) => [
     primaryKey({ columns: [t.publicationId, t.userId] }),
     index("platform_announcement_reads_user_idx").on(t.userId, t.publicationId),
-  ]
-)
-
-export const platformAnnouncementResources = pgTable(
-  "platform_announcement_resources",
-  {
-    resourceId: uuid("resource_id").primaryKey(),
-    announcementId: uuid("announcement_id")
-      .notNull()
-      .references(() => platformAnnouncements.id),
-  },
-  (t) => [
-    index("platform_announcement_resources_announcement_idx").on(
-      t.announcementId
-    ),
   ]
 )

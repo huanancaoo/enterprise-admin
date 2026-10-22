@@ -652,6 +652,118 @@
       "when": 1792347257592,
       "tag": "0092_platform-navigation-icons",
       "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "7",
+      "when": 1792672322179,
+      "tag": "0093_whole_black_tarantula",
+      "breakpoints": true
+    },
+    {
+      "idx": 94,
+      "version": "7",
+      "when": 1792672337359,
+      "tag": "0094_platform-file-access",
+      "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "7",
+      "when": 1792672590988,
+      "tag": "0095_rich_sunspot",
+      "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1792672617247,
+      "tag": "0096_platform-file-directories",
+      "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1792673128316,
+      "tag": "0097_swift_khan",
+      "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1792673159361,
+      "tag": "0098_platform-file-versions",
+      "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "7",
+      "when": 1792673599598,
+      "tag": "0099_platform-file-paths",
+      "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "7",
+      "when": 1792673822872,
+      "tag": "0100_grey_puppet_master",
+      "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1792673869891,
+      "tag": "0101_platform-file-management",
+      "breakpoints": true
+    },
+    {
+      "idx": 102,
+      "version": "7",
+      "when": 1792674160498,
+      "tag": "0102_platform-announcement-files",
+      "breakpoints": true
+    },
+    {
+      "idx": 103,
+      "version": "7",
+      "when": 1792674493581,
+      "tag": "0103_fuzzy_madrox",
+      "breakpoints": true
+    },
+    {
+      "idx": 104,
+      "version": "7",
+      "when": 1792674551183,
+      "tag": "0104_platform-file-retention",
+      "breakpoints": true
+    },
+    {
+      "idx": 105,
+      "version": "7",
+      "when": 1792676428748,
+      "tag": "0105_platform-file-navigation-and-boundaries",
+      "breakpoints": true
+    },
+    {
+      "idx": 106,
+      "version": "7",
+      "when": 1792677592323,
+      "tag": "0106_platform-file-reviewed-boundaries",
+      "breakpoints": true
+    },
+    {
+      "idx": 107,
+      "version": "7",
+      "when": 1792679582664,
+      "tag": "0107_platform-library-namespace",
+      "breakpoints": true
+    },
+    {
+      "idx": 108,
+      "version": "7",
+      "when": 1792680417141,
+      "tag": "0108_platform-import-upgrade-boundary",
+      "breakpoints": true
     }
   ]
 }

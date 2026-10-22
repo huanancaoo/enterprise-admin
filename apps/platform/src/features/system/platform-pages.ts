@@ -1,3 +1,4 @@
+import { FileListQuerySchema } from "@workspace/contracts/files"
 import { z } from "zod"
 import {
   PlatformOrganizationQuerySchema,
@@ -50,6 +51,7 @@ const paged = { page: 1, pageSize: 20 }
 
 // 代码登记决定页面语义；持久菜单仍决定名称、层级、顺序和可见性。
 export const platformPages = {
+  files: page("files", "platform.file:read", FileListQuerySchema, {}),
   organizations: page(
     "organizations",
     "platform.organization:read",
@@ -136,7 +138,7 @@ const icons: Record<string, typeof FolderIcon> = {
   Clock: ClockIcon,
 }
 
-type Titles = { monitor: string; schedules: string }
+type Titles = { monitor: string; schedules: string; files: string }
 function registeredPage(key: string | null) {
   return key && Object.hasOwn(platformPages, key)
     ? platformPages[key as keyof typeof platformPages]
@@ -157,7 +159,9 @@ function titled(
   return {
     ...node,
     name:
-      node.routeKey === "monitor" || node.routeKey === "schedules"
+      node.routeKey === "monitor" ||
+      node.routeKey === "schedules" ||
+      node.routeKey === "files"
         ? titles[node.routeKey]
         : node.name,
   }

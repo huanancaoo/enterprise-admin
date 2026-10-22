@@ -778,6 +778,8 @@ export function RolePermissionsForm({
     },
   })
   const resourceLabels: Record<string, string> = {
+    file: t("permissionResourceFile"),
+    folder: t("permissionResourceFolder"),
     announcement: t("permissionResourceAnnouncement"),
     audit: t("permissionResourceAudit"),
     department: t("permissionResourceDepartment"),
@@ -797,6 +799,8 @@ export function RolePermissionsForm({
     user: t("permissionResourceUser"),
   }
   const actionLabels: Record<string, string> = {
+    restore: t("permissionActionRestore"),
+    purge: t("permissionActionPurge"),
     create: t("permissionActionCreate"),
     delete: t("permissionActionDelete"),
     download: t("permissionActionDownload"),

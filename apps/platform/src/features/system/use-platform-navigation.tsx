@@ -44,8 +44,9 @@ function navigationItems(
 export function usePlatformNavigation() {
   const query = usePlatformNavigationQuery()
   const { pathname } = useLocation()
-  const { t } = useTranslation(["system", "announcements", "monitor"])
+  const { t } = useTranslation(["system", "announcements", "monitor", "files"])
   const model = platformNavigationModel(query.data?.items ?? [], pathname, {
+    files: t("files:title"),
     monitor: t("monitor:title"),
     schedules: t("monitor:schedulesTitle"),
   })

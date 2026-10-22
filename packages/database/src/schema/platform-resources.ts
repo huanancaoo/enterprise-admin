@@ -14,9 +14,9 @@ export const platformResources = pgTable(
   {
     id: uuid("id").primaryKey(),
     purpose: text("purpose", {
-      enum: ["announcement", "task-input", "task-output"],
+      enum: ["task-input", "task-output"],
     }).notNull(),
-    // 上传事实独立于账号生命周期；删除员工任职不能清除公告或任务产物。
+    // 上传事实独立于账号生命周期；删除员工任职不能清除任务产物。
     uploadedBy: uuid("uploaded_by").notNull(),
     name: text("name").notNull(),
     mimeType: text("mime_type").notNull(),
@@ -33,7 +33,7 @@ export const platformResources = pgTable(
     ),
     check(
       "platform_resources_purpose_check",
-      sql`${table.purpose} IN ('announcement','task-input','task-output')`
+      sql`${table.purpose} IN ('task-input','task-output')`
     ),
     check(
       "platform_resources_name_check",

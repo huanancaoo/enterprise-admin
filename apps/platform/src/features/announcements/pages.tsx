@@ -1,3 +1,6 @@
+import { useAnnouncementFilePicker } from "../files/use-announcement-file-picker"
+import { useFileScope } from "../files/queries"
+import { filePermissions } from "../files/file-permissions"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useRouteContext } from "@tanstack/react-router"
 import {
@@ -221,6 +224,8 @@ function PlatformAnnouncementEditingSession({
   onBack: () => void
 }) {
   const user = useAuthenticatedSession()!.user
+  const picker = useAnnouncementFilePicker(),
+    permissions = filePermissions(useFileScope())
   const client = useQueryClient()
   // 正文草稿和expectedVersion属于同一个编辑会话；后台重取不能推进旧草稿的版本。
   const { t } = useTranslation("announcements")
@@ -268,72 +273,98 @@ function PlatformAnnouncementEditingSession({
         attachments: [],
       }
   return (
-    <AnnouncementEditor
-      mode={detail ? "edit" : "create"}
-      initialValue={initialValue}
-      ports={ports}
-      onUploadImage={async (file, options) => {
-        options.onStage("transmitting")
-        const value = AnnouncementAttachmentSchema.parse(
-          (
-            await uploadPlatformAnnouncementMedia(
-              { file },
-              { signal: options.signal }
-            )
-          ).data
-        )
-        options.onStage("confirming")
-        return { fileId: value.fileId, versionId: value.versionId }
-      }}
-      onUploadAttachment={async (file, signal) =>
-        AnnouncementAttachmentSchema.parse(
-          (await uploadPlatformAnnouncementMedia({ file }, { signal })).data
-        )
-      }
-      onSave={async (value) => {
-        const fields = {
-          title: value.title,
-          type: value.type,
-          content: AnnouncementRichTextDocumentSchema.parse(value.content),
-          attachments: value.attachments.map(({ fileId, versionId }) => ({
-            fileId,
-            versionId,
-          })),
-          audience: detail?.audience ?? "platform",
-          organizationIds: detail?.organizationIds ?? [],
+    <>
+      <AnnouncementEditor
+        mode={detail ? "edit" : "create"}
+        initialValue={initialValue}
+        ports={ports}
+        onPickImage={
+          permissions.canReadFiles && permissions.canReadFolders
+            ? async (signal) => {
+                const file = await picker.pick("image", signal)
+                return file
+                  ? { fileId: file.fileId, versionId: file.versionId }
+                  : null
+              }
+            : undefined
         }
-        try {
-          if (detail)
-            AnnouncementDetailSchema.parse(
-              (
-                await updatePlatformAnnouncement(
-                  detail.id,
-                  UpdateAnnouncementSchema.parse({
-                    ...fields,
-                    expectedVersion: detail.version,
-                  })
-                )
-              ).data
-            )
-          else
-            AnnouncementDetailSchema.parse(
-              (
-                await createPlatformAnnouncement(
-                  CreateAnnouncementSchema.parse(fields)
-                )
-              ).data
-            )
-          await client.invalidateQueries({
-            queryKey: platformAnnouncementKeys.manage(user.id),
-          })
-          onBack()
-        } catch (error) {
-          void rejectAccess(error)
-          throw error
+        onPickAttachment={
+          permissions.canReadFiles && permissions.canReadFolders
+            ? (signal) => picker.pick("attachment", signal)
+            : undefined
         }
-      }}
-      onBack={onBack}
-    />
+        onUploadImage={
+          permissions.canUpload
+            ? async (file, options) => {
+                options.onStage("transmitting")
+                const value = AnnouncementAttachmentSchema.parse(
+                  (
+                    await uploadPlatformAnnouncementMedia(
+                      { file },
+                      { signal: options.signal }
+                    )
+                  ).data
+                )
+                options.onStage("confirming")
+                return { fileId: value.fileId, versionId: value.versionId }
+              }
+            : undefined
+        }
+        onUploadAttachment={
+          permissions.canUpload
+            ? async (file, signal) =>
+                AnnouncementAttachmentSchema.parse(
+                  (await uploadPlatformAnnouncementMedia({ file }, { signal }))
+                    .data
+                )
+            : undefined
+        }
+        onSave={async (value) => {
+          const fields = {
+            title: value.title,
+            type: value.type,
+            content: AnnouncementRichTextDocumentSchema.parse(value.content),
+            attachments: value.attachments.map(({ fileId, versionId }) => ({
+              fileId,
+              versionId,
+            })),
+            audience: detail?.audience ?? "platform",
+            organizationIds: detail?.organizationIds ?? [],
+          }
+          try {
+            if (detail)
+              AnnouncementDetailSchema.parse(
+                (
+                  await updatePlatformAnnouncement(
+                    detail.id,
+                    UpdateAnnouncementSchema.parse({
+                      ...fields,
+                      expectedVersion: detail.version,
+                    })
+                  )
+                ).data
+              )
+            else
+              AnnouncementDetailSchema.parse(
+                (
+                  await createPlatformAnnouncement(
+                    CreateAnnouncementSchema.parse(fields)
+                  )
+                ).data
+              )
+            await client.invalidateQueries({
+              queryKey: platformAnnouncementKeys.manage(user.id),
+            })
+            onBack()
+          } catch (error) {
+            void rejectAccess(error)
+            throw error
+          }
+        }}
+        onBack={onBack}
+      />
+      {picker.dialog}
+    </>
   )
 }
 export function PlatformAnnouncementInboxPage({

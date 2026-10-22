@@ -50,6 +50,18 @@ export function createPlatformSettingsScenario(
       failedSave = false
     },
     handlers: [
+      http.get("*/api/v1/platform/files/policy", () =>
+        HttpResponse.json({
+          quotaBytes: 10737418240,
+          usedBytes: 0,
+          reservedBytes: 0,
+          transientBytes: 0,
+          trashDays: 30,
+          historyDays: 90,
+          policyRevision: 1,
+          maxUploadBytes: 104857600,
+        })
+      ),
       http.get("*/api/v1/platform/settings", async () => {
         if (scenario === "loading") await delay("infinite")
         if (scenario === "slow") await delay(700)

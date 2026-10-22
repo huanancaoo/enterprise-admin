@@ -1,3 +1,5 @@
+import { FileListQuerySchema } from "@workspace/contracts/files"
+import { z } from "zod"
 import { PlatformScheduleRunsQuerySchema } from "@workspace/contracts/platform-schedules"
 import { AnnouncementInboxQuerySchema } from "@workspace/contracts/platform-announcements"
 import {
@@ -528,6 +530,25 @@ const embeddedRoute = createRoute({
   component: PlatformEmbeddedPage,
 })
 
+const filesRoute = createRoute({
+  getParentRoute: () => platformRoute,
+  path: "files",
+  validateSearch: FileListQuerySchema,
+  component: lazyRouteComponent(
+    () => import("./features/files/files-workspace"),
+    "FilesRoute"
+  ),
+})
+const fileDetailRoute = createRoute({
+  getParentRoute: () => platformRoute,
+  path: "files/entries/$entryId",
+  validateSearch: z.object({ versionId: z.uuid().optional() }),
+  component: lazyRouteComponent(
+    () => import("./features/files/file-detail-route"),
+    "FileDetailRoute"
+  ),
+})
+
 const announcementsRoute = createRoute({
   getParentRoute: () => platformRoute,
   path: platformPages.announcements.path,
@@ -638,6 +659,8 @@ export const router = createRouter({
       platformScheduleRunsRoute,
       platformSettingsRoute,
       personalSettingsRoute,
+      filesRoute,
+      fileDetailRoute,
       announcementsRoute,
       announcementCreateRoute,
       announcementEditRoute,

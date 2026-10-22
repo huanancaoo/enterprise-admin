@@ -180,13 +180,13 @@ describe.each(schemas)("$name rich text", ({ contract, editor }) => {
 })
 
 describe("rich text business boundaries", () => {
-  it("keeps immutable announcement resources distinct from project file versions", () => {
+  it("keeps independent fixed file and version identities in announcements and projects", () => {
     for (const type of ["fileImage", "fileAttachment"]) {
       const label = type === "fileImage" ? { alt: "图片" } : { label: "附件" }
       const input = document([{ type, attrs: { fileId, versionId, ...label } }])
       expect(ProjectRichTextDocumentSchema.parse(input)).toEqual(input)
       expect(AnnouncementRichTextDocumentSchema.safeParse(input).success).toBe(
-        false
+        true
       )
     }
   })

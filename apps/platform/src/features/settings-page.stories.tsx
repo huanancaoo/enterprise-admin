@@ -47,7 +47,9 @@ async function draft(canvasElement: HTMLElement) {
   return {
     canvas,
     reason,
-    submit: canvas.getByRole("button", { name: "Save" }),
+    submit: within(reason.closest("form")!).getByRole("button", {
+      name: "Save",
+    }),
   }
 }
 export const Default: Story = { play: loaded }
@@ -163,9 +165,9 @@ export const SaveWithKeyboard: Story = {
     await expect(canvas.getByRole("combobox")).toBeDisabled()
     await expect(reason).toHaveValue("Review default language setting")
     await waitFor(() =>
-      expect(canvas.getByRole("status")).toHaveTextContent(
-        "Platform default language saved."
-      )
+      expect(
+        canvas.getByText("Platform default language saved.")
+      ).toHaveAttribute("role", "status")
     )
     await expect(
       canvas.getByRole("textbox", { name: "Reason for change" })
@@ -223,9 +225,9 @@ const retrySave: Story["play"] = async ({ canvasElement }) => {
   await expect(submit).toBeEnabled()
   await userEvent.click(submit)
   await waitFor(() =>
-    expect(canvas.getByRole("status")).toHaveTextContent(
-      "Platform default language saved."
-    )
+    expect(
+      canvas.getByText("Platform default language saved.")
+    ).toHaveAttribute("role", "status")
   )
   await expect(
     canvas.getByRole("textbox", { name: "Reason for change" })

@@ -60,6 +60,12 @@ export default defineConfig({
               name: "binaryApiClient",
             },
           },
+          getPlatformFileVersionContent: {
+            mutator: {
+              path: "./packages/api-client/src/http/client.ts",
+              name: "binaryApiClient",
+            },
+          },
           getFileVersionContent: {
             mutator: {
               path: "./packages/api-client/src/http/client.ts",

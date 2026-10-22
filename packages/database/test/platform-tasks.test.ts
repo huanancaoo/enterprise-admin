@@ -164,7 +164,7 @@ describe("平台任务固定函数与行收据", { concurrent: false }, () => {
     }
     owner = new Pool({ ...connection, user: "bootstrap_admin" })
     const authorizationMigration = await readFile(
-      "migrations/0071_platform-actions-and-password-lock.sql",
+      "migrations/0094_platform-file-access.sql",
       "utf8"
     )
     // 使用正式数据库目录约束身份 fixture，未注册动作不能被宽松权限桩掩盖。

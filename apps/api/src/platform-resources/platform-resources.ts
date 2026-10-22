@@ -158,7 +158,7 @@ export class PlatformResources {
     }
   }
 
-  // 仅供公告或任务领域在完成自己的当前授权后调用；不能直接映射为按 ID 下载的 HTTP 路由。
+  // 仅供任务领域在完成自己的当前授权后调用；不能直接映射为按 ID 下载的 HTTP 路由。
   async openInternal(id: string): Promise<OpenPlatformResource> {
     try {
       const result = await this.runtime.pool.query<{

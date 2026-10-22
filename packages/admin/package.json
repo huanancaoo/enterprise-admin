@@ -8,7 +8,22 @@
     "./auth": "./src/auth/index.ts",
     "./workspace": "./src/components/workspace.tsx",
     "./rich-text-editor": "./src/components/rich-text-editor/index.ts",
-    "./data-table": "./src/data-table.ts"
+    "./data-table": "./src/data-table.ts",
+    "./files": "./src/files/index.ts",
+    "./files/upload-records": "./src/files/upload-records.ts",
+    "./files/use-file-operation-observer": "./src/files/use-file-operation-observer.ts",
+    "./files/use-upload-queue": "./src/files/use-upload-queue.ts",
+    "./files/upload-queue": "./src/files/upload-queue.tsx",
+    "./files/upload-selection-dialog": "./src/files/upload-selection-dialog.tsx",
+    "./files/create-folder-dialog": "./src/files/create-folder-dialog.tsx",
+    "./files/file-batch-records": "./src/files/file-batch-records.ts",
+    "./files/use-file-batch": "./src/files/use-file-batch.ts",
+    "./files/file-batch-dialog": "./src/files/file-batch-dialog.tsx",
+    "./files/file-batch-results": "./src/files/file-batch-results.tsx",
+    "./files/file-path-queue": "./src/files/file-path-queue.tsx",
+    "./files/use-file-path-operations": "./src/files/use-file-path-operations.ts",
+    "./files/file-delete-dialog": "./src/files/file-delete-dialog.tsx",
+    "./files/file-entry-dialog": "./src/files/file-entry-dialog.tsx"
   },
   "scripts": {
     "lint": "eslint",

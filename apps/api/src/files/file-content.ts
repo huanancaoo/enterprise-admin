@@ -23,7 +23,7 @@ export class FileRangeError extends ApiException {
   }
 }
 
-function requestedRange(
+export function requestedRange(
   header: string | undefined,
   total: number,
 ): ByteRange | undefined {

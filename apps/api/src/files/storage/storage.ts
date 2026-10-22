@@ -16,6 +16,12 @@ export const platformStorageOwner: Readonly<StorageOwner> = Object.freeze({
   id: '00000000-0000-4000-8000-000000000001',
 });
 
+// 文件库允许用户命名，必须与以资源 UUID 命名的任务对象使用不同归属。
+export const platformFileStorageOwner: Readonly<StorageOwner> = Object.freeze({
+  kind: 'platform',
+  id: '00000000-0000-4000-8000-000000000002',
+});
+
 export type StorageAddress = {
   owner: StorageOwner;
   area: 'files' | 'history' | 'trash' | 'staging';
@@ -115,7 +121,9 @@ export function storageKey(address: StorageAddress, directory = false): string {
     throw new StorageError('STORAGE_LOCATION_INVALID');
   if (
     address.owner.kind === 'platform' &&
-    address.owner.id.toLowerCase() !== platformStorageOwner.id
+    ![platformStorageOwner.id, platformFileStorageOwner.id].includes(
+      address.owner.id.toLowerCase(),
+    )
   )
     throw new StorageError('STORAGE_LOCATION_INVALID');
   const owner = {

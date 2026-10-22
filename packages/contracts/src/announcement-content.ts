@@ -4,16 +4,11 @@ import {
   createRichTextNodeVariants,
 } from "./rich-text.js"
 
-// 公告资源不可覆盖；资源 ID 同时标识唯一内容版本，不引用任何租户项目文件。
-export const AnnouncementResourceReferenceSchema = z
-  .strictObject({
-    fileId: z.uuid(),
-    versionId: z.uuid(),
-  })
-  .refine(
-    (value) => value.fileId === value.versionId,
-    "Resource version must match immutable resource"
-  )
+// 公告固定引用平台文件版本；文件改名或覆盖不能改变已保存内容。
+export const AnnouncementResourceReferenceSchema = z.strictObject({
+  fileId: z.uuid(),
+  versionId: z.uuid(),
+})
 
 const safeLink = z.string().refine((value) => {
   try {

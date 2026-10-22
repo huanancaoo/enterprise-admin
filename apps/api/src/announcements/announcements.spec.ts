@@ -7,14 +7,26 @@ import { describe, expect, it, vi } from 'vitest';
 import type { TenantContext } from '@workspace/database/tenant';
 import { ApiException } from '../http/api-exception';
 import type { AuthRuntime } from '../identity/auth-runtime';
-import type {
-  OpenPlatformResource,
-  PlatformResource,
-  PlatformResourceActor,
-  PlatformResourceInput,
-  PlatformResourcePurpose,
-} from '../platform-resources/platform-resource';
-import type { PlatformResources } from '../platform-resources/platform-resources';
+import type { z } from 'zod';
+import {
+  PlatformFiles,
+  PlatformFileMediaSchema,
+} from '../platform-files/platform-files';
+type PlatformResource = z.infer<typeof PlatformFileMediaSchema>['resource'];
+type OpenPlatformResource = Awaited<ReturnType<PlatformFiles['openReference']>>;
+const attachment = (resource: PlatformResource) => ({
+  fileId: resource.id,
+  versionId: resource.versionId,
+  name: resource.name,
+  mimeType: resource.mimeType,
+  byteSize: resource.bytes,
+});
+const projection = (resource: PlatformResource) => ({
+  resource,
+  area: 'files' as const,
+  path: [resource.name],
+});
+
 import { Announcements } from './announcements';
 
 const actor = { userId: randomUUID(), sessionId: randomUUID() };
@@ -28,13 +40,11 @@ const context: TenantContext = {
 const content = Buffer.from('private announcement content');
 const metadata: PlatformResource = {
   id: randomUUID(),
-  purpose: 'announcement',
-  uploadedBy: actor.userId,
+  versionId: randomUUID(),
   name: 'notice.pdf',
   mimeType: 'application/pdf',
   bytes: content.length,
   sha256: createHash('sha256').update(content).digest('hex'),
-  createdAt: '2026-10-17T00:00:00.000Z',
 };
 const databaseFailure = (message: string) =>
   Object.assign(new Error(message), { code: 'P0001' });
@@ -48,26 +58,25 @@ function setup(resource: PlatformResource = metadata, body = content) {
         values?: unknown[],
       ) => Promise<{ rows: { result: unknown }[] }>
     >()
-    .mockResolvedValue({ rows: [{ result: { id: resource.id } }] });
+    .mockResolvedValue({ rows: [{ result: projection(resource) }] });
   const openInternal = vi
-    .fn<(id: string) => Promise<OpenPlatformResource>>()
+    .fn<() => Promise<OpenPlatformResource>>()
     .mockResolvedValue({
       resource,
       read: { body: storageBody, bytes: body.length, totalBytes: body.length },
     });
   const create = vi
-    .fn<
-      (
-        actor: PlatformResourceActor,
-        purpose: PlatformResourcePurpose,
-        input: PlatformResourceInput,
-        requestId: string,
-      ) => Promise<PlatformResource>
-    >()
-    .mockResolvedValue(resource);
+    .fn<PlatformFiles['uploadAnnouncement']>()
+    .mockResolvedValue(attachment(resource));
   const service = new Announcements(
     { pool: { query } } as unknown as AuthRuntime,
-    { openInternal, create } as unknown as PlatformResources,
+    {
+      uploadAnnouncement: create,
+      openReference: async (authorize: () => Promise<unknown>) => {
+        await authorize();
+        return openInternal();
+      },
+    } as unknown as PlatformFiles,
   );
   const setHeader = vi.fn();
   const response = Object.assign(new EventEmitter(), {
@@ -133,7 +142,7 @@ describe('公告私有素材读取', () => {
               actor.sessionId,
               'media',
               metadata.id,
-              '{}',
+              JSON.stringify({ versionId: metadata.id }),
               'announcement-media',
             ]
           : [
@@ -142,7 +151,7 @@ describe('公告私有素材读取', () => {
               null,
               'media',
               metadata.id,
-              '{}',
+              JSON.stringify({ versionId: metadata.id }),
               'announcement-media',
             ],
       );
@@ -169,14 +178,16 @@ describe('公告私有素材读取', () => {
     const { service, openInternal, response } = setup();
     const tenantInbox = vi
       .spyOn(service, 'tenantInbox')
-      .mockResolvedValueOnce({ id: metadata.id });
+      .mockResolvedValueOnce(projection(metadata));
     const file = await service.tenantMedia(
       context,
       metadata.id,
       metadata.id,
       response,
     );
-    expect(tenantInbox).toHaveBeenCalledWith(context, 'media', metadata.id, {});
+    expect(tenantInbox).toHaveBeenCalledWith(context, 'media', metadata.id, {
+      versionId: metadata.id,
+    });
     expect(tenantInbox.mock.invocationCallOrder[0]).toBeLessThan(
       openInternal.mock.invocationCallOrder[0],
     );
@@ -194,16 +205,19 @@ describe('公告私有素材读取', () => {
     expect(openInternal).not.toHaveBeenCalled();
   });
 
-  it('不接受与不可变资源 ID 不同的版本标识', async () => {
-    const { service, query, openInternal, response } = setup();
-    await expect(
-      service.media(actor, null, metadata.id, randomUUID(), response),
-    ).rejects.toMatchObject({ response: { code: 'NOT_FOUND' } });
-    await expect(
-      service.tenantMedia(context, metadata.id, randomUUID(), response),
-    ).rejects.toMatchObject({ response: { code: 'NOT_FOUND' } });
-    expect(query).not.toHaveBeenCalled();
-    expect(openInternal).not.toHaveBeenCalled();
+  it('将独立版本身份交给公告授权入口校验', async () => {
+    const { service, query, response } = setup();
+    const file = await service.media(
+      actor,
+      null,
+      metadata.id,
+      metadata.versionId,
+      response,
+    );
+    expect(query.mock.calls[0][1]).toContain(
+      JSON.stringify({ versionId: metadata.versionId }),
+    );
+    await expect(bytes(file.getStream())).resolves.toEqual(content);
   });
 
   it.each([
@@ -286,20 +300,17 @@ describe('公告上传持久化和清理', () => {
       const { service, create } = setup();
       let path: string | undefined;
       let source: Readable | undefined;
-      create.mockImplementationOnce(
-        async (_actor, purpose, input, requestId) => {
-          expect(purpose).toBe('announcement');
-          expect(requestId).toBe('upload-announcement');
-          source = input.source as Readable;
-          path = String((source as { path?: unknown }).path);
-          await expect(stat(path)).resolves.toMatchObject({
-            size: content.length,
-          });
-          if (failure) throw new ApiException(403, 'FORBIDDEN');
-          await expect(bytes(input.source)).resolves.toEqual(content);
-          return metadata;
-        },
-      );
+      create.mockImplementationOnce(async (_actor, input, requestId) => {
+        expect(requestId).toBe('upload-announcement');
+        source = input.source;
+        path = String((source as { path?: unknown }).path);
+        await expect(stat(path)).resolves.toMatchObject({
+          size: content.length,
+        });
+        if (failure) throw new ApiException(403, 'FORBIDDEN');
+        await expect(bytes(input.source)).resolves.toEqual(content);
+        return attachment(metadata);
+      });
       const uploading = service.upload(
         actor,
         uploadRequest(),
@@ -312,7 +323,7 @@ describe('公告上传持久化和清理', () => {
       else
         await expect(uploading).resolves.toEqual({
           fileId: metadata.id,
-          versionId: metadata.id,
+          versionId: metadata.versionId,
           name: metadata.name,
           mimeType: metadata.mimeType,
           byteSize: content.length,

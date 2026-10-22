@@ -38,10 +38,11 @@ export function PlatformEmbeddedPage() {
 }
 export function PlatformHomePage() {
   const query = usePlatformNavigationQuery()
-  const { t } = useTranslation("monitor")
+  const { t } = useTranslation(["monitor", "files"])
   if (query.isPending) return <LoadingState />
   if (query.isError) return <ErrorState onRetry={() => void query.refetch()} />
   const { home } = platformNavigationModel(query.data.items, "/platform", {
+    files: t("files:title"),
     monitor: t("title"),
     schedules: t("schedulesTitle"),
   })

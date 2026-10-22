@@ -21,7 +21,7 @@ import { AuthRuntime } from '../identity/auth-runtime';
 import { configureApp } from '../http/configure-app';
 import { TenantGuard } from '../tenancy/tenant.guard';
 import { TenantContextService } from '../tenancy/tenant-context.service';
-import { PlatformResources } from '../platform-resources/platform-resources';
+import { PlatformFiles } from '../platform-files/platform-files';
 import { Announcements, announcementError } from './announcements';
 import { TenantAnnouncementsController } from './announcements.controller';
 
@@ -48,8 +48,14 @@ function fixture() {
     return Promise.resolve({ rows: [] });
   });
   const runtime = { pool: { query } } as unknown as AuthRuntime;
-  const openInternal = vi.fn();
-  const resources = { openInternal } as unknown as PlatformResources;
+  const openInternal =
+    vi.fn<() => ReturnType<PlatformFiles['openReference']>>();
+  const resources = {
+    openReference: async (authorize: () => Promise<unknown>) => {
+      await authorize();
+      return openInternal();
+    },
+  } as unknown as PlatformFiles;
   return { control, statements, runtime, resources, openInternal };
 }
 
@@ -118,7 +124,7 @@ describe('租户公告 HTTP 业务错误', () => {
         Announcements,
         TenantGuard,
         { provide: AuthRuntime, useValue: runtime },
-        { provide: PlatformResources, useValue: resources },
+        { provide: PlatformFiles, useValue: resources },
         {
           provide: TenantContextService,
           useValue: { resolveMembership: vi.fn().mockResolvedValue(context) },

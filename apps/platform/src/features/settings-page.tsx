@@ -1,3 +1,4 @@
+import { PlatformFilePolicy } from "./files/file-policy"
 import { useRef, useState } from "react"
 import { useForm } from "@tanstack/react-form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
@@ -167,6 +168,7 @@ export function PlatformSettingsPage() {
           )}
         </>
       )}
+      <PlatformFilePolicy />
     </div>
   )
 }
@@ -218,7 +220,7 @@ function SettingsForm({
       attempt.current = nextIdempotencyAttempt(
         attempt.current,
         attempt.current?.body === body,
-        (key) => ({ body, key }),
+        (key) => ({ body, key })
       )
       try {
         const result = PlatformSettingsUpdateResultSchema.parse(

@@ -23,12 +23,27 @@ import {
   type PlatformPrincipal,
 } from '../platform/platform-access.service';
 import { PlatformGuard } from '../platform/platform.guard';
-import { PlatformResources } from '../platform-resources/platform-resources';
-import type {
-  OpenPlatformResource,
-  PlatformResource,
-  PlatformResourceInput,
-} from '../platform-resources/platform-resource';
+import type { z } from 'zod';
+import {
+  PlatformFiles,
+  PlatformFileMediaSchema,
+} from '../platform-files/platform-files';
+type PlatformResource = z.infer<typeof PlatformFileMediaSchema>['resource'];
+type OpenPlatformResource = Awaited<ReturnType<PlatformFiles['openReference']>>;
+type PlatformResourceInput = Parameters<PlatformFiles['uploadAnnouncement']>[1];
+const attachment = (resource: PlatformResource) => ({
+  fileId: resource.id,
+  versionId: resource.versionId,
+  name: resource.name,
+  mimeType: resource.mimeType,
+  byteSize: resource.bytes,
+});
+const projection = (resource: PlatformResource) => ({
+  resource,
+  area: 'files' as const,
+  path: [resource.name],
+});
+
 import { normalizeFileName } from '@workspace/contracts/file-path';
 import { Announcements } from './announcements';
 import {
@@ -47,13 +62,11 @@ const actor: PlatformPrincipal = {
 const content = Buffer.from('%PDF-1.7\nprivate announcement\n');
 const resource: PlatformResource = {
   id: randomUUID(),
-  purpose: 'announcement',
-  uploadedBy: actor.userId,
+  versionId: randomUUID(),
   name: 'notice.pdf',
   mimeType: 'application/pdf',
   bytes: content.length,
   sha256: createHash('sha256').update(content).digest('hex'),
-  createdAt: '2026-10-17T00:00:00.000Z',
 };
 type Query = (
   sql: string,
@@ -65,8 +78,8 @@ describe('公告 HTTP 媒体契约', () => {
   const origin = 'http://localhost:3201';
   const query = vi.fn<Query>();
   const requireAccess = vi.fn().mockResolvedValue(actor);
-  const create = vi.fn<PlatformResources['create']>();
-  const openInternal = vi.fn<(id: string) => Promise<OpenPlatformResource>>();
+  const create = vi.fn<PlatformFiles['uploadAnnouncement']>();
+  const openInternal = vi.fn<() => Promise<OpenPlatformResource>>();
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
@@ -89,7 +102,16 @@ describe('公告 HTTP 媒体契约', () => {
           provide: PlatformAccessService,
           useValue: { requireAccess, recordDenial: vi.fn() },
         },
-        { provide: PlatformResources, useValue: { create, openInternal } },
+        {
+          provide: PlatformFiles,
+          useValue: {
+            uploadAnnouncement: create,
+            openReference: async (authorize: () => Promise<unknown>) => {
+              await authorize();
+              return openInternal();
+            },
+          },
+        },
       ],
     }).compile();
     app = module.createNestApplication();
@@ -101,19 +123,17 @@ describe('公告 HTTP 媒体契约', () => {
   beforeEach(() => {
     query
       .mockReset()
-      .mockResolvedValue({ rows: [{ result: { id: resource.id } }] });
+      .mockResolvedValue({ rows: [{ result: projection(resource) }] });
     requireAccess.mockReset().mockResolvedValue(actor);
     create
       .mockReset()
-      .mockImplementation(
-        async (_actor, _purpose, input: PlatformResourceInput) => {
-          const chunks: Buffer[] = [];
-          for await (const chunk of input.source)
-            chunks.push(Buffer.from(chunk));
-          expect(Buffer.concat(chunks)).toEqual(content);
-          return resource;
-        },
-      );
+      .mockImplementation(async (_actor, input: PlatformResourceInput) => {
+        const chunks: Buffer[] = [];
+        for await (const chunk of input.source)
+          chunks.push(Buffer.from(chunk as Uint8Array));
+        expect(Buffer.concat(chunks)).toEqual(content);
+        return attachment(resource);
+      });
     openInternal.mockReset().mockImplementation(() =>
       Promise.resolve({
         resource,
@@ -137,12 +157,12 @@ describe('公告 HTTP 媒体契约', () => {
     expect(result.status).toBe(201);
     expect(result.body as unknown).toEqual({
       fileId: resource.id,
-      versionId: resource.id,
+      versionId: resource.versionId,
       name: resource.name,
       mimeType: resource.mimeType,
       byteSize: resource.bytes,
     });
-    expect(create.mock.calls[0].slice(0, 2)).toEqual([actor, 'announcement']);
+    expect(create.mock.calls[0][0]).toEqual(actor);
   });
 
   it.each([
@@ -164,24 +184,25 @@ describe('公告 HTTP 媒体契约', () => {
               .png()
               .toBuffer()
           : Buffer.from('公告附件内容');
-      create.mockImplementationOnce(async (_actor, _purpose, input) => {
+      create.mockImplementationOnce(async (_actor, input) => {
         const normalizedName = normalizeFileName(input.name);
         const chunks: Buffer[] = [];
-        for await (const chunk of input.source) chunks.push(Buffer.from(chunk));
+        for await (const chunk of input.source)
+          chunks.push(Buffer.from(chunk as Uint8Array));
         expect(Buffer.concat(chunks)).toEqual(fileContent);
-        return {
+        return attachment({
           ...resource,
           name: normalizedName,
           mimeType: input.mimeType,
           bytes: input.bytes,
-        };
+        });
       });
       const result = await request(app.getHttpServer() as Server)
         .post('/api/v1/platform/announcements/media')
         .set('Origin', origin)
         .attach('file', fileContent, { filename: name, contentType: mimeType });
       expect(result.status).toBe(201);
-      expect(create.mock.calls[0][2].name).toBe(name);
+      expect(create.mock.calls[0][1].name).toBe(name);
       expect(result.body as unknown).toMatchObject({
         name,
         mimeType,

@@ -212,11 +212,13 @@ export const FilterAndPagination: Story = {
   ...scenario("paginated"),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await memberBody(canvasElement)
+    const members = within(
+      (await memberBody(canvasElement)).closest("fieldset")!
+    )
     await expect(
       within(await memberBody(canvasElement)).getAllByRole("row")
     ).toHaveLength(20)
-    await userEvent.click(canvas.getByRole("button", { name: "Next page" }))
+    await userEvent.click(members.getByRole("button", { name: "Next page" }))
     await waitFor(async () =>
       expect(
         within(await memberBody(canvasElement)).getAllByRole("row")
@@ -232,7 +234,7 @@ export const FilterAndPagination: Story = {
       within(await memberBody(canvasElement)).getAllByRole("row")
     ).toHaveLength(1)
     await expect(
-      canvas.getByRole("button", { name: "Previous page" })
+      members.getByRole("button", { name: "Previous page" })
     ).toHaveAttribute("aria-disabled", "true")
   },
 }

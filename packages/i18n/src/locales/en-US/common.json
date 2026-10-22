@@ -57,6 +57,7 @@
   "pagination": "Pagination",
   "permissionDenied": "Access denied",
   "permissionDescription": "You do not have permission to perform this action.",
+  "pickLibraryImage": "Insert image from files",
   "pinBottom": "Pin to bottom",
   "pinColumn": "Pin {{title}}",
   "pinnedEnd": "Pinned at end",

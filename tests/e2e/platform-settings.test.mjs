@@ -62,6 +62,11 @@ describe("platform settings browser workflow", () => {
     await page.getByRole("combobox", { name: label }).click()
     await page.getByRole("option", { name: option, exact: true }).click()
   }
+  function languageForm(reasonLabel = "Reason for change") {
+    return page.locator("form").filter({
+      has: page.getByLabel(reasonLabel, { exact: true }),
+    })
+  }
   async function axe() {
     // 保存后的状态更新可能取消过渡；动画完成或取消后，再检查当前 DOM 的无障碍规则。
     await page
@@ -149,7 +154,10 @@ describe("platform settings browser workflow", () => {
       responses.push(body)
       await route.fulfill({ response, body })
     })
-    const save = page.getByRole("button", { name: "Save", exact: true })
+    const save = languageForm().getByRole("button", {
+      name: "Save",
+      exact: true,
+    })
     await save.focus()
     await page.keyboard.press("Enter")
     await expectUI(page.locator('form[aria-busy="true"]')).toBeVisible()
@@ -216,7 +224,9 @@ describe("platform settings browser workflow", () => {
         locale === "ar" ? "rtl" : "ltr"
       )
       await page.getByLabel(reasonLabel, { exact: true }).fill("          ")
-      await page.getByRole("button", { name: saveLabel, exact: true }).click()
+      await languageForm(reasonLabel)
+        .getByRole("button", { name: saveLabel, exact: true })
+        .click()
       await expectUI(page.locator('[data-invalid="true"]')).toContainText(
         invalidLabel
       )
@@ -227,7 +237,9 @@ describe("platform settings browser workflow", () => {
       await selector.focus()
       await page.keyboard.press("Enter")
       await page.getByRole("option", { name: "简体中文", exact: true }).click()
-      await page.getByRole("button", { name: saveLabel, exact: true }).focus()
+      await languageForm(reasonLabel)
+        .getByRole("button", { name: saveLabel, exact: true })
+        .focus()
       await page.keyboard.press("Enter")
       await expectUI(page.getByText(savedLabel, { exact: true })).toBeVisible()
       await axe()
@@ -257,7 +269,9 @@ describe("platform settings browser workflow", () => {
       operation = (await response.json()).operationId
       await route.abort("failed")
     })
-    await page.getByRole("button", { name: "Save", exact: true }).click()
+    await languageForm()
+      .getByRole("button", { name: "Save", exact: true })
+      .click()
     await expectUI(page.getByRole("alert")).toBeVisible()
     await expectUI(
       page.getByLabel("Reason for change", { exact: true })
@@ -271,7 +285,9 @@ describe("platform settings browser workflow", () => {
         })
       await route.continue()
     })
-    await page.getByRole("button", { name: "Save", exact: true }).click()
+    await languageForm()
+      .getByRole("button", { name: "Save", exact: true })
+      .click()
     await expectUI(
       page.getByText("Platform default language saved.", { exact: true })
     ).toBeVisible()
@@ -288,7 +304,9 @@ describe("platform settings browser workflow", () => {
     await page
       .getByLabel("Reason for change", { exact: true })
       .fill("Keep stale reason until explicit reload")
-    await page.getByRole("button", { name: "Save", exact: true }).click()
+    await languageForm()
+      .getByRole("button", { name: "Save", exact: true })
+      .click()
     await expectUI(page.getByRole("alert")).toBeVisible()
     await expectUI(
       page.getByLabel("Reason for change", { exact: true })
@@ -324,7 +342,9 @@ describe("platform settings browser workflow", () => {
       await page
         .getByLabel("Reason for change", { exact: true })
         .fill("Audit failure keeps the settings draft")
-      await page.getByRole("button", { name: "Save", exact: true }).click()
+      await languageForm()
+        .getByRole("button", { name: "Save", exact: true })
+        .click()
       await expectUI(page.getByRole("alert")).toBeVisible()
       await expectUI(
         page.getByLabel("Reason for change", { exact: true })
@@ -334,7 +354,9 @@ describe("platform settings browser workflow", () => {
         "DROP TRIGGER issue23_browser_fail ON public.audit_events; DROP FUNCTION public.issue23_browser_fail()"
       )
     }
-    await page.getByRole("button", { name: "Save", exact: true }).click()
+    await languageForm()
+      .getByRole("button", { name: "Save", exact: true })
+      .click()
     await expectUI(
       page.getByText("Platform default language saved.", { exact: true })
     ).toBeVisible()
@@ -347,7 +369,10 @@ describe("platform settings browser workflow", () => {
         { exact: true }
       )
     ).toBeVisible()
-    await expectUI(page.locator("form")).toHaveCount(0)
+    await expectUI(languageForm()).toHaveCount(0)
+    await expectUI(
+      page.getByRole("button", { name: "Save", exact: true })
+    ).toHaveCount(0)
     await axe()
     await page.context().close()
     await pageFor(ordinary)
