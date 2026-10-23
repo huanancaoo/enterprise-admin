@@ -764,6 +764,20 @@
       "when": 1792680417141,
       "tag": "0108_platform-import-upgrade-boundary",
       "breakpoints": true
+    },
+    {
+      "idx": 109,
+      "version": "7",
+      "when": 1792735275462,
+      "tag": "0109_remove-dynamic-menu-functions",
+      "breakpoints": true
+    },
+    {
+      "idx": 110,
+      "version": "7",
+      "when": 1792735878193,
+      "tag": "0110_remove-dynamic-menu-storage",
+      "breakpoints": true
     }
   ]
 }

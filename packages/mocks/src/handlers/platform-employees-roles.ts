@@ -452,17 +452,6 @@ export function createPlatformEmployeesRolesScenario(
           updatedAt: timestamp,
         })
       ),
-      http.get("*/api/v1/platform/menus/registry", () =>
-        HttpResponse.json({
-          pages: [{ key: "employees", path: "/platform/employees" }],
-          actions: [
-            "platform.employee:read",
-            "platform.employee:update",
-            "platform.organization:read",
-            "platform.user:unlock",
-          ].map((key) => ({ key })),
-        })
-      ),
       http.get("*/api/v1/platform/roles", async ({ request }) => {
         const failure = await readFailure()
         if (failure) return failure

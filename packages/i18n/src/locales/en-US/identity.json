@@ -18,7 +18,6 @@
   "filterUser": "Filter by account",
   "githubMethod": "GitHub",
   "ipAddress": "IP address",
-  "loginEvents": "Login history",
   "method": "Method",
   "name": "Name",
   "nameEditDescription": "This updates the account's global name; existing login records retain the name recorded at the time.",

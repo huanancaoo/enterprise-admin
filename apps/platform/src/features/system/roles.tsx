@@ -1,3 +1,4 @@
+import { delegablePlatformPermissions } from "@workspace/permissions"
 import { useCallback, useId, useMemo, useState } from "react"
 import { useForm } from "@tanstack/react-form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
@@ -20,14 +21,12 @@ import {
   listPlatformRoleEmployees,
   assignPlatformRoleEmployees,
   revokePlatformRoleEmployees,
-  getPlatformMenuRegistry,
 } from "@workspace/api-client"
 import {
   PlatformRoleSchema,
   PlatformRolesPageSchema,
   CreatePlatformRoleSchema,
   PlatformEmployeesPageSchema,
-  PlatformMenuRegistrySchema,
   SetPlatformRolePermissionsSchema,
   type PlatformRole,
   type PlatformEmployee,
@@ -703,30 +702,20 @@ export function PlatformRolePermissionsPage() {
       ),
     retry: false,
   })
-  const registry = useQuery({
-    queryKey: ["platform", session.user.id, "menu-registry"],
-    enabled: canManage,
-    queryFn: async ({ signal }) =>
-      PlatformMenuRegistrySchema.parse(
-        (await getPlatformMenuRegistry({ signal })).data
-      ),
-    retry: false,
-  })
-  usePlatformAccessFailure(query.error ?? (canManage ? registry.error : null))
-  if (query.isPending || (canManage && registry.isPending))
+  usePlatformAccessFailure(query.error)
+  if (query.isPending)
     return (
       <RolePage title={t("permissionsTitle")}>
         <LoadingState />
       </RolePage>
     )
-  if (query.isError || (canManage && registry.isError))
+  if (query.isError)
     return (
       <RolePage title={t("permissionsTitle")}>
         <ErrorState
-          message={(query.error ?? registry.error)?.message}
+          message={query.error.message}
           onRetry={() => {
             void query.refetch()
-            if (canManage) void registry.refetch()
           }}
         />
       </RolePage>
@@ -737,9 +726,7 @@ export function PlatformRolePermissionsPage() {
         key={`${query.data.id}-${query.data.updatedAt}`}
         role={query.data}
         actions={
-          canManage
-            ? registry.data!.actions.map((action) => action.key)
-            : query.data.permissions
+          canManage ? delegablePlatformPermissions : query.data.permissions
         }
         editable={
           platformAccess.permissions.includes(
@@ -798,7 +785,6 @@ export function RolePermissionsForm({
     dictionary: t("permissionResourceDictionary"),
     employee: t("permissionResourceEmployee"),
     login: t("permissionResourceLogin"),
-    menu: t("permissionResourceMenu"),
     monitor: t("permissionResourceMonitor"),
     schedule: t("permissionResourceSchedule"),
     organization: t("permissionResourceOrganization"),

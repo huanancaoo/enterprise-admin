@@ -18,7 +18,6 @@
   "filterUser": "按账号筛选",
   "githubMethod": "GitHub",
   "ipAddress": "IP 地址",
-  "loginEvents": "登录记录",
   "method": "登录方式",
   "name": "姓名",
   "nameEditDescription": "修改的是账号的全局姓名；既有登录记录仍保留记录发生时的姓名。",

@@ -235,51 +235,6 @@ export const PlatformSystemTreeQuerySchema = z
 export type PlatformSystemTreeQuery = z.infer<
   typeof PlatformSystemTreeQuerySchema
 >
-export const PlatformMenuKindSchema = z.enum([
-  "directory",
-  "page",
-  "action",
-  "external",
-  "iframe",
-])
-export const PlatformMenuSchema = z
-  .strictObject({
-    ...catalog,
-    parentId: id.nullable(),
-    kind: PlatformMenuKindSchema,
-    routeKey: z.string().nullable(),
-    actionKey: z.string().nullable(),
-    url: z.string().nullable(),
-    icon: z.string().nullable(),
-    hidden: z.boolean(),
-    hasChildren: z.boolean(),
-  })
-  .meta({ id: "PlatformMenu" })
-export type PlatformMenu = z.infer<typeof PlatformMenuSchema>
-const menuInput = {
-  ...catalogInput,
-  parentId: id.nullable(),
-  kind: PlatformMenuKindSchema,
-  routeKey: z.string().trim().min(1).max(200).nullable(),
-  actionKey: z.string().trim().min(1).max(120).nullable(),
-  url: z.url().max(2000).nullable(),
-  icon: z.string().trim().min(1).max(100).nullable(),
-  hidden: z.boolean(),
-}
-export const CreatePlatformMenuSchema = z
-  .strictObject(menuInput)
-  .meta({ id: "CreatePlatformMenu" })
-export type CreatePlatformMenu = z.infer<typeof CreatePlatformMenuSchema>
-export const UpdatePlatformMenuSchema = z
-  .strictObject(menuInput)
-  .meta({ id: "UpdatePlatformMenu" })
-export type UpdatePlatformMenu = z.infer<typeof UpdatePlatformMenuSchema>
-export const PlatformMenusTreeSchema = z
-  .strictObject({
-    items: z.array(PlatformMenuSchema),
-    ancestors: z.array(PlatformMenuSchema),
-  })
-  .meta({ id: "PlatformMenusTree" })
 export const PlatformDepartmentSchema = z
   .strictObject({
     ...catalog,
@@ -487,41 +442,6 @@ export const PlatformEmployeePostOptionsPageSchema = page(
 export const PlatformEmployeeRoleOptionsPageSchema = page(
   PlatformEmployeeRoleOptionSchema
 ).meta({ id: "PlatformEmployeeRoleOptionsPage" })
-export const PlatformMenuRegistrySchema = z
-  .strictObject({
-    pages: z.array(z.strictObject({ key: z.string(), path: z.string() })),
-    actions: z.array(z.strictObject({ key: z.string() })),
-  })
-  .meta({ id: "PlatformMenuRegistry" })
-export type PlatformNavigationItem = {
-  id: string
-  name: string
-  kind: z.infer<typeof PlatformMenuKindSchema>
-  routeKey: string | null
-  url: string | null
-  icon: string | null
-  hidden: boolean
-  children: PlatformNavigationItem[]
-}
-export const PlatformNavigationItemSchema: z.ZodType<PlatformNavigationItem> = z
-  .lazy(() =>
-    z.strictObject({
-      id,
-      name: z.string(),
-      kind: PlatformMenuKindSchema,
-      routeKey: z.string().nullable(),
-      url: z.string().nullable(),
-      icon: z.string().nullable(),
-      hidden: z.boolean(),
-      children: z.array(PlatformNavigationItemSchema),
-    })
-  )
-  .meta({ id: "PlatformNavigationItem" })
-export const PlatformNavigationSchema = z
-  .strictObject({ items: z.array(PlatformNavigationItemSchema) })
-  .meta({ id: "PlatformNavigation" })
-
-export type PlatformMenuKind = z.infer<typeof PlatformMenuKindSchema>
 export type PlatformRolesPage = z.infer<typeof PlatformRolesPageSchema>
 export type PlatformPostsPage = z.infer<typeof PlatformPostsPageSchema>
 export type PlatformDictionariesPage = z.infer<
@@ -533,7 +453,6 @@ export type PlatformDictionaryItemsPage = z.infer<
 export type PlatformParametersPage = z.infer<
   typeof PlatformParametersPageSchema
 >
-export type PlatformMenusTree = z.infer<typeof PlatformMenusTreeSchema>
 export type PlatformDepartmentsTree = z.infer<
   typeof PlatformDepartmentsTreeSchema
 >
@@ -558,8 +477,6 @@ export type PlatformParameterValue = z.infer<
 export type PlatformEmployeeCandidatesPage = z.infer<
   typeof PlatformEmployeeCandidatesPageSchema
 >
-export type PlatformMenuRegistry = z.infer<typeof PlatformMenuRegistrySchema>
-export type PlatformNavigation = z.infer<typeof PlatformNavigationSchema>
 
 export type PlatformEmployeeDepartmentSummary = z.infer<
   typeof PlatformEmployeeDepartmentSummarySchema

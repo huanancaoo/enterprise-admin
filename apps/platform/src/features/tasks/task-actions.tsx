@@ -31,7 +31,6 @@ const resources = {
   parameter: "parameters",
   audit: "audit-events",
   login: "login-events",
-  menu: "menus",
   department: "departments",
   user: "users",
   organization: "organizations",
@@ -65,7 +64,7 @@ function useTaskSubmission() {
     lastRequest.current = nextIdempotencyAttempt(
       lastRequest.current,
       lastRequest.current?.fingerprint === signature,
-      (key) => ({ fingerprint: signature, key }),
+      (key) => ({ fingerprint: signature, key })
     )
     try {
       const result = PlatformTaskSchema.parse(

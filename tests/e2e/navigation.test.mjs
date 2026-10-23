@@ -60,6 +60,8 @@ describe("页面组织结构：真实 API 导航与授权", () => {
   }
   const main = (page) =>
     page.getByRole("navigation", { name: "主导航", exact: true })
+  const business = (page) =>
+    page.getByRole("navigation", { name: "业务工作", exact: true })
   const management = (page) =>
     page.getByRole("navigation", { name: "组织管理", exact: true })
   async function switchOrganization(page, current, next) {
@@ -70,7 +72,7 @@ describe("页面组织结构：真实 API 导航与授权", () => {
     )
   }
 
-  it("租户保留四个主入口，操作日志独立于组织管理且切组织时重置筛选，文件工具绑定当前组织", async () => {
+  it("租户常驻三个业务分区，切组织重置筛选且所有入口绑定当前组织", async () => {
     const owner = await account("导航组织所有者")
     const north = await organization(owner, "导航北组织")
     const south = await organization(owner, "导航南组织")
@@ -94,15 +96,25 @@ describe("页面组织结构：真实 API 导航与授权", () => {
     await expectUI(
       management(page).getByRole("link", { name: "角色权限", exact: true })
     ).toHaveAttribute("aria-current", "page")
-    expect(await main(page).getByRole("link").allTextContents()).toEqual([
+    expect(await business(page).getByRole("link").allTextContents()).toEqual([
       "项目",
       "文件",
-      "操作日志",
-      "组织管理",
+      "任务中心",
     ])
+    await expectUI(management(page).getByRole("link")).toHaveText([
+      "成员与邀请",
+      "角色权限",
+      "操作日志",
+      "常规设置",
+    ])
+    const integrations = page.getByRole("navigation", {
+      name: "开发集成",
+      exact: true,
+    })
     await expectUI(
-      management(page).getByRole("link", { name: "操作日志", exact: true })
-    ).toHaveCount(0)
+      integrations.getByRole("link", { name: "API Key 与 Webhook" })
+    ).toHaveAttribute("href", `/app/integrations/${north.id}`)
+    await expectUI(management(page)).toHaveCount(1)
     await expectUI(
       page.getByText("navigation-north", { exact: true })
     ).toBeVisible()
@@ -124,6 +136,7 @@ describe("页面组织结构：真实 API 导航与授权", () => {
       expect(await link.getAttribute("href")).toContain(south.id)
     }
     await page.screenshot({
+      animations: "disabled",
       path: join(tmpdir(), "enterprise-navigation-organization-switch.png"),
     })
 
@@ -145,14 +158,13 @@ describe("页面组织结构：真实 API 导航与授权", () => {
       ["任务中心", "tasks"],
       ["通知", "notifications"],
     ]) {
-      await main(page).getByRole("link", { name: "文件", exact: true }).click()
+      await business(page)
+        .getByRole("link", { name: "文件", exact: true })
+        .click()
       await expectUI(
         page.getByRole("heading", { name: "文件", exact: true })
       ).toBeVisible()
-      await page
-        .getByRole("navigation", { name: "任务中心 · 通知", exact: true })
-        .getByRole("link", { name: label, exact: true })
-        .click()
+      await page.getByRole("link", { name: label, exact: true }).click()
       await expectUI(page).toHaveURL(
         new RegExp(`/app/${path}/${north.id}(?:\\?|$)`)
       )
@@ -164,7 +176,7 @@ describe("页面组织结构：真实 API 导航与授权", () => {
     await page.goto(
       `${environment.tenantOrigin}/app/organizations/${north.id}/roles`
     )
-    await main(page)
+    await management(page)
       .getByRole("link", { name: "操作日志", exact: true })
       .click()
     await expectUI(page).toHaveURL(
@@ -206,6 +218,16 @@ describe("页面组织结构：真实 API 导航与授权", () => {
     await expectUI(
       page.getByPlaceholder("按事件代码搜索", { exact: true })
     ).toHaveValue("")
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.locator('[data-slot="sidebar-trigger"]').click()
+    const drawer = page.getByRole("dialog")
+    await expectUI(drawer).toBeVisible()
+    await drawer
+      .getByRole("navigation", { name: "开发集成", exact: true })
+      .getByRole("link", { name: "API Key 与 Webhook" })
+      .click()
+    await expectUI(page).toHaveURL(new RegExp(`/app/integrations/${south.id}$`))
+    await expectUI(drawer).toHaveCount(0)
   })
 
   it("成员可读成员与角色目录，但角色写入、常规设置和其他组织仍由真实权限拒绝", async () => {
@@ -319,15 +341,36 @@ describe("页面组织结构：真实 API 导航与授权", () => {
       expect(await main(page).getByRole("link").allTextContents()).toEqual([
         "组织管理",
         "全局账号",
-        ...(role === "platform_admin" ? ["文件"] : []),
-        "平台设置",
       ])
       await expectUI(
-        main(page).getByRole("button", { name: "系统管理", exact: true })
+        main(page).getByRole("button", { name: "平台团队", exact: true })
       ).toBeVisible()
+      await expectUI(
+        main(page).getByRole("link", { name: "菜单管理", exact: true })
+      ).toHaveCount(0)
+      await page.locator('[data-slot="sidebar-trigger"]').click()
+      await expectUI(
+        page.locator('[data-slot="sidebar"][data-state]')
+      ).toHaveAttribute("data-state", "collapsed")
+      await main(page)
+        .getByRole("button", { name: "安全审计", exact: true })
+        .click()
+      await expectUI(
+        page.locator('[data-slot="sidebar"][data-state]')
+      ).toHaveAttribute("data-state", "expanded")
+      await expectUI(
+        main(page).getByRole("link", { name: "登录日志", exact: true })
+      ).toBeVisible()
+      await main(page)
+        .getByRole("button", { name: "安全审计", exact: true })
+        .click()
       await page.screenshot({
+        animations: "disabled",
         path: join(tmpdir(), `enterprise-navigation-${role}.png`),
       })
+      await main(page)
+        .getByRole("button", { name: "系统配置", exact: true })
+        .click()
       for (const [navLabel, heading] of [
         ["全局账号", "全局账号"],
         ["平台设置", "平台设置"],
@@ -340,10 +383,7 @@ describe("页面组织结构：真实 API 导航与授权", () => {
         ).toBeVisible()
       }
       await main(page)
-        .getByRole("button", { name: "系统管理", exact: true })
-        .click()
-      await main(page)
-        .getByRole("button", { name: "日志管理", exact: true })
+        .getByRole("button", { name: "安全审计", exact: true })
         .click()
       await main(page)
         .getByRole("link", { name: "操作日志", exact: true })
@@ -351,6 +391,9 @@ describe("页面组织结构：真实 API 导航与授权", () => {
       await expectUI(
         page.getByRole("heading", { name: "操作日志", exact: true })
       ).toBeVisible()
+      await main(page)
+        .getByRole("button", { name: "系统配置", exact: true })
+        .click()
       await main(page)
         .getByRole("link", { name: "平台设置", exact: true })
         .click()

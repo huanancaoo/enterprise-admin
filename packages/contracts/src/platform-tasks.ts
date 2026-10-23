@@ -3,7 +3,6 @@ import { z } from "zod"
 export const PlatformExportResourceSchema = z.enum([
   "employees",
   "roles",
-  "menus",
   "departments",
   "posts",
   "dictionaries",
@@ -41,7 +40,6 @@ export type PlatformExportFilters = z.infer<typeof PlatformExportFiltersSchema>
 const exportFilterKeys: Record<PlatformExportResource, readonly string[]> = {
   employees: ["q", "status", "departmentId", "roleId", "sortBy", "sortOrder"],
   roles: ["q", "status", "sortBy", "sortOrder"],
-  menus: ["q", "status", "parentId"],
   departments: ["q", "status", "parentId"],
   posts: ["q", "status", "sortBy", "sortOrder"],
   dictionaries: ["q", "status", "sortBy", "sortOrder"],
@@ -133,7 +131,8 @@ export const PlatformTaskSchema = z
     id: z.uuid(),
     actorId: z.uuid(),
     kind: z.enum(["export", "employee-import"]),
-    resource: PlatformExportResourceSchema,
+    // 历史流水保存提交时的资源标识，不由当前可创建的导出资源目录重写。
+    resource: z.string().min(1),
     status: z.enum([
       "pending",
       "queued",

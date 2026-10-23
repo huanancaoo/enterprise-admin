@@ -1,9 +1,10 @@
 {
+  "contentManagement": "إدارة المحتوى",
   "globalAccounts": "الحسابات العامة",
-  "logs": "السجلات",
-  "navigationFailed": "تعذر تحميل التنقل في النظام.",
+  "loginLogs": "سجلات تسجيل الدخول",
+  "operationsManagement": "إدارة التشغيل",
   "personalSettings": "الإعدادات الشخصية",
-  "systemManagement": "إدارة النظام",
-  "systemMonitoring": "مراقبة النظام",
-  "taskCenter": "مركز المهام"
+  "platformTeam": "فريق المنصة",
+  "securityAudit": "التدقيق الأمني",
+  "systemConfiguration": "إعدادات النظام"
 }

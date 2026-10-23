@@ -4,7 +4,6 @@ import { PlatformSystemDatabase } from './database';
 import { PlatformDepartments } from './departments';
 import { PlatformDictionaries } from './dictionaries';
 import { PlatformEmployees } from './employees';
-import { PlatformMenus } from './menus';
 import { PlatformParameters } from './parameters';
 import { PlatformPosts } from './posts';
 import { PlatformRoles } from './roles';
@@ -13,7 +12,6 @@ import { PlatformRoles } from './roles';
 export class PlatformSystem {
   readonly employees: PlatformEmployees;
   readonly roles: PlatformRoles;
-  readonly menus: PlatformMenus;
   readonly departments: PlatformDepartments;
   readonly posts: PlatformPosts;
   readonly dictionaries: PlatformDictionaries;
@@ -23,7 +21,6 @@ export class PlatformSystem {
     const database = new PlatformSystemDatabase(runtime.pool);
     this.employees = new PlatformEmployees(database);
     this.roles = new PlatformRoles(database);
-    this.menus = new PlatformMenus(database);
     this.departments = new PlatformDepartments(database);
     this.posts = new PlatformPosts(database);
     this.dictionaries = new PlatformDictionaries(database);

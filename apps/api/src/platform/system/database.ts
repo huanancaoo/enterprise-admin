@@ -17,7 +17,6 @@ export type PlatformSystemExportQuery = PlatformExportFilters & {
 type Resource =
   | 'employee'
   | 'role'
-  | 'menu'
   | 'department'
   | 'post'
   | 'dictionary'
@@ -37,8 +36,6 @@ type Operation =
   | 'employees'
   | 'assign-employees'
   | 'revoke-employees'
-  | 'registry'
-  | 'navigation'
   | 'refresh'
   | 'by-key'
   | 'export-page';

@@ -64,7 +64,6 @@
   "permissionResourceFile": "Platform files",
   "permissionResourceFolder": "Platform folders",
   "permissionResourceLogin": "Login logs",
-  "permissionResourceMenu": "Menus",
   "permissionResourceMonitor": "Runtime monitor",
   "permissionResourceOrganization": "Organizations",
   "permissionResourceParameter": "Parameters",

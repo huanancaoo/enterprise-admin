@@ -14,6 +14,7 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
+  useSidebar,
 } from "@workspace/ui/components/sidebar"
 import { useTranslation } from "react-i18next"
 import { ChevronRightIcon } from "lucide-react"
@@ -40,8 +41,26 @@ function NavItem({
   nested?: boolean
 }) {
   const { t } = useTranslation("common")
+  const {
+    state,
+    isMobile,
+    setOpen: setSidebarOpen,
+    setOpenMobile,
+  } = useSidebar()
   const active = item.isActive || item.items?.some(isActive)
   const [open, setOpen] = useState(Boolean(active))
+  function changeOpen(nextOpen: boolean) {
+    // 图标模式隐藏子菜单，先展开侧栏才能让目录中的页面可达。
+    if (!isMobile && state === "collapsed") {
+      setSidebarOpen(true)
+      setOpen(true)
+      return
+    }
+    setOpen(nextOpen)
+  }
+  function onNavigate() {
+    if (item.render && !item.disabled && isMobile) setOpenMobile(false)
+  }
   const content = (
     <>
       {item.icon}
@@ -58,6 +77,9 @@ function NavItem({
     <SidebarMenuSubButton
       render={item.render}
       isActive={item.isActive}
+      aria-label={item.title}
+      aria-current={item.isActive ? "page" : undefined}
+      onClick={onNavigate}
       className={item.items?.length ? "pe-8" : undefined}
     >
       {content}
@@ -69,6 +91,9 @@ function NavItem({
       tooltip={item.title}
       isActive={item.isActive}
       disabled={item.disabled}
+      aria-label={item.title}
+      aria-current={item.isActive ? "page" : undefined}
+      onClick={onNavigate}
     >
       {content}
     </SidebarMenuButton>
@@ -76,7 +101,7 @@ function NavItem({
   const Item = nested ? SidebarMenuSubItem : SidebarMenuItem
   if (!item.items?.length) return <Item>{button}</Item>
   return (
-    <Collapsible open={open} onOpenChange={setOpen} render={<Item />}>
+    <Collapsible open={open} onOpenChange={changeOpen} render={<Item />}>
       {item.render ? (
         <>
           {button}
@@ -98,7 +123,7 @@ function NavItem({
             nested ? (
               <SidebarMenuSubButton render={<button type="button" />} />
             ) : (
-              <SidebarMenuButton tooltip={item.title} />
+              <SidebarMenuButton tooltip={item.title} aria-label={item.title} />
             )
           }
           disabled={item.disabled}

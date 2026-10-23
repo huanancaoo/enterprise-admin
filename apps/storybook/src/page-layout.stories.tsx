@@ -26,7 +26,7 @@ function LayoutExample({ workspace = false }: { workspace?: boolean }) {
           label: "组织",
           onSelect: fn(),
         },
-        navigation: { label: "主导航", items: [{ title: "示例页面" }] },
+        navigation: [{ label: "主导航", items: [{ title: "示例页面" }] }],
         user: {
           user: { name: "测试用户", email: "test@example.com" },
           accountMenu: () => null,

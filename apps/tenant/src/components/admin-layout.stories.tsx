@@ -265,22 +265,33 @@ export const OrganizationNavigationWithoutSettingsPermission: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     // 此成员有目录读取权，没有组织设置读取权；管理区不能被后者一并拦住。
-    const main = within(
-      await canvas.findByRole("navigation", { name: "Main navigation" })
+    const business = within(
+      await canvas.findByRole("navigation", { name: "Business work" })
     )
-    await expect(main.getAllByRole("link")).toHaveLength(4)
-    for (const link of main.getAllByRole("link")) {
-      await expect(link.querySelector("svg")).toBeVisible()
+    const management = within(
+      canvas.getByRole("navigation", { name: "Organization management" })
+    )
+    const integrations = within(
+      canvas.getByRole("navigation", { name: "Developer integrations" })
+    )
+    await expect(business.getAllByRole("link")).toHaveLength(3)
+    await expect(management.getAllByRole("link")).toHaveLength(3)
+    await expect(integrations.getAllByRole("link")).toHaveLength(1)
+    for (const section of [business, management, integrations]) {
+      await expect(section.queryByRole("button")).toBeNull()
+      for (const link of section.getAllByRole("link")) {
+        await expect(link.querySelector("svg")).toBeVisible()
+      }
     }
     await expect(
-      main.queryByRole("link", { name: "Personal settings" })
-    ).toBeNull()
-    await expect(
-      canvas.getByRole("link", { name: "Task center" })
+      business.getByRole("link", { name: "Task center" })
     ).toHaveAttribute(
       "href",
       expect.stringContaining(`/app/tasks/${organizations[0].id}`)
     )
+    await expect(
+      canvas.getAllByRole("link", { name: "Task center" })
+    ).toHaveLength(1)
     await expect(
       canvas.getByRole("link", { name: "Notifications" })
     ).toHaveAttribute(
@@ -288,7 +299,7 @@ export const OrganizationNavigationWithoutSettingsPermission: Story = {
       expect.stringContaining(`/app/notifications/${organizations[0].id}`)
     )
     await expect(
-      main.getByRole("link", { name: "Operation logs" })
+      management.getByRole("link", { name: "Operation logs" })
     ).toHaveAttribute(
       "href",
       expect.stringContaining(`/app/organizations/${organizations[0].id}/audit`)
@@ -297,11 +308,11 @@ export const OrganizationNavigationWithoutSettingsPermission: Story = {
       canvas.getByRole("button", { name: "Open announcement inbox" })
     ).toBeVisible()
     await userEvent.click(
-      main.getByRole("link", { name: "Organization management" })
+      management.getByRole("link", { name: "Members & invitations" })
     )
-    const management = within(
-      await canvas.findByRole("navigation", { name: "Organization management" })
-    )
+    await expect(
+      canvas.getAllByRole("navigation", { name: "Organization management" })
+    ).toHaveLength(1)
     await expect(
       management.getByRole("link", { name: "Members & invitations" })
     ).toHaveAttribute("aria-current", "page")
@@ -433,7 +444,7 @@ export const OrganizationSwitchPreservesSelectedLocale: Story = {
       await canvas.findByRole("link", { name: "办公空间 2-26" })
     ).toBeVisible()
     await expect(
-      canvas.getByRole("navigation", { name: "主导航" })
+      canvas.getByRole("navigation", { name: "业务工作" })
     ).toBeVisible()
     await waitFor(() =>
       expect(screen.queryAllByRole("menu", { hidden: true })).toHaveLength(0)

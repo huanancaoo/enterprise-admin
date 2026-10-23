@@ -1,146 +1,93 @@
 import { describe, expect, it } from "vitest"
-import type { PlatformNavigationItem } from "../../packages/contracts/src/platform-system"
 import {
   platformNavigationModel,
   platformPages,
 } from "../../apps/platform/src/features/system/platform-pages"
 
-const titles = { monitor: "Runtime", schedules: "Schedules", files: "Files" }
-const node = (
-  name: string,
-  extra: Partial<PlatformNavigationItem> = {}
-): PlatformNavigationItem => ({
-  id: name,
-  name,
-  kind: "directory",
-  routeKey: null,
-  url: null,
-  icon: null,
-  hidden: false,
-  children: [],
-  ...extra,
-})
+const allPermissions = Object.values(platformPages).map(
+  (page) => page.permission
+)
 
-describe("platform page navigation", () => {
+describe("固定平台导航", () => {
+  it("七个一级入口包含全部 17 个页面且每个页面只有一个归属", () => {
+    const { items, home } = platformNavigationModel(allPermissions, "/platform")
+    expect(items.map((item) => item.id)).toEqual([
+      "organizations",
+      "users",
+      "content",
+      "team",
+      "security",
+      "operations",
+      "configuration",
+    ])
+    expect(items.map((item) => item.children.map((child) => child.id))).toEqual(
+      [
+        [],
+        [],
+        ["announcements", "files"],
+        ["employees", "departments", "posts", "roles"],
+        ["sessions", "login-events", "audit-events"],
+        ["tasks", "schedules", "monitor"],
+        ["dictionaries", "parameters", "settings"],
+      ]
+    )
+    const pages = items.flatMap((item) =>
+      item.target ? [item] : item.children
+    )
+    expect(pages).toHaveLength(17)
+    expect(pages.map((item) => item.id).toSorted()).toEqual(
+      Object.keys(platformPages).toSorted()
+    )
+    expect(pages.every((page) => page.children.length === 0)).toBe(true)
+    expect(home).toEqual(platformPages.organizations.target)
+  })
+
   it.each(Object.entries(platformPages))(
-    "opens registered page %s with its declared search",
+    "%s 的入口、首页和深链共用页面权限及查询定义",
     (key, page) => {
       const model = platformNavigationModel(
-        [node("configured name", { kind: "page", routeKey: key })],
-        page.target.to,
-        titles
+        [page.permission],
+        `${page.target.to}/detail`
       )
       expect(model.home).toEqual(page.target)
-      expect(model.items[0]?.target).toEqual(page.target)
+      expect(model.section?.id).toBe(key)
+      expect(model.section?.isActive).toBe(true)
       expect(page.validateSearch(page.target.search)).toBeDefined()
-      expect(model.section?.name).toBe(
-        key === "monitor" || key === "schedules" || key === "files"
-          ? titles[key]
-          : "configured name"
-      )
+      expect(
+        platformNavigationModel([], page.target.to).section
+      ).toBeUndefined()
+      expect(
+        platformNavigationModel([page.permission], `${page.target.to}-extra`)
+          .section
+      ).toBeUndefined()
     }
   )
 
-  it("keeps three-level ancestry and uses exact path segments for details", () => {
-    const nodes = [
-      node("System", {
-        children: [
-          node("Logs", {
-            children: [
-              node("Operations", { kind: "page", routeKey: "audit-events" }),
-            ],
-          }),
-        ],
-      }),
+  it("受限角色仅保留获准页面和非空目录，撤权后入口与首页同步变化", () => {
+    const permissions = [
+      "platform.post:read",
+      "platform.audit:read",
+      "platform.settings:read",
     ]
     const model = platformNavigationModel(
-      nodes,
-      "/platform/audit-events/event-123",
-      titles
+      permissions,
+      "/platform/audit-events/event"
     )
-    expect(model.ancestors.map((item) => item.name)).toEqual(["System", "Logs"])
-    expect(model.section?.name).toBe("Operations")
-    expect(model.items[0]?.children[0]?.children[0]?.isActive).toBe(true)
+    expect(model.items.map((item) => item.id)).toEqual([
+      "team",
+      "security",
+      "configuration",
+    ])
+    expect(model.ancestors.map((item) => item.id)).toEqual(["security"])
+    expect(model.home).toEqual(platformPages.posts.target)
     expect(
-      platformNavigationModel(nodes, "/platform/audit-events-extra", titles)
-        .section
-    ).toBeUndefined()
-  })
-
-  it("omits hidden-only directories while retaining hidden page and iframe locations", () => {
-    const nodes = [
-      node("Hidden group", {
-        children: [
-          node("Private report", {
-            kind: "iframe",
-            hidden: true,
-            url: "https://reports.example",
-          }),
-        ],
-      }),
-      node("Hidden users", { kind: "page", routeKey: "users", hidden: true }),
-      node("Visible users", { kind: "page", routeKey: "users" }),
-    ]
-    const model = platformNavigationModel(
-      nodes,
-      "/platform/embedded/Private report",
-      titles
-    )
-    expect(model.items.map((item) => item.name)).toEqual(["Visible users"])
-    expect(model.home).toEqual(platformPages.users.target)
-    expect(model.ancestors.map((item) => item.name)).toEqual(["Hidden group"])
-    expect(model.section?.name).toBe("Private report")
-    expect(
-      platformNavigationModel(nodes, "/platform/users/user-1", titles).section
-        ?.name
-    ).toBe("Hidden users")
-  })
-
-  it("preserves menu icons and resolves the persisted schedule Clock icon", () => {
-    const model = platformNavigationModel(
-      [
-        node("Schedule", {
-          kind: "page",
-          routeKey: "schedules",
-          icon: "Clock",
-        }),
-      ],
-      "/platform/schedules",
-      titles
-    )
-    expect(model.items[0]?.Icon).toBeDefined()
-    expect(model.items[0]?.icon).toBe("Clock")
-  })
-
-  it("skips external links and hidden ancestors when finding the home destination", () => {
-    const model = platformNavigationModel(
-      [
-        node("External", { kind: "external", url: "https://example.test" }),
-        node("Hidden", {
-          hidden: true,
-          children: [node("Users", { kind: "page", routeKey: "users" })],
-        }),
-        node("Frame", { kind: "iframe", url: "https://frame.example" }),
-      ],
-      "/platform",
-      titles
-    )
-    expect(model.home).toEqual({
-      to: "/platform/embedded/$menuId",
-      params: { menuId: "Frame" },
+      platformNavigationModel(["platform.audit:read"], "/platform").home
+    ).toEqual(platformPages["audit-events"].target)
+    expect(platformNavigationModel([], "/platform")).toMatchObject({
+      items: [],
+      home: undefined,
+      section: undefined,
+      ancestors: [],
     })
-  })
-
-  it("gives no home destination when the authorization projection has no internal page", () => {
-    expect(
-      platformNavigationModel([], "/platform", titles).home
-    ).toBeUndefined()
-    expect(
-      platformNavigationModel(
-        [node("External", { kind: "external", url: "https://example.test" })],
-        "/platform",
-        titles
-      ).home
-    ).toBeUndefined()
   })
 })

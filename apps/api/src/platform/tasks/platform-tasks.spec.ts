@@ -327,7 +327,6 @@ describe('平台异步任务业务链', () => {
   it.each([
     ['employees', 'platform.employee:export'],
     ['roles', 'platform.role:export'],
-    ['menus', 'platform.menu:export'],
     ['departments', 'platform.department:export'],
     ['posts', 'platform.post:export'],
     ['dictionaries', 'platform.dictionary:export'],
@@ -535,7 +534,7 @@ describe('平台异步任务业务链', () => {
     ).toHaveLength(3);
   });
 
-  it.each(['menus', 'departments'] as const)(
+  it.each(['departments'] as const)(
     '%s 导出按父节点递归且保持当前筛选，不丢子孙或重复祖先',
     async (resource) => {
       const { executeExport, control, client } = setup();
@@ -557,16 +556,6 @@ describe('平台异步任务业务链', () => {
         updatedAt: '2026-10-17T00:00:00.000Z',
         parentId,
         hasChildren,
-        ...(resource === 'menus'
-          ? {
-              kind: 'directory',
-              routeKey: null,
-              actionKey: null,
-              url: null,
-              icon: null,
-              hidden: false,
-            }
-          : {}),
       });
       control.page = (_sql, params) => {
         const query = JSON.parse(String(params[5])) as Record<string, unknown>;

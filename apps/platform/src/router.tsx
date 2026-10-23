@@ -33,7 +33,10 @@ import {
 } from "./App"
 import { authClient } from "./lib/auth-client"
 import { PlatformPermission } from "./features/system/permission"
-import { platformPages } from "./features/system/platform-pages"
+import {
+  platformPages,
+  platformNavigationModel,
+} from "./features/system/platform-pages"
 import {
   PlatformRoleEmployeesQuerySchema,
   PlatformDictionaryItemsQuerySchema,
@@ -69,20 +72,14 @@ import {
   PlatformRolePermissionsPage,
   PlatformRoleEmployeesPage,
 } from "./features/system/roles"
-import {
-  PlatformMenusPage,
-  PlatformDepartmentsPage,
-} from "./features/system/tree-pages"
+import { PlatformDepartmentsPage } from "./features/system/tree-pages"
 import {
   PlatformPostsPage,
   PlatformDictionariesPage,
   PlatformDictionaryItemsPage,
   PlatformParametersPage,
 } from "./features/system/catalog-pages"
-import {
-  PlatformHomePage,
-  PlatformEmbeddedPage,
-} from "./features/system/platform-navigation"
+import { PlatformHomePage } from "./features/system/platform-navigation"
 import {
   PlatformAnnouncementsRoute,
   PlatformAnnouncementCreateRoute,
@@ -180,6 +177,13 @@ const platformRoute = createRoute({
 const platformIndexRoute = createRoute({
   getParentRoute: () => platformRoute,
   path: "/",
+  beforeLoad: ({ context }) => {
+    const { home } = platformNavigationModel(
+      context.platformAccess.permissions,
+      "/platform"
+    )
+    if (home) throw redirect({ ...home, replace: true })
+  },
   component: PlatformHomePage,
 })
 const platformOrganizationsRoute = createRoute({
@@ -372,17 +376,6 @@ const roleEmployeesRoute = createRoute({
   ),
 })
 
-const menusRoute = createRoute({
-  getParentRoute: () => platformRoute,
-  path: platformPages.menus.path,
-  validateSearch: platformPages.menus.validateSearch,
-  component: () => (
-    <PlatformPermission action={platformPages.menus.permission}>
-      <PlatformMenusPage />
-    </PlatformPermission>
-  ),
-})
-
 const departmentsRoute = createRoute({
   getParentRoute: () => platformRoute,
   path: platformPages.departments.path,
@@ -436,12 +429,6 @@ const parametersRoute = createRoute({
       <PlatformParametersPage />
     </PlatformPermission>
   ),
-})
-
-const embeddedRoute = createRoute({
-  getParentRoute: () => platformRoute,
-  path: "embedded/$menuId",
-  component: PlatformEmbeddedPage,
 })
 
 const filesRoute = createRoute({
@@ -585,13 +572,11 @@ export const router = createRouter({
       rolesRoute,
       rolePermissionsRoute,
       roleEmployeesRoute,
-      menusRoute,
       departmentsRoute,
       postsRoute,
       dictionariesRoute,
       dictionaryItemsRoute,
       parametersRoute,
-      embeddedRoute,
     ]),
   ]),
   context: {

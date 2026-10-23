@@ -39,7 +39,7 @@ const loginColumns = createDataTableColumnHelper<PlatformLoginLog>()
 const EMPTY_LOGS: PlatformLoginLog[] = []
 
 export function PlatformLoginEventsPage() {
-  const { t } = useTranslation(["identity", "common", "organization"])
+  const { t } = useTranslation(["identity", "common", "organization", "system"])
   const session = useAuthenticatedSession()!
   const { platformAccess } = useRouteContext({ from: "/platform" })
   const search = useSearch({ from: "/platform/login-events" })
@@ -152,7 +152,7 @@ export function PlatformLoginEventsPage() {
   ]
   const status = getDataTableQueryStatus(query)
   return (
-    <AdminPage title={t("loginEvents")}>
+    <AdminPage title={t("system:loginLogs")}>
       <DataTable
         columns={columns}
         data={query.data?.items ?? EMPTY_LOGS}

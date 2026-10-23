@@ -27,6 +27,7 @@
   "fileUploading": "Wait for the media upload before saving.",
   "inbox": "Announcement inbox",
   "inboxDescription": "Read announcements addressed to your current access.",
+  "managementTitle": "Announcement management",
   "markRead": "Mark as read",
   "new": "New announcement",
   "noAnnouncements": "No announcements.",

@@ -464,17 +464,6 @@ export const PLATFORM_EXPORT_COLUMNS = {
     "metadata.previousRole",
     "metadata.nextRole",
   ],
-  menus: [
-    ...catalogExportColumns,
-    "parentId",
-    "kind",
-    "routeKey",
-    "actionKey",
-    "url",
-    "icon",
-    "hidden",
-    "hasChildren",
-  ],
   departments: [...catalogExportColumns, "parentId", "hasChildren"],
 } as const
 export type PlatformExportResource = keyof typeof PLATFORM_EXPORT_COLUMNS

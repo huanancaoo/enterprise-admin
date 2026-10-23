@@ -11,7 +11,6 @@ export type CreatePlatformExportTaskResource =
 export const CreatePlatformExportTaskResource = {
   employees: "employees",
   roles: "roles",
-  menus: "menus",
   departments: "departments",
   posts: "posts",
   dictionaries: "dictionaries",

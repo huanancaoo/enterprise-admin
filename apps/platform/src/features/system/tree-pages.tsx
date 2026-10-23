@@ -5,26 +5,17 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate, useRouteContext, useSearch } from "@tanstack/react-router"
 import { useTranslation } from "react-i18next"
 import {
-  listPlatformMenus,
-  createPlatformMenu,
-  updatePlatformMenu,
-  deletePlatformMenu,
   listPlatformDepartments,
   createPlatformDepartment,
   updatePlatformDepartment,
   deletePlatformDepartment,
-  getPlatformMenuRegistry,
 } from "@workspace/api-client"
 import {
-  CreatePlatformMenuSchema,
   CreatePlatformDepartmentSchema,
-  PlatformMenuRegistrySchema,
-  PlatformMenusTreeSchema,
   PlatformDepartmentsTreeSchema,
   PlatformSystemTreeQuerySchema,
-  type PlatformMenu,
   type PlatformDepartment,
-  type CreatePlatformMenu,
+  type CreatePlatformDepartment,
 } from "@workspace/contracts/platform-system"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import {
@@ -34,7 +25,6 @@ import {
 } from "@workspace/admin/data-table"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
-import { Checkbox } from "@workspace/ui/components/checkbox"
 import {
   Field,
   FieldError,
@@ -49,13 +39,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@workspace/ui/components/dialog"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@workspace/ui/components/select"
 import { usePlatformAccessFailure } from "../../lib/use-platform-access-failure"
 import { PlatformExportButton } from "../tasks/task-actions"
 import {
@@ -65,48 +48,19 @@ import {
   CatalogSortField,
 } from "./catalog-components"
 
-type TreeKind = "menu" | "department"
-type TreeRow = PlatformMenu | PlatformDepartment
+type TreeRow = PlatformDepartment
 const treeColumns = createDataTableColumnHelper<TreeRow>()
 const EMPTY_ROWS: TreeRow[] = []
-function menuEditorSchema(required: string) {
-  return CreatePlatformMenuSchema.superRefine((value, context) => {
-    const target =
-      value.kind === "page"
-        ? "routeKey"
-        : value.kind === "action"
-          ? "actionKey"
-          : value.kind === "external" || value.kind === "iframe"
-            ? "url"
-            : null
-    if (target && !value[target])
-      context.addIssue({ code: "custom", path: [target], message: required })
-  })
-}
-const kinds = ["directory", "page", "action", "external", "iframe"] as const
-
 async function readTree(
-  kind: TreeKind,
   search: { parentId?: string; q?: string; status?: "active" | "disabled" },
   signal?: AbortSignal
 ) {
-  return kind === "menu"
-    ? PlatformMenusTreeSchema.parse(
-        (await listPlatformMenus(search, { signal })).data
-      )
-    : PlatformDepartmentsTreeSchema.parse(
-        (await listPlatformDepartments(search, { signal })).data
-      )
+  return PlatformDepartmentsTreeSchema.parse(
+    (await listPlatformDepartments(search, { signal })).data
+  )
 }
 
-export function PlatformMenusPage() {
-  return <PlatformTreePage kind="menu" />
-}
 export function PlatformDepartmentsPage() {
-  return <PlatformTreePage kind="department" />
-}
-
-function PlatformTreePage({ kind }: { kind: TreeKind }) {
   const { t } = useTranslation(["catalogs", "common"])
   const session = useAuthenticatedSession()!
   const { platformAccess } = useRouteContext({ from: "/platform" })
@@ -126,24 +80,27 @@ function PlatformTreePage({ kind }: { kind: TreeKind }) {
   )
   const can = useCallback(
     (action: string) =>
-      platformAccess.permissions.includes(`platform.${kind}:${action}`),
-    [kind, platformAccess.permissions]
+      platformAccess.permissions.includes(`platform.department:${action}`),
+    [platformAccess.permissions]
   )
-  const queryKey = ["platform", session.user.id, "system", kind] as const
+  const queryKey = [
+    "platform",
+    session.user.id,
+    "system",
+    "department",
+  ] as const
   const query = useQuery({
     queryKey: [...queryKey, search],
-    queryFn: ({ signal }) => readTree(kind, search, signal),
+    queryFn: ({ signal }) => readTree(search, signal),
     retry: false,
   })
   usePlatformAccessFailure(query.error)
   const changeSearch = useCallback(
     (patch: Record<string, unknown>) => {
       const next = PlatformSystemTreeQuerySchema.parse({ ...search, ...patch })
-      if (kind === "menu")
-        void navigate({ to: "/platform/menus", search: next })
-      else void navigate({ to: "/platform/departments", search: next })
+      void navigate({ to: "/platform/departments", search: next })
     },
-    [kind, navigate, search]
+    [navigate, search]
   )
   const enter = useCallback(
     (parentId?: string) =>
@@ -175,47 +132,6 @@ function PlatformTreePage({ kind }: { kind: TreeKind }) {
           meta: { label: t("catalogs:key") },
           size: 220,
         }),
-        ...(kind === "menu"
-          ? [
-              treeColumns.accessor((row) => ("kind" in row ? row.kind : ""), {
-                id: "kind",
-                header: t("catalogs:kind"),
-                cell: ({ getValue }) =>
-                  (() => {
-                    const value = getValue()
-                    return value ? t(`catalogs:${value}`) : "—"
-                  })(),
-                meta: { label: t("catalogs:kind") },
-              }),
-              treeColumns.accessor(
-                (row) =>
-                  "kind" in row
-                    ? (row.routeKey ?? row.actionKey ?? row.url)
-                    : null,
-                {
-                  id: "target",
-                  header: t("catalogs:target"),
-                  cell: ({ getValue }) => (
-                    <span className="line-clamp-2 text-xs break-all">
-                      {getValue() ?? "—"}
-                    </span>
-                  ),
-                  size: 260,
-                  meta: { label: t("catalogs:target") },
-                }
-              ),
-              treeColumns.accessor(
-                (row) => ("hidden" in row ? row.hidden : false),
-                {
-                  id: "hidden",
-                  header: t("catalogs:hidden"),
-                  cell: ({ getValue }) =>
-                    getValue() ? t("catalogs:yes") : t("catalogs:no"),
-                  meta: { label: t("catalogs:hidden") },
-                }
-              ),
-            ]
-          : []),
         treeColumns.accessor("status", {
           header: t("catalogs:status"),
           cell: ({ getValue }) => (
@@ -269,33 +185,17 @@ function PlatformTreePage({ kind }: { kind: TreeKind }) {
           size: 240,
         }),
       ]),
-    [can, enter, kind, statuses, t]
+    [can, enter, statuses, t]
   )
   const filters = search.status ? [{ id: "status", value: search.status }] : []
   const tableStatus = getDataTableQueryStatus(query)
   const invalidate = async () => {
     await queryClient.invalidateQueries({ queryKey })
-    if (kind === "menu")
-      await queryClient.invalidateQueries({
-        queryKey: ["platform", session.user.id, "navigation"],
-      })
   }
-  const save = async (value: CreatePlatformMenu) => {
+  const save = async (value: CreatePlatformDepartment) => {
     const row = editing === "new" ? null : editing
-    if (kind === "menu") {
-      if (row) await updatePlatformMenu(row.id, value)
-      else await createPlatformMenu(value)
-    } else {
-      const body = CreatePlatformDepartmentSchema.parse({
-        key: value.key,
-        name: value.name,
-        status: value.status,
-        sort: value.sort,
-        parentId: value.parentId,
-      })
-      if (row) await updatePlatformDepartment(row.id, body)
-      else await createPlatformDepartment(body)
-    }
+    if (row) await updatePlatformDepartment(row.id, value)
+    else await createPlatformDepartment(value)
     await invalidate()
   }
   return (
@@ -308,16 +208,8 @@ function PlatformTreePage({ kind }: { kind: TreeKind }) {
           </Button>
         )
       }
-      title={
-        kind === "menu"
-          ? t("catalogs:menuTitle")
-          : t("catalogs:departmentTitle")
-      }
-      description={
-        kind === "menu"
-          ? t("catalogs:menuDescription")
-          : t("catalogs:departmentDescription")
-      }
+      title={t("catalogs:departmentTitle")}
+      description={t("catalogs:departmentDescription")}
     >
       <nav
         aria-label={t("catalogs:parentPath")}
@@ -354,7 +246,7 @@ function PlatformTreePage({ kind }: { kind: TreeKind }) {
         toolbarActions={
           <>
             {can("export") && (
-              <PlatformExportButton resource={kind} filters={search} />
+              <PlatformExportButton resource="department" filters={search} />
             )}
           </>
         }
@@ -383,7 +275,6 @@ function PlatformTreePage({ kind }: { kind: TreeKind }) {
       {editing !== null && (
         <TreeEditorDialog
           key={editing === "new" ? "new" : editing.id}
-          kind={kind}
           row={editing === "new" ? undefined : editing}
           parentId={search.parentId ?? null}
           parentName={query.data?.ancestors.at(-1)?.name ?? t("catalogs:root")}
@@ -396,8 +287,7 @@ function PlatformTreePage({ kind }: { kind: TreeKind }) {
           name={deleting.name}
           onClose={() => setDeleting(null)}
           onDelete={async () => {
-            if (kind === "menu") await deletePlatformMenu(deleting.id)
-            else await deletePlatformDepartment(deleting.id)
+            await deletePlatformDepartment(deleting.id)
             await invalidate()
           }}
         />
@@ -407,7 +297,6 @@ function PlatformTreePage({ kind }: { kind: TreeKind }) {
 }
 
 function TreeParentPicker({
-  kind,
   value,
   initialName,
   excludeId,
@@ -417,7 +306,6 @@ function TreeParentPicker({
   onBlur,
   onChange,
 }: {
-  kind: TreeKind
   value: string | null
   initialName: string
   excludeId?: string
@@ -437,11 +325,10 @@ function TreeParentPicker({
       "platform",
       session.user.id,
       "system",
-      kind,
       "parent-picker",
       parentId,
     ],
-    queryFn: ({ signal }) => readTree(kind, { parentId }, signal),
+    queryFn: ({ signal }) => readTree({ parentId }, signal),
     enabled: open,
     retry: false,
   })
@@ -507,13 +394,7 @@ function TreeParentPicker({
             </Button>
             <div className="max-h-72 space-y-1 overflow-y-auto">
               {query.data?.items
-                .filter(
-                  (node) =>
-                    node.id !== excludeId &&
-                    (!("kind" in node) ||
-                      node.kind === "directory" ||
-                      node.kind === "page")
-                )
+                .filter((node) => node.id !== excludeId)
                 .map((node) => (
                   <div
                     key={node.id}
@@ -556,65 +437,36 @@ function TreeParentPicker({
 }
 
 function TreeEditorDialog({
-  kind,
   row,
   parentId,
   parentName,
   onClose,
   onSave,
 }: {
-  kind: TreeKind
   row?: TreeRow
   parentId: string | null
   parentName: string
   onClose: () => void
-  onSave: (value: CreatePlatformMenu) => Promise<void>
+  onSave: (value: CreatePlatformDepartment) => Promise<void>
 }) {
   const { t } = useTranslation(["catalogs", "common"])
   const id = useId()
-  const session = useAuthenticatedSession()!
   const [error, setError] = useState<unknown>()
   usePlatformAccessFailure(error)
-  const registry = useQuery({
-    queryKey: ["platform", session.user.id, "menu-registry"],
-    queryFn: async ({ signal }) =>
-      PlatformMenuRegistrySchema.parse(
-        (await getPlatformMenuRegistry({ signal })).data
-      ),
-    enabled: kind === "menu",
-    retry: false,
-  })
-  usePlatformAccessFailure(registry.error)
-  const initial: CreatePlatformMenu = {
+  const initial: CreatePlatformDepartment = {
     key: row?.key ?? "",
     name: row?.name ?? "",
     status: row?.status ?? "active",
     sort: row?.sort ?? 0,
     parentId: row?.parentId ?? parentId,
-    kind: row && "kind" in row ? row.kind : "directory",
-    routeKey: row && "routeKey" in row ? row.routeKey : null,
-    actionKey: row && "actionKey" in row ? row.actionKey : null,
-    url: row && "url" in row ? row.url : null,
-    icon: row && "icon" in row ? row.icon : null,
-    hidden: row && "hidden" in row ? row.hidden : false,
   }
   const form = useForm({
     defaultValues: initial,
-    validators: { onSubmit: menuEditorSchema(t("catalogs:invalid")) },
+    validators: { onSubmit: CreatePlatformDepartmentSchema },
     onSubmit: async ({ value }) => {
       setError(undefined)
-      // 节点类型决定唯一目标；变更类型后清除此前类型的关联。
-      const body = {
-        ...value,
-        routeKey: value.kind === "page" ? value.routeKey : null,
-        actionKey: value.kind === "action" ? value.actionKey : null,
-        url:
-          value.kind === "external" || value.kind === "iframe"
-            ? value.url
-            : null,
-      }
       try {
-        await onSave(CreatePlatformMenuSchema.parse(body))
+        await onSave(CreatePlatformDepartmentSchema.parse(value))
         onClose()
       } catch (failure) {
         setError(failure)
@@ -657,7 +509,6 @@ function TreeEditorDialog({
                             {t("catalogs:parent")}
                           </FieldLabel>
                           <TreeParentPicker
-                            kind={kind}
                             value={field.state.value}
                             initialName={parentName}
                             excludeId={row?.id}
@@ -705,225 +556,6 @@ function TreeEditorDialog({
                       }}
                     </form.Field>
                   ))}
-                  {kind === "menu" && (
-                    <>
-                      <form.Field name="kind">
-                        {(field) => {
-                          const invalid =
-                            field.state.meta.isTouched &&
-                            !field.state.meta.isValid
-                          return (
-                            <Field data-invalid={invalid}>
-                              <FieldLabel htmlFor={`${id}-kind`}>
-                                {t("catalogs:kind")}
-                              </FieldLabel>
-                              <Select
-                                items={kinds.map((value) => ({
-                                  value,
-                                  label: t(`catalogs:${value}`),
-                                }))}
-                                value={field.state.value}
-                                onValueChange={(value) =>
-                                  value !== null && field.handleChange(value)
-                                }
-                              >
-                                <SelectTrigger
-                                  id={`${id}-kind`}
-                                  className="w-full"
-                                  onBlur={field.handleBlur}
-                                  aria-invalid={invalid}
-                                >
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {kinds.map((value) => (
-                                    <SelectItem key={value} value={value}>
-                                      {t(`catalogs:${value}`)}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              {invalid && (
-                                <FieldError errors={field.state.meta.errors} />
-                              )}
-                            </Field>
-                          )
-                        }}
-                      </form.Field>
-                      <form.Subscribe selector={(state) => state.values.kind}>
-                        {(menuKind) => (
-                          <>
-                            {(menuKind === "page" || menuKind === "action") && (
-                              <form.Field
-                                name={
-                                  menuKind === "page" ? "routeKey" : "actionKey"
-                                }
-                              >
-                                {(field) => {
-                                  const invalid =
-                                    field.state.meta.isTouched &&
-                                    !field.state.meta.isValid
-                                  const options =
-                                    menuKind === "page"
-                                      ? registry.data?.pages
-                                      : registry.data?.actions
-                                  return (
-                                    <Field data-invalid={invalid}>
-                                      <FieldLabel htmlFor={`${id}-target`}>
-                                        {menuKind === "page"
-                                          ? t("catalogs:registeredPage")
-                                          : t("catalogs:registeredAction")}
-                                      </FieldLabel>
-                                      <Select
-                                        items={options?.map((option) => ({
-                                          value: option.key,
-                                          label: `${option.key}${
-                                            "path" in option
-                                              ? ` · ${option.path}`
-                                              : ""
-                                          }`,
-                                        }))}
-                                        value={field.state.value ?? ""}
-                                        onValueChange={(value) =>
-                                          field.handleChange(value || null)
-                                        }
-                                        disabled={
-                                          registry.isPending || registry.isError
-                                        }
-                                      >
-                                        <SelectTrigger
-                                          id={`${id}-target`}
-                                          className="w-full"
-                                          onBlur={field.handleBlur}
-                                          aria-invalid={invalid}
-                                        >
-                                          <SelectValue
-                                            placeholder={t(
-                                              "catalogs:chooseTarget"
-                                            )}
-                                          />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {options?.map((option) => (
-                                            <SelectItem
-                                              key={option.key}
-                                              value={option.key}
-                                            >
-                                              {option.key}
-                                              {"path" in option
-                                                ? ` · ${option.path}`
-                                                : ""}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                      {invalid && (
-                                        <FieldError
-                                          errors={field.state.meta.errors}
-                                        />
-                                      )}
-                                    </Field>
-                                  )
-                                }}
-                              </form.Field>
-                            )}
-                            {(menuKind === "external" ||
-                              menuKind === "iframe") && (
-                              <form.Field name="url">
-                                {(field) => {
-                                  const invalid =
-                                    field.state.meta.isTouched &&
-                                    !field.state.meta.isValid
-                                  return (
-                                    <Field data-invalid={invalid}>
-                                      <FieldLabel htmlFor={`${id}-url`}>
-                                        {t("catalogs:url")}
-                                      </FieldLabel>
-                                      <Input
-                                        id={`${id}-url`}
-                                        type="url"
-                                        required
-                                        maxLength={2000}
-                                        value={field.state.value ?? ""}
-                                        onBlur={field.handleBlur}
-                                        onChange={(event) =>
-                                          field.handleChange(
-                                            event.target.value || null
-                                          )
-                                        }
-                                        aria-invalid={invalid}
-                                      />
-                                      {invalid && (
-                                        <FieldError
-                                          errors={field.state.meta.errors}
-                                        />
-                                      )}
-                                    </Field>
-                                  )
-                                }}
-                              </form.Field>
-                            )}
-                          </>
-                        )}
-                      </form.Subscribe>
-                      <form.Field name="icon">
-                        {(field) => {
-                          const invalid =
-                            field.state.meta.isTouched &&
-                            !field.state.meta.isValid
-                          return (
-                            <Field data-invalid={invalid}>
-                              <FieldLabel htmlFor={`${id}-icon`}>
-                                {t("catalogs:icon")}
-                              </FieldLabel>
-                              <Input
-                                id={`${id}-icon`}
-                                maxLength={100}
-                                value={field.state.value ?? ""}
-                                onBlur={field.handleBlur}
-                                onChange={(event) =>
-                                  field.handleChange(event.target.value || null)
-                                }
-                                aria-invalid={invalid}
-                              />
-                              {invalid && (
-                                <FieldError errors={field.state.meta.errors} />
-                              )}
-                            </Field>
-                          )
-                        }}
-                      </form.Field>
-                      <form.Field name="hidden">
-                        {(field) => {
-                          const invalid =
-                            field.state.meta.isTouched &&
-                            !field.state.meta.isValid
-                          return (
-                            <Field
-                              orientation="horizontal"
-                              data-invalid={invalid}
-                            >
-                              <Checkbox
-                                id={`${id}-hidden`}
-                                checked={field.state.value}
-                                onBlur={field.handleBlur}
-                                onCheckedChange={(value) =>
-                                  field.handleChange(value === true)
-                                }
-                                aria-invalid={invalid}
-                              />
-                              <FieldLabel htmlFor={`${id}-hidden`}>
-                                {t("catalogs:hidden")}
-                              </FieldLabel>
-                              {invalid && (
-                                <FieldError errors={field.state.meta.errors} />
-                              )}
-                            </Field>
-                          )
-                        }}
-                      </form.Field>
-                    </>
-                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <form.Field name="status">
                       {(field) => {
@@ -968,13 +600,6 @@ function TreeEditorDialog({
                     </form.Field>
                   </div>
                 </FieldGroup>
-                {kind === "menu" && registry.isError && (
-                  <p role="alert" className="text-sm text-destructive">
-                    {registry.error instanceof Error
-                      ? registry.error.message
-                      : t("common:operationFailed")}
-                  </p>
-                )}
                 {error !== undefined && (
                   <p role="alert" className="text-sm text-destructive">
                     {error instanceof Error

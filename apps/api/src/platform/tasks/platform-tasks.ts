@@ -2,6 +2,7 @@ import { Inject, Injectable, type OnApplicationShutdown } from '@nestjs/common';
 import {
   ApiErrorCodeSchema,
   PlatformTaskPageSchema,
+  PlatformExportResourceSchema,
   PlatformTaskSchema,
   type CreatePlatformEmployeeImportTask,
   type CreatePlatformExportTask,
@@ -75,7 +76,6 @@ type ExportPage = {
 const resources: Record<PlatformExportResource, string> = {
   employees: 'employee',
   roles: 'role',
-  menus: 'menu',
   departments: 'department',
   posts: 'post',
   dictionaries: 'dictionary',
@@ -503,14 +503,17 @@ export class PlatformTasks implements OnApplicationShutdown {
         }
         output = await writePlatformEmployeeImportReport(report);
       } else {
+        const exportResource = PlatformExportResourceSchema.parse(
+          task.resource,
+        );
         const rows = await this.exportRows(
           actor,
-          task.resource,
+          exportResource,
           task.input.filters ?? {},
           reference.requestId,
           client,
         );
-        output = await writePlatformExportWorkbook(task.resource, rows);
+        output = await writePlatformExportWorkbook(exportResource, rows);
         result = {
           total: rows.length,
           created: 0,
@@ -570,7 +573,7 @@ export class PlatformTasks implements OnApplicationShutdown {
     client: PoolClient,
   ) {
     const rows: Record<string, unknown>[] = [];
-    const tree = resource === 'menus' || resource === 'departments';
+    const tree = resource === 'departments';
     const parents: Array<string | null> = [filters.parentId ?? null];
     const seen = new Set<string>();
     const queryFilters = { ...filters };
@@ -613,8 +616,6 @@ export class PlatformTasks implements OnApplicationShutdown {
         return this.system.employees.exportPage(actor, q, requestId, client);
       case 'roles':
         return this.system.roles.exportPage(actor, q, requestId, client);
-      case 'menus':
-        return this.system.menus.exportPage(actor, q, requestId, client);
       case 'departments':
         return this.system.departments.exportPage(actor, q, requestId, client);
       case 'posts':

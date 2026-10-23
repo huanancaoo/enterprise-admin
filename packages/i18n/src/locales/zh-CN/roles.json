@@ -64,7 +64,6 @@
   "permissionResourceFile": "平台文件",
   "permissionResourceFolder": "平台目录",
   "permissionResourceLogin": "登录日志",
-  "permissionResourceMenu": "菜单",
   "permissionResourceMonitor": "运行监控",
   "permissionResourceOrganization": "组织",
   "permissionResourceParameter": "参数",

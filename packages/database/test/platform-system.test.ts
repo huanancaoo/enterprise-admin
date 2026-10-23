@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { execFile } from "node:child_process"
 import { randomBytes, randomUUID } from "node:crypto"
-import { cp, mkdtemp, readFile, rm, symlink } from "node:fs/promises"
+import { cp, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { promisify } from "node:util"
@@ -58,7 +58,6 @@ type Employee = {
 }
 type Page<T> = { items: T[]; page: number; pageSize: number; total: number }
 type Tree = { items: Catalog[]; ancestors: Catalog[] }
-type MenuNode = Catalog & { children: MenuNode[] }
 type CachedDictionary = { key: string; items: Catalog[]; version: number }
 type CachedParameter = { key: string; value: string; version: number }
 
@@ -70,6 +69,7 @@ describe("平台系统管理固定函数", { concurrent: false }, () => {
   let admin: Identity
   let auditor: Identity
   let adminRole: string
+  const legacyMenuRoleId = randomUUID()
 
   async function seed(name: string, roleKey?: string): Promise<Identity> {
     const id = randomUUID()
@@ -165,16 +165,6 @@ describe("平台系统管理固定函数", { concurrent: false }, () => {
   })
   const treeValues = (name: string, extra: Input = {}): Input =>
     values(name, { parentId: null, ...extra })
-  const menuValues = (name: string, extra: Input = {}): Input =>
-    treeValues(name, {
-      kind: "directory",
-      routeKey: null,
-      actionKey: null,
-      url: null,
-      icon: null,
-      hidden: false,
-      ...extra,
-    })
   const assign = (target: Identity, roleIds: string[] = []) =>
     identity("employee", "create", null, {
       mode: "existing",
@@ -292,6 +282,23 @@ describe("平台系统管理固定函数", { concurrent: false }, () => {
           MIGRATION_DATABASE_URL: url("app_migrator", passwords[1]),
         },
       })
+    const journalPath = join(fixture, "migrations/meta/_journal.json")
+    const journal = JSON.parse(await readFile(journalPath, "utf8")) as {
+      entries: { idx: number }[]
+    }
+    await writeFile(
+      journalPath,
+      JSON.stringify({
+        ...journal,
+        entries: journal.entries.filter((entry) => entry.idx < 109),
+      })
+    )
+    await migrate()
+    await owner.query(
+      "INSERT INTO public.platform_role(id,key,name,permissions) VALUES($1,'legacy-menu-reader','Legacy menu reader',ARRAY['platform.menu:read','platform.post:read'])",
+      [legacyMenuRoleId]
+    )
+    await writeFile(journalPath, JSON.stringify(journal))
     await migrate()
     await migrate()
     admin = await seed("System administrator", "platform_admin")
@@ -317,7 +324,6 @@ describe("平台系统管理固定函数", { concurrent: false }, () => {
       "platform_employee_profile",
       "platform_employee_post",
       "platform_role_profile",
-      "platform_menu",
       "platform_department",
       "platform_post",
       "platform_dictionary",
@@ -325,7 +331,6 @@ describe("平台系统管理固定函数", { concurrent: false }, () => {
       "platform_parameter",
       "platform_system_cache",
       "platform_system_cache_revision",
-      "platform_iframe_origin_allowlist",
     ]
     for (const table of tables) {
       const privileges = await owner.query(
@@ -402,7 +407,7 @@ describe("平台系统管理固定函数", { concurrent: false }, () => {
     )
   })
 
-  test("运行监控动作可独立授权，导航跟随当前权限且撤权立即移除", async () => {
+  test("运行监控动作可独立授权，撤权立即反映在访问权限中", async () => {
     const target = await seed("Monitor operator")
     await tenantMembership(target)
     const monitorRole = await role("Monitor reader")
@@ -417,48 +422,16 @@ describe("平台系统管理固定函数", { concurrent: false }, () => {
           [actor.id, actor.session]
         )
       ).rows[0].permissions
-    const flatten = (nodes: MenuNode[]): MenuNode[] =>
-      nodes.flatMap((node) => [node, ...flatten(node.children)])
-    const navigation = async (actor: Identity) =>
-      flatten(
-        (
-          await catalog<{ items: MenuNode[] }>(
-            "menu",
-            "navigation",
-            null,
-            {},
-            actor
-          )
-        ).items
-      )
     assert.ok((await access(admin)).includes("platform.monitor:read"))
     assert.ok(!(await access(auditor)).includes("platform.monitor:read"))
     assert.ok((await access(target)).includes("platform.monitor:read"))
-    assert.ok(
-      (await navigation(target)).some(
-        (node) => node.id === "819f87dd-6ca3-4493-8a08-986d6a45fd73"
-      )
-    )
     await identity("role", "set-permissions", monitorRole.id, {
       permissions: [],
     })
     assert.ok(!(await access(target)).includes("platform.monitor:read"))
-    assert.ok(
-      !(await navigation(target)).some(
-        (node) => node.id === "819f87dd-6ca3-4493-8a08-986d6a45fd73"
-      )
-    )
   })
 
-  test("定时任务目录与三个独立动作进入唯一平台权限和导航来源", async () => {
-    const registry = await catalog<{ pages: { key: string }[] }>(
-      "menu",
-      "registry",
-      null,
-      {},
-      admin
-    )
-    assert.ok(registry.pages.some((page) => page.key === "schedules"))
+  test("定时任务的三个独立动作使用唯一平台权限目录", async () => {
     const actions = (
       await runtime.query<{ permissions: string[] }>(
         "SELECT permissions FROM public.read_platform_access($1,$2)",
@@ -473,20 +446,13 @@ describe("平台系统管理固定函数", { concurrent: false }, () => {
       permissions: ["platform.schedule:read"],
     })
     await assign(target, [scheduleRole.id])
-    const flatten = (nodes: MenuNode[]): MenuNode[] =>
-      nodes.flatMap((node) => [node, ...flatten(node.children)])
-    const navigation = await catalog<{ items: MenuNode[] }>(
-      "menu",
-      "navigation",
-      null,
-      {},
-      target
-    )
-    assert.ok(
-      flatten(navigation.items).some(
-        (node) => node.id === "f477a279-ff18-4f11-b6a0-b50bb2d2a810"
+    const granted = (
+      await runtime.query<{ permissions: string[] }>(
+        "SELECT permissions FROM public.read_platform_access($1,$2)",
+        [target.id, target.session]
       )
-    )
+    ).rows[0].permissions
+    assert.deepEqual(granted, ["platform.schedule:read"])
   })
 
   test("创建员工原子建立已验证原生账号、密码和任职，不创建租户成员且响应不含秘密", async () => {
@@ -1369,9 +1335,9 @@ describe("平台系统管理固定函数", { concurrent: false }, () => {
     assert.deepEqual(overflow.items, [])
   })
 
-  for (const resource of ["menu", "department"]) {
+  for (const resource of ["department"]) {
     test(`${resource} 按父节点加载，筛选保留后代分支和祖先，拒绝环及引用删除`, async () => {
-      const input = resource === "menu" ? menuValues : treeValues
+      const input = treeValues
       const topInput = input("Tree root")
       const top = await catalog(resource, "create", null, topInput)
       const branchInput = input("Tree branch", { parentId: top.id })
@@ -1441,306 +1407,47 @@ describe("平台系统管理固定函数", { concurrent: false }, () => {
     })
   }
 
-  test("菜单只接受已注册页面动作，iframe 校验部署白名单，隐藏菜单不撤销动作权限", async () => {
-    await assert.rejects(
-      catalog(
-        "menu",
-        "create",
-        null,
-        menuValues("Unknown page", {
-          kind: "page",
-          routeKey: "unregistered-page",
-        })
-      ),
-      { message: "VALIDATION_ERROR" }
-    )
-    const action = await catalog(
-      "menu",
-      "create",
-      null,
-      menuValues("Registered action", {
-        kind: "action",
-        actionKey: "platform.post:read",
-      })
-    )
-    await assert.rejects(
-      catalog(
-        "menu",
-        "create",
-        null,
-        menuValues("Action child", { parentId: action.id })
-      ),
-      { message: "VALIDATION_ERROR" }
-    )
-    const parentInput = menuValues("Directory with child")
-    const parent = await catalog("menu", "create", null, parentInput)
-    await catalog(
-      "menu",
-      "create",
-      null,
-      menuValues("Directory child", { parentId: parent.id })
-    )
-    await assert.rejects(
-      catalog("menu", "update", parent.id, {
-        ...parentInput,
-        kind: "action",
-        actionKey: "platform.post:read",
-      }),
-      { message: "RESOURCE_IN_USE" }
-    )
-    await assert.rejects(
-      catalog(
-        "menu",
-        "create",
-        null,
-        menuValues("Unknown action", {
-          kind: "action",
-          actionKey: "platform.unknown:read",
-        })
-      ),
-      { message: "VALIDATION_ERROR" }
-    )
-    await assert.rejects(
-      catalog(
-        "menu",
-        "create",
-        null,
-        menuValues("Forbidden URL", {
-          kind: "external",
-          url: "javascript:alert(1)",
-        })
-      ),
-      { message: "VALIDATION_ERROR" }
-    )
-    const frame = menuValues("Embedded page", {
-      kind: "iframe",
-      url: "https://embedded.test.example/settings",
+  test("动态菜单的存储、函数、动作和导出入口已移除", async () => {
+    const upgraded = (
+      await owner.query(
+        "SELECT permissions FROM public.platform_role WHERE id=$1",
+        [legacyMenuRoleId]
+      )
+    ).rows[0]
+    assert.deepEqual(upgraded.permissions, ["platform.post:read"])
+    const removed = await owner.query(`SELECT
+      to_regclass('public.platform_menu') AS menu,
+      to_regclass('public.platform_iframe_origin_allowlist') AS origins,
+      to_regprocedure('public.platform_menu_registry()') AS registry,
+      to_regprocedure('public.platform_system_navigation_children(uuid,text[])') AS navigation`)
+    assert.deepEqual(removed.rows[0], {
+      menu: null,
+      origins: null,
+      registry: null,
+      navigation: null,
     })
-    await assert.rejects(catalog("menu", "create", null, frame), {
+    const actions = (
+      await owner.query(
+        "SELECT public.platform_permission_catalog() AS actions"
+      )
+    ).rows[0].actions as string[]
+    assert.ok(!actions.some((action) => action.startsWith("platform.menu:")))
+    await assert.rejects(catalog("menu", "list"), {
       message: "VALIDATION_ERROR",
     })
-    await owner.query(
-      "INSERT INTO public.platform_iframe_origin_allowlist(origin) VALUES('https://embedded.test.example')"
-    )
-    const embedded = await catalog("menu", "create", null, frame)
+    await assert.rejects(catalog("menu", "navigation"), {
+      message: "VALIDATION_ERROR",
+    })
     await assert.rejects(
-      catalog("menu", "create", null, {
-        ...frame,
-        key: randomUUID(),
-        url: "https://embedded.test.example.evil/settings",
+      owner.query("SELECT public.platform_task_action('export','menus')"),
+      { message: "VALIDATION_ERROR" }
+    )
+    const target = await role("Reject removed permissions")
+    await assert.rejects(
+      identity("role", "set-permissions", target.id, {
+        permissions: ["platform.menu:read"],
       }),
       { message: "VALIDATION_ERROR" }
-    )
-    const target = await seed("Menu permission target")
-    const reader = await role("Menu permission reader")
-    await identity("role", "set-permissions", reader.id, {
-      permissions: ["platform.post:read"],
-    })
-    await assign(target, [reader.id])
-    const hidden = await catalog(
-      "menu",
-      "create",
-      null,
-      menuValues("Hidden post page", {
-        kind: "page",
-        routeKey: "posts",
-        hidden: true,
-      })
-    )
-    const navigation = await catalog<{ items: MenuNode[] }>(
-      "menu",
-      "navigation",
-      null,
-      {},
-      target
-    )
-    const nodes = (items: MenuNode[]): MenuNode[] =>
-      items.flatMap((item) => [item, ...nodes(item.children ?? [])])
-    assert.equal(
-      nodes(navigation.items).some((item) => item.id === hidden.id),
-      true
-    )
-    assert.equal(
-      nodes(navigation.items).find((item) => item.id === hidden.id)?.hidden,
-      true
-    )
-    await catalog("post", "list", null, pageInput, target)
-    assert.equal(
-      nodes(navigation.items).some((item) => item.id === embedded.id),
-      true
-    )
-    await owner.query(
-      "DELETE FROM public.platform_iframe_origin_allowlist WHERE origin='https://embedded.test.example'"
-    )
-    const removedOrigin = await catalog<{ items: MenuNode[] }>(
-      "menu",
-      "navigation",
-      null,
-      {},
-      target
-    )
-    assert.equal(
-      nodes(removedOrigin.items).some((item) => item.id === embedded.id),
-      false
-    )
-    await catalog("menu", "set-status", embedded.id, { status: "disabled" })
-    await assert.rejects(
-      catalog("menu", "set-status", embedded.id, { status: "active" }),
-      { message: "VALIDATION_ERROR" }
-    )
-  })
-
-  test("隐藏节点保留导航授权投影，页面权限、iframe 白名单和停用状态独立生效", async () => {
-    const origin = "https://hidden-navigation.test.example"
-    await owner.query(
-      "INSERT INTO public.platform_iframe_origin_allowlist(origin) VALUES($1)",
-      [origin]
-    )
-    const hiddenFrame = await catalog(
-      "menu",
-      "create",
-      null,
-      menuValues("Hidden iframe", {
-        kind: "iframe",
-        url: origin + "/hidden",
-        hidden: true,
-      })
-    )
-    const hiddenParent = await catalog(
-      "menu",
-      "create",
-      null,
-      menuValues("Hidden directory", { hidden: true })
-    )
-    const nestedFrame = await catalog(
-      "menu",
-      "create",
-      null,
-      menuValues("Iframe inside hidden directory", {
-        parentId: hiddenParent.id,
-        kind: "iframe",
-        url: origin + "/nested",
-        hidden: false,
-      })
-    )
-    const pageInput = menuValues("Authorized hidden page", {
-      parentId: hiddenParent.id,
-      kind: "page",
-      routeKey: "posts",
-      hidden: false,
-    })
-    const allowedPage = await catalog("menu", "create", null, pageInput)
-    const deniedPage = await catalog(
-      "menu",
-      "create",
-      null,
-      menuValues("Unauthorized hidden page", {
-        kind: "page",
-        routeKey: "parameters",
-        hidden: true,
-      })
-    )
-    const action = await catalog(
-      "menu",
-      "create",
-      null,
-      menuValues("Navigation excludes action", {
-        parentId: hiddenParent.id,
-        kind: "action",
-        actionKey: "platform.post:read",
-        hidden: true,
-      })
-    )
-    const reader = await seed("Hidden navigation reader")
-    const readerRole = await role("Hidden navigation post reader")
-    await identity("role", "set-permissions", readerRole.id, {
-      permissions: ["platform.post:read"],
-    })
-    await assign(reader, [readerRole.id])
-    const businessQuery = {
-      page: 1,
-      pageSize: 20,
-      sortBy: "sort",
-      sortOrder: "asc",
-    }
-    await catalog("post", "list", null, businessQuery, reader)
-    await catalog("menu", "update", allowedPage.id, {
-      ...pageInput,
-      hidden: true,
-    })
-    const flatten = (items: MenuNode[]): MenuNode[] =>
-      items.flatMap((item) => [item, ...flatten(item.children ?? [])])
-    const navigation = async () =>
-      flatten(
-        (
-          await catalog<{ items: MenuNode[] }>(
-            "menu",
-            "navigation",
-            null,
-            {},
-            reader
-          )
-        ).items
-      )
-    const visibleToAuthority = await navigation()
-    for (const [node, hidden] of [
-      [hiddenFrame, true],
-      [hiddenParent, true],
-      [nestedFrame, false],
-      [allowedPage, true],
-    ] as const) {
-      assert.equal(
-        visibleToAuthority.find((item) => item.id === node.id)?.hidden,
-        hidden
-      )
-    }
-    assert.equal(
-      visibleToAuthority.some((item) => item.id === deniedPage.id),
-      false
-    )
-    assert.equal(
-      visibleToAuthority.some((item) => item.id === action.id),
-      false
-    )
-    await catalog("post", "list", null, businessQuery, reader)
-    await assert.rejects(
-      catalog("parameter", "list", null, businessQuery, reader),
-      { message: "FORBIDDEN" }
-    )
-    await catalog("menu", "set-status", nestedFrame.id, { status: "disabled" })
-    const disabledChild = await navigation()
-    assert.equal(
-      disabledChild.some((item) => item.id === nestedFrame.id),
-      false
-    )
-    assert.equal(
-      disabledChild.find((item) => item.id === hiddenParent.id)?.hidden,
-      true
-    )
-    // 父级停用受有效子节点约束；先停用全部子节点，再验证整条分支不再返回。
-    await catalog("menu", "set-status", allowedPage.id, { status: "disabled" })
-    await catalog("menu", "set-status", action.id, { status: "disabled" })
-    await catalog("menu", "set-status", hiddenParent.id, { status: "disabled" })
-    const disabledBranch = await navigation()
-    assert.equal(
-      disabledBranch.some((item) => item.id === hiddenParent.id),
-      false
-    )
-    assert.equal(
-      disabledBranch.some((item) => item.id === allowedPage.id),
-      false
-    )
-    assert.equal(
-      disabledBranch.some((item) => item.id === hiddenFrame.id),
-      true
-    )
-    await owner.query(
-      "DELETE FROM public.platform_iframe_origin_allowlist WHERE origin=$1",
-      [origin]
-    )
-    assert.equal(
-      (await navigation()).some((item) => item.id === hiddenFrame.id),
-      false
     )
   })
 

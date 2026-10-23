@@ -146,13 +146,6 @@ export {
 } from "./handlers/organization-audit-controls"
 
 export {
-  createPlatformLayoutNavigationHandler,
-  createHiddenPlatformFrameHandler,
-  hiddenPlatformFrameId,
-  hiddenPlatformFrameUrl,
-} from "./handlers/platform-navigation"
-
-export {
   createScheduleScenario,
   scheduleFixture,
   scheduleFixtureId,

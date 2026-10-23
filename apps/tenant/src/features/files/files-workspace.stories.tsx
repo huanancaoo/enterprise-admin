@@ -55,14 +55,16 @@ function WorkspaceShell() {
           label: "组织",
           onSelect: fn(),
         },
-        navigation: {
-          label: "工作空间",
-          items: [
-            { title: "项目", icon: <FolderKanbanIcon /> },
-            { title: "文件", icon: <FolderIcon />, isActive: true },
-            { title: "组织管理", icon: <BuildingIcon /> },
-          ],
-        },
+        navigation: [
+          {
+            label: "工作空间",
+            items: [
+              { title: "项目", icon: <FolderKanbanIcon /> },
+              { title: "文件", icon: <FolderIcon />, isActive: true },
+              { title: "组织管理", icon: <BuildingIcon /> },
+            ],
+          },
+        ],
         user: {
           user: { name: "陈小明", email: "chen@example.com" },
           accountMenu: () => null,
@@ -145,12 +147,6 @@ export const Preview: Story = {
     await expect(
       canvasElement.ownerDocument.documentElement.scrollHeight
     ).toBeLessThanOrEqual(window.innerHeight)
-    await expect(
-      canvas.getByRole("link", { name: "任务中心" })
-    ).toHaveAttribute(
-      "href",
-      expect.stringContaining(`/app/tasks/${organizationId}`)
-    )
     await expect(canvas.getByRole("link", { name: "通知" })).toHaveAttribute(
       "href",
       expect.stringContaining(`/app/notifications/${organizationId}`)

@@ -31,8 +31,6 @@ import {
 import { PlatformGuard } from '../platform.guard';
 import { PlatformSystem } from './platform-system';
 import { PlatformEmployeesController } from './employees.controller';
-import { PlatformMenusController } from './menus.controller';
-import { PlatformNavigationController } from './navigation.controller';
 import { PlatformDictionariesController } from './dictionaries.controller';
 import { PlatformParametersController } from './parameters.controller';
 import { PlatformRolesController } from './roles.controller';
@@ -255,8 +253,6 @@ describe('PlatformSystem strict HTTP contracts', () => {
     const module = await Test.createTestingModule({
       controllers: [
         PlatformEmployeesController,
-        PlatformMenusController,
-        PlatformNavigationController,
         PlatformDictionariesController,
         PlatformParametersController,
         PlatformRolesController,
@@ -687,12 +683,9 @@ describe('PlatformSystem strict HTTP contracts', () => {
     expect(
       document.components?.schemas?.PlatformEmployeeRoleSummary,
     ).not.toHaveProperty('properties.permissions');
-    expect(paths['/api/v1/platform/menus/registry']?.get?.operationId).toBe(
-      'getPlatformMenuRegistry',
-    );
-    expect(paths['/api/v1/platform/navigation']?.get?.operationId).toBe(
-      'listPlatformNavigation',
-    );
+    expect(paths['/api/v1/platform/menus']).toBeUndefined();
+    expect(paths['/api/v1/platform/menus/registry']).toBeUndefined();
+    expect(paths['/api/v1/platform/navigation']).toBeUndefined();
     expect(
       paths['/api/v1/platform/dictionaries/{dictionaryId}/items/{itemId}']
         ?.patch?.operationId,
@@ -700,7 +693,9 @@ describe('PlatformSystem strict HTTP contracts', () => {
     expect(document.components?.schemas?.UpdatePlatformEmployee).toMatchObject({
       additionalProperties: false,
     });
-    expect(document.components?.schemas?.PlatformNavigationItem).toBeDefined();
+    expect(
+      document.components?.schemas?.PlatformNavigationItem,
+    ).toBeUndefined();
     const methods = ['get', 'post', 'patch', 'delete'] as const;
     const operations = Object.values(paths).flatMap((path) =>
       methods.map((method) => path?.[method]?.operationId).filter(Boolean),

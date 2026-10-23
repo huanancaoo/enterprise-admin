@@ -1,9 +1,10 @@
 {
+  "contentManagement": "Content management",
   "globalAccounts": "Global accounts",
-  "logs": "Logs",
-  "navigationFailed": "Unable to load system navigation.",
+  "loginLogs": "Login logs",
+  "operationsManagement": "Operations management",
   "personalSettings": "Personal settings",
-  "systemManagement": "System management",
-  "systemMonitoring": "System monitoring",
-  "taskCenter": "Task center"
+  "platformTeam": "Platform team",
+  "securityAudit": "Security audit",
+  "systemConfiguration": "System configuration"
 }

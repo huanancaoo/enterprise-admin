@@ -1,6 +1,5 @@
 import { sql } from "drizzle-orm"
 import {
-  boolean,
   check,
   index,
   integer,
@@ -34,53 +33,6 @@ const catalog = () => ({
   sort: integer("sort").notNull().default(0),
   ...timestamps(),
 })
-
-export const platformMenu = pgTable(
-  "platform_menu",
-  {
-    ...catalog(),
-    parentId: uuid("parent_id").references((): AnyPgColumn => platformMenu.id, {
-      onDelete: "restrict",
-    }),
-    kind: text("kind", {
-      enum: ["directory", "page", "action", "external", "iframe"],
-    }).notNull(),
-    routeKey: text("route_key"),
-    actionKey: text("action_key"),
-    url: text("url"),
-    icon: text("icon"),
-    hidden: boolean("hidden").notNull().default(false),
-  },
-  (table) => [
-    index("platform_menu_parent_sort_idx").on(
-      table.parentId,
-      table.sort,
-      table.id
-    ),
-    check(
-      "platform_menu_status_check",
-      sql`${table.status} IN ('active', 'disabled')`
-    ),
-    check(
-      "platform_menu_key_check",
-      sql`${table.key} ~ '^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,119}$'`
-    ),
-    check(
-      "platform_menu_name_check",
-      sql`length(btrim(${table.name})) BETWEEN 1 AND 200`
-    ),
-    check("platform_menu_sort_check", sql`${table.sort} >= 0`),
-    check("platform_menu_parent_check", sql`${table.id} <> ${table.parentId}`),
-    check(
-      "platform_menu_kind_check",
-      sql`${table.kind} IN ('directory', 'page', 'action', 'external', 'iframe')`
-    ),
-    check(
-      "platform_menu_target_check",
-      sql`(${table.kind} = 'directory' AND ${table.routeKey} IS NULL AND ${table.actionKey} IS NULL AND ${table.url} IS NULL) OR (${table.kind} = 'page' AND ${table.routeKey} IS NOT NULL AND ${table.actionKey} IS NULL AND ${table.url} IS NULL) OR (${table.kind} = 'action' AND ${table.routeKey} IS NULL AND ${table.actionKey} IS NOT NULL AND ${table.url} IS NULL) OR (${table.kind} IN ('external', 'iframe') AND ${table.routeKey} IS NULL AND ${table.actionKey} IS NULL AND ${table.url} IS NOT NULL)`
-    ),
-  ]
-)
 
 export const platformDepartment = pgTable(
   "platform_department",
@@ -225,17 +177,6 @@ export const platformParameter = pgTable(
   ]
 )
 
-// 部署域名白名单由迁移身份维护，在线管理接口没有写入口。
-export const platformIframeOriginAllowlist = pgTable(
-  "platform_iframe_origin_allowlist",
-  { origin: text("origin").primaryKey() },
-  (table) => [
-    check(
-      "platform_iframe_origin_allowlist_origin_check",
-      sql`${table.origin} ~ '^https?://[^[:space:]@/?#]+$' AND ${table.origin} = lower(${table.origin})`
-    ),
-  ]
-)
 export const platformSystemCacheRevision = pgTable(
   "platform_system_cache_revision",
   {

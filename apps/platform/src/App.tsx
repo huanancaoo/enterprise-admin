@@ -104,10 +104,11 @@ export function PlatformLayout() {
     "settings",
     "identity",
     "system",
+    "platformTasks",
   ])
   const session = useAuthenticatedSession()!
   const { platformAccess } = useRouteContext({ from: "/platform" })
-  const { items, section, ancestors, error, retry } = usePlatformNavigation()
+  const { items, section, ancestors } = usePlatformNavigation()
   return (
     <AppShell
       layout={pathname === "/platform/files" ? "workspace" : "page"}
@@ -125,7 +126,7 @@ export function PlatformLayout() {
             <Button
               variant="ghost"
               size="icon"
-              aria-label={t("system:taskCenter")}
+              aria-label={t("platformTasks:title")}
               nativeButton={false}
               render={
                 <Link to="/platform/tasks" search={{ page: 1, pageSize: 20 }} />
@@ -183,10 +184,12 @@ export function PlatformLayout() {
           disabled: true,
           onSelect: () => undefined,
         },
-        navigation: {
-          label: t("common:navigation"),
-          items,
-        },
+        navigation: [
+          {
+            label: t("common:navigation"),
+            items,
+          },
+        ],
         user: {
           user: {
             name: session.user.name,
@@ -205,17 +208,6 @@ export function PlatformLayout() {
         },
       }}
     >
-      {error && (
-        <div
-          role="alert"
-          className="mx-auto flex w-full max-w-7xl shrink-0 items-center gap-3 px-4 py-3 text-sm text-destructive sm:px-6 lg:px-8"
-        >
-          <span>{t("system:navigationFailed")}</span>
-          <Button size="sm" variant="outline" onClick={retry}>
-            {t("common:retry")}
-          </Button>
-        </div>
-      )}
       <Outlet />
     </AppShell>
   )

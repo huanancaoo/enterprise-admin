@@ -33,7 +33,7 @@ import {
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb"
 import {
-  BuildingIcon,
+  ListTodoIcon,
   ClipboardListIcon,
   FolderKanbanIcon,
   FolderOpenIcon,
@@ -42,7 +42,7 @@ import {
   ShieldCheckIcon,
   UsersIcon,
 } from "lucide-react"
-import { cloneElement, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import {
   CreateOrganizationDialog,
@@ -172,6 +172,9 @@ export function AdminLayout() {
   const filesLink = currentOrganizationId ? (
     <Link {...location.link("files", currentOrganizationId)} />
   ) : undefined
+  const tasksLink = currentOrganizationId ? (
+    <Link {...location.link("tasks", currentOrganizationId)} />
+  ) : undefined
   const integrationsLink = currentOrganizationId ? (
     <Link {...location.link("integrations", currentOrganizationId)} />
   ) : undefined
@@ -190,38 +193,6 @@ export function AdminLayout() {
   const suspended =
     access.error instanceof ApiClientError &&
     access.error.body.code === "ORGANIZATION_SUSPENDED"
-
-  // 各分区继续使用原有路由和权限；组织语言的读取权限不代表整个管理区的权限。
-  const managementItems = [
-    {
-      title: t("organization:membersAndInvitations"),
-      icon: <UsersIcon />,
-      active: location.page === "members",
-      render: membersLink,
-    },
-    {
-      title: t("organization:rolesAndPermissions"),
-      icon: <ShieldCheckIcon />,
-      active: location.page === "roles",
-      render: rolesLink,
-    },
-    {
-      title: t("webhooks:integrations"),
-      icon: <PlugIcon />,
-      active: location.page === "integrations",
-      render: integrationsLink,
-    },
-    ...(settingsPermissions.data?.canRead
-      ? [
-          {
-            title: t("settings:generalSettings"),
-            icon: <SettingsIcon />,
-            active: location.page === "organizationSettings",
-            render: organizationSettingsLink,
-          },
-        ]
-      : []),
-  ]
 
   const canRenderPage =
     location.personal ||
@@ -242,12 +213,10 @@ export function AdminLayout() {
       breadcrumb={
         <Breadcrumb>
           <BreadcrumbList>
-            {location.management && (
+            {location.sectionTitleKey && (
               <>
                 <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink render={membersLink}>
-                    {t("organization:management")}
-                  </BreadcrumbLink>
+                  <span>{t(location.sectionTitleKey)}</span>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
               </>
@@ -281,39 +250,84 @@ export function AdminLayout() {
           onSelect: (id) => void location.selectOrganization(id),
           onCreate: () => setCreateOpen(true),
         },
-        navigation: {
-          label: t("common:navigation"),
-          items: [
-            {
-              title: t("projects:title"),
-              icon: <FolderKanbanIcon />,
-              isActive: location.page === "projects" && !location.personal,
-              disabled: !currentOrganizationId || suspended,
-              render: projectLink,
-            },
-            {
-              title: t("files:title"),
-              icon: <FolderOpenIcon />,
-              isActive: location.page === "files",
-              disabled: !currentOrganizationId || suspended,
-              render: filesLink,
-            },
-            {
-              title: t("organization:audit"),
-              icon: <ClipboardListIcon />,
-              isActive: location.page === "audit",
-              disabled: !currentOrganizationId || suspended,
-              render: auditLink,
-            },
-            {
-              title: t("organization:management"),
-              icon: <BuildingIcon />,
-              isActive: location.management,
-              disabled: !currentOrganizationId || suspended,
-              render: membersLink,
-            },
-          ],
-        },
+        navigation: [
+          {
+            label: t("organization:businessWork"),
+            items: [
+              {
+                title: t("projects:title"),
+                icon: <FolderKanbanIcon />,
+                isActive: location.page === "projects" && !location.personal,
+                disabled: !currentOrganizationId || suspended,
+                render: projectLink,
+              },
+              {
+                title: t("files:title"),
+                icon: <FolderOpenIcon />,
+                isActive: location.page === "files",
+                disabled: !currentOrganizationId || suspended,
+                render: filesLink,
+              },
+              {
+                title: t("tasks:title"),
+                icon: <ListTodoIcon />,
+                isActive: location.page === "tasks",
+                disabled: !currentOrganizationId || suspended,
+                render: tasksLink,
+              },
+            ],
+          },
+          {
+            label: t("organization:management"),
+            items: [
+              {
+                title: t("organization:membersAndInvitations"),
+                icon: <UsersIcon />,
+                isActive: location.page === "members",
+                disabled: !currentOrganizationId || suspended,
+                render: membersLink,
+              },
+              {
+                title: t("organization:rolesAndPermissions"),
+                icon: <ShieldCheckIcon />,
+                isActive: location.page === "roles",
+                disabled: !currentOrganizationId || suspended,
+                render: rolesLink,
+              },
+              {
+                title: t("organization:audit"),
+                icon: <ClipboardListIcon />,
+                isActive: location.page === "audit",
+                disabled: !currentOrganizationId || suspended,
+                render: auditLink,
+              },
+              // 设置读取权限只控制这个入口，不代表整个组织管理分区的权限。
+              ...(settingsPermissions.data?.canRead
+                ? [
+                    {
+                      title: t("settings:generalSettings"),
+                      icon: <SettingsIcon />,
+                      isActive: location.page === "organizationSettings",
+                      disabled: !currentOrganizationId || suspended,
+                      render: organizationSettingsLink,
+                    },
+                  ]
+                : []),
+            ],
+          },
+          {
+            label: t("organization:developerIntegration"),
+            items: [
+              {
+                title: t("webhooks:integrations"),
+                icon: <PlugIcon />,
+                isActive: location.page === "integrations",
+                disabled: !currentOrganizationId || suspended,
+                render: integrationsLink,
+              },
+            ],
+          },
+        ],
         user: {
           user: {
             name: session.user.name,
@@ -372,32 +386,7 @@ export function AdminLayout() {
         error={workspace.error}
         onCreated={location.onCreated}
       />
-      {canRenderPage ? (
-        <>
-          {location.management && (
-            <nav
-              aria-label={t("organization:management")}
-              className="mx-auto flex w-full max-w-7xl shrink-0 flex-wrap gap-6 border-b px-4 sm:px-6 lg:px-8"
-            >
-              {managementItems.map((item) =>
-                cloneElement(item.render!, {
-                  key: item.title,
-                  className:
-                    "inline-flex items-center gap-2 border-b-2 border-transparent px-1 py-4 text-sm font-medium text-muted-foreground hover:text-foreground aria-[current=page]:border-primary aria-[current=page]:text-primary",
-                  "aria-current": item.active ? "page" : undefined,
-                  children: (
-                    <>
-                      {item.icon}
-                      {item.title}
-                    </>
-                  ),
-                })
-              )}
-            </nav>
-          )}
-          <Outlet />
-        </>
-      ) : null}
+      {canRenderPage && <Outlet />}
     </AppShell>
   )
 }

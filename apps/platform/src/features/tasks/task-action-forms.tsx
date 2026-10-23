@@ -23,7 +23,6 @@ export type PlatformExportResource =
   | "parameter"
   | "audit"
   | "login"
-  | "menu"
   | "department"
   | "user"
   | "organization"

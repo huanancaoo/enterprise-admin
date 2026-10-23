@@ -11,7 +11,6 @@ import { AuthGate, type WorkspaceRouterContext } from "@workspace/admin/auth"
 import { useUiLocale } from "@workspace/i18n/react"
 import {
   createPlatformOrganizationScenario,
-  createPlatformLayoutNavigationHandler,
   createWorkspaceSessionHandlers,
 } from "@workspace/mocks"
 import { router as applicationRouter } from "./router"
@@ -53,7 +52,6 @@ const meta = {
       handlers: [
         ...createWorkspaceSessionHandlers(),
         ...createPlatformOrganizationScenario().handlers,
-        createPlatformLayoutNavigationHandler(),
       ],
     },
   },
@@ -76,7 +74,7 @@ export const DefaultOrganizationLanding: Story = {
     )
     await expect(
       navigation.getAllByRole("link").map((link) => link.textContent)
-    ).toEqual(["组织管理", "全局账号", "操作日志", "平台设置"])
+    ).toEqual(["组织管理", "全局账号"])
     await expect(
       navigation.getByRole("link", { name: "组织管理" })
     ).toHaveAttribute("aria-current", "page")

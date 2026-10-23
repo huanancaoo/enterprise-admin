@@ -314,8 +314,6 @@ describe(suiteName, { concurrent: false }, () => {
         "platform_file_policy",
         "platform_file_references",
         "platform_file_versions",
-        "platform_iframe_origin_allowlist",
-        "platform_menu",
         "platform_parameter",
         "platform_post",
         "platform_resources",

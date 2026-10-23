@@ -18,7 +18,6 @@ export const platformPermissionStatements = {
   session: ["read", "revoke", "export"],
   employee: ["read", "create", "update", "delete", "export"],
   role: ["read", "create", "update", "delete", "export"],
-  menu: ["read", "create", "update", "delete", "export"],
   department: ["read", "create", "update", "delete", "export"],
   post: ["read", "create", "update", "delete", "export"],
   dictionary: ["read", "create", "update", "delete", "export", "refresh"],

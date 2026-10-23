@@ -18,38 +18,78 @@ function location(
 
 describe("组织当前位置", () => {
   it.each([
-    ["/app/projects/north", "projects", "projects:title", false],
-    ["/app/files/north", "files", "files:title", false],
-    ["/app/announcements/north", "announcements", "announcements:title", false],
-    ["/app/notifications/north", "notifications", "notifications:title", false],
-    ["/app/tasks/north", "tasks", "tasks:title", false],
-    ["/app/integrations/north", "integrations", "webhooks:integrations", true],
-    ["/app/members/north", "members", "organization:members", true],
-    ["/app/organizations/north/roles", "roles", "organization:roles", true],
-    ["/app/organizations/north/roles/", "roles", "organization:roles", true],
+    [
+      "/app/projects/north",
+      "projects",
+      "projects:title",
+      "organization:businessWork",
+    ],
+    ["/app/files/north", "files", "files:title", "organization:businessWork"],
+    [
+      "/app/announcements/north",
+      "announcements",
+      "announcements:title",
+      undefined,
+    ],
+    [
+      "/app/notifications/north",
+      "notifications",
+      "notifications:title",
+      undefined,
+    ],
+    ["/app/tasks/north", "tasks", "tasks:title", "organization:businessWork"],
+    [
+      "/app/integrations/north",
+      "integrations",
+      "webhooks:integrations",
+      "organization:developerIntegration",
+    ],
+    [
+      "/app/members/north",
+      "members",
+      "organization:membersAndInvitations",
+      "organization:management",
+    ],
+    [
+      "/app/organizations/north/roles",
+      "roles",
+      "organization:rolesAndPermissions",
+      "organization:management",
+    ],
+    [
+      "/app/organizations/north/roles/",
+      "roles",
+      "organization:rolesAndPermissions",
+      "organization:management",
+    ],
     [
       "/app/organizations/north/settings",
       "organizationSettings",
-      "settings:organizationSettings",
-      true,
+      "settings:generalSettings",
+      "organization:management",
     ],
-    ["/app/organizations/north/audit", "audit", "organization:audit", false],
+    [
+      "/app/organizations/north/audit",
+      "audit",
+      "organization:audit",
+      "organization:management",
+    ],
     [
       "/app/settings/login-events",
       "personalSettings",
       "identity:personalLoginEvents",
-      false,
+      undefined,
     ],
     [
       "/app/settings/preferences",
       "personalSettings",
       "settings:personalSettings",
-      false,
+      undefined,
     ],
   ])(
-    "从 %s 统一得到导航位置、标题与管理分组",
-    (path, page, titleKey, management) => {
-      expect(location(path)).toMatchObject({ page, titleKey, management })
+    "从 %s 统一得到导航位置、标题与业务分区",
+    (path, page, titleKey, sectionTitleKey) => {
+      expect(location(path)).toMatchObject({ page, titleKey, sectionTitleKey })
     }
   )
 
@@ -125,8 +165,8 @@ describe("组织当前位置", () => {
   })
 
   it("角色路径不吞并相邻页面；无组织的个人页切组织进入项目列表", () => {
-    expect(location("/app/organizations/north/roles-extra").management).toBe(
-      false
+    expect(location("/app/organizations/north/roles-extra").page).not.toBe(
+      "roles"
     )
     const personal = location("/app/settings/preferences")
     expect(personal.personal).toBe(true)

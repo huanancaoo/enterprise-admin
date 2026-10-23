@@ -1,9 +1,10 @@
+import { randomUUID } from "node:crypto"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { startTestApplication } from "../setup/test-runtime.mjs"
 import { signUpVerified } from "../setup/complete-signup.mjs"
 import { platformPages } from "../../apps/platform/src/features/system/platform-pages.ts"
 
-describe("platform page registration across code and database", () => {
+describe("fixed platform pages and removed menu endpoints", () => {
   const origin = "http://localhost:3201"
   let environment, actor
   beforeAll(async () => {
@@ -24,26 +25,39 @@ describe("platform page registration across code and database", () => {
   })
   afterAll(async () => environment?.close())
 
-  it("exposes exactly the routable pages and applies their declared read permission", async () => {
-    const response = await fetch(
-      `${environment.baseURL}/api/v1/platform/menus/registry`,
-      { headers: { origin, cookie: actor.cookie } }
-    )
-    expect(response.status, await response.clone().text()).toBe(200)
-    const registry = await response.json()
-    expect(
-      registry.pages.toSorted((a, b) => a.key.localeCompare(b.key))
-    ).toEqual(
-      Object.entries(platformPages)
-        .map(([key, page]) => ({ key, path: page.target.to }))
-        .toSorted((a, b) => a.key.localeCompare(b.key))
-    )
-    for (const [key, page] of Object.entries(platformPages)) {
-      const result = await environment.observer.query(
-        "SELECT public.platform_menu_route_permission($1) AS permission",
-        [key]
+  it("removes dynamic navigation endpoints while retaining each registered page permission", async () => {
+    for (const path of ["menus", "menus/registry", "navigation"]) {
+      const response = await fetch(
+        `${environment.baseURL}/api/v1/platform/${path}`,
+        {
+          headers: { origin, cookie: actor.cookie },
+        }
       )
-      expect(result.rows[0].permission, key).toBe(page.permission)
+      expect(response.status).toBe(404)
     }
+    const exportResponse = await fetch(
+      `${environment.baseURL}/api/v1/platform/exports`,
+      {
+        method: "POST",
+        headers: {
+          origin,
+          cookie: actor.cookie,
+          "content-type": "application/json",
+          "idempotency-key": randomUUID(),
+        },
+        body: JSON.stringify({ resource: "menus", filters: {} }),
+      }
+    )
+    expect(exportResponse.status).toBe(400)
+    const { rows } = await environment.observer.query(
+      "SELECT public.platform_permission_catalog() AS actions"
+    )
+    const actions = rows[0].actions
+    expect(actions.some((action) => action.startsWith("platform.menu:"))).toBe(
+      false
+    )
+    for (const page of Object.values(platformPages))
+      expect(actions).toContain(page.permission)
+    expect(Object.keys(platformPages)).toHaveLength(17)
   })
 })

@@ -29,14 +29,13 @@ import {
   PlatformDictionaryItemsPage,
   PlatformParametersPage,
 } from "./catalog-pages"
-import { PlatformMenusPage, PlatformDepartmentsPage } from "./tree-pages"
+import { PlatformDepartmentsPage } from "./tree-pages"
 
 function CatalogPageStory({
   page = "posts",
   readOnly = false,
 }: {
-  page?:
-    "posts" | "dictionaries" | "items" | "parameters" | "menus" | "departments"
+  page?: "posts" | "dictionaries" | "items" | "parameters" | "departments"
   readOnly?: boolean
 }) {
   const [router] = useState(() => {
@@ -52,7 +51,6 @@ function CatalogPageStory({
             "post",
             "dictionary",
             "parameter",
-            "menu",
             "department",
           ].flatMap((resource) =>
             (readOnly
@@ -91,12 +89,6 @@ function CatalogPageStory({
       validateSearch: (search) => PlatformSystemQuerySchema.parse(search),
       component: PlatformParametersPage,
     })
-    const menus = createRoute({
-      getParentRoute: () => platform,
-      path: "menus",
-      validateSearch: (search) => PlatformSystemTreeQuerySchema.parse(search),
-      component: PlatformMenusPage,
-    })
     const departments = createRoute({
       getParentRoute: () => platform,
       path: "departments",
@@ -110,7 +102,6 @@ function CatalogPageStory({
           dictionaries,
           items,
           parameters,
-          menus,
           departments,
         ]),
       ]),
@@ -264,30 +255,6 @@ export const Error: Story = {
 export const Dictionaries: Story = { args: { page: "dictionaries" } }
 export const DictionaryItems: Story = { args: { page: "items" } }
 export const Parameters: Story = { args: { page: "parameters" } }
-export const Menus: Story = {
-  args: { page: "menus" },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    await userEvent.click(
-      await canvas.findByRole("button", { name: "View children" })
-    )
-    await userEvent.click(await canvas.findByRole("button", { name: "Edit" }))
-    const dialog = within(
-      await within(canvasElement.ownerDocument.body).findByRole("dialog")
-    )
-    await expect(
-      dialog.getByRole("combobox", { name: "Node type" })
-    ).toHaveTextContent("Internal page")
-    await expect(
-      dialog.getByRole("combobox", { name: "Status" })
-    ).toHaveTextContent("Disabled")
-    await waitFor(() =>
-      expect(
-        dialog.getByRole("combobox", { name: "Registered page" })
-      ).toHaveTextContent("posts · /platform/posts")
-    )
-  },
-}
 const hierarchy = scenario()
 export const DepartmentParentNavigation: Story = {
   ...hierarchy.story,
@@ -315,7 +282,7 @@ export const DepartmentParentNavigation: Story = {
   },
 }
 export const RTL: Story = {
-  args: { page: "menus" },
+  args: { page: "departments" },
   globals: { locale: "ar" },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
@@ -324,9 +291,6 @@ export const RTL: Story = {
     const dialog = within(
       await within(canvasElement.ownerDocument.body).findByRole("dialog")
     )
-    await expect(
-      dialog.getByRole("combobox", { name: "نوع العقدة" })
-    ).toHaveTextContent("دليل")
     await expect(
       dialog.getByRole("combobox", { name: "الحالة" })
     ).toHaveTextContent("نشط")

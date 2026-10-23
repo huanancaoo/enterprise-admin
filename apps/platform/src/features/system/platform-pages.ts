@@ -13,7 +13,6 @@ import {
   PlatformEmployeesQuerySchema,
   PlatformSystemQuerySchema,
   PlatformSystemTreeQuerySchema,
-  type PlatformNavigationItem,
 } from "@workspace/contracts/platform-system"
 import { AnnouncementQuerySchema } from "@workspace/contracts/platform-announcements"
 import { PlatformTaskQuerySchema } from "@workspace/contracts/platform-tasks"
@@ -28,6 +27,13 @@ import {
   FolderIcon,
   ClipboardListIcon,
   ClockIcon,
+  ShieldCheckIcon,
+  ListTodoIcon,
+  BellIcon,
+  NetworkIcon,
+  BriefcaseIcon,
+  BookOpenIcon,
+  SlidersHorizontalIcon,
 } from "lucide-react"
 
 function page<
@@ -49,7 +55,7 @@ function page<
 }
 const paged = { page: 1, pageSize: 20 }
 
-// 代码登记决定页面语义；持久菜单仍决定名称、层级、顺序和可见性。
+// 路由与导航共用页面登记；目录只组织入口，访问仍由每个页面的动作权限决定。
 export const platformPages = {
   files: page("files", "platform.file:read", FileListQuerySchema, {}),
   organizations: page(
@@ -66,7 +72,6 @@ export const platformPages = {
     paged
   ),
   roles: page("roles", "platform.role:read", PlatformSystemQuerySchema, paged),
-  menus: page("menus", "platform.menu:read", PlatformSystemTreeQuerySchema, {}),
   departments: page(
     "departments",
     "platform.department:read",
@@ -126,113 +131,131 @@ export const platformPages = {
   ),
 } as const
 
-const icons: Record<string, typeof FolderIcon> = {
-  Building: BuildingIcon,
-  Settings: SettingsIcon,
-  Settings2: Settings2Icon,
-  Users: UsersIcon,
-  FileText: FileTextIcon,
-  Monitor: MonitorIcon,
-  ClipboardList: ClipboardListIcon,
-  Folder: FolderIcon,
-  Clock: ClockIcon,
-}
+type PageKey = keyof typeof platformPages
+const pagePresentation = {
+  organizations: { titleKey: "organization:management", Icon: BuildingIcon },
+  users: { titleKey: "system:globalAccounts", Icon: UsersIcon },
+  announcements: { titleKey: "announcements:managementTitle", Icon: BellIcon },
+  files: { titleKey: "files:title", Icon: FolderIcon },
+  employees: { titleKey: "employees:title", Icon: UsersIcon },
+  departments: { titleKey: "catalogs:departmentTitle", Icon: NetworkIcon },
+  posts: { titleKey: "catalogs:postTitle", Icon: BriefcaseIcon },
+  roles: { titleKey: "roles:title", Icon: ShieldCheckIcon },
+  sessions: { titleKey: "identity:sessions", Icon: MonitorIcon },
+  "login-events": { titleKey: "system:loginLogs", Icon: FileTextIcon },
+  "audit-events": { titleKey: "organization:audit", Icon: ClipboardListIcon },
+  tasks: { titleKey: "platformTasks:title", Icon: ListTodoIcon },
+  schedules: { titleKey: "monitor:schedulesTitle", Icon: ClockIcon },
+  monitor: { titleKey: "monitor:title", Icon: MonitorIcon },
+  dictionaries: { titleKey: "catalogs:dictionaryTitle", Icon: BookOpenIcon },
+  parameters: {
+    titleKey: "catalogs:parameterTitle",
+    Icon: SlidersHorizontalIcon,
+  },
+  settings: { titleKey: "organization:platformSettings", Icon: SettingsIcon },
+} as const satisfies Record<
+  PageKey,
+  { titleKey: string; Icon: typeof FolderIcon }
+>
 
-type Titles = { monitor: string; schedules: string; files: string }
-function registeredPage(key: string | null) {
-  return key && Object.hasOwn(platformPages, key)
-    ? platformPages[key as keyof typeof platformPages]
-    : undefined
-}
-function target(node: PlatformNavigationItem) {
-  if (node.kind === "iframe")
-    return {
-      to: "/platform/embedded/$menuId" as const,
-      params: { menuId: node.id },
+type GroupTitleKey =
+  `system:${"contentManagement" | "platformTeam" | "securityAudit" | "operationsManagement" | "systemConfiguration"}`
+type NavigationEntry =
+  | PageKey
+  | {
+      id: string
+      titleKey: GroupTitleKey
+      Icon: typeof FolderIcon
+      pages: PageKey[]
     }
-  if (node.kind === "page") return registeredPage(node.routeKey)?.target
-}
-function titled(
-  node: PlatformNavigationItem,
-  titles: Titles
-): PlatformNavigationItem {
-  return {
-    ...node,
-    name:
-      node.routeKey === "monitor" ||
-      node.routeKey === "schedules" ||
-      node.routeKey === "files"
-        ? titles[node.routeKey]
-        : node.name,
-  }
-}
-function matches(node: PlatformNavigationItem, pathname: string) {
-  if (node.kind === "iframe")
-    return pathname === `/platform/embedded/${node.id}`
-  const path =
-    node.kind === "page" ? registeredPage(node.routeKey)?.target.to : undefined
-  return Boolean(path && (pathname === path || pathname.startsWith(`${path}/`)))
-}
-function activePath(
-  nodes: PlatformNavigationItem[],
-  pathname: string
-): PlatformNavigationItem[] {
-  for (const node of nodes) {
-    if (matches(node, pathname)) return [node]
-    const children = activePath(node.children, pathname)
-    if (children.length) return [node, ...children]
-  }
-  return []
-}
-function visibleItems(
-  nodes: PlatformNavigationItem[],
-  pathname: string,
-  titles: Titles
-): NavigationItem[] {
-  return nodes
-    .filter((node) => !node.hidden && node.kind !== "action")
-    .flatMap((node) => {
-      const children = visibleItems(node.children, pathname, titles)
-      if (node.kind === "directory" && !children.length) return []
-      return [
-        {
-          ...titled(node, titles),
-          children,
-          target: target(node),
-          Icon: node.icon ? icons[node.icon] : undefined,
-          isActive: matches(node, pathname),
-        },
-      ]
-    })
-}
-interface NavigationItem extends PlatformNavigationItem {
-  children: NavigationItem[]
-  target: ReturnType<typeof target>
-  Icon: typeof FolderIcon | undefined
+const navigation: NavigationEntry[] = [
+  "organizations",
+  "users",
+  {
+    id: "content",
+    titleKey: "system:contentManagement",
+    Icon: FileTextIcon,
+    pages: ["announcements", "files"],
+  },
+  {
+    id: "team",
+    titleKey: "system:platformTeam",
+    Icon: UsersIcon,
+    pages: ["employees", "departments", "posts", "roles"],
+  },
+  {
+    id: "security",
+    titleKey: "system:securityAudit",
+    Icon: ShieldCheckIcon,
+    pages: ["sessions", "login-events", "audit-events"],
+  },
+  {
+    id: "operations",
+    titleKey: "system:operationsManagement",
+    Icon: MonitorIcon,
+    pages: ["tasks", "schedules", "monitor"],
+  },
+  {
+    id: "configuration",
+    titleKey: "system:systemConfiguration",
+    Icon: Settings2Icon,
+    pages: ["dictionaries", "parameters", "settings"],
+  },
+]
+
+type PageTarget = (typeof platformPages)[PageKey]["target"]
+interface NavigationItem {
+  id: string
+  titleKey: (typeof pagePresentation)[PageKey]["titleKey"] | GroupTitleKey
+  Icon: typeof FolderIcon
+  target?: PageTarget
   isActive: boolean
-}
-function firstTarget(nodes: NavigationItem[]): ReturnType<typeof target> {
-  for (const node of nodes) {
-    if (node.target) return node.target
-    const child = firstTarget(node.children)
-    if (child) return child
-  }
+  children: NavigationItem[]
 }
 
-// 隐藏只约束可见导航和首页落点；当前位置仍使用完整授权投影，以支持隐藏页面直达。
 export function platformNavigationModel(
-  nodes: PlatformNavigationItem[],
-  pathname: string,
-  titles: Titles
+  permissions: readonly string[],
+  pathname: string
 ) {
-  const items = visibleItems(nodes, pathname, titles)
-  const selected = activePath(nodes, pathname).map((node) =>
-    titled(node, titles)
+  function authorizedPage(key: PageKey): NavigationItem[] {
+    const page = platformPages[key]
+    if (!permissions.includes(page.permission)) return []
+    return [
+      {
+        id: key,
+        ...pagePresentation[key],
+        target: page.target,
+        isActive:
+          pathname === page.target.to ||
+          pathname.startsWith(`${page.target.to}/`),
+        children: [],
+      },
+    ]
+  }
+  const items: NavigationItem[] = navigation.flatMap((entry) => {
+    if (typeof entry === "string") return authorizedPage(entry)
+    const children = entry.pages.flatMap(authorizedPage)
+    return children.length
+      ? [
+          {
+            id: entry.id,
+            titleKey: entry.titleKey,
+            Icon: entry.Icon,
+            isActive: false,
+            children,
+          },
+        ]
+      : []
+  })
+  const parent = items.find((item) =>
+    item.children.some((child) => child.isActive)
   )
   return {
     items,
-    home: firstTarget(items),
-    section: selected.at(-1),
-    ancestors: selected.slice(0, -1),
+    home: items[0]?.target ?? items[0]?.children[0]?.target,
+    section:
+      parent?.children.find((child) => child.isActive) ??
+      items.find((item) => item.isActive),
+    ancestors: parent ? [parent] : [],
   }
 }

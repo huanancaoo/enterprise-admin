@@ -1,9 +1,10 @@
 {
+  "contentManagement": "内容管理",
   "globalAccounts": "全局账号",
-  "logs": "日志管理",
-  "navigationFailed": "无法加载系统导航。",
+  "loginLogs": "登录日志",
+  "operationsManagement": "运行管理",
   "personalSettings": "个人设置",
-  "systemManagement": "系统管理",
-  "systemMonitoring": "系统监控",
-  "taskCenter": "任务中心"
+  "platformTeam": "平台团队",
+  "securityAudit": "安全审计",
+  "systemConfiguration": "系统配置"
 }

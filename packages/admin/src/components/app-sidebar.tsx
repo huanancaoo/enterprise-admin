@@ -12,7 +12,7 @@ import { TeamSwitcher, type TeamSwitcherProps } from "./team-switcher"
 
 export interface AppSidebarProps extends ComponentProps<typeof Sidebar> {
   teamSwitcher: TeamSwitcherProps
-  navigation: NavMainProps
+  navigation: NavMainProps[]
   user: NavUserProps
 }
 
@@ -28,7 +28,9 @@ export function AppSidebar({
         <TeamSwitcher {...teamSwitcher} />
       </SidebarHeader>
       <SidebarContent>
-        <NavMain {...navigation} />
+        {navigation.map((group) => (
+          <NavMain key={group.label} {...group} />
+        ))}
       </SidebarContent>
       <SidebarFooter>
         <NavUser {...user} />

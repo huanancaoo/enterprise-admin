@@ -187,5 +187,28 @@ export const CollapsedIcons: Story = {
     for (const entry of entries) {
       await expect(entry.querySelector("svg")).toBeVisible()
     }
+    // 活跃目录本来已展开；图标模式点击它仍应打开完整侧栏，而不是把子项关掉。
+    await userEvent.click(entries[1]!)
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-slot="sidebar"][data-state]')
+      ).toHaveAttribute("data-state", "expanded")
+    )
+    await expect(
+      canvas.getByRole("link", { name: "Operation log" })
+    ).toBeVisible()
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Toggle sidebar" })
+    )
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-slot="sidebar"][data-state]')
+      ).toHaveAttribute("data-state", "collapsed")
+    )
+    await userEvent.click(entries[2]!)
+    const sessions = await canvas.findByRole("link", { name: "Sessions" })
+    await waitFor(() => expect(sessions).toBeVisible())
+    await expect(entries[2]).toHaveAttribute("aria-expanded", "true")
+    await expect(sessions).toHaveAttribute("href", "#sessions")
   },
 }

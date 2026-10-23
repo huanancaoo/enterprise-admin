@@ -123,6 +123,9 @@ describe("business domain scaffold", { timeout: 30_000 }, () => {
     )
     const layout = await read("apps/tenant/src/components/admin-layout.tsx")
     expect(layout).toContain('location.link("labels", currentOrganizationId)')
+    expect(
+      layout.indexOf('location.link("labels", currentOrganizationId)')
+    ).toBeLessThan(layout.indexOf('label: t("organization:management")'))
     const { getOrganizationLocation } = await import(
       /* @vite-ignore */ pathToFileURL(
         join(directory, "apps/tenant/src/lib/organization-location.ts")
@@ -134,6 +137,7 @@ describe("business domain scaffold", { timeout: 30_000 }, () => {
       search: { page: 3, name: "prior organization", sortBy: "createdAt" },
     })
     expect(location.titleKey).toBe("labels:title")
+    expect(location.sectionTitleKey).toBe("organization:businessWork")
     expect(location.switchTarget("next")).toEqual({
       to: "/app/labels/$organizationId",
       params: { organizationId: "next" },

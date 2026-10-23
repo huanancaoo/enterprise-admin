@@ -5,7 +5,7 @@ type OrganizationPageDefinition = {
   matches: RegExp
   titleKey: string
   detailTitleKey?: string
-  management?: boolean
+  sectionTitleKey?: `organization:${"businessWork" | "management" | "developerIntegration"}`
   preserveOnCreate?: boolean
   discardProjectSearch?: boolean
   search?: object
@@ -14,12 +14,14 @@ type OrganizationPageDefinition = {
 // 新领域在此登记业务位置；标题、组织切换和创建组织落点共用同一事实。
 const organizationPages = {
   projects: {
+    sectionTitleKey: "organization:businessWork",
     to: "/app/projects/$organizationId",
     matches: /^\/app\/projects\//,
     titleKey: "projects:title",
     detailTitleKey: "projects:detail",
   },
   files: {
+    sectionTitleKey: "organization:businessWork",
     to: "/app/files/$organizationId",
     matches: /^\/app\/files\//,
     titleKey: "files:title",
@@ -41,41 +43,43 @@ const organizationPages = {
     search: { page: 1, pageSize: 20 },
   },
   tasks: {
+    sectionTitleKey: "organization:businessWork",
     to: "/app/tasks/$organizationId",
     matches: /^\/app\/tasks\//,
     titleKey: "tasks:title",
     search: { page: 1, pageSize: 20 },
   },
   integrations: {
+    sectionTitleKey: "organization:developerIntegration",
     to: "/app/integrations/$organizationId",
     matches: /^\/app\/integrations\//,
     titleKey: "webhooks:integrations",
-    management: true,
   },
   members: {
+    sectionTitleKey: "organization:management",
     to: "/app/members/$organizationId",
     matches: /^\/app\/members\//,
-    titleKey: "organization:members",
-    management: true,
+    titleKey: "organization:membersAndInvitations",
     preserveOnCreate: true,
     discardProjectSearch: true,
   },
   roles: {
+    sectionTitleKey: "organization:management",
     to: "/app/organizations/$organizationId/roles",
     matches: /^\/app\/organizations\/[^/]+\/roles\/?$/,
-    titleKey: "organization:roles",
-    management: true,
+    titleKey: "organization:rolesAndPermissions",
     preserveOnCreate: true,
     discardProjectSearch: true,
   },
   organizationSettings: {
+    sectionTitleKey: "organization:management",
     to: "/app/organizations/$organizationId/settings",
     matches: /^\/app\/organizations\/.*\/settings$/,
-    titleKey: "settings:organizationSettings",
-    management: true,
+    titleKey: "settings:generalSettings",
     preserveOnCreate: true,
   },
   audit: {
+    sectionTitleKey: "organization:management",
     to: "/app/organizations/$organizationId/audit",
     matches: /^\/app\/organizations\/.*\/audit$/,
     titleKey: "organization:audit",
@@ -148,7 +152,7 @@ export function getOrganizationLocation({
   return {
     page,
     personal,
-    management: Boolean(definition.management),
+    sectionTitleKey: personal ? undefined : definition.sectionTitleKey,
     projectDetail,
     layout:
       page === "files" && !fileDetail

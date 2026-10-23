@@ -280,7 +280,7 @@ export function AnnouncementList({
         : t("deleteDescription")
   return (
     <AdminPage
-      title={t("title")}
+      title={t("managementTitle")}
       actions={
         <div className="flex gap-2">
           {canCreate && (

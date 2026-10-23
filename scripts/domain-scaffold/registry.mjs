@@ -142,18 +142,25 @@ export function register(path, text, input) {
       ),
       "sidebar"
     )
+    const navigation = unwrap(
+      property(sidebar.initializer.expression, "navigation", ast).initializer
+    )
+    // 业务模块统一归入业务工作，避免新页面被追加到组织或开发配置分区。
+    const businessWork = one(
+      navigation.elements.filter((group) => {
+        const label = property(group, "label", ast).initializer
+        return label.arguments[0].text === "organization:businessWork"
+      }),
+      "business work navigation"
+    )
     add(
-      property(
-        property(sidebar.initializer.expression, "navigation", ast).initializer,
-        "items",
-        ast
-      ).initializer,
+      property(businessWork, "items", ast).initializer,
       `{ title: t("${d}:title"), icon: <FolderKanbanIcon />, isActive: location.page === "${d}", disabled: !currentOrganizationId || suspended, render: currentOrganizationId ? <Link {...location.link("${d}", currentOrganizationId)} /> : undefined },`
     )
   } else if (path === "apps/tenant/src/lib/organization-location.ts") {
     add(
       variable("organizationPages"),
-      `${d}: { to: "/app/${d}/$organizationId", matches: /^\\/app\\/${d}\\//, titleKey: "${d}:title", preserveOnCreate: true, discardProjectSearch: true, search: { page: 1, pageSize: 20, sortBy: "createdAt", sortOrder: "desc" } },`
+      `${d}: { to: "/app/${d}/$organizationId", matches: /^\\/app\\/${d}\\//, titleKey: "${d}:title", sectionTitleKey: "organization:businessWork", preserveOnCreate: true, discardProjectSearch: true, search: { page: 1, pageSize: 20, sortBy: "createdAt", sortOrder: "desc" } },`
     )
   } else if (path === "apps/tenant/src/features/organization/roles-route.tsx") {
     add(

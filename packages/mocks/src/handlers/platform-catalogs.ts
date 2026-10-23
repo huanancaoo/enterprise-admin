@@ -4,7 +4,6 @@ import {
   PlatformDictionaryItemsQuerySchema,
   PlatformSystemTreeQuerySchema,
   type PlatformPost,
-  type PlatformMenu,
   type PlatformDepartment,
 } from "@workspace/contracts/platform-system"
 
@@ -44,36 +43,6 @@ export function createPlatformCatalogScenario(
       name: "Support",
       parentId: makeId(200),
       hasChildren: false,
-    },
-  ]
-  const menus: PlatformMenu[] = [
-    {
-      ...original[0]!,
-      id: makeId(300),
-      key: "system",
-      name: "System",
-      parentId: null,
-      hasChildren: true,
-      kind: "directory",
-      routeKey: null,
-      actionKey: null,
-      url: null,
-      icon: "Settings",
-      hidden: false,
-    },
-    {
-      ...original[1]!,
-      id: makeId(301),
-      key: "posts",
-      name: "Posts",
-      parentId: makeId(300),
-      hasChildren: false,
-      kind: "page",
-      routeKey: "posts",
-      actionKey: null,
-      url: null,
-      icon: null,
-      hidden: false,
     },
   ]
   const queries: URLSearchParams[] = []
@@ -219,48 +188,34 @@ export function createPlatformCatalogScenario(
         )
       )
     ),
-    ...(["departments", "menus"] as const).map((resource) =>
-      http.get(`*/api/v1/platform/${resource}`, async ({ request }) => {
-        await beforeRead()
-        if (scenario === "error") return failure()
-        const params = new URL(request.url).searchParams
-        queries.push(params)
-        const search = PlatformSystemTreeQuerySchema.parse(
-          Object.fromEntries(params)
-        )
-        const nodes = resource === "menus" ? menus : departments
-        const ancestors: typeof nodes = []
-        let parent = nodes.find((node) => node.id === search.parentId)
-        while (parent) {
-          ancestors.unshift(parent)
-          parent = nodes.find((node) => node.id === parent!.parentId)
-        }
-        return HttpResponse.json({
-          items: nodes.filter(
-            (node) =>
-              node.parentId === (search.parentId ?? null) &&
-              (!search.q ||
-                `${node.key} ${node.name}`
-                  .toLowerCase()
-                  .includes(search.q.toLowerCase())) &&
-              (!search.status || node.status === search.status)
-          ),
-          ancestors,
-        })
+    http.get("*/api/v1/platform/departments", async ({ request }) => {
+      await beforeRead()
+      if (scenario === "error") return failure()
+      const params = new URL(request.url).searchParams
+      queries.push(params)
+      const search = PlatformSystemTreeQuerySchema.parse(
+        Object.fromEntries(params)
+      )
+      const nodes = departments
+      const ancestors: typeof nodes = []
+      let parent = nodes.find((node) => node.id === search.parentId)
+      while (parent) {
+        ancestors.unshift(parent)
+        parent = nodes.find((node) => node.id === parent!.parentId)
+      }
+      return HttpResponse.json({
+        items: nodes.filter(
+          (node) =>
+            node.parentId === (search.parentId ?? null) &&
+            (!search.q ||
+              `${node.key} ${node.name}`
+                .toLowerCase()
+                .includes(search.q.toLowerCase())) &&
+            (!search.status || node.status === search.status)
+        ),
+        ancestors,
       })
-    ),
-    http.get("*/api/v1/platform/menus/registry", () =>
-      HttpResponse.json({
-        pages: [
-          { key: "posts", path: "/platform/posts" },
-          { key: "departments", path: "/platform/departments" },
-        ],
-        actions: [
-          { key: "platform.post:read" },
-          { key: "platform.post:update" },
-        ],
-      })
-    ),
+    }),
     http.post("*/api/v1/platform/dictionaries/cache/refresh", () =>
       HttpResponse.json({ refreshed: true, version: 2 })
     ),

@@ -78,7 +78,7 @@ export function PlatformTasksPage({
           : false,
   })
   usePlatformAccessFailure(query.error)
-  const resources = {
+  const resources: Record<string, string> = {
     employees: t("employee"),
     roles: t("role"),
     posts: t("post"),
