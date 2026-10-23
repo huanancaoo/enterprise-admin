@@ -139,6 +139,27 @@ export class FileObjectPlan {
       .map((object) => ({ object, side }));
   }
 
+  async replaceSource(
+    archive: PlannedObject,
+    prepareReplacement: () => Promise<PlannedObject>,
+    recordPrepared: (
+      object: PlannedObject,
+      transientBytes: number,
+    ) => Promise<void>,
+    recordDeletion: RecordDeletion,
+  ): Promise<void> {
+    await this.prepareTargets([archive], (object) =>
+      recordPrepared(object, object.expectedBytes!),
+    );
+    // 备份核对后，adapter 必须同事务保存删除意图与替换对象；旧源删除的确认丢失时仍能按原计划恢复。
+    const replacement = await prepareReplacement();
+    await this.remove([{ object: archive, side: 'source' }], recordDeletion);
+    this.objects.push(replacement);
+    await this.prepareTargets([replacement], (object) =>
+      recordPrepared(object, 0),
+    );
+  }
+
   async remove(deletions: Deletion[], record: RecordDeletion): Promise<void> {
     // staging 同时是上传目标和替换副本的源；一次物理删除必须确认所有对应事实。
     const groups = new Map<
@@ -322,42 +343,40 @@ export function createFileWriteObjectPlan(
         (object) => object.id === archiveObjectId,
       )!;
       const staging = objects.find((object) => object.id === stagingObjectId)!;
-      await plan.prepareTargets([archive], (object) =>
-        prepared(object, object.expectedBytes!),
-      );
-      // 备份核对后，在同一事务记录删除意图与替换对象；中断恢复才能识别已删除但尚未确认的旧源。
-      const replacement = await scope.write(async (tx) => {
-        await fileRepository.recordSourceDeletionIntent(
-          tx,
-          scope.operation.id,
-          archiveObjectId,
-          scope.leaseId,
-        );
-        const [created] = await fileRepository.addObjects(
-          tx,
-          scope.operation.id,
-          [
-            {
-              id: replacementObjectId,
-              entryId: staging.entryId,
-              versionId: staging.versionId,
-              directory: false,
-              sourceArea: staging.targetArea,
-              sourcePath: staging.targetPath,
-              targetArea: archive.sourceArea,
-              targetPath: archive.sourcePath,
-              expectedBytes: content.bytes,
-              expectedSha256: content.sha256,
-            },
-          ],
-        );
-        return created;
-      });
-      await plan.remove([{ object: archive, side: 'source' }], deleted);
-      const object = writeObject(replacement);
-      plan.objects.push(object);
-      await plan.prepareTargets([object], (preparedObject) =>
-        prepared(preparedObject, 0),
+      await plan.replaceSource(
+        archive,
+        async () => {
+          const replacement = await scope.write(async (tx) => {
+            await fileRepository.recordSourceDeletionIntent(
+              tx,
+              scope.operation.id,
+              archiveObjectId,
+              scope.leaseId,
+            );
+            const [created] = await fileRepository.addObjects(
+              tx,
+              scope.operation.id,
+              [
+                {
+                  id: replacementObjectId,
+                  entryId: staging.entryId,
+                  versionId: staging.versionId,
+                  directory: false,
+                  sourceArea: staging.targetArea,
+                  sourcePath: staging.targetPath,
+                  targetArea: archive.sourceArea,
+                  targetPath: archive.sourcePath,
+                  expectedBytes: content.bytes,
+                  expectedSha256: content.sha256,
+                },
+              ],
+            );
+            return created;
+          });
+          return writeObject(replacement);
+        },
+        prepared,
+        deleted,
       );
     },
     removeSources: () =>

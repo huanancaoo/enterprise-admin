@@ -294,7 +294,7 @@ export class PlatformFileExecutor {
             `platform_file_prepare_${kind}`,
             [actor.userId, actor.sessionId, input.operationId, leaseId],
           );
-          let plan = new FileObjectPlan(
+          const plan = new FileObjectPlan(
             journal.objects,
             platformFileStorageOwner,
             storage,
@@ -319,28 +319,24 @@ export class PlatformFileExecutor {
               throw new ApiException(409, 'FILE_CONTENT_MISMATCH');
             await fact(target, 'targetPrepared');
             if (action === 'overwrite') {
-              await plan.prepareTargets([journal.objects[1]], (object) =>
-                fact(object, 'targetPrepared'),
-              );
-              journal = await call<PlatformFileJournal>(
-                'platform_file_replace',
-                [input.operationId, leaseId],
-              );
-              plan = new FileObjectPlan(
-                journal.objects,
-                platformFileStorageOwner,
-                storage,
-                lease.signal,
-              );
-              await plan.remove(
-                [{ object: journal.objects[1], side: 'source' }],
+              await plan.replaceSource(
+                journal.objects.find(
+                  (object) => object.targetArea === 'history',
+                )!,
+                async () => {
+                  const replacement = await call<PlatformFileJournal>(
+                    'platform_file_replace',
+                    [input.operationId, leaseId],
+                  );
+                  return replacement.objects.find(
+                    (object) => object.sourceArea === 'staging',
+                  )!;
+                },
+                (object) => fact(object, 'targetPrepared'),
                 async (deletions) => {
                   for (const { object } of deletions)
                     await fact(object, 'sourceDeleted');
                 },
-              );
-              await plan.prepareTargets([journal.objects[2]], (object) =>
-                fact(object, 'targetPrepared'),
               );
             }
           } else {
