@@ -80,7 +80,6 @@
   "historicalVersion": "إصدار سابق",
   "historyDays": "مدة الاحتفاظ بالإصدارات غير المرتبطة",
   "impactSummary": "{{files}} ملفات · {{folders}} مجلدات · {{bytes}} بايت",
-  "itemCount": "{{quantity}} عناصر",
   "location": "المجلد",
   "maxUploadBytes": "حد الرفع لكل ملف",
   "moveDescription": "انقل «{{name}}» إلى المجلد المحدد.",

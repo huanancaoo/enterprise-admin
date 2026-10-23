@@ -1,3 +1,4 @@
+import { AdminPage } from "@workspace/admin"
 import { PlatformExportButton } from "../tasks/task-actions"
 import { useEffect, useMemo } from "react"
 import { useForm } from "@tanstack/react-form"
@@ -151,15 +152,7 @@ export function PlatformLoginEventsPage() {
   ]
   const status = getDataTableQueryStatus(query)
   return (
-    <section className="min-w-0 space-y-6">
-      <header className="space-y-1.5">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
-          {t("loginEvents")}
-        </h1>
-        <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
-          {t("loginEventsDescription")}
-        </p>
-      </header>
+    <AdminPage title={t("loginEvents")}>
       <DataTable
         columns={columns}
         data={query.data?.items ?? EMPTY_LOGS}
@@ -171,7 +164,7 @@ export function PlatformLoginEventsPage() {
         status={status}
         error={query.error instanceof Error ? query.error.message : undefined}
         onRetry={() => void query.refetch()}
-        toolbarContent={
+        toolbarActions={
           platformAccess.permissions.includes("platform.login:export") && (
             <PlatformExportButton resource="login" filters={search} />
           )
@@ -314,6 +307,6 @@ export function PlatformLoginEventsPage() {
           })
         }}
       />
-    </section>
+    </AdminPage>
   )
 }

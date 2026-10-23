@@ -18,7 +18,7 @@ import { permissionStatements } from "@workspace/permissions"
 import {
   FormDialog,
   ConfirmDangerAction,
-  PageHeader,
+  AdminPage,
   LoadingState,
   PermissionDeniedState,
   ErrorState,
@@ -85,6 +85,8 @@ export function AccessCredentialsSettings({
 }: {
   organizationId: string
 }) {
+  const { t } = useTranslation("credentials")
+
   const session = useAuthenticatedSession()!
   const membership = useOrganizationAuthorization({
     organizationId,
@@ -92,13 +94,22 @@ export function AccessCredentialsSettings({
     observation: "access-credentials",
   })
   if (membership.error)
-    return membership.error instanceof ApiClientError &&
-      [401, 403].includes(membership.error.status) ? (
-      <PermissionDeniedState />
-    ) : (
-      <ErrorState onRetry={() => void membership.refetch()} />
+    return (
+      <AdminPage title={t("title")}>
+        {membership.error instanceof ApiClientError &&
+        [401, 403].includes(membership.error.status) ? (
+          <PermissionDeniedState />
+        ) : (
+          <ErrorState onRetry={() => void membership.refetch()} />
+        )}
+      </AdminPage>
     )
-  if (membership.isPending) return <LoadingState />
+  if (membership.isPending)
+    return (
+      <AdminPage title={t("title")}>
+        <LoadingState />
+      </AdminPage>
+    )
   const { authorizationVersion, scopeKey } = membership.data
   // 用户、组织或权威授权版本变化都会销毁一次性密钥和当前草稿。
   return (
@@ -155,11 +166,17 @@ function CredentialScope(props: {
   userId: string
   authorizationVersion: number
 }) {
+  const { t } = useTranslation("credentials")
+
   const data = useCredentialQueries(props)
   const error = data.listing.error ?? data.access.error
   // 权限失效卸载持有密钥的管理器，旧缓存不能继续显示本人元数据或创建结果。
   if (error instanceof ApiClientError && [401, 403].includes(error.status))
-    return <PermissionDeniedState />
+    return (
+      <AdminPage title={t("title")}>
+        <PermissionDeniedState />
+      </AdminPage>
+    )
   return <CredentialManager organizationId={props.organizationId} data={data} />
 }
 function CredentialManager({
@@ -349,26 +366,25 @@ function CredentialManager({
   ])
   const error = listing.error ?? access.error
   return (
-    <section className="min-w-0 space-y-6">
-      <PageHeader
-        title={t("title")}
-        description={t("description")}
-        actions={
-          canManage ? (
-            <Button
-              onClick={() => {
-                create.reset()
-                form.reset()
-                setCopy(undefined)
-                setCreateOpen(true)
-              }}
-            >
-              <PlusIcon aria-hidden="true" />
-              {t("create")}
-            </Button>
-          ) : undefined
-        }
-      />
+    <AdminPage
+      title={t("title")}
+      description={t("description")}
+      actions={
+        canManage ? (
+          <Button
+            onClick={() => {
+              create.reset()
+              form.reset()
+              setCopy(undefined)
+              setCreateOpen(true)
+            }}
+          >
+            <PlusIcon aria-hidden="true" />
+            {t("create")}
+          </Button>
+        ) : undefined
+      }
+    >
       <div className="flex gap-3 rounded-xl border bg-muted/30 p-4">
         <KeyRoundIcon
           className="mt-0.5 size-5 shrink-0 text-muted-foreground"
@@ -616,6 +632,6 @@ function CredentialManager({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </section>
+    </AdminPage>
   )
 }

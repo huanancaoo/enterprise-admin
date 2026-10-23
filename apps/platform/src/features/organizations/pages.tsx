@@ -16,6 +16,7 @@ import {
   ErrorState,
   LoadingState,
   PermissionDeniedState,
+  AdminPage,
 } from "@workspace/admin"
 import { nextIdempotencyAttempt } from "@workspace/admin"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
@@ -40,7 +41,7 @@ import { useUiLocale } from "@workspace/i18n/react"
 import { ArrowLeftIcon } from "lucide-react"
 import { Badge } from "@workspace/ui/components/badge"
 import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
-import { Button } from "@workspace/ui/components/button"
+import { Button, buttonVariants } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
 import { Textarea } from "@workspace/ui/components/textarea"
 import {
@@ -166,10 +167,7 @@ export function PlatformOrganizationsPage() {
   const pagination = { pageIndex: search.page - 1, pageSize: search.pageSize }
   const status = getDataTableQueryStatus(query)
   return (
-    <section className="min-w-0 space-y-6">
-      <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
-        {t("organization:platformOrganizations")}
-      </h1>
+    <AdminPage title={t("organization:platformOrganizations")}>
       <DataTable
         columns={columns}
         data={query.data?.items ?? EMPTY_ORGANIZATIONS}
@@ -178,7 +176,7 @@ export function PlatformOrganizationsPage() {
         status={status}
         error={query.error instanceof Error ? query.error.message : undefined}
         onRetry={() => void query.refetch()}
-        toolbarContent={
+        toolbarActions={
           platformAccess.permissions.includes(
             "platform.organization:export"
           ) && <PlatformExportButton resource="organization" filters={search} />
@@ -241,7 +239,7 @@ export function PlatformOrganizationsPage() {
           })
         }}
       />
-    </section>
+    </AdminPage>
   )
 }
 
@@ -308,7 +306,7 @@ function OrganizationAction({
         attempt.current,
         attempt.current !== null &&
           JSON.stringify(attempt.current.input) === JSON.stringify(input),
-        (key) => ({ action, input, key }),
+        (key) => ({ action, input, key })
       )
       const command = attempt.current
       try {
@@ -497,52 +495,62 @@ export function PlatformOrganizationDetailPage() {
     retry: false,
   })
   usePlatformAccessFailure(query.error)
-  if (query.isPending) return <LoadingState />
+  if (query.isPending)
+    return (
+      <AdminPage title={t("organization:platformOrganizations")}>
+        <LoadingState />
+      </AdminPage>
+    )
   if (
     query.isError &&
     (!query.data ||
       (query.error instanceof ApiClientError &&
         [401, 403].includes(query.error.status)))
   )
-    return query.error instanceof ApiClientError &&
-      query.error.status === 403 ? (
-      <PermissionDeniedState />
-    ) : (
-      <ErrorState
-        message={query.error instanceof Error ? query.error.message : undefined}
-        onRetry={() => void query.refetch()}
-      />
+    return (
+      <AdminPage title={t("organization:platformOrganizations")}>
+        {query.error instanceof ApiClientError && query.error.status === 403 ? (
+          <PermissionDeniedState />
+        ) : (
+          <ErrorState
+            message={
+              query.error instanceof Error ? query.error.message : undefined
+            }
+            onRetry={() => void query.refetch()}
+          />
+        )}
+      </AdminPage>
     )
   const organization = query.data
   return (
-    <section className="min-w-0 space-y-6" aria-busy={query.isFetching}>
-      <Link
-        to="/platform/organizations"
-        search={{
-          page: 1,
-          pageSize: 20,
-          sortBy: "createdAt",
-          sortOrder: "desc",
-        }}
-        className="inline-flex items-center gap-2 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-      >
-        <ArrowLeftIcon className="size-4 rtl:rotate-180" />
-        {t("organization:platformOrganizations")}
-      </Link>
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="min-w-0 font-heading text-2xl font-semibold tracking-tight break-words sm:text-3xl">
-          {organization.name}
-        </h1>
-        {platformAccess.permissions.includes(
-          "platform.organization:update"
-        ) && (
+    <AdminPage
+      title={organization.name}
+      aria-busy={query.isFetching}
+      actions={
+        platformAccess.permissions.includes("platform.organization:update") && (
           <OrganizationAction
             key={organization.id}
             organization={organization}
             onChanged={setMessage}
           />
-        )}
-      </div>
+        )
+      }
+      back={
+        <Link
+          to="/platform/organizations"
+          search={{
+            page: 1,
+            pageSize: 20,
+            sortBy: "createdAt",
+            sortOrder: "desc",
+          }}
+          className={buttonVariants({ variant: "ghost", size: "sm" })}
+        >
+          <ArrowLeftIcon className="size-4 rtl:rotate-180" />
+          {t("organization:platformOrganizations")}
+        </Link>
+      }
+    >
       {message && (
         <p role="status" className="rounded-xl bg-muted px-4 py-3 text-sm">
           {message}
@@ -692,6 +700,6 @@ export function PlatformOrganizationDetailPage() {
           )}
         </CardContent>
       </Card>
-    </section>
+    </AdminPage>
   )
 }

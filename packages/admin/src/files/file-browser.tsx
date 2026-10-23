@@ -22,6 +22,7 @@ import { Button } from "@workspace/ui/components/button"
 import { ChevronRightIcon, MapPinIcon } from "lucide-react"
 import { FileEntryIcon } from "./file-presentation"
 import { fileTypeLabel, formatFileSize } from "./file-format"
+import { FileSearch } from "./file-search"
 
 const columnHelper = createDataTableColumnHelper<FileEntryView>()
 const emptyEntries: FileEntryView[] = []
@@ -308,17 +309,21 @@ function Browser({
               !workspace || Boolean(search.name) || search.state === "trashed",
           },
         }}
-        toolbarContent={
-          workspace ? (
-            <h2 className="min-w-0 text-lg font-semibold wrap-anywhere">
-              {currentFolder.parentId === null
-                ? (rootLabel ?? t("files:allFiles"))
-                : currentFolder.name}
-              <span className="ms-3 text-sm font-normal text-muted-foreground">
-                {page ? t("files:itemCount", { quantity: page.total }) : ""}
-              </span>
-            </h2>
-          ) : undefined
+        toolbarFilters={
+          workspace && (
+            <FileSearch
+              key={search.name ?? ""}
+              value={search.name ?? ""}
+              pending={status === "loading" || status === "refreshing"}
+              onSearch={(name) =>
+                onSearchChange((current) => ({
+                  ...current,
+                  name: name || undefined,
+                  page: 1,
+                }))
+              }
+            />
+          )
         }
         rowClassName={(row) =>
           row.original.id === previewedFileId
@@ -326,9 +331,7 @@ function Browser({
             : undefined
         }
         className={
-          workspace
-            ? "gap-0 [&_[data-slot=data-table-content]]:rounded-none [&_[data-slot=data-table-content]]:border-0 [&_[data-slot=data-table-toolbar]]:px-4 [&_[data-slot=data-table-toolbar]]:py-4 [&_td]:h-16 [&_td]:px-3 [&_td]:text-foreground/70 [&_th]:bg-background [&_th]:px-3 [&>div:last-child]:px-4 [&>div:last-child]:py-4"
-            : undefined
+          workspace ? "[&_td]:h-14 [&_td]:text-foreground/80" : undefined
         }
         columns={columns}
         data={page?.items ?? emptyEntries}
@@ -437,7 +440,7 @@ function BreadcrumbNavigation({
             )}
             <Button
               variant="link"
-              className="h-auto max-w-full p-0 text-start [overflow-wrap:anywhere] whitespace-normal"
+              className="h-auto max-w-full p-0 text-start [overflow-wrap:anywhere] whitespace-normal text-muted-foreground aria-[current=page]:font-medium aria-[current=page]:text-foreground"
               disabled={busy}
               aria-current={folder.id === currentFolder.id ? "page" : undefined}
               onClick={() => onOpenFolder(folder)}

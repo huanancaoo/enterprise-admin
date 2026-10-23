@@ -151,10 +151,9 @@ export const LoadingInbox: Story = {
     await expect(
       await canvas.findByRole("heading", { name: "Notifications", level: 1 })
     ).toBeVisible()
-    await expect(canvas.getByRole("table").closest("fieldset")).toHaveAttribute(
-      "aria-busy",
-      "true"
-    )
+    await expect(
+      (await canvas.findByRole("table")).closest("fieldset")
+    ).toHaveAttribute("aria-busy", "true")
     await expect(
       canvas.queryByRole("button", { name: "Projects export completed" })
     ).toBeNull()

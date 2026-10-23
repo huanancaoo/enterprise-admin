@@ -6,11 +6,11 @@ import {
   createRootRouteWithContext,
   createRoute,
   createRouter,
-  lazyRouteComponent,
   redirect,
 } from "@tanstack/react-router"
 import {
   LoadingState,
+  RouterNotFoundComponent,
   NotFoundState,
   RouterErrorComponent,
 } from "@workspace/admin"
@@ -40,150 +40,63 @@ import {
 } from "@workspace/contracts/platform-system"
 
 import { rejectPlatformAccess } from "./lib/platform-access-failure"
+import {
+  PlatformSchedulesPage,
+  PlatformScheduleRunsPage,
+} from "./features/schedules/pages"
+import { PlatformMonitorPage } from "./features/monitor/page"
+import { PlatformSettingsPage } from "./features/settings-page"
+import { PlatformPersonalSettingsPage } from "./features/personal-settings-page"
+import { PlatformAuditPage } from "./features/audit/page"
+import {
+  PlatformOrganizationsPage,
+  PlatformOrganizationDetailPage,
+} from "./features/organizations/pages"
+import {
+  PlatformUsersPage,
+  PlatformUserDetailPage,
+} from "./features/users/pages"
+import { PlatformLoginEventsPage } from "./features/identity/login-events-page"
+import { PlatformSessionsPage } from "./features/identity/sessions-page"
+import {
+  PlatformEmployeesPage,
+  PlatformEmployeeCreatePage,
+  PlatformEmployeeGrantPage,
+  PlatformEmployeeDetailPage,
+} from "./features/system/employees"
+import {
+  PlatformRolesPage,
+  PlatformRolePermissionsPage,
+  PlatformRoleEmployeesPage,
+} from "./features/system/roles"
+import {
+  PlatformMenusPage,
+  PlatformDepartmentsPage,
+} from "./features/system/tree-pages"
+import {
+  PlatformPostsPage,
+  PlatformDictionariesPage,
+  PlatformDictionaryItemsPage,
+  PlatformParametersPage,
+} from "./features/system/catalog-pages"
+import {
+  PlatformHomePage,
+  PlatformEmbeddedPage,
+} from "./features/system/platform-navigation"
+import {
+  PlatformAnnouncementsRoute,
+  PlatformAnnouncementCreateRoute,
+  PlatformAnnouncementPreviewRoute,
+  PlatformAnnouncementEditRoute,
+  PlatformAnnouncementReadersRoute,
+  PlatformAnnouncementInboxRoute,
+  PlatformAnnouncementReadRoute,
+} from "./features/announcements/routes"
+import { PlatformTasksRoute } from "./features/tasks/route"
+import { FilesRoute } from "./features/files/files-workspace"
+import { FileDetailRoute } from "./features/files/file-detail-route"
 
-const PlatformSchedulesPage = lazyRouteComponent(
-  () => import("./features/schedules/pages"),
-  "PlatformSchedulesPage"
-)
-const PlatformScheduleRunsPage = lazyRouteComponent(
-  () => import("./features/schedules/pages"),
-  "PlatformScheduleRunsPage"
-)
-const PlatformMonitorPage = lazyRouteComponent(
-  () => import("./features/monitor/page"),
-  "PlatformMonitorPage"
-)
-const PlatformSettingsPage = lazyRouteComponent(
-  () => import("./features/settings-page"),
-  "PlatformSettingsPage"
-)
-const PlatformPersonalSettingsPage = lazyRouteComponent(
-  () => import("./features/personal-settings-page"),
-  "PlatformPersonalSettingsPage"
-)
-const PlatformAuditPage = lazyRouteComponent(
-  () => import("./features/audit/page"),
-  "PlatformAuditPage"
-)
-const PlatformOrganizationsPage = lazyRouteComponent(
-  () => import("./features/organizations/pages"),
-  "PlatformOrganizationsPage"
-)
-const PlatformOrganizationDetailPage = lazyRouteComponent(
-  () => import("./features/organizations/pages"),
-  "PlatformOrganizationDetailPage"
-)
-const PlatformUsersPage = lazyRouteComponent(
-  () => import("./features/users/pages"),
-  "PlatformUsersPage"
-)
-const PlatformLoginEventsPage = lazyRouteComponent(
-  () => import("./features/identity/login-events-page"),
-  "PlatformLoginEventsPage"
-)
-const PlatformSessionsPage = lazyRouteComponent(
-  () => import("./features/identity/sessions-page"),
-  "PlatformSessionsPage"
-)
-const PlatformUserDetailPage = lazyRouteComponent(
-  () => import("./features/users/pages"),
-  "PlatformUserDetailPage"
-)
-
-const PlatformEmployeesPage = lazyRouteComponent(
-  () => import("./features/system/employees"),
-  "PlatformEmployeesPage"
-)
-const PlatformEmployeeCreatePage = lazyRouteComponent(
-  () => import("./features/system/employees"),
-  "PlatformEmployeeCreatePage"
-)
-const PlatformEmployeeGrantPage = lazyRouteComponent(
-  () => import("./features/system/employees"),
-  "PlatformEmployeeGrantPage"
-)
-const PlatformEmployeeDetailPage = lazyRouteComponent(
-  () => import("./features/system/employees"),
-  "PlatformEmployeeDetailPage"
-)
-const PlatformRolesPage = lazyRouteComponent(
-  () => import("./features/system/roles"),
-  "PlatformRolesPage"
-)
-const PlatformRolePermissionsPage = lazyRouteComponent(
-  () => import("./features/system/roles"),
-  "PlatformRolePermissionsPage"
-)
-const PlatformRoleEmployeesPage = lazyRouteComponent(
-  () => import("./features/system/roles"),
-  "PlatformRoleEmployeesPage"
-)
-const PlatformMenusPage = lazyRouteComponent(
-  () => import("./features/system/tree-pages"),
-  "PlatformMenusPage"
-)
-const PlatformDepartmentsPage = lazyRouteComponent(
-  () => import("./features/system/tree-pages"),
-  "PlatformDepartmentsPage"
-)
-const PlatformPostsPage = lazyRouteComponent(
-  () => import("./features/system/catalog-pages"),
-  "PlatformPostsPage"
-)
-const PlatformDictionariesPage = lazyRouteComponent(
-  () => import("./features/system/catalog-pages"),
-  "PlatformDictionariesPage"
-)
-const PlatformDictionaryItemsPage = lazyRouteComponent(
-  () => import("./features/system/catalog-pages"),
-  "PlatformDictionaryItemsPage"
-)
-const PlatformParametersPage = lazyRouteComponent(
-  () => import("./features/system/catalog-pages"),
-  "PlatformParametersPage"
-)
-const PlatformHomePage = lazyRouteComponent(
-  () => import("./features/system/platform-navigation"),
-  "PlatformHomePage"
-)
-const PlatformEmbeddedPage = lazyRouteComponent(
-  () => import("./features/system/platform-navigation"),
-  "PlatformEmbeddedPage"
-)
-
-const PlatformAnnouncementsRoute = lazyRouteComponent(
-  () => import("./features/announcements/routes"),
-  "PlatformAnnouncementsRoute"
-)
-const PlatformAnnouncementCreateRoute = lazyRouteComponent(
-  () => import("./features/announcements/routes"),
-  "PlatformAnnouncementCreateRoute"
-)
-const PlatformAnnouncementPreviewRoute = lazyRouteComponent(
-  () => import("./features/announcements/routes"),
-  "PlatformAnnouncementPreviewRoute"
-)
-const PlatformAnnouncementEditRoute = lazyRouteComponent(
-  () => import("./features/announcements/routes"),
-  "PlatformAnnouncementEditRoute"
-)
-const PlatformAnnouncementReadersRoute = lazyRouteComponent(
-  () => import("./features/announcements/routes"),
-  "PlatformAnnouncementReadersRoute"
-)
-const PlatformAnnouncementInboxRoute = lazyRouteComponent(
-  () => import("./features/announcements/routes"),
-  "PlatformAnnouncementInboxRoute"
-)
-const PlatformAnnouncementReadRoute = lazyRouteComponent(
-  () => import("./features/announcements/routes"),
-  "PlatformAnnouncementReadRoute"
-)
-const PlatformTasksRoute = lazyRouteComponent(
-  () => import("./features/tasks/route"),
-  "PlatformTasksRoute"
-)
-
+// 页头随路由同步挂载；较重的正文在页面内容边界内按需加载。
 const rootRoute = createRootRouteWithContext<WorkspaceRouterContext>()({
   component: App,
 })
@@ -262,6 +175,7 @@ const platformRoute = createRoute({
     }
   },
   component: PlatformLayout,
+  notFoundComponent: RouterNotFoundComponent,
 })
 const platformIndexRoute = createRoute({
   getParentRoute: () => platformRoute,
@@ -534,19 +448,13 @@ const filesRoute = createRoute({
   getParentRoute: () => platformRoute,
   path: "files",
   validateSearch: FileListQuerySchema,
-  component: lazyRouteComponent(
-    () => import("./features/files/files-workspace"),
-    "FilesRoute"
-  ),
+  component: FilesRoute,
 })
 const fileDetailRoute = createRoute({
   getParentRoute: () => platformRoute,
   path: "files/entries/$entryId",
   validateSearch: z.object({ versionId: z.uuid().optional() }),
-  component: lazyRouteComponent(
-    () => import("./features/files/file-detail-route"),
-    "FileDetailRoute"
-  ),
+  component: FileDetailRoute,
 })
 
 const announcementsRoute = createRoute({
@@ -693,7 +601,7 @@ export const router = createRouter({
   },
   defaultPreload: "intent",
   // 主面板独立滚动后，换页仍须从页面顶部开始。
-  scrollToTopSelectors: ['[data-slot="sidebar-inset"]'],
+  scrollToTopSelectors: ['[data-slot="page-scroll"]'],
   defaultNotFoundComponent: NotFoundState,
   defaultErrorComponent: RouterErrorComponent,
   defaultPendingComponent: LoadingState,

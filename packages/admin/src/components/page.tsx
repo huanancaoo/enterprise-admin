@@ -1,4 +1,4 @@
-import { useId, type ComponentProps, type ReactNode } from "react"
+import { Suspense, useId, type ComponentProps, type ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 import { useDocumentTitle } from "../hooks/use-document-title"
 import { AppSidebar, type AppSidebarProps } from "./app-sidebar"
@@ -21,34 +21,121 @@ import { TooltipProvider } from "@workspace/ui/components/tooltip"
 import { Inbox, LoaderCircle, ShieldAlert, TriangleAlert } from "lucide-react"
 import { cn } from "cn"
 
+export interface PageHeaderProps {
+  title: string
+  description?: string
+  back?: ReactNode
+  meta?: ReactNode
+  actions?: ReactNode
+  /** 弹窗关闭后聚焦标题本身，避免焦点被页头内的操作按钮接走。 */
+  headingRef?: ComponentProps<"h1">["ref"]
+}
+
 export function PageHeader({
   title,
   description,
+  back,
+  meta,
   actions,
-}: {
-  title: string
-  description?: string
-  actions?: ReactNode
-}) {
-  useDocumentTitle(title)
+  headingRef,
+}: PageHeaderProps) {
   return (
-    <header className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-      <div className="min-w-0 flex-1 space-y-1.5">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight wrap-anywhere sm:text-3xl">
-          {title}
-        </h1>
-        {description && (
-          <p className="max-w-3xl text-sm leading-relaxed wrap-anywhere text-muted-foreground">
-            {description}
-          </p>
-        )}
-      </div>
-      {actions && (
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          {actions}
+    <header data-slot="page-header" className="min-w-0 space-y-4">
+      {back && (
+        <div
+          data-slot="page-back"
+          className="flex min-w-0 flex-wrap items-center gap-2"
+        >
+          {back}
         </div>
       )}
+      <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <h1
+            ref={headingRef}
+            tabIndex={headingRef ? -1 : undefined}
+            className="font-heading text-2xl font-semibold tracking-tight wrap-anywhere sm:text-3xl"
+          >
+            {title}
+          </h1>
+          {description && (
+            <p className="max-w-3xl text-sm leading-relaxed wrap-anywhere text-muted-foreground">
+              {description}
+            </p>
+          )}
+          {meta && (
+            <div className="min-w-0 text-sm wrap-anywhere text-muted-foreground">
+              {meta}
+            </div>
+          )}
+        </div>
+        {actions && (
+          <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-2 sm:max-w-1/2">
+            {actions}
+          </div>
+        )}
+      </div>
     </header>
+  )
+}
+
+export interface AdminPageProps extends PageHeaderProps {
+  children?: ReactNode
+  subnav?: ReactNode
+  contentWidth?: "standard" | "form" | "reading"
+  "aria-busy"?: ComponentProps<"section">["aria-busy"]
+}
+
+export function AdminPage({
+  children,
+  subnav,
+  contentWidth = "standard",
+  "aria-busy": busy,
+  ...header
+}: AdminPageProps) {
+  useDocumentTitle(header.title)
+  return (
+    <section
+      data-slot="admin-page"
+      aria-busy={busy}
+      className="mx-auto w-full max-w-7xl min-w-0 space-y-6 p-4 sm:p-6 lg:p-8"
+    >
+      <PageHeader {...header} />
+      {subnav}
+      <div
+        data-slot="page-content"
+        className={cn(
+          "min-w-0 space-y-6",
+          contentWidth === "form" && "max-w-3xl",
+          contentWidth === "reading" && "max-w-4xl"
+        )}
+      >
+        <Suspense fallback={<LoadingState />}>{children}</Suspense>
+      </div>
+    </section>
+  )
+}
+
+export function WorkspacePage({
+  children,
+  ...header
+}: PageHeaderProps & { children: ReactNode }) {
+  useDocumentTitle(header.title)
+  return (
+    <section
+      data-slot="workspace-page"
+      className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+    >
+      <div className="shrink-0 border-b px-4 py-6 sm:px-6 lg:px-8">
+        <PageHeader {...header} />
+      </div>
+      <div
+        data-slot="workspace-content"
+        className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto"
+      >
+        <Suspense fallback={<LoadingState />}>{children}</Suspense>
+      </div>
+    </section>
   )
 }
 
@@ -57,7 +144,7 @@ export interface AppShellProps {
   breadcrumb: ReactNode
   actions?: ReactNode
   children: ReactNode
-  /** 工作区自行提供页头和分栏，避免页面容器压缩文件、编辑器等主工作区域。 */
+  /** 工作区分配剩余视口；全局导航不随业务内容的加载或权限状态卸载。 */
   layout?: "page" | "workspace"
 }
 
@@ -82,29 +169,26 @@ export function AppShell({
           {...sidebar}
           side={i18n.dir() === "rtl" ? "right" : "left"}
         />
-        {/* 主面板独立滚动，使长页面和侧栏弹层共享稳定的视口坐标。 */}
-        <SidebarInset className="h-svh min-h-0 min-w-0 overflow-y-auto">
-          {layout === "page" && (
-            <header className="sticky top-0 z-20 flex min-h-16 shrink-0 items-center gap-3 border-b bg-background/95 px-4 py-3 backdrop-blur-sm sm:px-6">
-              <div className="flex min-w-0 flex-1 items-center gap-2 [&_nav]:min-w-0 [&_ol]:gap-1.5 sm:[&_ol]:gap-2.5">
-                <SidebarTrigger className="-ms-1" />
-                <Separator
-                  orientation="vertical"
-                  className="me-2 data-vertical:h-4 data-vertical:self-auto"
-                />
-                {breadcrumb}
-              </div>
-              {actions && (
-                <div className="flex shrink-0 items-center gap-2">
-                  {actions}
-                </div>
-              )}
-            </header>
-          )}
+        {/* 外壳固定全局导航；普通页滚动内容，工作区自行分配剩余高度。 */}
+        <SidebarInset className="h-svh min-h-0 min-w-0 overflow-hidden">
+          <header className="sticky top-0 z-20 flex min-h-16 shrink-0 items-center gap-3 border-b bg-background/95 px-4 py-3 backdrop-blur-sm sm:px-6">
+            <div className="flex min-w-0 flex-1 items-center gap-2 [&_nav]:min-w-0 [&_ol]:gap-1.5 sm:[&_ol]:gap-2.5">
+              <SidebarTrigger className="-ms-1" />
+              <Separator
+                orientation="vertical"
+                className="me-2 data-vertical:h-4 data-vertical:self-auto"
+              />
+              {breadcrumb}
+            </div>
+            {actions && (
+              <div className="flex shrink-0 items-center gap-2">{actions}</div>
+            )}
+          </header>
           <div
+            data-slot="page-scroll"
             className={cn(
-              "flex w-full min-w-0 flex-1 flex-col",
-              layout === "page" && "mx-auto max-w-7xl gap-6 p-4 sm:p-6 lg:p-8"
+              "flex min-h-0 w-full min-w-0 flex-1 flex-col",
+              layout === "workspace" ? "overflow-hidden" : "overflow-y-auto"
             )}
           >
             {children}
@@ -186,12 +270,11 @@ export function ErrorState({
 }
 export function NotFoundContent() {
   const { t } = useTranslation("common")
-  useDocumentTitle(t("notFoundTitle"))
   return (
     <section className="mx-auto w-full max-w-lg space-y-3 rounded-xl border bg-card p-8">
-      <h1 className="font-heading text-2xl font-semibold tracking-tight">
+      <h2 className="font-heading text-xl font-semibold tracking-tight">
         {t("notFoundTitle")}
-      </h1>
+      </h2>
       <p className="text-sm leading-relaxed text-muted-foreground">
         {t("notFoundDescription")}
       </p>
@@ -201,10 +284,22 @@ export function NotFoundContent() {
 
 // 只有独立 404 页面创建主地标；详情和弹层复用内容，主地标由外层布局负责。
 export function NotFoundState() {
+  const { t } = useTranslation("common")
   return (
     <main className="flex min-h-svh items-center justify-center p-6">
-      <NotFoundContent />
+      <AdminPage title={t("notFoundTitle")}>
+        <NotFoundContent />
+      </AdminPage>
     </main>
+  )
+}
+
+export function RouterNotFoundComponent() {
+  const { t } = useTranslation("common")
+  return (
+    <AdminPage title={t("notFoundTitle")}>
+      <NotFoundContent />
+    </AdminPage>
   )
 }
 
@@ -215,11 +310,14 @@ export function RouterErrorComponent({
   error: unknown
   reset: () => void
 }) {
+  const { t } = useTranslation("common")
   return (
-    <ErrorState
-      message={error instanceof Error ? error.message : undefined}
-      onRetry={reset}
-    />
+    <AdminPage title={t("errorTitle")}>
+      <ErrorState
+        message={error instanceof Error ? error.message : undefined}
+        onRetry={reset}
+      />
+    </AdminPage>
   )
 }
 
@@ -266,37 +364,6 @@ export function FilterBar({
       {/* 筛选请求进行中仍要能改条件；禁用输入会打断正在输入的名称。 */}
       <div className="flex flex-wrap items-center gap-2">{children}</div>
     </form>
-  )
-}
-
-// 仅编排已有列表状态，不持有查询、路由或表格状态。
-export function ResourceList({
-  title,
-  actions,
-  filters,
-  status,
-  error,
-  onRetry,
-  children,
-}: {
-  title: string
-  actions?: ReactNode
-  filters?: ReactNode
-  status: "ready" | "loading" | "empty" | "error" | "denied"
-  error?: string
-  onRetry?: () => void
-  children?: ReactNode
-}) {
-  return (
-    <section className="min-w-0 space-y-6">
-      <PageHeader title={title} actions={actions} />
-      {filters}
-      {status === "loading" && (children ?? <LoadingState />)}
-      {status === "empty" && <EmptyState />}
-      {status === "error" && <ErrorState message={error} onRetry={onRetry} />}
-      {status === "denied" && <PermissionDeniedState />}
-      {status === "ready" && children}
-    </section>
   )
 }
 

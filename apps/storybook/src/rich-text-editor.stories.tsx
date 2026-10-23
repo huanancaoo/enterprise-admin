@@ -1,6 +1,6 @@
 import { useRef, useState } from "react"
 import type { Meta, StoryObj } from "@storybook/react-vite"
-import { expect, userEvent, within } from "storybook/test"
+import { expect, userEvent, waitFor, within } from "storybook/test"
 import {
   RichTextEditor,
   type JSONContent,
@@ -141,6 +141,9 @@ type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   play: async ({ canvasElement }) => {
+    await waitFor(() =>
+      expect(canvasElement.querySelector(".tiptap")).not.toBeNull()
+    )
     const canvas = within(canvasElement)
     await expect(canvas.getByRole("button", { name: "Bold" })).toBeVisible()
     await expect(canvas.getByText("Title")).toBeVisible()
@@ -152,6 +155,9 @@ export const Default: Story = {
 export const Field: Story = {
   args: { variant: "field" },
   play: async ({ canvasElement }) => {
+    await waitFor(() =>
+      expect(canvasElement.querySelector(".tiptap")).not.toBeNull()
+    )
     await expect(
       within(canvasElement).getByRole("button", { name: "Bold" })
     ).toBeVisible()
@@ -163,6 +169,9 @@ export const Field: Story = {
 export const ReadOnly: Story = {
   args: { editable: false },
   play: async ({ canvasElement }) => {
+    await waitFor(() =>
+      expect(canvasElement.querySelector(".tiptap")).not.toBeNull()
+    )
     const canvas = within(canvasElement)
     await expect(
       canvas.queryByRole("button", { name: "Bold" })
@@ -181,12 +190,18 @@ export const Rtl: Story = {
     </DirectionProvider>
   ),
   play: async ({ canvasElement }) => {
+    await waitFor(() =>
+      expect(canvasElement.querySelector(".tiptap")).not.toBeNull()
+    )
     await expect(canvasElement.querySelector("[dir='rtl']")).not.toBeNull()
     await expect(within(canvasElement).getByText("Title")).toBeVisible()
   },
 }
 export const ImageUpload: Story = {
   play: async ({ canvasElement }) => {
+    await waitFor(() =>
+      expect(canvasElement.querySelector(".tiptap")).not.toBeNull()
+    )
     const input =
       canvasElement.querySelector<HTMLInputElement>("input[type=file]")!
     const canvas = within(canvasElement)
@@ -206,6 +221,9 @@ export const ImageUpload: Story = {
 export const UploadFailureKeepsDraft: Story = {
   args: { failUpload: true },
   play: async ({ canvasElement }) => {
+    await waitFor(() =>
+      expect(canvasElement.querySelector(".tiptap")).not.toBeNull()
+    )
     await userEvent.upload(
       canvasElement.querySelector<HTMLInputElement>("input[type=file]")!,
       imageFile()
@@ -227,6 +245,9 @@ export const UploadFailureKeepsDraft: Story = {
 export const PasteFailureKeepsDraft: Story = {
   args: { failUpload: true },
   play: async ({ canvasElement }) => {
+    await waitFor(() =>
+      expect(canvasElement.querySelector(".tiptap")).not.toBeNull()
+    )
     const editor = canvasElement.querySelector<HTMLElement>(".tiptap")!
     editor.focus()
     const data = new DataTransfer()
@@ -248,6 +269,9 @@ export const PasteFailureKeepsDraft: Story = {
 export const DropFailureKeepsDraft: Story = {
   args: { failUpload: true },
   play: async ({ canvasElement }) => {
+    await waitFor(() =>
+      expect(canvasElement.querySelector(".tiptap")).not.toBeNull()
+    )
     const editor = canvasElement.querySelector<HTMLElement>(".tiptap")!
     const rect = editor.getBoundingClientRect()
     const data = new DataTransfer()
@@ -271,6 +295,9 @@ export const DropFailureKeepsDraft: Story = {
 export const NoUploadCapability: Story = {
   args: { noUpload: true },
   play: async ({ canvasElement }) => {
+    await waitFor(() =>
+      expect(canvasElement.querySelector(".tiptap")).not.toBeNull()
+    )
     const canvas = within(canvasElement)
     await expect(canvas.getByRole("button", { name: "Bold" })).toBeVisible()
     await expect(
@@ -282,6 +309,9 @@ export const NoUploadCapability: Story = {
 export const ReadFailure: Story = {
   args: { initialValue: sampleWithImage, failRead: true, editable: false },
   play: async ({ canvasElement }) => {
+    await waitFor(() =>
+      expect(canvasElement.querySelector(".tiptap")).not.toBeNull()
+    )
     await expect(
       within(canvasElement).findByRole("alert")
     ).resolves.toHaveTextContent("File permission was revoked")
@@ -301,6 +331,9 @@ export const AttachmentReadFailure: Story = {
     },
   },
   play: async ({ canvasElement }) => {
+    await waitFor(() =>
+      expect(canvasElement.querySelector(".tiptap")).not.toBeNull()
+    )
     const canvas = within(canvasElement)
     await userEvent.click(
       canvas.getByRole("button", { name: "Download contract.pdf" })
@@ -347,6 +380,9 @@ function ScopeExample() {
 export const AccessChangeReleasesImage: Story = {
   render: () => <ScopeExample />,
   play: async ({ canvasElement }) => {
+    await waitFor(() =>
+      expect(canvasElement.querySelector(".tiptap")).not.toBeNull()
+    )
     const canvas = within(canvasElement)
     const image = await canvas.findByRole("img", { name: "Example" })
     const oldUrl = image.getAttribute("src")!
@@ -370,6 +406,9 @@ export const AccessChangeReleasesImage: Story = {
 export const UnmountReleasesImage: Story = {
   render: () => <ScopeExample />,
   play: async ({ canvasElement }) => {
+    await waitFor(() =>
+      expect(canvasElement.querySelector(".tiptap")).not.toBeNull()
+    )
     const canvas = within(canvasElement)
     const image = await canvas.findByRole("img", { name: "Example" })
     const oldUrl = image.getAttribute("src")!
@@ -390,6 +429,9 @@ export const UnmountReleasesImage: Story = {
 export const RetryKeepsSelectedFile: Story = {
   args: { failUpload: "once" },
   play: async ({ canvasElement }) => {
+    await waitFor(() =>
+      expect(canvasElement.querySelector(".tiptap")).not.toBeNull()
+    )
     const canvas = within(canvasElement)
     await userEvent.upload(
       canvasElement.querySelector<HTMLInputElement>("input[type=file]")!,
@@ -412,6 +454,9 @@ export const ChineseUploadFailure: Story = {
   globals: { locale: "zh-CN" },
   args: { failUpload: true },
   play: async ({ canvasElement }) => {
+    await waitFor(() =>
+      expect(canvasElement.querySelector(".tiptap")).not.toBeNull()
+    )
     const canvas = within(canvasElement)
     await userEvent.upload(
       canvasElement.querySelector<HTMLInputElement>("input[type=file]")!,
@@ -469,6 +514,9 @@ function ProgressExample() {
 export const ActualUploadStages: Story = {
   render: () => <ProgressExample />,
   play: async ({ canvasElement }) => {
+    await waitFor(() =>
+      expect(canvasElement.querySelector(".tiptap")).not.toBeNull()
+    )
     const canvas = within(canvasElement)
     await userEvent.upload(
       canvasElement.querySelector<HTMLInputElement>("input[type=file]")!,
@@ -492,6 +540,9 @@ export const ActualUploadStages: Story = {
 export const StopWaitingDoesNotResubmit: Story = {
   render: () => <ProgressExample />,
   play: async ({ canvasElement }) => {
+    await waitFor(() =>
+      expect(canvasElement.querySelector(".tiptap")).not.toBeNull()
+    )
     const canvas = within(canvasElement)
     await userEvent.upload(
       canvasElement.querySelector<HTMLInputElement>("input[type=file]")!,

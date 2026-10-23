@@ -6,7 +6,7 @@ import {
   ErrorState,
   LoadingState,
   PermissionDeniedState,
-  ResourceList,
+  AdminPage,
 } from "@workspace/admin"
 import {
   ApiClientError,
@@ -50,17 +50,29 @@ const detailPath = "/app/files/$organizationId/entries/$entryId"
 
 export function FileDetailRoute() {
   const { organizationId, entryId } = useParams({ from: detailPath })
-  const { t } = useTranslation("common")
+  const { t } = useTranslation(["common", "files"])
   const access = useQuery(getOrganizationAccessOptions(organizationId))
-  if (fileRequestIsDenied(access.error)) return <PermissionDeniedState />
+  if (fileRequestIsDenied(access.error))
+    return (
+      <AdminPage title={t("files:detail")}>
+        <PermissionDeniedState />
+      </AdminPage>
+    )
   if (access.isError)
     return (
-      <ErrorState
-        message={fileRequestErrorMessage(access.error, t("operationFailed"))}
-        onRetry={() => void access.refetch()}
-      />
+      <AdminPage title={t("files:detail")}>
+        <ErrorState
+          message={fileRequestErrorMessage(access.error, t("operationFailed"))}
+          onRetry={() => void access.refetch()}
+        />
+      </AdminPage>
     )
-  if (!access.data) return <LoadingState />
+  if (!access.data)
+    return (
+      <AdminPage title={t("files:detail")}>
+        <LoadingState />
+      </AdminPage>
+    )
   return (
     <AuthorizedFileDetail
       key={JSON.stringify([
@@ -105,21 +117,30 @@ function AuthorizedFileDetail({
       permissions.data?.canReadFiles && permissions.data.canReadFolders
     ),
   })
-  if (fileRequestIsDenied(entry.error)) return <PermissionDeniedState />
+  if (fileRequestIsDenied(entry.error))
+    return (
+      <AdminPage title={t("files:detail")}>
+        <PermissionDeniedState />
+      </AdminPage>
+    )
   if (entry.isError)
     return (
-      <ResourceList
-        title={t("files:detail")}
-        status="error"
-        error={fileRequestErrorMessage(
-          entry.error,
-          t("common:operationFailed")
-        )}
-        onRetry={() => void entry.refetch()}
-      />
+      <AdminPage title={t("files:detail")}>
+        <ErrorState
+          message={fileRequestErrorMessage(
+            entry.error,
+            t("common:operationFailed")
+          )}
+          onRetry={() => void entry.refetch()}
+        />
+      </AdminPage>
     )
   if (!entry.data)
-    return <ResourceList title={t("files:detail")} status="loading" />
+    return (
+      <AdminPage title={t("files:detail")}>
+        <LoadingState />
+      </AdminPage>
+    )
   const root = workspace.data?.root
   const managed = root !== undefined && !fileRequestIsDenied(workspace.error)
   const details = (
@@ -196,17 +217,14 @@ function FileDetailContent({
   actions?: ReactNode
 }) {
   return (
-    <ResourceList
+    <AdminPage
       title={entry.name}
-      status="ready"
-      actions={
-        <div className="flex flex-wrap gap-2">
-          {actions}
-          <FileDetailLocation
-            entry={entry}
-            authorizationVersion={authorizationVersion}
-          />
-        </div>
+      actions={actions}
+      back={
+        <FileDetailLocation
+          entry={entry}
+          authorizationVersion={authorizationVersion}
+        />
       }
     >
       {entry.state === "trashed" ? (
@@ -230,7 +248,7 @@ function FileDetailContent({
           </div>
         </>
       )}
-    </ResourceList>
+    </AdminPage>
   )
 }
 
@@ -266,7 +284,8 @@ function FileDetailLocation({
     )
   return (
     <Button
-      variant="outline"
+      variant="ghost"
+      size="sm"
       disabled={entry.state === "trashed" && parent.isPending}
       render={
         <Link

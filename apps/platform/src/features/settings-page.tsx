@@ -21,6 +21,7 @@ import {
   ErrorState,
   LoadingState,
   PermissionDeniedState,
+  AdminPage,
 } from "@workspace/admin"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import { nextIdempotencyAttempt } from "@workspace/admin"
@@ -65,15 +66,7 @@ export function PlatformSettingsPage() {
   })
   usePlatformAccessFailure(mutationError ?? query.error)
   return (
-    <div className="max-w-4xl min-w-0 space-y-6">
-      <div className="space-y-2">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
-          {t("organization:platformSettings")}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {t("organization:platformSettingsDescription")}
-        </p>
-      </div>
+    <AdminPage title={t("organization:platformSettings")} contentWidth="form">
       {query.isPending ? (
         <LoadingState />
       ) : query.isError ? (
@@ -169,7 +162,7 @@ export function PlatformSettingsPage() {
         </>
       )}
       <PlatformFilePolicy />
-    </div>
+    </AdminPage>
   )
 }
 

@@ -110,7 +110,7 @@ function InlineFiltersExample({ empty = false }: { empty?: boolean }) {
       getRowId={(row) => row.id}
       searchPlaceholder="Search records"
       enableRowSelection={false}
-      toolbarContent={<Button>Create record</Button>}
+      toolbarActions={<Button>Create record</Button>}
       toolbarFilters={<Input aria-label="Account filter" className="w-48" />}
     />
   )
@@ -127,9 +127,9 @@ export const InlineFilters: Story = {
     await expect(create).toBeVisible()
     await expect(filter).toBeVisible()
     for (const [before, after] of [
-      [create, search],
       [search, status],
       [status, filter],
+      [filter, create],
     ]) {
       await expect(
         Boolean(

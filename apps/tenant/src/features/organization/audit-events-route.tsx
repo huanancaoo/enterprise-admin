@@ -5,7 +5,7 @@ import {
 import { useForm } from "@tanstack/react-form"
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router"
-import { PageHeader } from "@workspace/admin"
+import { AdminPage } from "@workspace/admin"
 import {
   DataTable,
   createDataTableColumnHelper,
@@ -448,12 +448,10 @@ function AuditWorkspace({
   }
 
   return (
-    <section className="min-w-0 space-y-6">
-      <PageHeader
-        title={t("organization:audit")}
-        description={t("organization:auditDescription")}
-      />
-
+    <AdminPage
+      title={t("organization:audit")}
+      description={t("organization:auditDescription")}
+    >
       {/* 筛选表单独立布局，避免表格错误恢复时其内部字段区域折叠。 */}
       {status !== "forbidden" && (
         <AuditFilters
@@ -484,7 +482,7 @@ function AuditWorkspace({
           globalFilter: search.eventCode ?? "",
           columnFilters,
         }}
-        toolbarContent={
+        toolbarActions={
           <TenantExportButton
             organizationId={organizationId}
             resource="audit"
@@ -611,7 +609,7 @@ function AuditWorkspace({
           )}
         </DialogContent>
       </Dialog>
-    </section>
+    </AdminPage>
   )
 }
 

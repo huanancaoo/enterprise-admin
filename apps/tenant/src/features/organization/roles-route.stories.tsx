@@ -142,7 +142,11 @@ export const AccessLoading: Story = {
     await expect(
       await within(canvasElement).findByRole("status")
     ).toHaveTextContent("Loading…")
-    await expect(within(canvasElement).queryByRole("heading")).toBeNull()
+    await expect(
+      within(canvasElement).getByRole("heading", { level: 1, name: "Roles" })
+    ).toBeVisible()
+    await waitFor(() => expect(canvasElement.ownerDocument.title).toBe("Roles"))
+    await expect(within(canvasElement).queryByRole("table")).toBeNull()
   },
 }
 export const Loading: Story = {

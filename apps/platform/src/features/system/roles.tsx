@@ -33,7 +33,7 @@ import {
   type PlatformEmployee,
 } from "@workspace/contracts/platform-system"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
-import { ErrorState, LoadingState } from "@workspace/admin"
+import { ErrorState, LoadingState, AdminPage } from "@workspace/admin"
 import {
   DataTable,
   getDataTableQueryStatus,
@@ -44,13 +44,6 @@ import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
 import { Badge } from "@workspace/ui/components/badge"
 import { Checkbox } from "@workspace/ui/components/checkbox"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@workspace/ui/components/card"
 import {
   Field,
   FieldLabel,
@@ -253,11 +246,17 @@ export function PlatformRolesPage() {
   )
   const pagination = { pageIndex: search.page - 1, pageSize: search.pageSize }
   return (
-    <section className="min-w-0 space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">{t("title")}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("description")}</p>
-      </div>
+    <AdminPage
+      title={t("title")}
+      actions={
+        getDataTableQueryStatus(query) !== "forbidden" &&
+        canCreate && (
+          <Button disabled={pending} onClick={() => setEditing("new")}>
+            {t("create")}
+          </Button>
+        )
+      }
+    >
       <DirectoryError error={error} />
       <DataTable
         columns={columns}
@@ -275,13 +274,8 @@ export function PlatformRolesPage() {
         isActionPending={pending}
         searchPlaceholder={t("search")}
         searchMaxLength={200}
-        toolbarContent={
+        toolbarActions={
           <>
-            {canCreate && (
-              <Button size="sm" onClick={() => setEditing("new")}>
-                {t("create")}
-              </Button>
-            )}
             {platformAccess.permissions.includes("platform.role:export") && (
               <PlatformExportButton resource="role" filters={search} />
             )}
@@ -406,7 +400,7 @@ export function PlatformRolesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </section>
+    </AdminPage>
   )
 }
 
@@ -606,59 +600,68 @@ export function RoleEditor({
   )
 }
 
-function RolePageHeader({
+function RolePage({
   role,
   title,
+  children,
 }: {
-  role: PlatformRole
+  role?: PlatformRole
   title: string
+  children: React.ReactNode
 }) {
   const { t } = useTranslation("roles")
   const { platformAccess } = useRouteContext({ from: "/platform" })
   return (
-    <header className="space-y-3">
-      <Button
-        size="sm"
-        variant="ghost"
-        nativeButton={false}
-        render={
-          <Link
-            to="/platform/roles"
-            search={{ page: 1, pageSize: 20, sortBy: "sort", sortOrder: "asc" }}
-          />
-        }
-      >
-        <ArrowLeftIcon />
-        {t("back")}
-      </Button>
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {role.name} <bdi className="font-mono text-xs">{role.key}</bdi>
-        </p>
-      </div>
-      <nav className="flex gap-2">
+    <AdminPage
+      title={title}
+      back={
         <Button
           size="sm"
-          variant="outline"
+          variant="ghost"
           nativeButton={false}
           render={
             <Link
-              to="/platform/roles/$roleId/permissions"
-              params={{ roleId: role.id }}
+              to="/platform/roles"
+              search={{
+                page: 1,
+                pageSize: 20,
+                sortBy: "sort",
+                sortOrder: "asc",
+              }}
             />
           }
         >
-          {t("permissions")}
+          <ArrowLeftIcon />
+          {t("back")}
         </Button>
-        {platformAccess.permissions.includes(
-          "platform.authorization:manage"
-        ) && (
-          <Button
-            size="sm"
-            variant="outline"
-            nativeButton={false}
-            render={
+      }
+      meta={
+        role && (
+          <p className="flex flex-wrap items-center gap-3 pt-2 text-base font-medium text-foreground">
+            {role.name}
+            <bdi className="rounded-md bg-muted px-2 py-1 font-mono text-sm font-normal">
+              {role.key}
+            </bdi>
+          </p>
+        )
+      }
+      subnav={
+        role && (
+          <nav
+            aria-label={t("title")}
+            className="flex flex-wrap gap-6 border-b"
+          >
+            <Link
+              to="/platform/roles/$roleId/permissions"
+              params={{ roleId: role.id }}
+              activeProps={{ "aria-current": "page" }}
+              className="border-b-2 border-transparent px-1 py-3 text-sm font-medium text-muted-foreground hover:text-foreground aria-[current=page]:border-primary aria-[current=page]:text-primary"
+            >
+              {t("permissions")}
+            </Link>
+            {platformAccess.permissions.includes(
+              "platform.authorization:manage"
+            ) && (
               <Link
                 to="/platform/roles/$roleId/employees"
                 params={{ roleId: role.id }}
@@ -669,14 +672,18 @@ function RolePageHeader({
                   sortBy: "createdAt",
                   sortOrder: "desc",
                 }}
-              />
-            }
-          >
-            {t("employees")}
-          </Button>
-        )}
-      </nav>
-    </header>
+                activeProps={{ "aria-current": "page" }}
+                className="border-b-2 border-transparent px-1 py-3 text-sm font-medium text-muted-foreground hover:text-foreground aria-[current=page]:border-primary aria-[current=page]:text-primary"
+              >
+                {t("employees")}
+              </Link>
+            )}
+          </nav>
+        )
+      }
+    >
+      {children}
+    </AdminPage>
   )
 }
 
@@ -707,20 +714,25 @@ export function PlatformRolePermissionsPage() {
   })
   usePlatformAccessFailure(query.error ?? (canManage ? registry.error : null))
   if (query.isPending || (canManage && registry.isPending))
-    return <LoadingState />
+    return (
+      <RolePage title={t("permissionsTitle")}>
+        <LoadingState />
+      </RolePage>
+    )
   if (query.isError || (canManage && registry.isError))
     return (
-      <ErrorState
-        message={(query.error ?? registry.error)?.message}
-        onRetry={() => {
-          void query.refetch()
-          if (canManage) void registry.refetch()
-        }}
-      />
+      <RolePage title={t("permissionsTitle")}>
+        <ErrorState
+          message={(query.error ?? registry.error)?.message}
+          onRetry={() => {
+            void query.refetch()
+            if (canManage) void registry.refetch()
+          }}
+        />
+      </RolePage>
     )
   return (
-    <section className="max-w-5xl space-y-4">
-      <RolePageHeader role={query.data} title={t("permissionsTitle")} />
+    <RolePage role={query.data} title={t("permissionsTitle")}>
       <RolePermissionsForm
         key={`${query.data.id}-${query.data.updatedAt}`}
         role={query.data}
@@ -736,7 +748,7 @@ export function PlatformRolePermissionsPage() {
         }
         onSaved={() => void query.refetch()}
       />
-    </section>
+    </RolePage>
   )
 }
 
@@ -831,112 +843,108 @@ export function RolePermissionsForm({
     return result
   }, [actions])
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">
-          <h2>{t("permissions")}</h2>
-        </CardTitle>
-        <CardDescription>
+    <section className="space-y-5">
+      <div className="space-y-2">
+        <h2 className="text-lg font-semibold">{t("actionPermissions")}</h2>
+        <p className="text-sm text-muted-foreground">
           {role.key === "platform_admin"
             ? t("builtInPermissions")
             : t("permissionsDescription")}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form.Subscribe selector={(state) => state.isSubmitting}>
-          {(pending) => (
-            <form
-              noValidate
-              aria-busy={pending}
-              onSubmit={(event) => {
-                event.preventDefault()
-                void form.handleSubmit()
-              }}
-            >
-              <fieldset disabled={pending || !editable} className="space-y-4">
-                <form.Field name="permissions" mode="array">
-                  {(field) => {
-                    const invalid =
-                      field.state.meta.isTouched && !field.state.meta.isValid
-                    return (
-                      <Field data-invalid={invalid}>
-                        <FieldLabel>{t("actionPermissions")}</FieldLabel>
-                        <FieldGroup
-                          data-slot="checkbox-group"
-                          className="gap-3"
-                        >
-                          {Object.entries(groups).map(([group, keys]) => (
-                            <div key={group} className="rounded-lg border p-3">
-                              <h3 className="mb-3 text-sm font-medium">
-                                <span>
-                                  {
-                                    resourceLabels[
-                                      group.slice("platform.".length)
-                                    ]
-                                  }
-                                </span>
-                                <bdi className="ms-2 text-xs font-normal text-muted-foreground">
-                                  {group}
-                                </bdi>
-                              </h3>
-                              <div className="grid gap-3 sm:grid-cols-2">
-                                {keys?.map((key) => (
-                                  <label
-                                    key={key}
-                                    htmlFor={`${id}-${key}`}
-                                    className="flex items-center gap-2 text-sm"
+        </p>
+      </div>
+      <form.Subscribe selector={(state) => state.isSubmitting}>
+        {(pending) => (
+          <form
+            noValidate
+            aria-busy={pending}
+            onSubmit={(event) => {
+              event.preventDefault()
+              void form.handleSubmit()
+            }}
+          >
+            <fieldset disabled={pending || !editable} className="space-y-4">
+              <form.Field name="permissions" mode="array">
+                {(field) => {
+                  const invalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid
+                  return (
+                    <Field data-invalid={invalid}>
+                      <FieldLabel className="sr-only">
+                        {t("actionPermissions")}
+                      </FieldLabel>
+                      <FieldGroup
+                        data-slot="checkbox-group"
+                        className="gap-0 divide-y border-y"
+                      >
+                        {Object.entries(groups).map(([group, keys]) => (
+                          <div
+                            key={group}
+                            role="group"
+                            aria-labelledby={`${id}-${group}`}
+                            className="grid gap-4 py-5 md:grid-cols-[10rem_minmax(0,1fr)] md:gap-6"
+                          >
+                            <h3
+                              id={`${id}-${group}`}
+                              className="text-sm font-medium"
+                            >
+                              {resourceLabels[group.slice("platform.".length)]}
+                            </h3>
+                            <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2 xl:grid-cols-4">
+                              {keys?.map((key) => (
+                                <label
+                                  key={key}
+                                  htmlFor={`${id}-${key}`}
+                                  className="flex items-center gap-2 text-sm"
+                                >
+                                  <Checkbox
+                                    id={`${id}-${key}`}
+                                    checked={field.state.value.includes(key)}
+                                    onBlur={field.handleBlur}
+                                    aria-invalid={invalid}
+                                    aria-labelledby={`${id}-${group} ${id}-${key}-label`}
+                                    onCheckedChange={(checked) => {
+                                      if (checked) field.pushValue(key)
+                                      else
+                                        void field.removeValue(
+                                          field.state.value.indexOf(key)
+                                        )
+                                    }}
+                                  />
+                                  <span
+                                    id={`${id}-${key}-label`}
+                                    className="min-w-0"
                                   >
-                                    <Checkbox
-                                      id={`${id}-${key}`}
-                                      checked={field.state.value.includes(key)}
-                                      onBlur={field.handleBlur}
-                                      aria-invalid={invalid}
-                                      onCheckedChange={(checked) => {
-                                        if (checked) field.pushValue(key)
-                                        else
-                                          void field.removeValue(
-                                            field.state.value.indexOf(key)
-                                          )
-                                      }}
-                                    />
-                                    <span className="min-w-0">
-                                      <span className="block">
-                                        {actionLabels[key.split(":")[1]!]}
-                                      </span>
-                                      <bdi className="block font-mono text-xs break-all text-muted-foreground">
-                                        {key}
-                                      </bdi>
-                                    </span>
-                                  </label>
-                                ))}
-                              </div>
+                                    {actionLabels[key.split(":")[1]!]}
+                                  </span>
+                                </label>
+                              ))}
                             </div>
-                          ))}
-                        </FieldGroup>
-                        {invalid && (
-                          <FieldError errors={field.state.meta.errors} />
-                        )}
-                      </Field>
-                    )
-                  }}
-                </form.Field>
-                <DirectoryError error={error} />
-                {editable && (
-                  <Button type="submit" size="sm">
-                    {pending ? t("saving") : t("savePermissions")}
-                  </Button>
-                )}
-              </fieldset>
-              {saved && (
-                <p role="status" className="mt-3 text-sm text-muted-foreground">
-                  {t("permissionsSaved")}
-                </p>
+                          </div>
+                        ))}
+                      </FieldGroup>
+                      {invalid && (
+                        <FieldError errors={field.state.meta.errors} />
+                      )}
+                    </Field>
+                  )
+                }}
+              </form.Field>
+              <DirectoryError error={error} />
+              {editable && (
+                <Button type="submit">
+                  {pending ? t("saving") : t("savePermissions")}
+                </Button>
               )}
-            </form>
-          )}
-        </form.Subscribe>
-      </CardContent>
-    </Card>
+            </fieldset>
+            {saved && (
+              <p role="status" className="mt-3 text-sm text-muted-foreground">
+                {t("permissionsSaved")}
+              </p>
+            )}
+          </form>
+        )}
+      </form.Subscribe>
+    </section>
   )
 }
 
@@ -1038,17 +1046,23 @@ export function PlatformRoleEmployeesPage() {
     [t, canManage, pending, search.assigned]
   )
   const pagination = { pageIndex: search.page - 1, pageSize: search.pageSize }
-  if (role.isPending) return <LoadingState />
+  if (role.isPending)
+    return (
+      <AdminPage title={t("employeesTitle")}>
+        <LoadingState />
+      </AdminPage>
+    )
   if (role.isError)
     return (
-      <ErrorState
-        message={role.error.message}
-        onRetry={() => void role.refetch()}
-      />
+      <AdminPage title={t("employeesTitle")}>
+        <ErrorState
+          message={role.error.message}
+          onRetry={() => void role.refetch()}
+        />
+      </AdminPage>
     )
   return (
-    <section className="min-w-0 space-y-4">
-      <RolePageHeader role={role.data} title={t("employeesTitle")} />
+    <RolePage role={role.data} title={t("employeesTitle")}>
       <Tabs
         value={search.assigned ? "assigned" : "unassigned"}
         onValueChange={(value) => {
@@ -1190,6 +1204,6 @@ export function PlatformRoleEmployeesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </section>
+    </RolePage>
   )
 }

@@ -1,3 +1,4 @@
+import { AdminPage } from "@workspace/admin"
 import { useEffect, useId, useRef, useState } from "react"
 import { useForm } from "@tanstack/react-form"
 import { useTranslation } from "react-i18next"
@@ -132,15 +133,15 @@ export function AnnouncementEditor({
     }
   }
   return (
-    <section className="mx-auto w-full max-w-4xl space-y-4">
-      <header className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="font-heading text-2xl font-semibold">
-          {t(mode === "create" ? "new" : "edit")}
-        </h1>
-        <Button variant="outline" size="sm" onClick={onBack}>
+    <AdminPage
+      title={t(mode === "create" ? "new" : "edit")}
+      back={
+        <Button variant="ghost" size="sm" onClick={onBack}>
           {t("back")}
         </Button>
-      </header>
+      }
+      contentWidth="reading"
+    >
       <p className="text-sm text-muted-foreground">{t("batchHint")}</p>
       <form.Subscribe selector={(state) => state.isSubmitting}>
         {(pending) => (
@@ -399,6 +400,6 @@ export function AnnouncementEditor({
           </form>
         )}
       </form.Subscribe>
-    </section>
+    </AdminPage>
   )
 }

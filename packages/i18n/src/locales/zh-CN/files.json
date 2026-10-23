@@ -80,7 +80,6 @@
   "historicalVersion": "历史版本",
   "historyDays": "未引用历史版本保留期限",
   "impactSummary": "{{files}} 个文件 · {{folders}} 个文件夹 · {{bytes}} 字节",
-  "itemCount": "{{quantity}} 项",
   "location": "所在文件夹",
   "maxUploadBytes": "单文件上传上限",
   "moveDescription": "将“{{name}}”移动到选中的文件夹。",

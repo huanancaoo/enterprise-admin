@@ -42,19 +42,29 @@ import { useDataTablePresentation } from "./presentation"
 export function DataTableToolbar({
   className,
   children,
+  actions,
   ...props
-}: React.ComponentProps<"div">) {
+}: React.ComponentProps<"div"> & { actions?: React.ReactNode }) {
   return (
     <div
       data-slot="data-table-toolbar"
-      className={cn("flex flex-wrap items-end gap-2", className)}
+      className={cn("flex flex-wrap items-end gap-x-4 gap-y-3", className)}
       {...props}
     >
-      {/* 最低高度与搜索框一致，避免只展示短按钮时工具栏收缩。 */}
-      <div className="flex min-h-9 min-w-0 flex-1 flex-wrap items-end gap-2">
+      {/* 窄屏让筛选独占一行，避免右侧操作把搜索框压缩到无法阅读。 */}
+      <div
+        data-slot="data-table-filters"
+        className="flex min-h-9 w-full min-w-0 flex-wrap items-end gap-2 lg:w-auto lg:flex-1"
+      >
         {children}
       </div>
-      <DataTableViewOptions />
+      <div
+        data-slot="data-table-actions"
+        className="ms-auto flex min-h-9 shrink-0 flex-wrap items-center gap-2"
+      >
+        {actions}
+        <DataTableViewOptions />
+      </div>
     </div>
   )
 }
@@ -83,7 +93,7 @@ export function DataTableSearch({
 
   return (
     <form
-      className="flex min-w-0 items-center gap-2"
+      className="flex w-full min-w-0 items-center gap-2 sm:w-auto"
       aria-busy={pending}
       onSubmit={(event) => {
         event.preventDefault()
@@ -92,7 +102,7 @@ export function DataTableSearch({
     >
       <form.Field name="query">
         {(field) => (
-          <Field>
+          <Field className="min-w-0 flex-1 sm:w-64">
             <FieldLabel htmlFor={id} className="sr-only">
               {placeholder ?? t("search")}
             </FieldLabel>

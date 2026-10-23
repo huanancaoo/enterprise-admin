@@ -1,3 +1,4 @@
+import { AdminPage } from "@workspace/admin"
 import { useMemo } from "react"
 import { useTranslation } from "react-i18next"
 import type { z } from "zod"
@@ -66,18 +67,15 @@ export function AnnouncementReaders({
   )
   const pagination = { pageIndex: page - 1, pageSize }
   return (
-    <section className="space-y-4">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
-          <h1 className="font-heading text-2xl font-semibold">
-            {t("readers")}
-          </h1>
-          <p className="text-sm break-words text-muted-foreground">{title}</p>
-        </div>
-        <Button size="sm" variant="outline" onClick={onBack}>
+    <AdminPage
+      title={t("readers")}
+      description={title}
+      back={
+        <Button size="sm" variant="ghost" onClick={onBack}>
           {t("back")}
         </Button>
-      </header>
+      }
+    >
       <DataTable
         columns={columns}
         data={items}
@@ -101,6 +99,6 @@ export function AnnouncementReaders({
           )
         }}
       />
-    </section>
+    </AdminPage>
   )
 }

@@ -123,7 +123,9 @@ export const Default: Story = {
     await expect(
       await canvas.findByRole("heading", { name: project.name })
     ).toBeVisible()
-    await expect(canvas.getByText("用于验证项目详情的描述。")).toBeVisible()
+    await expect(
+      await canvas.findByText("用于验证项目详情的描述。")
+    ).toBeVisible()
   },
 }
 

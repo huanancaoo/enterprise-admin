@@ -1,6 +1,5 @@
 {
   "actions": "Actions",
-  "description": "Messages about your import and export tasks.",
   "emailHint": "Receive completion and failure emails for your import and export tasks. Authentication emails always follow account rules.",
   "emailResults": "Email task results",
   "empty": "No notifications yet.",

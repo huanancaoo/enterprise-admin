@@ -76,7 +76,7 @@
   "permissionResourceTask": "任务",
   "permissionResourceUser": "全局账号",
   "permissions": "权限设置",
-  "permissionsDescription": "勾选代码注册的操作权限。菜单隐藏不等于撤销权限；任职和角色授权仅限内置超级管理员。",
+  "permissionsDescription": "菜单隐藏不等于撤销权限；任职和角色授权仅限内置超级管理员。",
   "permissionsSaved": "权限已保存，下一次请求生效。",
   "permissionsTitle": "角色权限设置",
   "revoke": "撤销授权",

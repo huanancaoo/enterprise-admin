@@ -1,3 +1,4 @@
+import { AdminPage } from "@workspace/admin"
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 import { useUiLocale } from "@workspace/i18n/react"
@@ -127,11 +128,7 @@ export function AnnouncementInbox({
   )
   const pagination = { pageIndex: search.page - 1, pageSize: search.pageSize }
   return (
-    <section className="min-w-0 space-y-4">
-      <header className="space-y-1">
-        <h1 className="font-heading text-2xl font-semibold">{t("inbox")}</h1>
-        <p className="text-sm text-muted-foreground">{t("inboxDescription")}</p>
-      </header>
+    <AdminPage title={t("inbox")}>
       <DataTable
         columns={columns}
         data={items}
@@ -205,7 +202,7 @@ export function AnnouncementInbox({
           })
         }}
       />
-    </section>
+    </AdminPage>
   )
 }
 
@@ -245,17 +242,9 @@ export function AnnouncementArticle({
     if (unread && onMarkRead) onMarkRead()
   }, [item.publicationId, unread, onMarkRead])
   return (
-    <article className="mx-auto w-full max-w-4xl space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Button size="sm" variant="outline" onClick={onBack}>
-          {t("back")}
-        </Button>
-        {actions}
-      </div>
-      <header className="space-y-2">
-        <h1 className="font-heading text-2xl font-semibold break-words">
-          {item.title}
-        </h1>
+    <AdminPage
+      title={item.title}
+      meta={
         <p className="text-xs text-muted-foreground">
           {item.publishedAt
             ? t("publishedDate", {
@@ -271,7 +260,15 @@ export function AnnouncementArticle({
                 ),
               })}
         </p>
-      </header>
+      }
+      contentWidth="reading"
+      back={
+        <Button size="sm" variant="ghost" onClick={onBack}>
+          {t("back")}
+        </Button>
+      }
+      actions={actions}
+    >
       <RichTextEditor
         variant="document"
         value={item.content}
@@ -326,6 +323,6 @@ export function AnnouncementArticle({
           </Button>
         </div>
       )}
-    </article>
+    </AdminPage>
   )
 }

@@ -7,7 +7,7 @@ import {
   PlatformMonitorSchema,
   type PlatformMonitor,
 } from "@workspace/contracts/platform-monitor"
-import { ErrorState, LoadingState, useDocumentTitle } from "@workspace/admin"
+import { ErrorState, LoadingState, AdminPage } from "@workspace/admin"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import {
   DataTable,
@@ -27,7 +27,6 @@ const column = createDataTableColumnHelper<PlatformMonitor["queues"][number]>()
 
 export function PlatformMonitorPage() {
   const { t } = useTranslation("monitor")
-  useDocumentTitle(t("title"))
   const session = useAuthenticatedSession()!
   const query = useQuery({
     queryKey: ["platform", session.user.id, "monitor"],
@@ -37,8 +36,18 @@ export function PlatformMonitorPage() {
     refetchInterval: 30000,
   })
   usePlatformAccessFailure(query.error)
-  if (query.isPending) return <LoadingState />
-  if (query.isError) return <ErrorState onRetry={() => void query.refetch()} />
+  if (query.isPending)
+    return (
+      <AdminPage title={t("title")}>
+        <LoadingState />
+      </AdminPage>
+    )
+  if (query.isError)
+    return (
+      <AdminPage title={t("title")}>
+        <ErrorState onRetry={() => void query.refetch()} />
+      </AdminPage>
+    )
   return (
     <PlatformMonitorView
       data={query.data}
@@ -113,12 +122,10 @@ export function PlatformMonitorView({
     [t]
   )
   return (
-    <div className="min-w-0 space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
-          <h1 className="text-xl font-semibold tracking-tight">{t("title")}</h1>
-          <p className="text-sm text-muted-foreground">{t("description")}</p>
-        </div>
+    <AdminPage
+      title={t("title")}
+      description={t("description")}
+      actions={
         <Button
           variant="outline"
           size="sm"
@@ -131,7 +138,8 @@ export function PlatformMonitorView({
           />
           {t("refresh")}
         </Button>
-      </div>
+      }
+    >
       <p className="text-xs text-muted-foreground">
         {t("observationSummary", { value: timestamp(data.observedAt) })}
       </p>
@@ -249,6 +257,6 @@ export function PlatformMonitorView({
           enableRowSelection={false}
         />
       </section>
-    </div>
+    </AdminPage>
   )
 }

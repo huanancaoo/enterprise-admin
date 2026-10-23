@@ -76,7 +76,7 @@
   "permissionResourceTask": "Tasks",
   "permissionResourceUser": "Global accounts",
   "permissions": "Permissions",
-  "permissionsDescription": "Select registered action permissions. Hiding a menu does not revoke permission. Employment and role assignment require the built-in super administrator.",
+  "permissionsDescription": "Hiding a menu does not revoke permission. Employment and role assignment require the built-in super administrator.",
   "permissionsSaved": "Permissions saved. They take effect on the next request.",
   "permissionsTitle": "Role permissions",
   "revoke": "Revoke",

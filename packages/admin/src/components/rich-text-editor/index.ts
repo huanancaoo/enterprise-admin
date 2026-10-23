@@ -1,4 +1,4 @@
-export { RichTextEditor } from "./rich-text-editor"
+export { RichTextEditor } from "./lazy-rich-text-editor"
 export type { JSONContent, RichTextEditorProps } from "./rich-text-editor"
 export type { FileContentPorts } from "./file-context"
 export type {

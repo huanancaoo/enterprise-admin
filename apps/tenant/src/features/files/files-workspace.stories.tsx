@@ -1,3 +1,4 @@
+import { WorkspaceActions } from "@/components/workspace-actions"
 import { useState } from "react"
 import type { Meta, StoryObj } from "@storybook/react-vite"
 import { expect, fn, userEvent, waitFor, within } from "storybook/test"
@@ -7,6 +8,7 @@ import {
   createRoute,
   createRouter,
   RouterProvider,
+  Outlet,
   useNavigate,
   useSearch,
 } from "@tanstack/react-router"
@@ -40,9 +42,43 @@ function WorkspaceRoute() {
   )
 }
 
+function WorkspaceShell() {
+  return (
+    <AppShell
+      layout="workspace"
+      actions={<WorkspaceActions organizationId={organizationId} />}
+      breadcrumb={null}
+      sidebar={{
+        teamSwitcher: {
+          teams: [{ id: organizationId, name: "示例组织" }],
+          value: organizationId,
+          label: "组织",
+          onSelect: fn(),
+        },
+        navigation: {
+          label: "工作空间",
+          items: [
+            { title: "项目", icon: <FolderKanbanIcon /> },
+            { title: "文件", icon: <FolderIcon />, isActive: true },
+            { title: "组织管理", icon: <BuildingIcon /> },
+          ],
+        },
+        user: {
+          user: { name: "陈小明", email: "chen@example.com" },
+          accountMenu: () => null,
+          signOutMenu: () => null,
+          onPersonalSettings: fn(),
+        },
+      }}
+    >
+      <Outlet />
+    </AppShell>
+  )
+}
+
 function WorkspaceStory() {
   const [router] = useState(() => {
-    const route = createRootRoute()
+    const route = createRootRoute({ component: WorkspaceShell })
     return createRouter({
       routeTree: route.addChildren([
         createRoute({
@@ -61,34 +97,7 @@ function WorkspaceStory() {
   })
   return (
     <AuthenticatedSessionProvider client={authClient} user={personalAvatarUser}>
-      <AppShell
-        layout="workspace"
-        breadcrumb={null}
-        sidebar={{
-          teamSwitcher: {
-            teams: [{ id: organizationId, name: "示例组织" }],
-            value: organizationId,
-            label: "组织",
-            onSelect: fn(),
-          },
-          navigation: {
-            label: "工作空间",
-            items: [
-              { title: "项目", icon: <FolderKanbanIcon /> },
-              { title: "文件", icon: <FolderIcon />, isActive: true },
-              { title: "组织管理", icon: <BuildingIcon /> },
-            ],
-          },
-          user: {
-            user: { name: "陈小明", email: "chen@example.com" },
-            accountMenu: () => null,
-            signOutMenu: () => null,
-            onPersonalSettings: fn(),
-          },
-        }}
-      >
-        <RouterProvider router={router} />
-      </AppShell>
+      <RouterProvider router={router} />
     </AuthenticatedSessionProvider>
   )
 }
@@ -125,6 +134,17 @@ async function openPoster(canvasElement: HTMLElement) {
 export const Preview: Story = {
   play: async ({ canvasElement }) => {
     const { canvas } = await openPoster(canvasElement)
+    // 路径操作与批量操作容器必须传递剩余高度，避免长列表撑出视口。
+    const workspace = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="workspace-page"]'
+    )!
+    await expect(workspace.getBoundingClientRect().bottom).toBeCloseTo(
+      canvas.getByRole("main").getBoundingClientRect().bottom,
+      0
+    )
+    await expect(
+      canvasElement.ownerDocument.documentElement.scrollHeight
+    ).toBeLessThanOrEqual(window.innerHeight)
     await expect(
       canvas.getByRole("link", { name: "任务中心" })
     ).toHaveAttribute(

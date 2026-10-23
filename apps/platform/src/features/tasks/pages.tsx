@@ -4,7 +4,7 @@ import { useRouteContext } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
-import { LoadingState, ErrorState } from "@workspace/admin"
+import { LoadingState, ErrorState, AdminPage } from "@workspace/admin"
 import {
   listPlatformTasks,
   getPlatformTask,
@@ -145,12 +145,9 @@ export function PlatformTasksPage({
   ])
   const pagination = { pageIndex: search.page - 1, pageSize: search.pageSize }
   return (
-    <section className="min-w-0 space-y-4">
-      <header className="flex flex-wrap items-start justify-between gap-2">
-        <div className="space-y-1">
-          <h1 className="font-heading text-2xl font-semibold">{t("title")}</h1>
-          <p className="text-sm text-muted-foreground">{t("description")}</p>
-        </div>
+    <AdminPage
+      title={t("title")}
+      actions={
         <Button
           size="sm"
           variant="outline"
@@ -158,7 +155,8 @@ export function PlatformTasksPage({
         >
           {t("refresh")}
         </Button>
-      </header>
+      }
+    >
       <DataTable
         columns={cols}
         data={query.data?.items ?? []}
@@ -188,7 +186,7 @@ export function PlatformTasksPage({
           onClose={() => onSearchChange({ ...search, taskId: undefined })}
         />
       )}
-    </section>
+    </AdminPage>
   )
 }
 export function PlatformTaskDetails({

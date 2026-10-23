@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import {
-  PageHeader,
+  AdminPage,
   LoadingState,
   ErrorState,
   EmptyState,
@@ -126,23 +126,22 @@ export function TaskCenter({
   const close = () =>
     onSearchChange({ ...search, source: undefined, taskId: undefined })
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title={t("tasks:title")}
-        actions={
-          <Button
-            variant="outline"
-            disabled={access.isFetching}
-            onClick={() => {
-              void access
-                .refetch()
-                .then(() => client.invalidateQueries({ queryKey: prefix }))
-            }}
-          >
-            {t("tasks:refresh")}
-          </Button>
-        }
-      />
+    <AdminPage
+      title={t("tasks:title")}
+      actions={
+        <Button
+          variant="outline"
+          disabled={access.isFetching}
+          onClick={() => {
+            void access
+              .refetch()
+              .then(() => client.invalidateQueries({ queryKey: prefix }))
+          }}
+        >
+          {t("tasks:refresh")}
+        </Button>
+      }
+    >
       {access.isError ? (
         <ErrorState
           message={access.error.message}
@@ -252,6 +251,6 @@ export function TaskCenter({
           )}
         </>
       )}
-    </div>
+    </AdminPage>
   )
 }

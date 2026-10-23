@@ -6,8 +6,7 @@ import {
   ErrorState,
   LoadingState,
   PermissionDeniedState,
-  ResourceList,
-  useDocumentTitle,
+  WorkspacePage,
 } from "@workspace/admin"
 import { type DataTableStatus } from "@workspace/admin/data-table"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
@@ -31,7 +30,6 @@ import { Button, buttonVariants } from "@workspace/ui/components/button"
 import { CreateFolderDialog } from "./create-folder-dialog"
 import { FilePreviewPanel } from "./file-preview-panel"
 import { FileDirectoryTree } from "./file-directory-tree"
-import { FileSearch } from "./file-search"
 import { formatFileSize } from "./file-format"
 import {
   FolderPlusIcon,
@@ -40,14 +38,12 @@ import {
   HardDriveIcon,
   ChevronDownIcon,
 } from "lucide-react"
-import { SidebarTrigger } from "@workspace/ui/components/sidebar"
 import { useIsMobile } from "@workspace/ui/hooks/use-mobile"
 import { FileBrowser, FileBreadcrumbNavigation } from "./file-browser"
 import { FileUploads } from "./file-uploads"
 import { FilePathOperations } from "./file-path-operations"
 import { FileEntryActions } from "./file-entry-actions"
 import { FileBatches } from "./file-batches"
-import { WorkspaceActions } from "@/components/workspace-actions"
 import { useFileBatchActions } from "./batch-context"
 import { useFileUploadActions } from "./upload-context"
 import {
@@ -71,20 +67,31 @@ type FilesWorkspaceProps = {
 
 export function FilesWorkspace(props: FilesWorkspaceProps) {
   const { t } = useTranslation(["files", "common"])
-  useDocumentTitle(t("files:title"))
   const access = useQuery(getOrganizationAccessOptions(props.organizationId))
-  if (fileRequestIsDenied(access.error)) return <PermissionDeniedState />
+  if (fileRequestIsDenied(access.error))
+    return (
+      <WorkspacePage title={t("files:title")}>
+        <PermissionDeniedState />
+      </WorkspacePage>
+    )
   if (access.isError)
     return (
-      <ErrorState
-        message={fileRequestErrorMessage(
-          access.error,
-          t("common:operationFailed")
-        )}
-        onRetry={() => void access.refetch()}
-      />
+      <WorkspacePage title={t("files:title")}>
+        <ErrorState
+          message={fileRequestErrorMessage(
+            access.error,
+            t("common:operationFailed")
+          )}
+          onRetry={() => void access.refetch()}
+        />
+      </WorkspacePage>
     )
-  if (!access.data) return <LoadingState />
+  if (!access.data)
+    return (
+      <WorkspacePage title={t("files:title")}>
+        <LoadingState />
+      </WorkspacePage>
+    )
   return (
     <AuthorizedFilesWorkspace
       key={access.data.data.authorizationVersion}
@@ -112,23 +119,32 @@ function AuthorizedFilesWorkspace({
     props.organizationId,
     authorizationVersion,
   ])
-  if (fileRequestIsDenied(workspace.error)) return <PermissionDeniedState />
+  if (fileRequestIsDenied(workspace.error))
+    return (
+      <WorkspacePage title={t("files:title")}>
+        <PermissionDeniedState />
+      </WorkspacePage>
+    )
   if (workspace.isError && !workspace.data)
     return (
-      <ResourceList
-        title={t("files:title")}
-        status="error"
-        error={fileRequestErrorMessage(
-          workspace.error,
-          t("common:operationFailed")
-        )}
-        onRetry={() => void workspace.refetch()}
-      />
+      <WorkspacePage title={t("files:title")}>
+        <ErrorState
+          message={fileRequestErrorMessage(
+            workspace.error,
+            t("common:operationFailed")
+          )}
+          onRetry={() => void workspace.refetch()}
+        />
+      </WorkspacePage>
     )
   if (!workspace.data)
-    return <ResourceList title={t("files:title")} status="loading" />
+    return (
+      <WorkspacePage title={t("files:title")}>
+        <LoadingState />
+      </WorkspacePage>
+    )
   return (
-    <div className="min-w-0">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       {workspace.isError && (
         <ErrorState
           message={fileRequestErrorMessage(
@@ -293,33 +309,44 @@ function FileWorkspaceBrowser({
     fileRequestIsDenied(breadcrumbs.error) ||
     fileRequestIsDenied(entries.error)
   )
-    return <PermissionDeniedState />
+    return (
+      <WorkspacePage title={t("files:title")}>
+        <PermissionDeniedState />
+      </WorkspacePage>
+    )
   if (breadcrumbs.isError)
     return (
-      <div className="space-y-3">
-        <ErrorState
-          message={fileRequestErrorMessage(
-            breadcrumbs.error,
-            t("common:operationFailed")
-          )}
-          onRetry={() => void breadcrumbs.refetch()}
-        />
-        <Button
-          variant="outline"
-          onClick={() =>
-            onSearchChange((current) => ({
-              ...current,
-              parentId: trash ? undefined : workspace.root.id,
-              name: undefined,
-              page: 1,
-            }))
-          }
-        >
-          {trash ? t("files:trash") : t("files:returnToRoot")}
-        </Button>
-      </div>
+      <WorkspacePage title={t("files:title")}>
+        <div className="space-y-3">
+          <ErrorState
+            message={fileRequestErrorMessage(
+              breadcrumbs.error,
+              t("common:operationFailed")
+            )}
+            onRetry={() => void breadcrumbs.refetch()}
+          />
+          <Button
+            variant="outline"
+            onClick={() =>
+              onSearchChange((current) => ({
+                ...current,
+                parentId: trash ? undefined : workspace.root.id,
+                name: undefined,
+                page: 1,
+              }))
+            }
+          >
+            {trash ? t("files:trash") : t("files:returnToRoot")}
+          </Button>
+        </div>
+      </WorkspacePage>
     )
-  if (!breadcrumbs.data) return <LoadingState />
+  if (!breadcrumbs.data)
+    return (
+      <WorkspacePage title={t("files:title")}>
+        <LoadingState />
+      </WorkspacePage>
+    )
   const currentFolder = breadcrumbs.data.items.at(-1)!
   const status: DataTableStatus = entries.isPending
     ? "loading"
@@ -338,247 +365,105 @@ function FileWorkspaceBrowser({
     }))
   return (
     <>
-      <div className="grid min-h-svh min-w-0 [--primary:var(--color-blue-600)] lg:grid-cols-[14rem_minmax(0,1fr)] dark:[--primary:var(--color-blue-400)] [&_[data-slot=input-group]]:rounded-md [&_button]:rounded-md">
-        <aside
-          className="flex min-w-0 flex-col border-b bg-background lg:border-e lg:border-b-0"
-          aria-label={t("files:directory")}
-        >
-          <details className="group lg:contents" open={!isMobile}>
-            <summary className="flex h-16 cursor-pointer items-center justify-between px-5 font-semibold lg:h-20 lg:text-lg">
-              {t("files:directory")}
-              <ChevronDownIcon className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
-            </summary>
-            <div className="max-h-64 overflow-y-auto lg:max-h-none lg:flex-1">
-              <FileDirectoryTree
-                key={contentScopeKey}
-                organizationId={organizationId}
-                authorizationVersion={authorizationVersion}
-                root={workspace.root}
-                currentFolderId={trash ? undefined : currentFolder.id}
-                ancestors={trash ? [] : breadcrumbs.data.items}
-                disabled={status !== "ready"}
-                onOpenFolder={openFolder}
-              />
-            </div>
-          </details>
-          <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-2 border-t p-3 lg:mt-auto lg:block lg:space-y-2">
-            {canTrash && (
+      <WorkspacePage
+        title={t("files:title")}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            {!trash && canCreateFolder && (
               <Button
-                variant="ghost"
-                className={`w-full justify-start ${trash ? "bg-primary/10 text-primary" : ""}`}
-                aria-pressed={trash}
-                onClick={() =>
-                  onSearchChange((current) => ({
-                    ...current,
-                    state: "trashed",
-                    parentId: undefined,
-                    name: undefined,
-                    page: 1,
-                  }))
+                ref={creationTrigger}
+                variant="outline"
+                // 创建使用当前目录身份，子项后台刷新不影响该身份；关闭 Dialog 时入口仍需接收焦点。
+                disabled={
+                  status === "loading" ||
+                  status === "error" ||
+                  currentFolder.operationId !== null
                 }
+                onClick={() => setCreatingFolder(true)}
               >
-                <Trash2Icon />
-                {t("files:trash")}
+                <FolderPlusIcon />
+                {t("files:createFolder")}
               </Button>
             )}
-            <details>
-              <summary className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-xs text-muted-foreground hover:bg-muted/50">
-                <HardDriveIcon className="size-4 shrink-0" />
-                <span>
-                  {t("files:usage")}
-                  <span className="ms-2">
-                    {formatFileSize(workspace.usage.usedBytes, locale)}
-                  </span>
-                </span>
+            {!trash && canUpload && (
+              <Button
+                id={uploadTriggerId}
+                disabled={
+                  status !== "ready" || currentFolder.operationId !== null
+                }
+                onClick={() => onUpload(currentFolder)}
+              >
+                <UploadIcon />
+                {t("files:uploadFiles")}
+              </Button>
+            )}
+          </div>
+        }
+      >
+        <div className="grid min-h-0 min-w-0 flex-1 grid-rows-[auto_minmax(0,1fr)] lg:grid-cols-[14rem_minmax(0,1fr)] lg:grid-rows-1">
+          <aside
+            className="flex min-h-0 min-w-0 flex-col overflow-y-auto border-b bg-background lg:border-e lg:border-b-0"
+            aria-label={t("files:directory")}
+          >
+            <details className="group lg:contents" open={!isMobile}>
+              <summary className="flex h-16 cursor-pointer items-center justify-between px-5 font-semibold lg:h-20 lg:text-lg">
+                {t("files:directory")}
+                <ChevronDownIcon className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
               </summary>
-              <FileUsageSummary usage={workspace.usage} />
+              <div className="max-h-64 overflow-y-auto lg:max-h-none lg:flex-1">
+                <FileDirectoryTree
+                  key={contentScopeKey}
+                  organizationId={organizationId}
+                  authorizationVersion={authorizationVersion}
+                  root={workspace.root}
+                  currentFolderId={trash ? undefined : currentFolder.id}
+                  ancestors={trash ? [] : breadcrumbs.data.items}
+                  disabled={status !== "ready"}
+                  onOpenFolder={openFolder}
+                />
+              </div>
             </details>
-          </div>
-        </aside>
-        <div className="flex min-w-0 flex-col">
-          <header className="flex min-h-20 flex-wrap items-center gap-3 border-b px-5 py-3">
-            <SidebarTrigger className="shrink-0" />
-            <h1 className="me-auto text-2xl font-semibold">
-              {t("files:title")}
-            </h1>
-            <FileSearch
-              key={search.name ?? ""}
-              value={search.name ?? ""}
-              pending={status === "loading" || status === "refreshing"}
-              onSearch={(name) =>
-                onSearchChange((current) => ({
-                  ...current,
-                  name: name || undefined,
-                  page: 1,
-                }))
-              }
-            />
-            <div className="flex flex-wrap gap-2">
-              {!trash && canCreateFolder && (
+            <div className="mt-4 grid grid-cols-[auto_minmax(0,1fr)] items-start gap-2 border-t p-3 lg:block lg:space-y-2">
+              {canTrash && (
                 <Button
-                  ref={creationTrigger}
-                  variant="outline"
-                  // 创建使用当前目录身份，子项后台刷新不影响该身份；关闭 Dialog 时入口仍需接收焦点。
-                  disabled={
-                    status === "loading" ||
-                    status === "error" ||
-                    currentFolder.operationId !== null
+                  variant="ghost"
+                  className={`w-full justify-start ${trash ? "bg-primary/10 text-primary" : ""}`}
+                  aria-pressed={trash}
+                  onClick={() =>
+                    onSearchChange((current) => ({
+                      ...current,
+                      state: "trashed",
+                      parentId: undefined,
+                      name: undefined,
+                      page: 1,
+                    }))
                   }
-                  onClick={() => setCreatingFolder(true)}
                 >
-                  <FolderPlusIcon />
-                  {t("files:createFolder")}
+                  <Trash2Icon />
+                  {t("files:trash")}
                 </Button>
               )}
-              {!trash && canUpload && (
-                <Button
-                  id={uploadTriggerId}
-                  disabled={
-                    status !== "ready" || currentFolder.operationId !== null
-                  }
-                  onClick={() => onUpload(currentFolder)}
-                >
-                  <UploadIcon />
-                  {t("files:uploadFiles")}
-                </Button>
-              )}
+              <details>
+                <summary className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-xs text-muted-foreground hover:bg-muted/50">
+                  <HardDriveIcon className="size-4 shrink-0" />
+                  <span>
+                    {t("files:usage")}
+                    <span className="ms-2">
+                      {formatFileSize(workspace.usage.usedBytes, locale)}
+                    </span>
+                  </span>
+                </summary>
+                <FileUsageSummary usage={workspace.usage} />
+              </details>
             </div>
-            <WorkspaceActions organizationId={organizationId} />
-          </header>
-          <div className="flex min-h-16 items-center border-b px-5 py-3">
-            <FileBreadcrumbNavigation
-              breadcrumbs={breadcrumbs.data}
-              currentFolder={currentFolder}
-              busy={status !== "ready"}
-              rootLabel={trash ? t("files:trash") : t("files:allFiles")}
-              onOpenFolder={(folder) =>
-                onSearchChange((current) => ({
-                  ...current,
-                  parentId:
-                    trash && folder.id === workspace.root.id
-                      ? undefined
-                      : folder.id,
-                  name: undefined,
-                  page: 1,
-                }))
-              }
-            />
-          </div>
-          <div className="flex min-w-0 flex-1 flex-col lg:flex-row">
-            <div className="min-w-0 flex-1">
-              <FileBrowser
-                workspace
-                previewedFileId={previewId}
-                renderEntryActions={(entry) => (
-                  <FileEntryActions
-                    idPrefix={`${actionScope}-row-${entry.id}`}
-                    entry={entry}
-                    canOverwrite={canOverwrite}
-                    presentation="menu"
-                    onOpenDetails={() =>
-                      void navigate({
-                        to: "/app/files/$organizationId/entries/$entryId",
-                        params: { organizationId, entryId: entry.id },
-                        search:
-                          entry.kind === "file"
-                            ? { versionId: entry.currentVersion.id }
-                            : {},
-                      })
-                    }
-                  />
-                )}
-                contentScopeKey={contentScopeKey}
-                currentFolder={currentFolder}
+          </aside>
+          <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
+            <div className="flex min-h-16 shrink-0 items-center px-4 pt-6 pb-4 sm:px-6">
+              <FileBreadcrumbNavigation
                 breadcrumbs={breadcrumbs.data}
-                page={entries.data}
-                search={search}
-                status={status}
+                currentFolder={currentFolder}
+                busy={status !== "ready"}
                 rootLabel={trash ? t("files:trash") : t("files:allFiles")}
-                canOpenFile={(file) => file.state === "active"}
-                renderSelectionActions={
-                  canOverwrite || canManage
-                    ? (selected) => {
-                        const entry =
-                          selected.length === 1 ? selected[0] : undefined
-                        return entry ? (
-                          <div className="flex flex-wrap gap-2">
-                            <Link
-                              to="/app/files/$organizationId/entries/$entryId"
-                              params={{ organizationId, entryId: entry.id }}
-                              className={buttonVariants({ variant: "outline" })}
-                            >
-                              {t("files:detail")}
-                            </Link>
-                            <FileEntryActions
-                              idPrefix={`${actionScope}-selection-${entry.id}`}
-                              entry={entry}
-                              canOverwrite={canOverwrite}
-                            />
-                          </div>
-                        ) : selected.length > 1 ? (
-                          <div className="flex flex-wrap gap-2">
-                            {trash ? (
-                              <>
-                                <Button
-                                  id={`${batches.triggerId}-restore`}
-                                  variant="outline"
-                                  disabled={!batches.available}
-                                  onClick={() =>
-                                    batches.onBatch(selected, "restore")
-                                  }
-                                >
-                                  {t("files:batchRestore")}
-                                </Button>
-                                <Button
-                                  id={`${batches.triggerId}-purge`}
-                                  variant="outline"
-                                  disabled={!batches.available}
-                                  onClick={() =>
-                                    batches.onBatch(selected, "purge")
-                                  }
-                                >
-                                  {t("files:batchPurge")}
-                                </Button>
-                              </>
-                            ) : (
-                              <>
-                                <Button
-                                  id={`${batches.triggerId}-move`}
-                                  variant="outline"
-                                  disabled={!batches.available}
-                                  onClick={() =>
-                                    batches.onBatch(selected, "move")
-                                  }
-                                >
-                                  {t("files:batchMove")}
-                                </Button>
-                                <Button
-                                  id={`${batches.triggerId}-trash`}
-                                  variant="outline"
-                                  disabled={!batches.available}
-                                  onClick={() =>
-                                    batches.onBatch(selected, "trash")
-                                  }
-                                >
-                                  {t("files:batchTrash")}
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                        ) : null
-                      }
-                    : undefined
-                }
-                error={
-                  entries.isError
-                    ? fileRequestErrorMessage(
-                        entries.error,
-                        t("common:operationFailed")
-                      )
-                    : undefined
-                }
-                onRetry={() => void entries.refetch()}
-                onSearchChange={onSearchChange}
                 onOpenFolder={(folder) =>
                   onSearchChange((current) => ({
                     ...current,
@@ -590,41 +475,172 @@ function FileWorkspaceBrowser({
                     page: 1,
                   }))
                 }
-                onOpenFile={(file) => {
-                  // 列表刷新会重建单元格；按稳定入口 ID 返回当前按钮，不能保存已卸载的 DOM。
-                  previewTrigger.current =
-                    document.activeElement instanceof HTMLElement
-                      ? document.activeElement.id
-                      : ""
-                  setPreview({ id: file.id, scope: browseScope })
-                }}
-                onLocate={(entry) =>
-                  onSearchChange((current) => ({
-                    ...current,
-                    parentId: entry.parentId ?? workspace.root.id,
-                    name: undefined,
-                    page: 1,
-                  }))
-                }
               />
             </div>
-            {previewId && (
-              <FilePreviewPanel
-                key={JSON.stringify([contentScopeKey, previewId])}
-                organizationId={organizationId}
-                authorizationVersion={authorizationVersion}
-                entryId={previewId}
-                contentScopeKey={contentScopeKey}
-                canOverwrite={canOverwrite}
-                onClose={() => {
-                  restorePreviewFocus.current = true
-                  setPreview(null)
-                }}
-              />
-            )}
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto lg:flex-row lg:overflow-hidden">
+              <div className="min-w-0 flex-1 px-4 pb-6 sm:px-6 lg:min-h-0 lg:overflow-auto">
+                <FileBrowser
+                  workspace
+                  previewedFileId={previewId}
+                  renderEntryActions={(entry) => (
+                    <FileEntryActions
+                      idPrefix={`${actionScope}-row-${entry.id}`}
+                      entry={entry}
+                      canOverwrite={canOverwrite}
+                      presentation="menu"
+                      onOpenDetails={() =>
+                        void navigate({
+                          to: "/app/files/$organizationId/entries/$entryId",
+                          params: { organizationId, entryId: entry.id },
+                          search:
+                            entry.kind === "file"
+                              ? { versionId: entry.currentVersion.id }
+                              : {},
+                        })
+                      }
+                    />
+                  )}
+                  contentScopeKey={contentScopeKey}
+                  currentFolder={currentFolder}
+                  breadcrumbs={breadcrumbs.data}
+                  page={entries.data}
+                  search={search}
+                  status={status}
+                  rootLabel={trash ? t("files:trash") : t("files:allFiles")}
+                  canOpenFile={(file) => file.state === "active"}
+                  renderSelectionActions={
+                    canOverwrite || canManage
+                      ? (selected) => {
+                          const entry =
+                            selected.length === 1 ? selected[0] : undefined
+                          return entry ? (
+                            <div className="flex flex-wrap gap-2">
+                              <Link
+                                to="/app/files/$organizationId/entries/$entryId"
+                                params={{ organizationId, entryId: entry.id }}
+                                className={buttonVariants({
+                                  variant: "outline",
+                                })}
+                              >
+                                {t("files:detail")}
+                              </Link>
+                              <FileEntryActions
+                                idPrefix={`${actionScope}-selection-${entry.id}`}
+                                entry={entry}
+                                canOverwrite={canOverwrite}
+                              />
+                            </div>
+                          ) : selected.length > 1 ? (
+                            <div className="flex flex-wrap gap-2">
+                              {trash ? (
+                                <>
+                                  <Button
+                                    id={`${batches.triggerId}-restore`}
+                                    variant="outline"
+                                    disabled={!batches.available}
+                                    onClick={() =>
+                                      batches.onBatch(selected, "restore")
+                                    }
+                                  >
+                                    {t("files:batchRestore")}
+                                  </Button>
+                                  <Button
+                                    id={`${batches.triggerId}-purge`}
+                                    variant="outline"
+                                    disabled={!batches.available}
+                                    onClick={() =>
+                                      batches.onBatch(selected, "purge")
+                                    }
+                                  >
+                                    {t("files:batchPurge")}
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <Button
+                                    id={`${batches.triggerId}-move`}
+                                    variant="outline"
+                                    disabled={!batches.available}
+                                    onClick={() =>
+                                      batches.onBatch(selected, "move")
+                                    }
+                                  >
+                                    {t("files:batchMove")}
+                                  </Button>
+                                  <Button
+                                    id={`${batches.triggerId}-trash`}
+                                    variant="outline"
+                                    disabled={!batches.available}
+                                    onClick={() =>
+                                      batches.onBatch(selected, "trash")
+                                    }
+                                  >
+                                    {t("files:batchTrash")}
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          ) : null
+                        }
+                      : undefined
+                  }
+                  error={
+                    entries.isError
+                      ? fileRequestErrorMessage(
+                          entries.error,
+                          t("common:operationFailed")
+                        )
+                      : undefined
+                  }
+                  onRetry={() => void entries.refetch()}
+                  onSearchChange={onSearchChange}
+                  onOpenFolder={(folder) =>
+                    onSearchChange((current) => ({
+                      ...current,
+                      parentId:
+                        trash && folder.id === workspace.root.id
+                          ? undefined
+                          : folder.id,
+                      name: undefined,
+                      page: 1,
+                    }))
+                  }
+                  onOpenFile={(file) => {
+                    // 列表刷新会重建单元格；按稳定入口 ID 返回当前按钮，不能保存已卸载的 DOM。
+                    previewTrigger.current =
+                      document.activeElement instanceof HTMLElement
+                        ? document.activeElement.id
+                        : ""
+                    setPreview({ id: file.id, scope: browseScope })
+                  }}
+                  onLocate={(entry) =>
+                    onSearchChange((current) => ({
+                      ...current,
+                      parentId: entry.parentId ?? workspace.root.id,
+                      name: undefined,
+                      page: 1,
+                    }))
+                  }
+                />
+              </div>
+              {previewId && (
+                <FilePreviewPanel
+                  key={JSON.stringify([contentScopeKey, previewId])}
+                  organizationId={organizationId}
+                  authorizationVersion={authorizationVersion}
+                  entryId={previewId}
+                  contentScopeKey={contentScopeKey}
+                  canOverwrite={canOverwrite}
+                  onClose={() => {
+                    restorePreviewFocus.current = true
+                    setPreview(null)
+                  }}
+                />
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      </WorkspacePage>
       <CreateFolderDialog
         open={creatingFolder}
         contentScopeKey={contentScopeKey}

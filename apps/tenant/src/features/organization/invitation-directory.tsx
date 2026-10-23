@@ -482,7 +482,7 @@ export function InvitationDirectory({
       >
         <DataTable
           paginationLabel={`${t("organization:invitations")} ${t("common:pagination")}`}
-          toolbarContent={
+          toolbarActions={
             access.data?.create && (
               <>
                 <BulkInvitationAction

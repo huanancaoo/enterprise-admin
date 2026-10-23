@@ -15,7 +15,7 @@ import {
   ErrorState,
   LoadingState,
   PermissionDeniedState,
-  PageHeader,
+  AdminPage,
 } from "@workspace/admin"
 import {
   DataTable,
@@ -34,6 +34,8 @@ type Props = {
 }
 const columnHelper = createDataTableColumnHelper<Notification>()
 export function NotificationCenter(props: Props) {
+  const { t } = useTranslation("notifications")
+
   const user = useAuthenticatedSession()!.user
   const membership = useOrganizationAuthorization({
     organizationId: props.organizationId,
@@ -41,13 +43,22 @@ export function NotificationCenter(props: Props) {
     observation: "notifications",
   })
   if (membership.error)
-    return membership.error instanceof ApiClientError &&
-      [401, 403].includes(membership.error.status) ? (
-      <PermissionDeniedState />
-    ) : (
-      <ErrorState onRetry={() => void membership.refetch()} />
+    return (
+      <AdminPage title={t("title")}>
+        {membership.error instanceof ApiClientError &&
+        [401, 403].includes(membership.error.status) ? (
+          <PermissionDeniedState />
+        ) : (
+          <ErrorState onRetry={() => void membership.refetch()} />
+        )}
+      </AdminPage>
     )
-  if (membership.isPending) return <LoadingState />
+  if (membership.isPending)
+    return (
+      <AdminPage title={t("title")}>
+        <LoadingState />
+      </AdminPage>
+    )
   const { authorizationVersion, scopeKey } = membership.data
   return (
     <ScopedInbox
@@ -162,11 +173,14 @@ function ScopedInbox({
     authorityError instanceof ApiClientError &&
     [401, 403].includes(authorityError.status)
   )
-    return <PermissionDeniedState />
+    return (
+      <AdminPage title={t("title")}>
+        <PermissionDeniedState />
+      </AdminPage>
+    )
   const pagination = { pageIndex: search.page - 1, pageSize: search.pageSize }
   return (
-    <section className="min-w-0 space-y-6">
-      <PageHeader title={t("title")} description={t("description")} />
+    <AdminPage title={t("title")}>
       {messages.data && (
         <p className="text-sm text-muted-foreground" aria-live="polite">
           {t("unreadTotal", {
@@ -206,6 +220,6 @@ function ScopedInbox({
         empty={<p className="p-6 text-muted-foreground">{t("empty")}</p>}
       />
       <NotificationPreferencesSettings organizationId={organizationId} />
-    </section>
+    </AdminPage>
   )
 }

@@ -50,7 +50,7 @@ export function FilePreviewPanel({
       ref={panel}
       role="region"
       aria-label={t("files:preview")}
-      className="min-h-svh min-w-0 border-t bg-background p-5 lg:min-h-0 lg:w-80 lg:shrink-0 lg:border-s lg:border-t-0 xl:w-96"
+      className="min-w-0 shrink-0 border-t bg-background p-5 lg:min-h-0 lg:w-80 lg:shrink-0 lg:overflow-y-auto lg:border-s lg:border-t-0 xl:w-96"
     >
       <div className="mb-5 flex items-start justify-between gap-3">
         <h2 className="min-w-0 text-base font-semibold wrap-anywhere">

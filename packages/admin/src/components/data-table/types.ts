@@ -16,8 +16,9 @@ export type DataTableProps<TData extends RowData> = DataTableOptions<TData> & {
   showSearch?: boolean
   searchPlaceholder?: string
   searchMaxLength?: number
-  toolbarContent?: ReactNode
-  /** 常驻筛选条件放在搜索和列筛选之后，前置业务操作仍使用 toolbarContent。 */
+  /** 导入、导出等集合操作位于工具栏末端，与查询条件分组。 */
+  toolbarActions?: ReactNode
+  /** 常驻筛选条件放在搜索和列筛选之后。 */
   toolbarFilters?: ReactNode
   /** 按父节点加载的树列表由层级导航切换集合，不显示平面分页。 */
   showPagination?: boolean

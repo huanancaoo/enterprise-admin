@@ -1,6 +1,6 @@
 import { Link, useParams } from "@tanstack/react-router"
 import {
-  PageHeader,
+  AdminPage,
   PersonalAvatarSettings,
   PersonalSecuritySettings,
 } from "@workspace/admin"
@@ -88,7 +88,7 @@ function LocaleSelect({
         aria-invalid={invalid}
         disabled={disabled}
       >
-        <SelectValue />
+        <SelectValue className="min-w-0 truncate" />
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="__inherit__">{inheritLabel}</SelectItem>
@@ -224,15 +224,19 @@ export function PersonalLocaleSettingsRoute() {
   }, [form, form.state.isDirty, preferences.data])
   if (preferences.isPending)
     return (
-      <p role="status" className="text-sm text-muted-foreground">
-        {t("common:loading")}
-      </p>
+      <AdminPage title={t("personalSettings")} contentWidth="form">
+        <p role="status" className="text-sm text-muted-foreground">
+          {t("common:loading")}
+        </p>
+      </AdminPage>
     )
   if (preferences.error)
     return (
-      <p role="alert" className="text-sm text-destructive">
-        {t("loadError")}
-      </p>
+      <AdminPage title={t("personalSettings")} contentWidth="form">
+        <p role="alert" className="text-sm text-destructive">
+          {t("loadError")}
+        </p>
+      </AdminPage>
     )
   const source = preferences.data.data.preferredLocale
     ? "user"
@@ -245,11 +249,7 @@ export function PersonalLocaleSettingsRoute() {
   } as const
 
   return (
-    <section className="max-w-3xl min-w-0 space-y-6">
-      <PageHeader
-        title={t("personalSettings")}
-        description={t("personalDescription")}
-      />
+    <AdminPage title={t("personalSettings")} contentWidth="form">
       <Link
         to="/app/settings/login-events"
         search={{ page: 1, pageSize: 20 }}
@@ -343,7 +343,7 @@ export function PersonalLocaleSettingsRoute() {
           </form>
         )}
       </form.Subscribe>
-    </section>
+    </AdminPage>
   )
 }
 
@@ -408,27 +408,27 @@ export function OrganizationLocaleSettingsRoute({
 
   if (settings.isPending || permissions.isPending)
     return (
-      <p role="status" className="text-sm text-muted-foreground">
-        {t("common:loading")}
-      </p>
+      <AdminPage title={t("organizationSettings")} contentWidth="form">
+        <p role="status" className="text-sm text-muted-foreground">
+          {t("common:loading")}
+        </p>
+      </AdminPage>
     )
   if (settings.error || permissions.error) {
     const error = settings.error ?? permissions.error
     return (
-      <p role="alert" className="text-sm text-destructive">
-        {error instanceof ApiClientError && error.status === 403
-          ? t("permissionDenied")
-          : t("loadError")}
-      </p>
+      <AdminPage title={t("organizationSettings")} contentWidth="form">
+        <p role="alert" className="text-sm text-destructive">
+          {error instanceof ApiClientError && error.status === 403
+            ? t("permissionDenied")
+            : t("loadError")}
+        </p>
+      </AdminPage>
     )
   }
   const canUpdate = permissions.data?.canUpdate === true
   return (
-    <section className="max-w-3xl min-w-0 space-y-6">
-      <PageHeader
-        title={t("organizationSettings")}
-        description={t("organizationDescription")}
-      />
+    <AdminPage title={t("organizationSettings")} contentWidth="form">
       {!canUpdate && (
         <p className="rounded-lg bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
           {t("readOnly")}
@@ -503,7 +503,7 @@ export function OrganizationLocaleSettingsRoute({
           </form>
         )}
       </form.Subscribe>
-    </section>
+    </AdminPage>
   )
 }
 

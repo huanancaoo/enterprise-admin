@@ -11,7 +11,7 @@ import {
 } from "@/lib/organization-locale-sync"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, Outlet, useNavigate, useParams } from "@tanstack/react-router"
-import { AppShell } from "@workspace/admin"
+import { AdminPage, AppShell, WorkspacePage } from "@workspace/admin"
 import {
   DeviceSessionActions,
   DeviceSessionMenu,
@@ -32,7 +32,6 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb"
-import { buttonVariants } from "@workspace/ui/components/button"
 import {
   BuildingIcon,
   ClipboardListIcon,
@@ -224,6 +223,13 @@ export function AdminLayout() {
       : []),
   ]
 
+  const canRenderPage =
+    location.personal ||
+    (!organizationContextPending &&
+      (!currentOrganizationId || access.isSuccess))
+  const BlockedPage =
+    location.layout === "workspace" ? WorkspacePage : AdminPage
+
   return (
     <AppShell
       layout={location.layout}
@@ -332,24 +338,31 @@ export function AdminLayout() {
       }}
     >
       {workspace.error && (
-        <p role="alert" className="text-sm text-destructive">
+        <p
+          role="alert"
+          className="mx-auto w-full max-w-7xl shrink-0 px-4 py-3 text-sm text-destructive sm:px-6 lg:px-8"
+        >
           {workspace.error}
         </p>
       )}
-      {(organizationContextPending ||
-        (currentOrganizationId && access.isPending)) && (
-        <p role="status">{t("organization:loading")}</p>
-      )}
-      {suspended && (
-        <OrganizationUnavailable
-          organizations={organizations}
-          currentId={currentOrganizationId ?? undefined}
-        />
-      )}
-      {access.error && !suspended && (
-        <p role="alert" className="text-sm text-destructive">
-          {access.error.message}
-        </p>
+      {!canRenderPage && (
+        <BlockedPage title={t(location.titleKey)}>
+          {(organizationContextPending ||
+            (currentOrganizationId && access.isPending)) && (
+            <p role="status">{t("organization:loading")}</p>
+          )}
+          {suspended && (
+            <OrganizationUnavailable
+              organizations={organizations}
+              currentId={currentOrganizationId ?? undefined}
+            />
+          )}
+          {access.error && !suspended && (
+            <p role="alert" className="text-sm text-destructive">
+              {access.error.message}
+            </p>
+          )}
+        </BlockedPage>
       )}
       <CreateOrganizationDialog
         open={createOpen}
@@ -359,21 +372,18 @@ export function AdminLayout() {
         error={workspace.error}
         onCreated={location.onCreated}
       />
-      {location.personal ||
-      (!organizationContextPending &&
-        (!currentOrganizationId || access.isSuccess)) ? (
+      {canRenderPage ? (
         <>
           {location.management && (
             <nav
               aria-label={t("organization:management")}
-              className="flex flex-wrap gap-1 border-b pb-4"
+              className="mx-auto flex w-full max-w-7xl shrink-0 flex-wrap gap-6 border-b px-4 sm:px-6 lg:px-8"
             >
               {managementItems.map((item) =>
                 cloneElement(item.render!, {
                   key: item.title,
-                  className: buttonVariants({
-                    variant: item.active ? "secondary" : "ghost",
-                  }),
+                  className:
+                    "inline-flex items-center gap-2 border-b-2 border-transparent px-1 py-4 text-sm font-medium text-muted-foreground hover:text-foreground aria-[current=page]:border-primary aria-[current=page]:text-primary",
                   "aria-current": item.active ? "page" : undefined,
                   children: (
                     <>

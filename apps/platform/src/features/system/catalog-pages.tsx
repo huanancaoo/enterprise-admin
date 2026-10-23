@@ -1,3 +1,4 @@
+import { AdminPage } from "@workspace/admin"
 import { useCallback, useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
@@ -455,9 +456,19 @@ function PlatformCatalogPage({
     }
   }
   return (
-    <section className="min-w-0 space-y-4">
-      <header className="space-y-1">
-        {kind === "dictionaryItem" && (
+    <AdminPage
+      actions={
+        tableStatus !== "forbidden" &&
+        can("create") && (
+          <Button onClick={() => setEditing("new")}>
+            {t("catalogs:create")}
+          </Button>
+        )
+      }
+      title={t(`catalogs:${kind}Title`)}
+      description={t(`catalogs:${kind}Description`)}
+      back={
+        kind === "dictionaryItem" && (
           <Link
             to="/platform/dictionaries"
             search={PlatformSystemQuerySchema.parse({})}
@@ -465,14 +476,9 @@ function PlatformCatalogPage({
           >
             {t("catalogs:backToDictionaries")}
           </Link>
-        )}
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">
-          {t(`catalogs:${kind}Title`)}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {t(`catalogs:${kind}Description`)}
-        </p>
-      </header>
+        )
+      }
+    >
       <DataTable
         columns={columns}
         data={query.data?.items ?? EMPTY_ROWS}
@@ -491,13 +497,8 @@ function PlatformCatalogPage({
             : t("catalogs:search")
         }
         searchMaxLength={200}
-        toolbarContent={
+        toolbarActions={
           <>
-            {can("create") && (
-              <Button size="sm" onClick={() => setEditing("new")}>
-                {t("catalogs:create")}
-              </Button>
-            )}
             {can("export") && (
               <PlatformExportButton
                 resource={kind}
@@ -592,6 +593,6 @@ function PlatformCatalogPage({
           onDelete={() => remove(deleting)}
         />
       )}
-    </section>
+    </AdminPage>
   )
 }

@@ -15,7 +15,7 @@ import * as z from "zod"
 import {
   ErrorState,
   FormDialog,
-  PageHeader,
+  AdminPage,
   PermissionDeniedState,
 } from "@workspace/admin"
 import { ApiClientError } from "@workspace/api-client"
@@ -343,28 +343,53 @@ export function RolesRoute() {
       ]),
     [access.data, t]
   )
-  if (access.isPending) return <div role="status">{t("common:loading")}</div>
-  if (access.error)
-    return access.error instanceof ApiClientError &&
-      access.error.body.code === "FORBIDDEN" ? (
-      <PermissionDeniedState />
-    ) : (
-      <ErrorState onRetry={() => void access.refetch()} />
+  if (access.isPending)
+    return (
+      <AdminPage title={t("organization:roles")}>
+        <div role="status">{t("common:loading")}</div>
+      </AdminPage>
     )
-  if (!access.data?.canRead) return <PermissionDeniedState />
+  if (access.error)
+    return (
+      <AdminPage title={t("organization:roles")}>
+        {access.error instanceof ApiClientError &&
+        access.error.body.code === "FORBIDDEN" ? (
+          <PermissionDeniedState />
+        ) : (
+          <ErrorState onRetry={() => void access.refetch()} />
+        )}
+      </AdminPage>
+    )
+  if (!access.data?.canRead)
+    return (
+      <AdminPage title={t("organization:roles")}>
+        <PermissionDeniedState />
+      </AdminPage>
+    )
   const pagination = { pageIndex: search.page - 1, pageSize: search.pageSize }
   const sorting = [{ id: search.sortBy, desc: search.sortOrder === "desc" }]
   const columnFilters = search.kind
     ? [{ id: "builtIn", value: search.kind }]
     : []
   return (
-    <section className="min-w-0 space-y-6">
-      <div ref={rolesTitle} tabIndex={-1}>
-        <PageHeader
-          title={t("organization:roles")}
-          description={t("organization:rolesDescription")}
-        />
-      </div>
+    <AdminPage
+      title={t("organization:roles")}
+      headingRef={rolesTitle}
+      actions={
+        !forbidden &&
+        access.data.canCreate && (
+          <Button
+            size="sm"
+            onClick={() => {
+              setFormError(null)
+              setCreating(true)
+            }}
+          >
+            {t("organization:createRole")}
+          </Button>
+        )
+      }
+    >
       <DataTable
         empty={<p>{t("organization:rolesEmpty")}</p>}
         columns={columns}
@@ -387,19 +412,6 @@ export function RolesRoute() {
         }}
         searchPlaceholder={t("organization:searchRoles")}
         searchMaxLength={120}
-        toolbarContent={
-          access.data.canCreate && (
-            <Button
-              size="sm"
-              onClick={() => {
-                setFormError(null)
-                setCreating(true)
-              }}
-            >
-              {t("organization:createRole")}
-            </Button>
-          )
-        }
         onGlobalFilterChange={(updater) => {
           const q =
             typeof updater === "function" ? updater(search.q ?? "") : updater
@@ -552,6 +564,6 @@ export function RolesRoute() {
           </FormDialog>
         )}
       </form.Subscribe>
-    </section>
+    </AdminPage>
   )
 }

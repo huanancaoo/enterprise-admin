@@ -1,102 +1,101 @@
-# 文件管理页面视觉与交互验收
+# 后台布局原型实施验收
 
-## 目标与证据
+日期：2026-10-23。范围：租户后台、平台后台的页面结构，以及本次页头加载修复。执行依据为既有三张原型和《统一后台页面布局方案》，并保留现有业务、权限、查询及表单提交边界。
 
-- 目标：将已确认的「目录树 + 文件表格 + 右侧预览」合并稿接入现有文件页面，保持 API、权限、文件操作与版本读取语义。
-- 源图：`/Users/huanancao/.codex/generated_images/01a13e06-b253-7fb1-8b83-2a6d055f43ce/exec-e799e1a5-ca4f-49d1-9ddd-88f50a7f349d.png`。
-- 浏览器页面：`http://localhost:6006/iframe.html?id=tenant-files-workspace--preview&viewMode=story`。
-- 桌面截图：`/Users/huanancao/.codex/visualizations/2026/10/15/01a13e06-b253-7fb1-8b83-2a6d055f43ce/files-implementation-desktop.jpg`。
-- 局部截图：同目录 `files-implementation-detail.jpg`，区域为桌面 CSS 坐标 `(480, 140, 960, 400)`。
-- 手机预览截图：同目录 `files-implementation-mobile.jpg`。
-- 首轮截图：同目录 `files-implementation-first.jpg`。
+## 对照依据与状态
 
-源图为 1487 × 1058 像素，桌面实现为 1440 × 1024 CSS 像素及截图像素，比例基本一致。比较时按源图约 0.968 倍观察，不把原图尺寸差异算作布局问题。手机为 390 × 844 CSS 像素。桌面状态均为浅色、10 个条目、单文件预览且复选框未选中。
+方案明确沿用现有主题、字体、按钮和基础组件 token；原型表达页面层级，精确尺寸与业务行为以方案契约为准。本次验收判断结构、信息层级和交互是否落实，未将生成图中的虚构数据或视觉尺寸当成新业务需求。
 
-比较输入同时包含源图、最终桌面截图及局部截图；没有只依据代码或分开查看的记忆作结论。Story 使用真实 FilesWorkspace、AppShell、查询与操作组件，API 由 MSW 提供示例数据。海报仅位于 Storybook public 目录，不进入业务数据或租户生产资源。
+| 页面       | 原型源图                                                                                                                                                        | 浏览器实现证据                                                                                                                                                                     | 状态                                                       |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| 员工列表   | [prototype-list.png](/Users/huanancao/.codex/visualizations/2026/10/22/01a16368-b0b1-7863-bacd-060d201590f5/admin-layout-proposal/prototype-list.png)           | [employees-desktop.jpg](/Users/huanancao/.codex/visualizations/2026/10/22/01a16368-b0b1-7863-bacd-060d201590f5/admin-layout-prototype-rebuild/employees-desktop.jpg)               | 真实平台账号、3 条实际任职记录、无筛选、浅色主题           |
+| 角色权限   | [prototype-detail.png](/Users/huanancao/.codex/visualizations/2026/10/22/01a16368-b0b1-7863-bacd-060d201590f5/admin-layout-proposal/prototype-detail.png)       | [role-permissions-desktop.jpg](/Users/huanancao/.codex/visualizations/2026/10/22/01a16368-b0b1-7863-bacd-060d201590f5/admin-layout-prototype-rebuild/role-permissions-desktop.jpg) | 真实审计员角色、完整 19 个资源组、浅色主题                 |
+| 文件工作台 | [prototype-workspace.png](/Users/huanancao/.codex/visualizations/2026/10/22/01a16368-b0b1-7863-bacd-060d201590f5/admin-layout-proposal/prototype-workspace.png) | [files-populated-desktop.jpg](/Users/huanancao/.codex/visualizations/2026/10/22/01a16368-b0b1-7863-bacd-060d201590f5/admin-layout-prototype-rebuild/files-populated-desktop.jpg)   | 现有 Storybook/MSW 文件场景、10 条记录、预览关闭、浅色主题 |
 
-## 差异与修订记录
+真实租户组织当前文件集合为空，另以 [真实空状态](/Users/huanancao/.codex/visualizations/2026/10/22/01a16368-b0b1-7863-bacd-060d201590f5/admin-layout-prototype-rebuild/tenant-files-desktop.jpg) 验证实际路由、权限入口及查询呈现。有数据的列布局、组织级搜索、预览和焦点恢复使用现有 Storybook 场景验证，没有向真实组织写入示例文件。
 
-1. **首轮 P2：列表尺寸和样式偏离。** 页头、面包屑及行高偏紧，胶囊按钮与目标稿圆角不一致，大小列发生截断，末列宽度小于操作按钮的实际占位。调整为 80px 页头、64px 面包屑及数据行，文件工作区使用小圆角与蓝色强调；扩大大小和操作列。最终截图的大小与菜单完整显示，桌面表格不再出现首轮横向滚动条。
-2. **首轮 P2：焦点恢复和版本导航。** 表格单元格重挂可能令操作入口 ID 失效；同步关闭预览时聚焦旧 DOM；详情链接可能遗漏固定版本。工作区持有稳定操作 ID，关闭预览后在提交阶段恢复焦点，版本/引用入口携带 versionId。对应组件场景通过。
-3. **P2：窄屏预览出现在列表下方但不完整进入视口。** 打开窄屏预览时滚动到面板，并给面板保留一屏高度。复核得到预览边界 top=0、height=844，页面 clientWidth=scrollWidth=390。目录在手机默认收起，保留明确的展开图标。
-4. **P2：空操作表头及导航按钮语义告警。** 为操作表头补充屏幕阅读器文案，按 Base UI 要求声明非原生按钮的链接渲染。90 个组件场景及其无障碍检查通过，最终中文预览控制台无 error。
+尺寸与密度：
 
-## 五项视觉检查
+- 原型源像素：列表 1487 × 1058，权限 1486 × 1058，文件 1485 × 1059；均为生成图，没有 CSS 或设备像素比元数据。
+- 原型的预期设计视口为 1440 × 1024。比较副本等比缩放至 1440px 宽，不拉伸、不修改原图内容；高度约 1025–1027px。
+- 当前桌面实现：CSS 视口 1440 × 1024，deviceScaleFactor = 1，截图像素 1440 × 1024。比较板额外的 36px 说明栏和 16px 分隔不属于应用界面。
+- 初次实施证据为 1440 × 960；只比较共同可见区域，不把底部缺少的 64px 计作布局问题。
+- 补充断点：320 × 844、390 × 844、768 × 1024，均为 1 倍密度。原型没有给出移动端图，按方案的响应式契约验收。
 
-| 项目 | 最终结论 |
-| --- | --- |
-| 字体与层级 | 保留应用既有字体与中文系统回退；页标题、目录标题、表格和元数据层级清楚。未引入新的字体依赖。 |
-| 间距与比例 | 1440px 下全局侧栏 256px、目录 224px、列表 576px、预览 384px；目录与预览保持接近确认稿的比例。行与工具栏经过第二轮截图复核。 |
-| 颜色与状态 | 白底、浅灰分割、蓝色主操作与预览行标记。预览高亮与复选框选择独立。非名称列使用次要文字色。 |
-| 图像与图标 | 私有图像仍走受保护内容组件，以临时 Blob 显示。示例海报来自生成的独立图片，清晰完整。文件类型使用现有 Lucide 图标体系，不添加 Office 品牌资源或列表缩略图读取。 |
-| 文案与内容 | 保留现有上传、创建、回收站、容量策略和操作术语；新增目录及动作文案覆盖中文、英文、阿拉伯语。真实业务中的文件名与目录顺序仍由现有查询返回。 |
+## 完整画面与局部比较
 
-## 有意保留的差异
+源图与实现截图已放入同一比较板观察。局部图保持原有比例，重点检查控件排序、文字密度、列对齐、资源分组和边框，避免只看整页缩略图。
 
-- 全局导航与账号菜单保持现有应用实现；Story 的少量导航项仅用于提供布局上下文。
-- 文件名、顺序、日期和大小为测试数据，不强行改成源图内容；没有更改既有排序语义。
-- 保留「视图」配置和全部容量/保留策略，将容量信息收纳到目录底部。
-- 保留应用的日期格式、分页组件及标准文件图标，因此与概念图并非逐像素复制。
+| 页面       | 全图比较                                                                                                                                                                   | 局部比较                                                                                                                                                                             |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 员工列表   | [comparison-list.png](/Users/huanancao/.codex/visualizations/2026/10/22/01a16368-b0b1-7863-bacd-060d201590f5/admin-layout-prototype-rebuild/comparison-list.png)           | [筛选、集合操作、身份列与表格](/Users/huanancao/.codex/visualizations/2026/10/22/01a16368-b0b1-7863-bacd-060d201590f5/admin-layout-prototype-rebuild/comparison-list-focus.png)      |
+| 角色权限   | [comparison-detail.png](/Users/huanancao/.codex/visualizations/2026/10/22/01a16368-b0b1-7863-bacd-060d201590f5/admin-layout-prototype-rebuild/comparison-detail.png)       | [资源名称、权限网格与分隔](/Users/huanancao/.codex/visualizations/2026/10/22/01a16368-b0b1-7863-bacd-060d201590f5/admin-layout-prototype-rebuild/comparison-detail-focus.png)        |
+| 文件工作台 | [comparison-workspace.png](/Users/huanancao/.codex/visualizations/2026/10/22/01a16368-b0b1-7863-bacd-060d201590f5/admin-layout-prototype-rebuild/comparison-workspace.png) | [面包屑、搜索、视图与文件表格](/Users/huanancao/.codex/visualizations/2026/10/22/01a16368-b0b1-7863-bacd-060d201590f5/admin-layout-prototype-rebuild/comparison-workspace-focus.png) |
 
-## 实际验证与边界
+## 发现、修复与复查历史
 
-- `pnpm lint`、`pnpm typecheck`：通过；最后的样式修订另通过 tenant ESLint 与 typecheck。
-- `pnpm --filter tenant build`：通过；保留原有大 chunk 提示，未扩大到构建拆包工作。
-- 文件浏览、文件内容、路径操作、批量对话框及新增工作区：5 个 Story 文件、90 个场景通过，包括无障碍检查。测试运行有一次 React act 提示，不影响测试结果。
-- 新场景覆盖混排目录跨页读取、预览与勾选独立、关闭恢复焦点、目录切换、菜单返回焦点、只读权限与 RTL。浏览器另检查了浅色桌面、窄屏打开/关闭预览及 RTL 的预览入口。
-- 翻译提取 dry-run、生成类型一致性和 catalog 插值检查通过。完整 i18n check 仍被既有 `organization-authorization.stories.tsx` 的 6 处硬编码文案阻塞；本次未修改该文件。
-- 更新了已有 E2E 的预览区域和目录定位，并通过脚本语法检查。本轮没有启动 API/数据库，也未运行真实后端 E2E，不能据此声称上传、删除、移动等真实存储全链路已验收。
+以下 P1/P2 在修复前均视为阻断；当前没有尚待修复的 P0/P1/P2 布局问题。
+
+| 级别 | 初次发现及影响                                                                                       | 实施修复                                                                                                                                                   | 修复后证据                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ---- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| P1   | 首轮主要统一容器和间距，列表的身份信息、筛选与集合操作仍未形成原型的分区，部分新增入口仍混在表格内。 | 姓名与脱敏邮箱合并为身份单元；页面新增入口放页头；查询条件在工具栏起始侧，导入、导出和列视图在结束侧；统一表格行高。                                       | [初次对照](/Users/huanancao/.codex/visualizations/2026/10/22/01a16368-b0b1-7863-bacd-060d201590f5/admin-layout-prototype-rebuild/comparison-list-before.png)、[当前对照](/Users/huanancao/.codex/visualizations/2026/10/22/01a16368-b0b1-7863-bacd-060d201590f5/admin-layout-prototype-rebuild/comparison-list.png)                                                                                                                                                                  |
+| P1   | 权限页仍有多层卡片、技术权限标识和按钮式子导航，层级比原型复杂。                                     | 返回、标题、角色身份、下划线链接导航、权限表单依次排列；资源标签与复选框平面分组；去掉重复技术代码，保留资源与动作组成的可访问名称；保存仍只在原表单底部。 | [初次对照](/Users/huanancao/.codex/visualizations/2026/10/22/01a16368-b0b1-7863-bacd-060d201590f5/admin-layout-prototype-rebuild/comparison-detail-before.png)、[当前对照](/Users/huanancao/.codex/visualizations/2026/10/22/01a16368-b0b1-7863-bacd-060d201590f5/admin-layout-prototype-rebuild/comparison-detail.png)、[保存区](/Users/huanancao/.codex/visualizations/2026/10/22/01a16368-b0b1-7863-bacd-060d201590f5/admin-layout-prototype-rebuild/role-permissions-footer.jpg) |
+| P1   | 文件页搜索、面包屑、当前文件夹标题重复分层，表格贴边，未落实原型的工作台结构。                       | 常驻页头下分为 224px 目录与内容；内容按面包屑、搜索及视图、带边框表格排列；删除重复文件夹标题；保留配额、回收站和原预览流程。                              | [初次对照](/Users/huanancao/.codex/visualizations/2026/10/22/01a16368-b0b1-7863-bacd-060d201590f5/admin-layout-prototype-rebuild/comparison-workspace-before.png)、[当前对照](/Users/huanancao/.codex/visualizations/2026/10/22/01a16368-b0b1-7863-bacd-060d201590f5/admin-layout-prototype-rebuild/comparison-workspace.png)                                                                                                                                                        |
+| P1   | 整页路由组件延迟加载时，页头也被替换为加载页，导致标题和操作位置消失。                               | 后台页面入口同步挂载；只在正文内设置 Suspense；富文本和项目正文继续独立延迟加载；移除伪装成页面标题的“正在加载”路由页头。                                  | [真实岗位请求暂挂](/Users/huanancao/.codex/visualizations/2026/10/22/01a16368-b0b1-7863-bacd-060d201590f5/admin-layout-prototype-rebuild/posts-data-loading.jpg)；两项延迟正文测试验证标题、返回节点在加载前后保持同一 DOM 节点，document.title 正确。                                                                                                                                                                                                                               |
+| P2   | 390px 下，工具栏右侧操作挤压搜索框，占位文字几乎不可读。                                             | 窄屏筛选区占完整一行，集合操作随后排列；桌面保持两侧分区。                                                                                                 | [修复前](/Users/huanancao/.codex/visualizations/2026/10/22/01a16368-b0b1-7863-bacd-060d201590f5/admin-layout-prototype-rebuild/employees-390.jpg)、[修复后](/Users/huanancao/.codex/visualizations/2026/10/22/01a16368-b0b1-7863-bacd-060d201590f5/admin-layout-prototype-rebuild/employees-390-fixed.jpg)。390px 输入区域实测 266px；320px 为 196px。                                                                                                                               |
+| P2   | 新建角色移到页头后，删除弹窗关闭时焦点可能进入新建按钮。                                             | headingRef 指向 h1，tabIndex = -1，明确恢复到标题。                                                                                                        | 成员、角色及公共页头焦点相关的 106 项复测通过；完整受影响集合随后 291 项通过。                                                                                                                                                                                                                                                                                                                                                                                                       |
+
+## 五项视觉核查
+
+| 表面             | 结论与合理差异                                                                                                                                                                                                                           |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 字体与文字层级   | 使用现有 DM Sans 正文、Outfit 标题及系统中文回退；桌面 h1 实测 30px / 36px、600 字重，移动 24px。保留 14px 正文和已有控件字号。生成图的文字更大，依据已确认方案沿用项目字号，未新增字体。标题、元信息、子导航、正文的层级已落实。        |
+| 间距与布局节奏   | 桌面标准页 padding 32px，主区域间隔 24px；全局侧栏 256px、顶栏 64px；文件目录 224px、内容水平留白 24px。列表无额外包裹卡片，权限组采用分隔行；页头动作与表格动作边界清楚。表格仅在本区域横向滚动。                                       |
+| 颜色与 token     | 沿用当前 primary、muted、border、背景和语义状态 token。按钮圆角及品牌蓝与生成图不同，这是方案指定的主题约束；没有页面级覆写基础按钮样式。真实租户浅色和跟随系统深色均已观察，结束时恢复跟随系统。                                        |
+| 图像、资产与图标 | 原型中的虚构员工头像、账号和示例文件不写入产品。沿用既有 AppSidebar 头像及 Lucide 图标，无重绘图标或模拟产品资产。现有文件图片预览在 390px 下清晰、比例正常，关闭入口可见。                                                              |
+| 文案与内容       | 删除解释布局或复述标题的次级说明；去掉权限说明中的内部实现措辞，保留菜单可见性与授权的业务约束。同步清理不再使用的三语言说明词条。真实任职状态、岗位列、脱敏邮箱、角色与岗位数量、日期格式、完整权限目录、组织级搜索及配额沿用现有业务。 |
+
+原型中“员工管理”的侧栏示例与当前系统的“用户管理”导航名不同；当前菜单名称来自现有导航数据，未通过布局重构改写业务菜单。权限页示例仅有 6 个资源组，真实实现使用完整的 19 组，因此保存按钮位于滚动后的表单底部。文件原型为 7 条示例记录，现有场景为 10 条，未据图删除数据或权限项。
+
+## 浏览器验收
+
+实际页面使用本地 3200 / 3201 和现有本地 API、个人开发数据库，未切换到隔离数据库。
+
+- 真实员工搜索提交后 URL 保留 q=Admin、分页与排序参数，返回 1 条匹配记录；清除筛选恢复 3 条记录。
+- 页头新建入口进入既有员工表单；空表单提交仍显示姓名、邮箱、密码校验；通过既有返回入口回到列表。未创建账号。
+- 角色权限与员工授权链接互相切换，静态标题、角色身份和当前导航项正确；完整权限目录及单一保存按钮存在。未保存或改动真实权限。
+- 暂挂真实岗位列表请求后，导航、岗位管理 h1 和页头入口保持显示，只有表格展示加载骨架；验收后已恢复请求。
+- 有数据文件场景中搜索“秋季”仍搜索整个文件库，并显示所在文件夹；清除筛选恢复当前目录。预览关闭后焦点回到“秋季发布主视觉.png”。
+- 320 / 390 / 768px 下，列表和文件工作台的 document.scrollWidth 均等于视口宽度；角色页 320 / 390px 同样无整页溢出；实际页面均为一个 main 和一个 h1。Storybook 自带的隐藏错误模板不计入产品标题。
+- 小屏侧栏可打开并以 Escape 关闭；目录可展开；文件预览及关闭可操作。RTL 文件场景方向、目录、搜索和动作排列正确。
+- 控制台已检查：开发环境出现 React 的 script tag 提示，未出现本次布局交互导致的运行异常；该提示也存在于组件测试输出中。
+
+补充证据：[员工 320px](/Users/huanancao/.codex/visualizations/2026/10/22/01a16368-b0b1-7863-bacd-060d201590f5/admin-layout-prototype-rebuild/employees-320.jpg)、[员工 768px](/Users/huanancao/.codex/visualizations/2026/10/22/01a16368-b0b1-7863-bacd-060d201590f5/admin-layout-prototype-rebuild/employees-768.jpg)、[权限 320px](/Users/huanancao/.codex/visualizations/2026/10/22/01a16368-b0b1-7863-bacd-060d201590f5/admin-layout-prototype-rebuild/role-permissions-320.jpg)、[文件 390px](/Users/huanancao/.codex/visualizations/2026/10/22/01a16368-b0b1-7863-bacd-060d201590f5/admin-layout-prototype-rebuild/files-populated-390.jpg)、[文件预览 390px](/Users/huanancao/.codex/visualizations/2026/10/22/01a16368-b0b1-7863-bacd-060d201590f5/admin-layout-prototype-rebuild/files-preview-390.jpg)、[RTL](/Users/huanancao/.codex/visualizations/2026/10/22/01a16368-b0b1-7863-bacd-060d201590f5/admin-layout-prototype-rebuild/files-rtl-desktop.jpg)、[真实租户深色](/Users/huanancao/.codex/visualizations/2026/10/22/01a16368-b0b1-7863-bacd-060d201590f5/admin-layout-prototype-rebuild/tenant-files-system-theme.jpg)。
+
+## 工程验证与边界
+
+| 检查                  | 结果                                                                  |
+| --------------------- | --------------------------------------------------------------------- |
+| pnpm typecheck        | 25 / 25 通过                                                          |
+| pnpm lint             | 25 / 25 通过；API 既有一处 no-floating-promises warning               |
+| pnpm lint:boundaries  | 通过                                                                  |
+| pnpm i18n:check       | 通过，三语言目录、插值、类型及词条提取一致                            |
+| 两端生产构建          | tenant、platform 及所需依赖 6 / 6 通过                                |
+| 受影响 Storybook 集合 | 16 个文件、291 项交互及无障碍测试通过                                 |
+| 页头与角色焦点复测    | 4 个文件、106 项通过，与上一集合部分重叠，不累计为唯一测试总数        |
+| 最后工具栏与权限复测  | 2 个文件、32 项通过，与上一集合部分重叠                               |
+| 工作区                | 未暂存、未提交、未推送；既有 API CONTEXT 及两份知识库文档内容指纹未变 |
+
+页头入口同步加载带来可测量的包体积取舍：相对修复前记录，HTML 初始引用的 JS 合计 gzip 大小，租户约从 434KB 增至 519KB，平台约从 435KB 增至 528KB。富文本及项目正文仍独立延迟加载。构建继续提示大于 500KB 的 chunk；本次没有通过抬高阈值隐藏告警，也没有测量生产网络下的加载时延。
+
+本报告覆盖页面结构、所列浏览器交互和受影响组件测试。没有重新执行完整 API、数据库隔离和全量业务 E2E，也没有在真实组织中执行权限变更、上传、删除或账号创建；这些不作为本次布局验收已验证的结果。
 
 ## 完成清单
 
-- [x] 接入现有页面，未替换业务后端或操作流程。
-- [x] 桌面两轮视觉比较及局部检查。
-- [x] 窄屏预览与页面宽度检查。
-- [x] 相关组件交互与无障碍回归。
-- [x] 标注完整翻译检查和真实后端验收边界。
-
-final result: passed
-
-此结果仅指本次界面与组件交互验收，不代表真实后端 E2E 或发布验收。
-
----
-
-# 个人头像区域视觉与交互验收（2026-10-17）
-
-## 目标与证据
-
-- 选定源图：`/Users/huanancao/.codex/generated_images/01a1447c-68eb-7c80-8e72-3166bbfa9f23/exec-900c8674-2085-4021-b390-8e4a42c03d05.png`。
-- 正式页面：`http://localhost:3201/platform/personal-settings`。
-- 预览场景：`http://[::1]:6006/iframe.html?id=admin-personal-avatar--selected-preview&viewMode=story&globals=locale:zh-CN`。
-- 首轮预览截图：`/private/tmp/enterprise-admin-avatar-ui-first.png`。
-- 最终预览截图：`/private/tmp/enterprise-admin-avatar-ui-final.png`。
-- 正式页面截图：`/private/tmp/enterprise-admin-avatar-ui-platform.png`。
-- 手机 RTL 截图：`/var/folders/jq/q_45dv8x6z35xkjw8jbkh91c0000gn/T/personal-avatar-RustFS-mobile-rtl.png`。
-
-源图为 1828 × 860 像素的独立组件概念图。桌面组件预览的视口为 1280 × 720 CSS 像素，浏览器 devicePixelRatio 为 2，截图 API 输出已归一为 1280 × 720 像素；组件区域为 `(40, 40, 848, 261)`。正式页面截图为 1377 × 1026 像素。手机测试视口及截图宽度为 375 CSS/截图像素，内容按自然高度截取。
-
-桌面对照使用相同的暗色、中文、已选图尚未保存状态。比较时以组件内容宽度归一观察，排除源图四周展示留白。源图和实现截图在同一个比较输入中打开了两轮。控制文字、头像裁切与按钮在 848px 组件宽度下均清晰可读，因此未另作局部裁图。正式页面另检查当前已保存头像状态；手机截图用于阿拉伯语、浅色主题和窄容器的补充检查。
-
-## 对照修订
-
-1. 首轮 P2：右侧保存按钮占比偏小，主操作强调弱于选定稿。将保存按钮改为 40px 高、至少 112px 宽，并同步调整选择按钮尺寸、桌面头像至 112px 及标题层级。
-2. 最终对照：左侧单一头像、中间选择/移除与格式说明、右侧独立保存，以及标题下的分割线均已呈现。选图预览显示“保存后生效”，提交成功后恢复当前头像状态。最终截图中无可操作区域遮挡或截断，首轮 P2 已解决。
-3. 手机与 RTL：375px 下头像与操作区域换行，长阿拉伯语预览文案和格式说明完整展示，保存按钮保持可用；页面 `scrollWidth <= clientWidth`，Axe 检查无违规。
-
-## 五项视觉检查
-
-- 字体与层级：沿用项目字体和中文回退，标题 20px、预览标签 16px、说明 14px；以现有设置页的文字尺度实现选定稿的层级。
-- 间距与布局：使用共享圆角与边框，24px 内边距、横向栅格和容器查询；可用宽度不足时保存按钮按操作顺序换行。
-- 颜色与状态：沿用项目背景、主色、边框和次要文本 token；选图和移除为描边次操作，保存为主操作。保存期间禁用整个提交区域。
-- 图像与图标：当前头像来自个人媒体，预览来自所选本地文件，圆形裁切采用 `object-cover`。生成稿中的示例头像作为布局参考；预览验收使用既有 PNG fixture。上传图标复用 Lucide。
-- 文案与内容：可见选图按钮及说明覆盖中文、英文和阿拉伯语；保留原生文件选择器的可访问 label，使用单一预览与明确的未提交提示。
-
-## 验证与边界
-
-- 全库 lint、typecheck、i18n 检查通过；租户和平台构建通过。
-- 头像组件 10 个 Storybook 场景通过。
-- Local/RustFS 正式浏览器 14 项通过，覆盖四种图片格式、一次保存、移除、并发冲突、响应丢失后重试、撤权、双后台刷新、键盘文件选择、三语言与 RTL。
-- 浏览器控制台检查记录了 React 的 script-tag 开发提示，来源为 Vite/React 开发脚本；界面交互及断言正常。作为 P3 工程告警保留，本报告不声称控制台零错误。
-- 变更位于共享头像组件、三语文案和现有验证场景，使用既有头像 HTTP 契约与持久化语义。
+- [x] 三张原型的页面结构和操作分区落实到原有业务页面。
+- [x] 复用公共页头、表格工具栏和文件浏览器，移除重复呈现及失效文案。
+- [x] 页头独立于正文加载，标题与焦点行为已验证。
+- [x] 桌面、窄屏、深色及 RTL 的所列状态已验收。
+- [x] 当前没有尚待修复的 P0/P1/P2 布局发现。
 
 final result: passed

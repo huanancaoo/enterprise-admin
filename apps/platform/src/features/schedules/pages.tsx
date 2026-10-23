@@ -9,7 +9,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
-import { PageHeader, ConfirmDangerAction } from "@workspace/admin"
+import { AdminPage, ConfirmDangerAction } from "@workspace/admin"
 import {
   DataTable,
   createDataTableColumnHelper,
@@ -193,11 +193,30 @@ export function PlatformSchedulesPage() {
     ? [{ id: "status", value: search.status }]
     : []
   return (
-    <section className="min-w-0 space-y-4">
-      <PageHeader
-        title={t("monitor:schedulesTitle")}
-        description={t("monitor:schedulesDescription")}
-      />
+    <AdminPage
+      title={t("monitor:schedulesTitle")}
+      actions={
+        getDataTableQueryStatus(query) !== "forbidden" &&
+        canManage && (
+          <Button
+            size="sm"
+            disabled={
+              !types.data?.some(
+                (type) =>
+                  type.type === "platform.health-check" &&
+                  type.requiredPermissions.every((permission) =>
+                    platformAccess.permissions.includes(permission)
+                  )
+              )
+            }
+            onClick={() => setEditing("new")}
+          >
+            {t("monitor:createSchedule")}
+          </Button>
+        )
+      }
+      description={t("monitor:schedulesDescription")}
+    >
       {notice && (
         <p role="status" className="text-sm">
           {notice}
@@ -256,25 +275,8 @@ export function PlatformSchedulesPage() {
             columnFilters,
             globalFilter: search.q ?? "",
           }}
-          toolbarContent={
+          toolbarActions={
             <>
-              {canManage && (
-                <Button
-                  size="sm"
-                  disabled={
-                    !types.data?.some(
-                      (type) =>
-                        type.type === "platform.health-check" &&
-                        type.requiredPermissions.every((permission) =>
-                          platformAccess.permissions.includes(permission)
-                        )
-                    )
-                  }
-                  onClick={() => setEditing("new")}
-                >
-                  {t("monitor:createSchedule")}
-                </Button>
-              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -365,7 +367,7 @@ export function PlatformSchedulesPage() {
           }}
         />
       )}
-    </section>
+    </AdminPage>
   )
 }
 
@@ -631,37 +633,36 @@ export function PlatformScheduleRunsPage() {
     ? [{ id: "status", value: search.status }]
     : []
   return (
-    <section className="min-w-0 space-y-4">
-      <PageHeader
-        title={t("monitor:scheduleRuns")}
-        description={query.data?.items[0]?.scheduleName}
-        actions={
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <Badge variant="outline">
-              {t("monitor:runTimeZone", { timeZone: "UTC" })}
-            </Badge>
-            <Button
-              size="sm"
-              variant="outline"
-              nativeButton={false}
-              role="link"
-              render={
-                <Link
-                  to="/platform/schedules"
-                  search={{
-                    page: 1,
-                    pageSize: 20,
-                    sortBy: "createdAt",
-                    sortOrder: "desc",
-                  }}
-                />
-              }
-            >
-              {t("monitor:backToSchedules")}
-            </Button>
-          </div>
-        }
-      />
+    <AdminPage
+      title={t("monitor:scheduleRuns")}
+      description={query.data?.items[0]?.scheduleName}
+      meta={
+        <Badge variant="outline">
+          {t("monitor:runTimeZone", { timeZone: "UTC" })}
+        </Badge>
+      }
+      back={
+        <Button
+          size="sm"
+          variant="ghost"
+          nativeButton={false}
+          role="link"
+          render={
+            <Link
+              to="/platform/schedules"
+              search={{
+                page: 1,
+                pageSize: 20,
+                sortBy: "createdAt",
+                sortOrder: "desc",
+              }}
+            />
+          }
+        >
+          {t("monitor:backToSchedules")}
+        </Button>
+      }
+    >
       <p className="text-xs text-muted-foreground">
         {t("monitor:scheduleResultHint")}
       </p>
@@ -681,7 +682,7 @@ export function PlatformScheduleRunsPage() {
         enableRowSelection={false}
         showSearch={false}
         state={{ pagination, columnFilters }}
-        toolbarContent={
+        toolbarActions={
           <Button
             size="sm"
             variant="outline"
@@ -723,6 +724,6 @@ export function PlatformScheduleRunsPage() {
           void navigate({ search: { ...search, page: 1, status: undefined } })
         }
       />
-    </section>
+    </AdminPage>
   )
 }

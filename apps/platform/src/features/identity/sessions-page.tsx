@@ -1,3 +1,4 @@
+import { AdminPage } from "@workspace/admin"
 import { PlatformExportButton } from "../tasks/task-actions"
 import { useEffect, useMemo, useState } from "react"
 import { useForm } from "@tanstack/react-form"
@@ -197,15 +198,7 @@ export function PlatformSessionsPage() {
   const status = getDataTableQueryStatus(query)
   const filters = search.userId ? [{ id: "userId", value: search.userId }] : []
   return (
-    <section className="min-w-0 space-y-6">
-      <header className="space-y-1.5">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
-          {t("sessions")}
-        </h1>
-        <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
-          {t("sessionDescription")}
-        </p>
-      </header>
+    <AdminPage title={t("sessions")} description={t("sessionDescription")}>
       <DataTable
         columns={columns}
         data={query.data?.items ?? EMPTY_SESSIONS}
@@ -217,7 +210,7 @@ export function PlatformSessionsPage() {
         status={status}
         error={query.error instanceof Error ? query.error.message : undefined}
         onRetry={() => void query.refetch()}
-        toolbarContent={
+        toolbarActions={
           platformAccess.permissions.includes("platform.session:export") && (
             <PlatformExportButton resource="session" filters={search} />
           )
@@ -362,6 +355,6 @@ export function PlatformSessionsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </section>
+    </AdminPage>
   )
 }

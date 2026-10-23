@@ -12,7 +12,7 @@ import {
 import { type BusinessTask } from "@workspace/contracts/framework-capabilities"
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
-import { ResourceList } from "@workspace/admin"
+import { AdminPage } from "@workspace/admin"
 import {
   DataTable,
   DataTableColumnHeader,
@@ -138,9 +138,8 @@ export function ProjectsList({
             : "ready"
 
   return (
-    <ResourceList
+    <AdminPage
       title={t("projects:title")}
-      status="ready"
       actions={
         <>
           <ProjectExchangeActions
@@ -241,6 +240,6 @@ export function ProjectsList({
           </Empty>
         }
       />
-    </ResourceList>
+    </AdminPage>
   )
 }

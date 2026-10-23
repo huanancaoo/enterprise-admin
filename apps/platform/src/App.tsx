@@ -1,5 +1,5 @@
 import { ListTodoIcon } from "lucide-react"
-import { Fragment, lazy, Suspense, useEffect, useRef } from "react"
+import { Fragment, useEffect, useRef } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { getMyPreferencesOptions } from "@workspace/api-client"
 import { useTranslation } from "react-i18next"
@@ -36,12 +36,7 @@ import {
 } from "@workspace/ui/components/breadcrumb"
 import { Button } from "@workspace/ui/components/button"
 import { authClient } from "./lib/auth-client"
-
-const PlatformAnnouncementEntry = lazy(() =>
-  import("./features/announcements/pages").then((module) => ({
-    default: module.PlatformAnnouncementEntry,
-  }))
-)
+import { PlatformAnnouncementEntry } from "./features/announcements/pages"
 
 export function App() {
   // 同账号资料变化不会重跑 root route；头像必须跟随原生 Session 的当前 User 投影。
@@ -100,6 +95,7 @@ export function PlatformLoginPage() {
 }
 
 export function PlatformLayout() {
+  const pathname = useLocation().pathname
   const navigate = useNavigate()
   const { t } = useTranslation([
     "auth",
@@ -114,18 +110,17 @@ export function PlatformLayout() {
   const { items, section, ancestors, error, retry } = usePlatformNavigation()
   return (
     <AppShell
+      layout={pathname === "/platform/files" ? "workspace" : "page"}
       actions={
         <>
-          <Suspense>
-            <PlatformAnnouncementEntry
-              onOpen={() =>
-                void navigate({
-                  to: "/platform/announcement-inbox",
-                  search: { page: 1, pageSize: 20 },
-                })
-              }
-            />
-          </Suspense>
+          <PlatformAnnouncementEntry
+            onOpen={() =>
+              void navigate({
+                to: "/platform/announcement-inbox",
+                search: { page: 1, pageSize: 20 },
+              })
+            }
+          />
           {platformAccess.permissions.includes("platform.task:read") && (
             <Button
               variant="ghost"
@@ -213,7 +208,7 @@ export function PlatformLayout() {
       {error && (
         <div
           role="alert"
-          className="flex items-center gap-3 text-sm text-destructive"
+          className="mx-auto flex w-full max-w-7xl shrink-0 items-center gap-3 px-4 py-3 text-sm text-destructive sm:px-6 lg:px-8"
         >
           <span>{t("system:navigationFailed")}</span>
           <Button size="sm" variant="outline" onClick={retry}>

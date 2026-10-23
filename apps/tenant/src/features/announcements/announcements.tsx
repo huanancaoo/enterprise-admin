@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query"
-import { ErrorState, LoadingState } from "@workspace/admin"
+import { AdminPage, ErrorState, LoadingState } from "@workspace/admin"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import {
   AnnouncementArticle,
@@ -147,13 +147,20 @@ export function TenantAnnouncementRead({
     getFileErrorMessage: (error) =>
       error instanceof Error ? error.message : String(error),
   })
-  if (reading.query.isPending) return <LoadingState />
+  if (reading.query.isPending)
+    return (
+      <AdminPage title={t("title")}>
+        <LoadingState />
+      </AdminPage>
+    )
   if (reading.query.isError)
     return (
-      <ErrorState
-        message={reading.query.error.message}
-        onRetry={() => void reading.query.refetch()}
-      />
+      <AdminPage title={t("title")}>
+        <ErrorState
+          message={reading.query.error.message}
+          onRetry={() => void reading.query.refetch()}
+        />
+      </AdminPage>
     )
   return (
     <AnnouncementArticle

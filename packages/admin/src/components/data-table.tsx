@@ -51,7 +51,7 @@ export function DataTable<TData extends RowData>({
   initialState,
   renderSelectionActions,
   renderExpandedRow,
-  toolbarContent,
+  toolbarActions,
   toolbarFilters,
   showPagination = true,
   paginationLabel,
@@ -139,16 +139,17 @@ export function DataTable<TData extends RowData>({
           )}
           {status !== "forbidden" &&
             (!isCollectionEmpty ||
-              toolbarContent != null ||
+              toolbarActions != null ||
               toolbarFilters != null) && (
-              <DataTableToolbar>
+              <DataTableToolbar
+                actions={showSelection ? undefined : toolbarActions}
+              >
                 {showSelection ? (
                   <DataTableSelectionActions<TData>
                     renderActions={renderSelectionActions}
                   />
                 ) : (
                   <>
-                    {toolbarContent}
                     {showSearch && (
                       <DataTableSearch
                         key={searchValue}

@@ -31,7 +31,7 @@ export function FileSearch({
   })
   return (
     <form
-      className="min-w-0 flex-1 sm:max-w-sm"
+      className="flex min-w-0 flex-1 items-center gap-2 sm:max-w-md"
       role="search"
       aria-busy={pending}
       onSubmit={(event) => {
@@ -61,21 +61,13 @@ export function FileSearch({
                     event.preventDefault()
                 }}
               />
-              <InputGroupAddon align="inline-end">
-                <Button
-                  type="submit"
-                  variant="ghost"
-                  size="icon-sm"
-                  disabled={pending}
-                  aria-label={t("common:tableSearch")}
-                >
-                  <SearchIcon className="size-4" />
-                </Button>
-              </InputGroupAddon>
             </InputGroup>
           </Field>
         )}
       </form.Field>
+      <Button type="submit" variant="outline" disabled={pending}>
+        {t("common:tableSearch")}
+      </Button>
     </form>
   )
 }

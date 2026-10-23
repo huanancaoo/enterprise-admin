@@ -4,6 +4,7 @@ import { filePermissions } from "../files/file-permissions"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useRouteContext } from "@tanstack/react-router"
 import {
+  AdminPage,
   ErrorState,
   LoadingState,
   PermissionDeniedState,
@@ -173,6 +174,8 @@ export function PlatformAnnouncementEditPage({
   announcementId?: string
   onBack: () => void
 }) {
+  const { t } = useTranslation("announcements")
+
   const user = useAuthenticatedSession()!.user
   const { platformAccess } = useRouteContext({ from: "/platform" })
   const canEdit = platformAccess.permissions.includes(
@@ -194,8 +197,18 @@ export function PlatformAnnouncementEditPage({
     retry: false,
   })
   usePlatformAccessFailure(query.error)
-  if (!canEdit) return <PermissionDeniedState />
-  if (announcementId && query.isPending) return <LoadingState />
+  if (!canEdit)
+    return (
+      <AdminPage title={t("edit")}>
+        <PermissionDeniedState />
+      </AdminPage>
+    )
+  if (announcementId && query.isPending)
+    return (
+      <AdminPage title={t("edit")}>
+        <LoadingState />
+      </AdminPage>
+    )
   if (
     query.isError &&
     (!query.data ||
@@ -203,10 +216,12 @@ export function PlatformAnnouncementEditPage({
         [401, 403].includes(query.error.status)))
   )
     return (
-      <ErrorState
-        message={query.error.message}
-        onRetry={() => void query.refetch()}
-      />
+      <AdminPage title={t("edit")}>
+        <ErrorState
+          message={query.error.message}
+          onRetry={() => void query.refetch()}
+        />
+      </AdminPage>
     )
   return (
     <PlatformAnnouncementEditingSession
@@ -258,7 +273,11 @@ function PlatformAnnouncementEditingSession({
     [detail?.id, newScope, user.id]
   )
   if (detail?.status === "published")
-    return <ErrorState message={t("batchHint")} onRetry={onBack} />
+    return (
+      <AdminPage title={t("edit")}>
+        <ErrorState message={t("batchHint")} onRetry={onBack} />
+      </AdminPage>
+    )
   const initialValue: AnnouncementDraftValue = detail
     ? {
         title: detail.title,
@@ -465,13 +484,20 @@ export function PlatformAnnouncementReadPage({
     },
   })
   usePlatformAccessFailure(reading.query.error)
-  if (reading.query.isPending) return <LoadingState />
+  if (reading.query.isPending)
+    return (
+      <AdminPage title={t("title")}>
+        <LoadingState />
+      </AdminPage>
+    )
   if (reading.query.isError)
     return (
-      <ErrorState
-        message={reading.query.error.message}
-        onRetry={() => void reading.query.refetch()}
-      />
+      <AdminPage title={t("title")}>
+        <ErrorState
+          message={reading.query.error.message}
+          onRetry={() => void reading.query.refetch()}
+        />
+      </AdminPage>
     )
   return (
     <AnnouncementArticle
@@ -538,6 +564,8 @@ export function PlatformAnnouncementPreviewPage({
   announcementId: string
   onBack: () => void
 }) {
+  const { t } = useTranslation("announcements")
+
   const user = useAuthenticatedSession()!.user
   const query = useQuery({
     queryKey: [
@@ -579,13 +607,20 @@ export function PlatformAnnouncementPreviewPage({
     }),
     [announcementId, user.id, version]
   )
-  if (query.isPending) return <LoadingState />
+  if (query.isPending)
+    return (
+      <AdminPage title={t("title")}>
+        <LoadingState />
+      </AdminPage>
+    )
   if (query.isError)
     return (
-      <ErrorState
-        message={query.error.message}
-        onRetry={() => void query.refetch()}
-      />
+      <AdminPage title={t("title")}>
+        <ErrorState
+          message={query.error.message}
+          onRetry={() => void query.refetch()}
+        />
+      </AdminPage>
     )
   return <AnnouncementArticle item={query.data} ports={ports} onBack={onBack} />
 }

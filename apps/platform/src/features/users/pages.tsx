@@ -26,6 +26,7 @@ import {
   LoadingState,
   NotFoundContent,
   PermissionDeniedState,
+  AdminPage,
 } from "@workspace/admin"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import { createFormatter } from "@workspace/i18n"
@@ -33,7 +34,7 @@ import { useUiLocale } from "@workspace/i18n/react"
 import { ArrowLeftIcon } from "lucide-react"
 import { Badge } from "@workspace/ui/components/badge"
 import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
-import { Button } from "@workspace/ui/components/button"
+import { Button, buttonVariants } from "@workspace/ui/components/button"
 import { Textarea } from "@workspace/ui/components/textarea"
 import {
   Field,
@@ -163,10 +164,22 @@ export function PlatformUsersPage() {
   const pagination = { pageIndex: search.page - 1, pageSize: search.pageSize }
   const status = getDataTableQueryStatus(query)
   return (
-    <section className="min-w-0 space-y-6">
-      <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
-        {t("platformUsers")}
-      </h1>
+    <AdminPage
+      title={t("platformUsers")}
+      actions={
+        status !== "forbidden" &&
+        platformAccess.permissions.includes("platform.user:create") && (
+          <CreatePlatformAccount
+            onCreated={(user) => {
+              void navigate({
+                to: "/platform/users/$userId",
+                params: { userId: user.userId },
+              })
+            }}
+          />
+        )
+      }
+    >
       <DataTable
         paginationLabel={t("platformUsers")}
         columns={columns}
@@ -183,20 +196,10 @@ export function PlatformUsersPage() {
         enableRowSelection={false}
         searchPlaceholder={t("platformUsersSearch")}
         searchMaxLength={200}
-        toolbarContent={
+        toolbarActions={
           <>
             {platformAccess.permissions.includes("platform.user:export") && (
               <PlatformExportButton resource="user" filters={search} />
-            )}
-            {platformAccess.permissions.includes("platform.user:create") && (
-              <CreatePlatformAccount
-                onCreated={(user) => {
-                  void navigate({
-                    to: "/platform/users/$userId",
-                    params: { userId: user.userId },
-                  })
-                }}
-              />
             )}
           </>
         }
@@ -221,7 +224,7 @@ export function PlatformUsersPage() {
           })
         }}
       />
-    </section>
+    </AdminPage>
   )
 }
 
@@ -332,43 +335,55 @@ export function PlatformUserDetailPage() {
   const [open, setOpen] = useState(false)
   const query = useQuery(platformUserQueries(session.user.id).detail(userId))
   usePlatformAccessFailure(query.error)
-  if (query.isPending) return <LoadingState />
+  if (query.isPending)
+    return (
+      <AdminPage title={t("platformUsers")}>
+        <LoadingState />
+      </AdminPage>
+    )
   if (query.isError)
-    return query.error instanceof ApiClientError &&
-      query.error.status === 404 ? (
-      <NotFoundContent />
-    ) : query.error instanceof ApiClientError && query.error.status === 403 ? (
-      <PermissionDeniedState />
-    ) : (
-      <ErrorState onRetry={() => void query.refetch()} />
+    return (
+      <AdminPage title={t("platformUsers")}>
+        {query.error instanceof ApiClientError && query.error.status === 404 ? (
+          <NotFoundContent />
+        ) : query.error instanceof ApiClientError &&
+          query.error.status === 403 ? (
+          <PermissionDeniedState />
+        ) : (
+          <ErrorState onRetry={() => void query.refetch()} />
+        )}
+      </AdminPage>
     )
   const user = query.data
   return (
-    <section className="min-w-0 space-y-6">
-      <Link
-        to="/platform/users"
-        search={{ page: 1, pageSize: 20 }}
-        className="inline-flex items-center gap-2 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-      >
-        <ArrowLeftIcon className="size-4 rtl:rotate-180" />
-        {t("platformUsers")}
-      </Link>
-      <h1 className="font-heading text-2xl font-semibold tracking-tight break-words sm:text-3xl">
-        {user.name}
-      </h1>
-      {[
-        "platform.user:update",
-        "platform.user:suspend",
-        "platform.user:resetPassword",
-      ].some((permission) =>
-        platformAccess.permissions.includes(permission)
-      ) && (
-        <PlatformAccountActions
-          key={`${user.userId}-${user.version}`}
-          user={user}
-          permissions={platformAccess.permissions}
-        />
-      )}
+    <AdminPage
+      title={user.name}
+      back={
+        <Link
+          to="/platform/users"
+          search={{ page: 1, pageSize: 20 }}
+          className={buttonVariants({ variant: "ghost", size: "sm" })}
+        >
+          <ArrowLeftIcon className="size-4 rtl:rotate-180" />
+          {t("platformUsers")}
+        </Link>
+      }
+      actions={
+        [
+          "platform.user:update",
+          "platform.user:suspend",
+          "platform.user:resetPassword",
+        ].some((permission) =>
+          platformAccess.permissions.includes(permission)
+        ) && (
+          <PlatformAccountActions
+            key={`${user.userId}-${user.version}`}
+            user={user}
+            permissions={platformAccess.permissions}
+          />
+        )
+      }
+    >
       <Card>
         <CardContent>
           <dl className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 [&_dd]:mt-1 [&_dd]:font-medium [&_dd]:break-words [&_dt]:text-sm [&_dt]:text-muted-foreground [&>div]:min-w-0">
@@ -473,7 +488,7 @@ export function PlatformUserDetailPage() {
           <UserOrganizations data={user.organizations} />
         </CardContent>
       </Card>
-    </section>
+    </AdminPage>
   )
 }
 

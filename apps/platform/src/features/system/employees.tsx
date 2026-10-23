@@ -36,7 +36,7 @@ import {
   type PlatformEmployee,
 } from "@workspace/contracts/platform-system"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
-import { ErrorState, LoadingState } from "@workspace/admin"
+import { ErrorState, LoadingState, AdminPage } from "@workspace/admin"
 import {
   DataTable,
   getDataTableQueryStatus,
@@ -311,36 +311,26 @@ export function PlatformEmployeesPage() {
         ...(manage ? [createDataTableSelectColumn<PlatformEmployee>()] : []),
         columnsHelper.accessor("name", {
           header: t("employees:name"),
-          size: 210,
+          size: 240,
           cell: ({ row, getValue }) => (
-            <Link
-              to="/platform/employees/$employeeId"
-              params={{ employeeId: row.original.userId }}
-              className="font-medium underline-offset-4 hover:underline"
-            >
-              {getValue()}
-            </Link>
+            <div className="min-w-0 space-y-1 py-1">
+              <Link
+                to="/platform/employees/$employeeId"
+                params={{ employeeId: row.original.userId }}
+                className="font-medium underline-offset-4 hover:underline"
+              >
+                {getValue()}
+              </Link>
+              <bdi className="block text-xs text-muted-foreground">
+                {row.original.maskedEmail}
+              </bdi>
+            </div>
           ),
           meta: { label: t("employees:name") },
         }),
-        columnsHelper.accessor("maskedEmail", {
-          header: t("employees:email"),
-          size: 220,
-          cell: ({ getValue }) => <bdi>{getValue()}</bdi>,
-          meta: { label: t("employees:email") },
-        }),
-        columnsHelper.accessor("status", {
-          header: t("employees:status"),
-          cell: ({ getValue }) => (
-            <Badge variant={getValue() === "active" ? "secondary" : "outline"}>
-              {t(`employees:${getValue()}`)}
-            </Badge>
-          ),
-          meta: { label: t("employees:status") },
-        }),
         columnsHelper.accessor("departmentId", {
           header: t("employees:department"),
-          size: 180,
+          size: 120,
           cell: ({ row }) => (
             <EmployeeAssignmentNames
               options={row.original.department ? [row.original.department] : []}
@@ -350,15 +340,27 @@ export function PlatformEmployeesPage() {
         }),
         columnsHelper.accessor("roleIds", {
           header: t("employees:role"),
+          size: 100,
           cell: ({ getValue }) =>
             t("employees:assignmentCount", { count: getValue().length }),
           meta: { label: t("employees:role") },
         }),
         columnsHelper.accessor("postIds", {
           header: t("employees:post"),
+          size: 100,
           cell: ({ getValue }) =>
             t("employees:assignmentCount", { count: getValue().length }),
           meta: { label: t("employees:post") },
+        }),
+        columnsHelper.accessor("status", {
+          header: t("employees:status"),
+          size: 100,
+          cell: ({ getValue }) => (
+            <Badge variant={getValue() === "active" ? "secondary" : "outline"}>
+              {t(`employees:${getValue()}`)}
+            </Badge>
+          ),
+          meta: { label: t("employees:status") },
         }),
         columnsHelper.accessor("createdAt", {
           header: t("employees:createdAt"),
@@ -398,15 +400,28 @@ export function PlatformEmployeesPage() {
   )
   const pagination = { pageIndex: search.page - 1, pageSize: search.pageSize }
   return (
-    <section className="min-w-0 space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">
-          {t("employees:title")}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t("employees:description")}
-        </p>
-      </div>
+    <AdminPage
+      title={t("employees:title")}
+      actions={
+        manage && (
+          <>
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link to="/platform/employees/grant" />}
+            >
+              {t("grant")}
+            </Button>
+            <Button
+              nativeButton={false}
+              render={<Link to="/platform/employees/new" />}
+            >
+              {t("create")}
+            </Button>
+          </>
+        )
+      }
+    >
       <DataTable
         columns={columns}
         data={query.data?.items ?? EMPTY_EMPLOYEES}
@@ -423,28 +438,9 @@ export function PlatformEmployeesPage() {
         onRetry={() => void query.refetch()}
         searchPlaceholder={t("employees:search")}
         searchMaxLength={200}
-        toolbarContent={
+        toolbarActions={
           <>
-            {manage && (
-              <>
-                <Button
-                  size="sm"
-                  nativeButton={false}
-                  render={<Link to="/platform/employees/new" />}
-                >
-                  {t("employees:create")}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  nativeButton={false}
-                  render={<Link to="/platform/employees/grant" />}
-                >
-                  {t("employees:grant")}
-                </Button>
-                <PlatformEmployeeImportButton />
-              </>
-            )}
+            {manage && <PlatformEmployeeImportButton />}
             {platformAccess.permissions.includes(
               "platform.employee:export"
             ) && <PlatformExportButton resource="employee" filters={search} />}
@@ -611,35 +607,32 @@ export function PlatformEmployeesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </section>
+    </AdminPage>
   )
 }
 
-function EmployeePageHeader({ title }: { title: string }) {
+function EmployeeBackLink() {
   const { t } = useTranslation("employees")
   return (
-    <header className="space-y-3">
-      <Button
-        variant="ghost"
-        size="sm"
-        nativeButton={false}
-        render={
-          <Link
-            to="/platform/employees"
-            search={{
-              page: 1,
-              pageSize: 20,
-              sortBy: "createdAt",
-              sortOrder: "desc",
-            }}
-          />
-        }
-      >
-        <ArrowLeftIcon />
-        {t("back")}
-      </Button>
-      <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
-    </header>
+    <Button
+      variant="ghost"
+      size="sm"
+      nativeButton={false}
+      render={
+        <Link
+          to="/platform/employees"
+          search={{
+            page: 1,
+            pageSize: 20,
+            sortBy: "createdAt",
+            sortOrder: "desc",
+          }}
+        />
+      }
+    >
+      <ArrowLeftIcon />
+      {t("back")}
+    </Button>
   )
 }
 
@@ -689,8 +682,11 @@ export function PlatformEmployeeCreatePage() {
     },
   })
   return (
-    <section className="max-w-4xl space-y-4">
-      <EmployeePageHeader title={t("employees:create")} />
+    <AdminPage
+      title={t("employees:create")}
+      back={<EmployeeBackLink />}
+      contentWidth="form"
+    >
       <Card>
         <CardHeader>
           <CardDescription>{t("employees:createDescription")}</CardDescription>
@@ -850,7 +846,7 @@ export function PlatformEmployeeCreatePage() {
           </form.Subscribe>
         </CardContent>
       </Card>
-    </section>
+    </AdminPage>
   )
 }
 
@@ -868,18 +864,24 @@ export function PlatformEmployeeDetailPage() {
     retry: false,
   })
   usePlatformAccessFailure(query.error)
-  if (query.isPending) return <LoadingState />
+  if (query.isPending)
+    return (
+      <AdminPage title={t("title")}>
+        <LoadingState />
+      </AdminPage>
+    )
   if (query.isError)
     return (
-      <ErrorState
-        message={query.error.message}
-        onRetry={() => void query.refetch()}
-      />
+      <AdminPage title={t("title")}>
+        <ErrorState
+          message={query.error.message}
+          onRetry={() => void query.refetch()}
+        />
+      </AdminPage>
     )
   const employee = query.data
   return (
-    <section className="max-w-4xl space-y-4">
-      <EmployeePageHeader title={employee.name} />
+    <AdminPage title={employee.name} back={<EmployeeBackLink />}>
       <Card>
         <CardHeader className="flex-row items-start justify-between gap-4">
           <div>
@@ -943,7 +945,7 @@ export function PlatformEmployeeDetailPage() {
         employee={employee}
         onSaved={() => void query.refetch()}
       />
-    </section>
+    </AdminPage>
   )
 }
 
@@ -1418,8 +1420,11 @@ export function PlatformEmployeeGrantPage() {
     return { ...data, items: options }
   }
   return (
-    <section className="max-w-4xl space-y-4">
-      <EmployeePageHeader title={t("grant")} />
+    <AdminPage
+      title={t("grant")}
+      back={<EmployeeBackLink />}
+      contentWidth="form"
+    >
       <Card>
         <CardHeader>
           <CardDescription>{t("grantDescription")}</CardDescription>
@@ -1567,6 +1572,6 @@ export function PlatformEmployeeGrantPage() {
           </form.Subscribe>
         </CardContent>
       </Card>
-    </section>
+    </AdminPage>
   )
 }

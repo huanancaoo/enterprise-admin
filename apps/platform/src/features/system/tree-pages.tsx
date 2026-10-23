@@ -1,3 +1,4 @@
+import { AdminPage } from "@workspace/admin"
 import { useCallback, useId, useMemo, useState } from "react"
 import { useForm } from "@tanstack/react-form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
@@ -298,19 +299,26 @@ function PlatformTreePage({ kind }: { kind: TreeKind }) {
     await invalidate()
   }
   return (
-    <section className="min-w-0 space-y-4">
-      <header className="space-y-1">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">
-          {kind === "menu"
-            ? t("catalogs:menuTitle")
-            : t("catalogs:departmentTitle")}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {kind === "menu"
-            ? t("catalogs:menuDescription")
-            : t("catalogs:departmentDescription")}
-        </p>
-      </header>
+    <AdminPage
+      actions={
+        tableStatus !== "forbidden" &&
+        can("create") && (
+          <Button onClick={() => setEditing("new")}>
+            {t("catalogs:create")}
+          </Button>
+        )
+      }
+      title={
+        kind === "menu"
+          ? t("catalogs:menuTitle")
+          : t("catalogs:departmentTitle")
+      }
+      description={
+        kind === "menu"
+          ? t("catalogs:menuDescription")
+          : t("catalogs:departmentDescription")
+      }
+    >
       <nav
         aria-label={t("catalogs:parentPath")}
         className="flex flex-wrap items-center gap-1 text-sm"
@@ -343,13 +351,8 @@ function PlatformTreePage({ kind }: { kind: TreeKind }) {
         showPagination={false}
         searchPlaceholder={t("catalogs:search")}
         searchMaxLength={200}
-        toolbarContent={
+        toolbarActions={
           <>
-            {can("create") && (
-              <Button size="sm" onClick={() => setEditing("new")}>
-                {t("catalogs:create")}
-              </Button>
-            )}
             {can("export") && (
               <PlatformExportButton resource={kind} filters={search} />
             )}
@@ -399,7 +402,7 @@ function PlatformTreePage({ kind }: { kind: TreeKind }) {
           }}
         />
       )}
-    </section>
+    </AdminPage>
   )
 }
 

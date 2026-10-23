@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next"
 import { z } from "zod"
 import { createFormatter } from "@workspace/i18n"
 import { useUiLocale } from "@workspace/i18n/react"
-import { FormDialog } from "@workspace/admin"
+import { FormDialog, AdminPage } from "@workspace/admin"
 import {
   DataTable,
   createDataTableColumnHelper,
@@ -279,12 +279,9 @@ export function AnnouncementList({
         ? t("withdrawDescription")
         : t("deleteDescription")
   return (
-    <section className="min-w-0 space-y-4">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
-          <h1 className="font-heading text-2xl font-semibold">{t("title")}</h1>
-          <p className="text-sm text-muted-foreground">{t("description")}</p>
-        </div>
+    <AdminPage
+      title={t("title")}
+      actions={
         <div className="flex gap-2">
           {canCreate && (
             <Button size="sm" onClick={onCreate}>
@@ -292,7 +289,8 @@ export function AnnouncementList({
             </Button>
           )}
         </div>
-      </header>
+      }
+    >
       <DataTable
         columns={columns}
         data={items}
@@ -517,6 +515,6 @@ export function AnnouncementList({
           </FormDialog>
         )}
       </form.Subscribe>
-    </section>
+    </AdminPage>
   )
 }

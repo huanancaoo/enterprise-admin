@@ -9,6 +9,8 @@ export { NavUser } from "./components/nav-user"
 export type { NavUserProps, SidebarUser } from "./components/nav-user"
 export {
   AppShell,
+  AdminPage,
+  WorkspacePage,
   EmptyState,
   ErrorState,
   FilterBar,
@@ -18,10 +20,14 @@ export {
   NotFoundState,
   PageHeader,
   PermissionDeniedState,
-  ResourceList,
   RouterErrorComponent,
+  RouterNotFoundComponent,
 } from "./components/page"
-export type { AppShellProps } from "./components/page"
+export type {
+  AppShellProps,
+  AdminPageProps,
+  PageHeaderProps,
+} from "./components/page"
 export { Pagination } from "./components/pagination"
 export { TeamSwitcher } from "./components/team-switcher"
 export type { SidebarTeam, TeamSwitcherProps } from "./components/team-switcher"

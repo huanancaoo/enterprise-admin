@@ -132,9 +132,11 @@ async function firstRow(canvasElement: HTMLElement) {
 }
 async function openCreate(canvasElement: HTMLElement) {
   await table(canvasElement)
-  await userEvent.click(
-    within(canvasElement).getByRole("button", { name: "Create schedule" })
-  )
+  const create = within(canvasElement).getByRole("button", {
+    name: "Create schedule",
+  })
+  await waitFor(() => expect(create).toBeEnabled())
+  await userEvent.click(create)
   return within(
     await within(canvasElement.ownerDocument.body).findByRole("dialog")
   )
@@ -348,7 +350,10 @@ export const HistoryRequiresMonitorPermission: Story = {
   args: { readOnly: true, monitorAccess: false, showRuns: true },
   play: async ({ canvasElement }) => {
     await expect(
-      await within(canvasElement).findByText("Access denied", { exact: true })
+      await within(canvasElement).findByRole("heading", {
+        name: "Access denied",
+        level: 1,
+      })
     ).toBeVisible()
     await expect(within(canvasElement).queryByRole("table")).toBeNull()
   },

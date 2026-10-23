@@ -1,6 +1,7 @@
+import { useTranslation } from "react-i18next"
 import type { ReactNode } from "react"
 import { useRouteContext } from "@tanstack/react-router"
-import { PermissionDeniedState } from "@workspace/admin"
+import { AdminPage, PermissionDeniedState } from "@workspace/admin"
 
 export function PlatformPermission({
   action,
@@ -9,10 +10,13 @@ export function PlatformPermission({
   action: string
   children: ReactNode
 }) {
+  const { t } = useTranslation("common")
   const { platformAccess } = useRouteContext({ from: "/platform" })
   return platformAccess.permissions.includes(action) ? (
     children
   ) : (
-    <PermissionDeniedState />
+    <AdminPage title={t("permissionDenied")}>
+      <PermissionDeniedState />
+    </AdminPage>
   )
 }

@@ -7,7 +7,7 @@ import {
 import { authClient } from "@/lib/auth-client"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router"
-import { PageHeader, PersonalAvatar } from "@workspace/admin"
+import { AdminPage, PersonalAvatar } from "@workspace/admin"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import {
   createDataTableColumnHelper,
@@ -222,13 +222,7 @@ export function MembersRoute() {
   const sorting = [{ id: search.sortBy, desc: search.sortOrder === "desc" }]
   const columnFilters = search.role ? [{ id: "role", value: search.role }] : []
   return (
-    <section className="min-w-0 space-y-6">
-      <div ref={directoryTitle} tabIndex={-1}>
-        <PageHeader
-          title={t("organization:members")}
-          description={t("organization:membersDescription")}
-        />
-      </div>
+    <AdminPage title={t("organization:members")} headingRef={directoryTitle}>
       {memberPermissions.error && (
         <p role="alert" className="text-sm text-destructive">
           {memberPermissions.error.message}
@@ -263,7 +257,7 @@ export function MembersRoute() {
           columnFilters,
           globalFilter: search.q ?? "",
         }}
-        toolbarContent={
+        toolbarActions={
           <>
             <TenantExportButton
               organizationId={organizationId}
@@ -357,6 +351,6 @@ export function MembersRoute() {
         organizationId={organizationId}
         actorRole={actorRole}
       />
-    </section>
+    </AdminPage>
   )
 }

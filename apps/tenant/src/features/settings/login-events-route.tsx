@@ -1,3 +1,4 @@
+import { AdminPage } from "@workspace/admin"
 import { useEffect, useMemo } from "react"
 import { useForm } from "@tanstack/react-form"
 import { useQuery } from "@tanstack/react-query"
@@ -102,15 +103,7 @@ export function PersonalLoginEventsRoute() {
   ]
   const status = getDataTableQueryStatus(query)
   return (
-    <section className="min-w-0 space-y-6">
-      <header className="space-y-1.5">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
-          {t("personalLoginEvents")}
-        </h1>
-        <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
-          {t("personalLoginEventsDescription")}
-        </p>
-      </header>
+    <AdminPage title={t("personalLoginEvents")}>
       <DataTable
         columns={columns}
         data={query.data?.items ?? EMPTY_LOGS}
@@ -206,6 +199,6 @@ export function PersonalLoginEventsRoute() {
           })
         }}
       />
-    </section>
+    </AdminPage>
   )
 }

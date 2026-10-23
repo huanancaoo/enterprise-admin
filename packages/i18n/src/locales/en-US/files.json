@@ -80,7 +80,6 @@
   "historicalVersion": "Historical version",
   "historyDays": "Unreferenced version retention",
   "impactSummary": "{{files}} files · {{folders}} folders · {{bytes}} bytes",
-  "itemCount": "{{quantity}} items",
   "location": "Folder",
   "maxUploadBytes": "Upload limit per file",
   "moveDescription": "Move “{{name}}” into the selected folder.",

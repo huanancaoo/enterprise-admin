@@ -22,6 +22,7 @@ import {
   LoadingState,
   NotFoundContent,
   PermissionDeniedState,
+  AdminPage,
 } from "@workspace/admin"
 import { useAuthenticatedSession } from "@workspace/admin/auth"
 import { createFormatter } from "@workspace/i18n"
@@ -504,15 +505,10 @@ function AuditWorkspace({ search }: { search: PlatformAuditQuery }) {
       : []),
   ]
   return (
-    <section className="min-w-0 space-y-6">
-      <div className="space-y-1.5">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
-          {t("organization:platformOperationsLog")}
-        </h1>
-        <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
-          {t("organization:platformAuditDescription")}
-        </p>
-      </div>
+    <AdminPage
+      title={t("organization:platformOperationsLog")}
+      description={t("organization:platformAuditDescription")}
+    >
       <DataTable
         columns={columns}
         data={query.data?.items ?? EMPTY_EVENTS}
@@ -533,7 +529,7 @@ function AuditWorkspace({ search }: { search: PlatformAuditQuery }) {
           globalFilter: search.eventCode ?? "",
           columnFilters,
         }}
-        toolbarContent={
+        toolbarActions={
           platformAccess.permissions.includes("platform.audit:export") && (
             <PlatformExportButton resource="audit" filters={search} />
           )
@@ -583,7 +579,7 @@ function AuditWorkspace({ search }: { search: PlatformAuditQuery }) {
       {selected && (
         <AuditDetail eventId={selected} onClose={() => setSelected(null)} />
       )}
-    </section>
+    </AdminPage>
   )
 }
 

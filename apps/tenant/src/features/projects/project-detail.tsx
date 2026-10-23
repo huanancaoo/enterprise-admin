@@ -1,4 +1,4 @@
-import type { ReactNode } from "react"
+import { lazy, type ReactNode } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { useTranslation } from "react-i18next"
@@ -8,17 +8,21 @@ import { useUiLocale } from "@workspace/i18n/react"
 import {
   ErrorState,
   LoadingState,
-  PageHeader,
+  AdminPage,
   PermissionDeniedState,
-  useDocumentTitle,
 } from "@workspace/admin"
 import { Badge } from "@workspace/ui/components/badge"
 import { buttonVariants } from "@workspace/ui/components/button"
 import { Card, CardContent } from "@workspace/ui/components/card"
-import { ProjectContent } from "@/features/projects/project-content"
 import { ProjectAttachmentsSection } from "./project-attachments"
 import { ProjectEdit } from "./project-edit"
 import { ProjectDelete } from "./project-delete"
+
+const ProjectContent = lazy(() =>
+  import("./project-content").then((module) => ({
+    default: module.ProjectContent,
+  }))
+)
 
 const statusBadgeVariant = {
   draft: "secondary",
@@ -40,38 +44,55 @@ export function ProjectDetail({
   const query = useQuery(
     getProjectDetailOptions(organizationId, projectId, locale)
   )
-  const project = query.data?.data
   const errorCode =
     query.error instanceof ApiClientError ? query.error.body.code : undefined
-  useDocumentTitle(
-    project
-      ? project.name
-      : errorCode === "NOT_FOUND"
-        ? t("projects:notFoundTitle")
-        : t("projects:detail")
-  )
+  // 权限撤回或资源删除后，页头与操作也必须撤下缓存中的业务信息。
+  const project =
+    errorCode === "FORBIDDEN" || errorCode === "NOT_FOUND"
+      ? undefined
+      : query.data?.data
 
   return (
-    <>
+    <AdminPage
+      title={
+        project?.name ??
+        (errorCode === "NOT_FOUND"
+          ? t("projects:notFoundTitle")
+          : t("projects:detail"))
+      }
+      back={
+        <Link
+          to="/app/projects/$organizationId"
+          params={{ organizationId }}
+          search={{}}
+          className={buttonVariants({ variant: "ghost", size: "sm" })}
+        >
+          {t("projects:backToProjects")}
+        </Link>
+      }
+      actions={
+        project && (
+          <>
+            <ProjectEdit
+              key={`${organizationId}:${project.id}`}
+              organizationId={organizationId}
+              project={project}
+            />
+            <ProjectDelete
+              organizationId={organizationId}
+              projectId={project.id}
+              projectName={project.name}
+            />
+          </>
+        )
+      }
+    >
       {query.isPending && <LoadingState />}
       {query.isError && errorCode === "FORBIDDEN" && <PermissionDeniedState />}
       {query.isError && errorCode === "NOT_FOUND" && (
-        <section role="status" className="space-y-3 py-8">
-          <h1 className="text-2xl font-semibold">
-            {t("projects:notFoundTitle")}
-          </h1>
-          <p className="text-muted-foreground">
-            {t("projects:notFoundDescription")}
-          </p>
-          <Link
-            to="/app/projects/$organizationId"
-            params={{ organizationId }}
-            search={{}}
-            className={buttonVariants({ variant: "outline" })}
-          >
-            {t("projects:backToProjects")}
-          </Link>
-        </section>
+        <p role="status" className="text-muted-foreground">
+          {t("projects:notFoundDescription")}
+        </p>
       )}
       {query.isError &&
         errorCode !== "FORBIDDEN" &&
@@ -80,31 +101,6 @@ export function ProjectDetail({
         )}
       {project && (
         <section className="min-w-0 space-y-6">
-          <PageHeader
-            title={project.name}
-            actions={
-              <div className="flex flex-wrap gap-2">
-                <ProjectEdit
-                  key={`${organizationId}:${project.id}`}
-                  organizationId={organizationId}
-                  project={project}
-                />
-                <ProjectDelete
-                  organizationId={organizationId}
-                  projectId={project.id}
-                  projectName={project.name}
-                />
-                <Link
-                  to="/app/projects/$organizationId"
-                  params={{ organizationId }}
-                  search={{}}
-                  className={buttonVariants({ variant: "outline" })}
-                >
-                  {t("projects:backToProjects")}
-                </Link>
-              </div>
-            }
-          />
           <Card>
             <CardContent>
               <dl className="grid min-w-0 gap-5 sm:grid-cols-2">
@@ -152,7 +148,7 @@ export function ProjectDetail({
           />
         </section>
       )}
-    </>
+    </AdminPage>
   )
 }
 

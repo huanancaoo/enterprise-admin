@@ -145,7 +145,7 @@ export const RouteScrollReset: Story = {
     const canvas = within(canvasElement)
     await canvas.findByRole("link", { name: "办公空间 1-26" })
     const content = canvasElement.querySelector<HTMLElement>(
-      '[data-slot="sidebar-inset"]'
+      '[data-slot="page-scroll"]'
     )!
     content.scrollTop = content.scrollHeight
     await waitFor(() => expect(content.scrollTop).toBeGreaterThan(0))

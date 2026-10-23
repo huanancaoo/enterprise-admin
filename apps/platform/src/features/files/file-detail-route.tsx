@@ -6,7 +6,7 @@ import {
   ErrorState,
   LoadingState,
   PermissionDeniedState,
-  ResourceList,
+  AdminPage,
 } from "@workspace/admin"
 import { type FileView, formatFileSize } from "@workspace/admin/files"
 import { Button } from "@workspace/ui/components/button"
@@ -57,18 +57,31 @@ function FileDetail({ scope, entryId }: { scope: FileScope; entryId: string }) {
     permissions = filePermissions(scope)
   usePlatformAccessFailure(entry.error ?? workspace.error)
   if (fileRequestIsDenied(entry.error) || fileRequestIsDenied(workspace.error))
-    return <PermissionDeniedState />
+    return (
+      <AdminPage title={t("files:detail")}>
+        <PermissionDeniedState />
+      </AdminPage>
+    )
   if (entry.isError || workspace.isError)
     return (
-      <ErrorState
-        message={fileRequestErrorMessage(
-          entry.error ?? workspace.error,
-          t("common:operationFailed")
-        )}
-        onRetry={() => void Promise.all([entry.refetch(), workspace.refetch()])}
-      />
+      <AdminPage title={t("files:detail")}>
+        <ErrorState
+          message={fileRequestErrorMessage(
+            entry.error ?? workspace.error,
+            t("common:operationFailed")
+          )}
+          onRetry={() =>
+            void Promise.all([entry.refetch(), workspace.refetch()])
+          }
+        />
+      </AdminPage>
     )
-  if (!entry.data || !workspace.data) return <LoadingState />
+  if (!entry.data || !workspace.data)
+    return (
+      <AdminPage title={t("files:detail")}>
+        <LoadingState />
+      </AdminPage>
+    )
   const item = entry.data
   return (
     <FileUploads
@@ -98,38 +111,36 @@ function FileDetail({ scope, entryId }: { scope: FileScope; entryId: string }) {
             })
         }}
       >
-        <ResourceList
+        <AdminPage
           title={item.name}
-          status="ready"
           actions={
-            <div className="flex flex-wrap gap-2">
-              <FileEntryActions
-                entry={item}
-                canOverwrite={
-                  permissions.canUpload && permissions.canUpdateFiles
-                }
-              />
-              <Button
-                variant="outline"
-                render={
-                  <Link
-                    to="/platform/files"
-                    search={
-                      item.state === "trashed"
-                        ? { state: "trashed" }
-                        : {
-                            parentId:
-                              item.kind === "folder"
-                                ? item.id
-                                : (item.parentId ?? undefined),
-                          }
-                    }
-                  />
-                }
-              >
-                {t("files:openLocation")}
-              </Button>
-            </div>
+            <FileEntryActions
+              entry={item}
+              canOverwrite={permissions.canUpload && permissions.canUpdateFiles}
+            />
+          }
+          back={
+            <Button
+              variant="ghost"
+              size="sm"
+              render={
+                <Link
+                  to="/platform/files"
+                  search={
+                    item.state === "trashed"
+                      ? { state: "trashed" }
+                      : {
+                          parentId:
+                            item.kind === "folder"
+                              ? item.id
+                              : (item.parentId ?? undefined),
+                        }
+                  }
+                />
+              }
+            >
+              {t("files:openLocation")}
+            </Button>
           }
         >
           <div className="space-y-6">
@@ -171,7 +182,7 @@ function FileDetail({ scope, entryId }: { scope: FileScope; entryId: string }) {
               </>
             )}
           </div>
-        </ResourceList>
+        </AdminPage>
       </FilePathOperations>
     </FileUploads>
   )

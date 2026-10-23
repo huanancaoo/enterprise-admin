@@ -200,7 +200,7 @@ function DataTableGrid<TData extends RowData>({
                   <TableRow
                     key={row.id}
                     data-state={row.getIsSelected() ? "selected" : undefined}
-                    className={rowClassName?.(row)}
+                    className={cn("h-14", rowClassName?.(row))}
                   >
                     {row.getVisibleCells().map((cell) =>
                       (() => {

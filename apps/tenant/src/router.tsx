@@ -2,12 +2,12 @@ import {
   createRootRouteWithContext,
   createRoute,
   createRouter,
-  lazyRouteComponent,
   Outlet,
   redirect,
 } from "@tanstack/react-router"
 import {
   LoadingState,
+  RouterNotFoundComponent,
   NotFoundState,
   RouterErrorComponent,
 } from "@workspace/admin"
@@ -33,78 +33,29 @@ import {
 import { fileDetailSearchSchema } from "./features/files/file-detail-search"
 import { memberDirectorySearchSchema } from "./features/organization/organization-directory"
 import { taskCenterSearchSchema } from "./features/tasks/task-center-search"
+import { NotificationsRoute } from "./features/notifications/notifications-route"
+import { TasksRoute } from "./features/tasks/tasks-route"
+import { ProjectsRoute } from "./features/projects/projects-route"
+import { IntegrationsRoute } from "./features/integrations/integrations-route"
+import { FilesRoute } from "./features/files/files-route"
+import { FileDetailRoute } from "./features/files/file-detail-route"
+import { ProjectDetailRoute } from "./features/projects/project-detail-route"
+import { AdminLayout } from "./components/admin-layout"
+import { MembersRoute } from "./features/organization/members-route"
+import { RolesRoute } from "./features/organization/roles-route"
+import { AuditEventsRoute } from "./features/organization/audit-events-route"
+import { OrganizationGate } from "./components/organization-workspace"
+import {
+  PersonalLocaleSettingsRoute,
+  OrganizationLocaleSettingsPage,
+} from "./features/settings/locale-settings"
+import { PersonalLoginEventsRoute } from "./features/settings/login-events-route"
+import {
+  TenantAnnouncementInboxRoute,
+  TenantAnnouncementReadRoute,
+} from "./features/announcements/announcement-routes"
 
-// 参数校验和权限钩子随路由注册；业务页面由 Router 按导航或预加载意图加载。
-const NotificationsRoute = lazyRouteComponent(
-  () => import("./features/notifications/notifications-route"),
-  "NotificationsRoute"
-)
-const TasksRoute = lazyRouteComponent(
-  () => import("./features/tasks/tasks-route"),
-  "TasksRoute"
-)
-const ProjectsRoute = lazyRouteComponent(
-  () => import("./features/projects/projects-route"),
-  "ProjectsRoute"
-)
-const IntegrationsRoute = lazyRouteComponent(
-  () => import("./features/integrations/integrations-route"),
-  "IntegrationsRoute"
-)
-const FilesRoute = lazyRouteComponent(
-  () => import("./features/files/files-route"),
-  "FilesRoute"
-)
-const FileDetailRoute = lazyRouteComponent(
-  () => import("./features/files/file-detail-route"),
-  "FileDetailRoute"
-)
-const ProjectDetailRoute = lazyRouteComponent(
-  () => import("./features/projects/project-detail-route"),
-  "ProjectDetailRoute"
-)
-const AdminLayout = lazyRouteComponent(
-  () => import("./components/admin-layout"),
-  "AdminLayout"
-)
-const MembersRoute = lazyRouteComponent(
-  () => import("./features/organization/members-route"),
-  "MembersRoute"
-)
-const RolesRoute = lazyRouteComponent(
-  () => import("./features/organization/roles-route"),
-  "RolesRoute"
-)
-const AuditEventsRoute = lazyRouteComponent(
-  () => import("./features/organization/audit-events-route"),
-  "AuditEventsRoute"
-)
-const OrganizationGate = lazyRouteComponent(
-  () => import("./components/organization-workspace"),
-  "OrganizationGate"
-)
-const PersonalLocaleSettingsRoute = lazyRouteComponent(
-  () => import("./features/settings/locale-settings"),
-  "PersonalLocaleSettingsRoute"
-)
-const PersonalLoginEventsRoute = lazyRouteComponent(
-  () => import("./features/settings/login-events-route"),
-  "PersonalLoginEventsRoute"
-)
-const OrganizationLocaleSettingsPage = lazyRouteComponent(
-  () => import("./features/settings/locale-settings"),
-  "OrganizationLocaleSettingsPage"
-)
-
-const TenantAnnouncementInboxRoute = lazyRouteComponent(
-  () => import("./features/announcements/announcement-routes"),
-  "TenantAnnouncementInboxRoute"
-)
-const TenantAnnouncementReadRoute = lazyRouteComponent(
-  () => import("./features/announcements/announcement-routes"),
-  "TenantAnnouncementReadRoute"
-)
-
+// 页头随路由同步挂载；较重的正文在页面内容边界内按需加载。
 const rootRoute = createRootRouteWithContext<WorkspaceRouterContext>()({
   component: App,
 })
@@ -227,6 +178,7 @@ const projectsLayoutRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/projects",
   component: AdminLayout,
+  notFoundComponent: RouterNotFoundComponent,
 })
 const projectsRoute = createRoute({
   getParentRoute: () => projectsLayoutRoute,
@@ -243,6 +195,7 @@ const filesLayoutRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/files",
   component: AdminLayout,
+  notFoundComponent: RouterNotFoundComponent,
 })
 const filesRoute = createRoute({
   getParentRoute: () => filesLayoutRoute,
@@ -260,6 +213,7 @@ const notificationsLayoutRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/notifications",
   component: AdminLayout,
+  notFoundComponent: RouterNotFoundComponent,
 })
 const notificationsRoute = createRoute({
   getParentRoute: () => notificationsLayoutRoute,
@@ -271,6 +225,7 @@ const tasksLayoutRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/tasks",
   component: AdminLayout,
+  notFoundComponent: RouterNotFoundComponent,
 })
 const tasksRoute = createRoute({
   getParentRoute: () => tasksLayoutRoute,
@@ -282,6 +237,7 @@ const integrationsLayoutRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/integrations",
   component: AdminLayout,
+  notFoundComponent: RouterNotFoundComponent,
 })
 const integrationsRoute = createRoute({
   getParentRoute: () => integrationsLayoutRoute,
@@ -292,6 +248,7 @@ const membersLayoutRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/members",
   component: AdminLayout,
+  notFoundComponent: RouterNotFoundComponent,
 })
 const membersRoute = createRoute({
   getParentRoute: () => membersLayoutRoute,
@@ -303,6 +260,7 @@ const organizationSettingsLayoutRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/organizations",
   component: AdminLayout,
+  notFoundComponent: RouterNotFoundComponent,
 })
 const rolesRoute = createRoute({
   getParentRoute: () => organizationSettingsLayoutRoute,
@@ -319,6 +277,7 @@ const personalSettingsLayoutRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/settings",
   component: AdminLayout,
+  notFoundComponent: RouterNotFoundComponent,
 })
 const personalSettingsRoute = createRoute({
   getParentRoute: () => personalSettingsLayoutRoute,
@@ -343,6 +302,7 @@ const announcementsLayoutRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/announcements",
   component: AdminLayout,
+  notFoundComponent: RouterNotFoundComponent,
 })
 const announcementsRoute = createRoute({
   getParentRoute: () => announcementsLayoutRoute,
@@ -396,7 +356,7 @@ export const router = createRouter({
   },
   defaultPreload: "intent",
   // 主面板独立滚动后，换页仍须从页面顶部开始。
-  scrollToTopSelectors: ['[data-slot="sidebar-inset"]'],
+  scrollToTopSelectors: ['[data-slot="page-scroll"]'],
   defaultNotFoundComponent: NotFoundState,
   defaultErrorComponent: RouterErrorComponent,
   defaultPendingComponent: LoadingState,
