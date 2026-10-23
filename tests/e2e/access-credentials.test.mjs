@@ -34,11 +34,7 @@ describe("组织调用凭据浏览器流程", () => {
       await page.getByRole("button", { name: "登录", exact: true }).click()
       await expectUI(page).toHaveURL(/\/app(?:\/|$)/)
       await page
-        .getByRole("navigation", { name: "主导航", exact: true })
-        .getByRole("link", { name: "组织管理", exact: true })
-        .click()
-      await page
-        .getByRole("navigation", { name: "组织管理", exact: true })
+        .getByRole("navigation", { name: "开发集成", exact: true })
         .getByRole("link", { name: "API Key 与 Webhook", exact: true })
         .click()
       await expectUI(page).toHaveURL(

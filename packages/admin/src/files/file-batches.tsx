@@ -1,3 +1,4 @@
+import { FileActivityLayout } from "./file-activity-layout"
 import {
   useEffect,
   useId,
@@ -172,57 +173,61 @@ export function FileBatches<E extends FileEntryView>({
         onBatch: choose,
       }}
     >
-      <div
-        id={triggerId}
-        tabIndex={-1}
-        className="flex min-h-0 min-w-0 flex-1 flex-col gap-4"
+      <FileActivityLayout
+        contentId={triggerId}
+        activity={
+          <>
+            {Boolean(batch.recordError) && (
+              <div className="space-y-2">
+                <p role="alert" className="text-sm text-destructive">
+                  {t("files:batchRecordsUnavailable")}
+                </p>
+                <Button variant="outline" onClick={batch.retryRecords}>
+                  {t("common:retry")}
+                </Button>
+              </div>
+            )}
+            {error && (
+              <p role="alert" className="text-sm text-destructive">
+                {error}
+              </p>
+            )}
+            {retrying && <p role="status">{t("common:loading")}</p>}
+            {batch.records.length > 1 && (
+              <nav aria-label={t("files:batchHistory")}>
+                <ol className="max-h-32 space-y-2 overflow-auto">
+                  {batch.records.map((record) => (
+                    <li key={record.batchId}>
+                      <Button
+                        variant="ghost"
+                        className="h-auto max-w-full text-start [overflow-wrap:anywhere] whitespace-normal"
+                        aria-pressed={record.batchId === batch.record?.batchId}
+                        disabled={batch.submitting}
+                        onClick={() => batch.selectRecord(record)}
+                      >
+                        {t("files:batchIdentity", { id: record.batchId })}
+                      </Button>
+                    </li>
+                  ))}
+                </ol>
+              </nav>
+            )}
+            <FileBatchResults
+              batch={batch}
+              names={
+                names?.batchId === batch.record?.batchId
+                  ? names?.values
+                  : undefined
+              }
+              canContinue={canContinue && !retrying}
+              canRetryFailed={canContinue && batch.available && !retrying}
+              onRetryFailed={(ids, action) => void retryFailed(ids, action)}
+            />
+          </>
+        }
       >
         {children}
-      </div>
-      {Boolean(batch.recordError) && (
-        <div className="space-y-2">
-          <p role="alert" className="text-sm text-destructive">
-            {t("files:batchRecordsUnavailable")}
-          </p>
-          <Button variant="outline" onClick={batch.retryRecords}>
-            {t("common:retry")}
-          </Button>
-        </div>
-      )}
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      )}
-      {retrying && <p role="status">{t("common:loading")}</p>}
-      {batch.records.length > 1 && (
-        <nav aria-label={t("files:batchHistory")}>
-          <ol className="max-h-32 space-y-2 overflow-auto">
-            {batch.records.map((record) => (
-              <li key={record.batchId}>
-                <Button
-                  variant="ghost"
-                  className="h-auto max-w-full text-start [overflow-wrap:anywhere] whitespace-normal"
-                  aria-pressed={record.batchId === batch.record?.batchId}
-                  disabled={batch.submitting}
-                  onClick={() => batch.selectRecord(record)}
-                >
-                  {t("files:batchIdentity", { id: record.batchId })}
-                </Button>
-              </li>
-            ))}
-          </ol>
-        </nav>
-      )}
-      <FileBatchResults
-        batch={batch}
-        names={
-          names?.batchId === batch.record?.batchId ? names?.values : undefined
-        }
-        canContinue={canContinue && !retrying}
-        canRetryFailed={canContinue && batch.available && !retrying}
-        onRetryFailed={(ids, action) => void retryFailed(ids, action)}
-      />
+      </FileActivityLayout>
       {selection && (
         <FileBatchDialog
           {...selection}

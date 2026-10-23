@@ -139,7 +139,7 @@ for (const backend of ["Local", "RustFS"])
       await page.getByLabel("密码", { exact: true }).fill(actor.password)
       await page.getByRole("button", { name: "登录", exact: true }).click()
       const projects = page
-        .getByRole("navigation", { name: "主导航", exact: true })
+        .getByRole("navigation", { name: "业务工作", exact: true })
         .getByRole("link", { name: "项目", exact: true })
       await expectUI(projects).toBeVisible()
       expect(

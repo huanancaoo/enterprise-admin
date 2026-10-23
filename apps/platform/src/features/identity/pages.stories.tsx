@@ -67,7 +67,7 @@ export const LoginEvents: Story = {
   args: { page: "login-events" },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await canvas.findByRole("heading", { name: "Login history" })
+    await canvas.findByRole("heading", { name: "Login logs" })
     await canvas.findByRole("table")
     await canvas.findAllByText("Platform Operator")
     const search = canvas.getByRole("textbox", {

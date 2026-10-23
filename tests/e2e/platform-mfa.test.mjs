@@ -328,7 +328,9 @@ describe("platform MFA browser flow", () => {
     await expectUI(page.locator("html")).toHaveAttribute("lang", "ar")
     await expectUI(page.getByText("超级管理员", { exact: true })).toBeVisible()
     await expectUI(
-      page.getByRole("link", { name: "组织管理", exact: true }).last()
+      page
+        .getByRole("navigation", { name: "التنقل الرئيسي", exact: true })
+        .getByRole("link", { name: "إدارة المؤسسات", exact: true })
     ).toBeVisible()
     await expectUI(page.locator("html")).toHaveAttribute("lang", "ar")
     await expectUI(page.locator("html")).toHaveAttribute("dir", "rtl")

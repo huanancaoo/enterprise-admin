@@ -207,6 +207,33 @@ export const Editor: Story = {
   ),
 }
 
+export const CancelAttachmentSelection: Story = {
+  render: () => (
+    <AnnouncementEditor
+      mode="create"
+      initialValue={initialValue}
+      ports={ports}
+      onPickAttachment={async () => null}
+      onSave={fn()}
+      onBack={fn()}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const choose = canvas.getByRole("button", {
+      name: "Choose attachment from platform files",
+    })
+    await userEvent.click(choose)
+    await waitFor(() => expect(choose).toHaveFocus())
+    await expect(canvas.getByRole("textbox", { name: "Title" })).toBeVisible()
+    await expect(canvas.getByRole("textbox", { name: "Title" })).toHaveValue(
+      initialValue.title
+    )
+    await userEvent.click(choose)
+    await waitFor(() => expect(choose).toHaveFocus())
+  },
+}
+
 const saveDraft = fn(async () => {})
 export const CreateValidation: Story = {
   render: () => (

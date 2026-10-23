@@ -154,7 +154,8 @@ export function AnnouncementEditor({
             }}
           >
             <fieldset disabled={pending} className="space-y-5">
-              <FieldGroup>
+              {/* 字段固定纵向排列，无需尺寸查询；异步正文和附件状态变化仍需撑开表单。 */}
+              <FieldGroup className="@container-normal">
                 <form.Field name="title">
                   {(field) => {
                     const invalid =

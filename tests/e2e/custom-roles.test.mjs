@@ -114,10 +114,6 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
     await page.goto(environment.tenantOrigin + "/app/")
     await signIn(page, owner)
     await page
-      .getByRole("navigation", { name: "主导航", exact: true })
-      .getByRole("link", { name: "组织管理", exact: true })
-      .click()
-    await page
       .getByRole("navigation", { name: "组织管理", exact: true })
       .getByRole("link", { name: "角色权限", exact: true })
       .click()
@@ -152,12 +148,6 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
     await expectUI(
       page.getByText("project-reader", { exact: true })
     ).toBeVisible()
-
-    await page
-      .getByRole("navigation", { name: "主导航", exact: true })
-
-      .getByRole("link", { name: "组织管理", exact: true })
-      .click()
 
     await page
       .getByRole("navigation", { name: "组织管理", exact: true })
@@ -238,10 +228,6 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
     await page.goto(environment.tenantOrigin + "/app/")
     await signIn(page, manager)
     await page
-      .getByRole("navigation", { name: "主导航", exact: true })
-      .getByRole("link", { name: "组织管理", exact: true })
-      .click()
-    await page
       .getByRole("navigation", { name: "组织管理", exact: true })
       .getByRole("link", { name: "成员与邀请", exact: true })
       .click()
@@ -313,9 +299,7 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
     await expectUI(dialog).toHaveCount(0)
     await expectUI(row(target)).toHaveCount(0)
     await expectUI(
-      page
-        .getByRole("heading", { name: "成员", exact: true })
-        .locator('xpath=ancestor::div[@tabindex="-1"][1]')
+      page.getByRole("heading", { name: "成员", exact: true })
     ).toBeFocused()
     expect(
       (
@@ -381,10 +365,6 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
     })
     await page.goto(environment.tenantOrigin + "/app/")
     await signIn(page, owner)
-    await page
-      .getByRole("navigation", { name: "主导航", exact: true })
-      .getByRole("link", { name: "组织管理", exact: true })
-      .click()
     await page
       .getByRole("navigation", { name: "组织管理", exact: true })
       .getByRole("link", { name: "角色权限", exact: true })
@@ -529,10 +509,6 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
     await page.goto(environment.tenantOrigin + "/app/")
     await signIn(page, owner)
     await page
-      .getByRole("navigation", { name: "主导航", exact: true })
-      .getByRole("link", { name: "组织管理", exact: true })
-      .click()
-    await page
       .getByRole("navigation", { name: "组织管理", exact: true })
       .getByRole("link", { name: "角色权限", exact: true })
       .click()
@@ -616,12 +592,10 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
     await expectUI(dialog).toHaveCount(0)
     await expectUI(row).toHaveCount(0)
     await expectUI(
-      page
-        .getByRole("heading", {
-          name: labels.lang === "ar" ? "الأدوار" : "Roles",
-          exact: true,
-        })
-        .locator('xpath=ancestor::div[@tabindex="-1"][1]')
+      page.getByRole("heading", {
+        name: labels.lang === "ar" ? "الأدوار" : "Roles",
+        exact: true,
+      })
     ).toBeFocused()
   })
 
@@ -644,10 +618,6 @@ describe("S8-05：组织自定义角色浏览器流程", () => {
 
     await page.goto(environment.tenantOrigin + "/app/")
     await signIn(page, owner)
-    await page
-      .getByRole("navigation", { name: "主导航", exact: true })
-      .getByRole("link", { name: "组织管理", exact: true })
-      .click()
     await page
       .getByRole("navigation", { name: "组织管理", exact: true })
       .getByRole("link", { name: "角色权限", exact: true })

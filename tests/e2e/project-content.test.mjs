@@ -179,7 +179,7 @@ for (const backend of ["Local", "RustFS"])
       await page.getByRole("button", { name: "登录", exact: true }).click()
       await expectUI(
         page
-          .getByRole("navigation", { name: "主导航", exact: true })
+          .getByRole("navigation", { name: "业务工作", exact: true })
           .getByRole("link", { name: "项目", exact: true })
       ).toBeVisible()
       await page.goto(path(f))

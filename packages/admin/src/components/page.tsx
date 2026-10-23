@@ -187,8 +187,10 @@ export function AppShell({
           <div
             data-slot="page-scroll"
             className={cn(
-              "flex min-h-0 w-full min-w-0 flex-1 flex-col",
-              layout === "workspace" ? "overflow-hidden" : "overflow-y-auto"
+              "min-h-0 w-full min-w-0 flex-1",
+              layout === "workspace"
+                ? "flex flex-col overflow-hidden"
+                : "overflow-y-auto"
             )}
           >
             {children}

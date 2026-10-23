@@ -3,6 +3,7 @@
   "extends": ["//"],
   "tasks": {
     "build": {
+      "passThroughEnv": ["GITHUB_TOKEN"],
       "outputs": [".next/**", "!.next/cache/**"],
       "inputs": [
         "$TURBO_DEFAULT$",

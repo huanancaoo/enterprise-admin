@@ -349,6 +349,7 @@ for (const kind of ["Local", "RustFS"])
           announcementTitle,
           chooseAttachment,
           pickTitle,
+          contentSection,
         ] of [
           [
             "English",
@@ -358,6 +359,7 @@ for (const kind of ["Local", "RustFS"])
             "New announcement",
             "Choose attachment from platform files",
             "Choose a file",
+            "Content management",
           ],
           [
             "العربية",
@@ -367,6 +369,7 @@ for (const kind of ["Local", "RustFS"])
             "إعلان جديد",
             "اختيار مرفق من ملفات المنصة",
             "اختيار ملف",
+            "إدارة المحتوى",
           ],
           [
             "简体中文",
@@ -376,6 +379,7 @@ for (const kind of ["Local", "RustFS"])
             "新建公告",
             "从平台文件库选择附件",
             "选择文件",
+            "内容管理",
           ],
         ]) {
           await page.getByRole("button", { name: /Platform operator/ }).click()
@@ -409,12 +413,12 @@ for (const kind of ["Local", "RustFS"])
             )
           ).toBe(true)
           // 语言菜单切换当前应用语言；沿正式菜单导航，保留当前会话的选择。
-          const system = page.getByRole("button", {
-            name: "系统管理",
+          const content = page.getByRole("button", {
+            name: contentSection,
             exact: true,
           })
-          if ((await system.getAttribute("aria-expanded")) === "false")
-            await system.click()
+          if ((await content.getAttribute("aria-expanded")) === "false")
+            await content.click()
           await page.locator('a[href^="/platform/announcements"]').click()
           await page
             .getByRole("button", { name: announcementTitle, exact: true })

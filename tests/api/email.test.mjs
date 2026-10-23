@@ -307,18 +307,24 @@ describe("auth mail outbox → SMTP → Mailpit", () => {
     )
     expect(invited.status).toBe(200)
     const invitation = await invited.json()
-    const list = await runtime.auth.api.listInvitations({
-      headers: account.headers,
-      query: { organizationId: organization.id },
-    })
-    expect(list.find((row) => row.id === invitation.id).delivery.status).toBe(
-      "smtp_accepted"
-    )
     const message = await waitForMail(
       mailpitOrigin,
       invitee,
       "你收到一个组织邀请：Mail org"
     )
+    // 后台领取者可能仍在写入 SMTP 结果；邮件已收到后还需等待投递状态提交。
+    await expect
+      .poll(
+        async () => {
+          const list = await runtime.auth.api.listInvitations({
+            headers: account.headers,
+            query: { organizationId: organization.id },
+          })
+          return list.find((row) => row.id === invitation.id).delivery.status
+        },
+        { timeout: 10_000 }
+      )
+      .toBe("smtp_accepted")
     expect(firstHttpUrl(message.HTML)).toMatch(
       /^http:\/\/localhost:3200\/accept-invitation\/[0-9a-f-]+$/
     )

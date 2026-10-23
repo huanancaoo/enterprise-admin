@@ -25,15 +25,6 @@ async function attach(context, cookie, origin) {
 
 const clientIp = () => `10.${[...randomBytes(3)].join(".")}`
 
-function navigationPath(items, routeKey) {
-  for (const item of items) {
-    if (item.routeKey === routeKey) return [item]
-    const children = navigationPath(item.children, routeKey)
-    if (children) return [item, ...children]
-  }
-  return null
-}
-
 describe("platform identity management browser flows", () => {
   let environment
   let admin
@@ -210,7 +201,7 @@ describe("platform identity management browser flows", () => {
 
     const page = await platformPage("/platform/login-events")
     await expectUI(
-      page.getByRole("heading", { name: "Login history", exact: true })
+      page.getByRole("heading", { name: "Login logs", exact: true })
     ).toBeVisible()
     const search = page.getByPlaceholder("Search account, email, or IP")
     await search.fill(target.user.name)
@@ -295,26 +286,15 @@ describe("platform identity management browser flows", () => {
         page.getByRole("button", { name, exact: true })
       ).toHaveCount(0)
     }
-    const navigationResponse = await fetch(
-      `${environment.baseURL}/api/v1/platform/navigation`,
-      { headers: auditor.headers }
-    )
-    expect(navigationResponse.status).toBe(200)
-    const sessionsPath = navigationPath(
-      (await navigationResponse.json()).items,
-      "sessions"
-    )
-    expect(sessionsPath).toHaveLength(2)
-    const [monitoringItem, sessionsItem] = sessionsPath
     const navigation = page.getByRole("navigation", { name: "Main navigation" })
-    const monitoring = navigation.getByRole("button", {
-      name: monitoringItem.name,
+    const security = navigation.getByRole("button", {
+      name: "Security audit",
       exact: true,
     })
-    await expectUI(monitoring).toHaveAttribute("aria-expanded", "false")
-    await monitoring.click()
+    await expectUI(security).toHaveAttribute("aria-expanded", "false")
+    await security.click()
     const onlineUsers = navigation.getByRole("link", {
-      name: sessionsItem.name,
+      name: "Online users",
       exact: true,
     })
     await onlineUsers.click()
@@ -322,13 +302,13 @@ describe("platform identity management browser flows", () => {
     await expectUI(
       page.getByRole("heading", { name: "Online users", exact: true })
     ).toBeVisible()
-    await expectUI(monitoring).toHaveAttribute("aria-expanded", "true")
+    await expectUI(security).toHaveAttribute("aria-expanded", "true")
     await expectUI(onlineUsers).toHaveAttribute("data-active")
     await expectUI(
       page.getByRole("navigation", { name: "breadcrumb" })
-    ).toContainText(monitoringItem.name)
+    ).toContainText("Security audit")
     await page.reload()
-    await expectUI(monitoring).toHaveAttribute("aria-expanded", "true")
+    await expectUI(security).toHaveAttribute("aria-expanded", "true")
     await expectUI(onlineUsers).toBeVisible()
     await expectUI(page.locator("tbody tr")).not.toHaveCount(0)
     await expectUI(

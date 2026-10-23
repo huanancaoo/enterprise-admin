@@ -127,7 +127,9 @@ describe("platform settings browser workflow", () => {
     })
     await page.goto(address())
     await expectUI(
-      page.locator('[role="status"][aria-busy="true"]')
+      page.locator(
+        '[data-slot="page-content"] > [role="status"][aria-busy="true"]'
+      )
     ).toBeVisible()
     release()
     await expectUI(

@@ -12,10 +12,14 @@ type GitHubRelease = {
 }
 
 export async function GitHubReleases() {
+  const headers: HeadersInit = { Accept: "application/vnd.github+json" }
+  // 构建与服务端重验证使用同一认证，避免共享出口的匿名额度阻断发布说明。
+  if (process.env.GITHUB_TOKEN)
+    headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`
   const response = await fetch(
     `https://api.github.com/repos/${gitConfig.user}/${gitConfig.repo}/releases`,
     {
-      headers: { Accept: "application/vnd.github+json" },
+      headers,
       next: { revalidate: 3600 },
     }
   )

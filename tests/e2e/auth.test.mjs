@@ -265,10 +265,6 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await page.getByLabel("组织标识", { exact: true }).fill("members-directory")
     await page.getByRole("button", { name: "创建组织", exact: true }).click()
     await page
-      .getByRole("navigation", { name: "主导航", exact: true })
-      .getByRole("link", { name: "组织管理", exact: true })
-      .click()
-    await page
       .getByRole("navigation", { name: "组织管理", exact: true })
       .getByRole("link", { name: "成员与邀请", exact: true })
       .click()
@@ -382,10 +378,6 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await page.goto(tenantOrigin + "/app/")
     await signInAccount(page, reader)
     await page
-      .getByRole("navigation", { name: "主导航", exact: true })
-      .getByRole("link", { name: "组织管理", exact: true })
-      .click()
-    await page
       .getByRole("navigation", { name: "组织管理", exact: true })
       .getByRole("link", { name: "成员与邀请", exact: true })
       .click()
@@ -459,10 +451,6 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     await page.goto(tenantOrigin + "/app/")
     await signInAccount(page, owner)
     await page
-      .getByRole("navigation", { name: "主导航", exact: true })
-      .getByRole("link", { name: "组织管理", exact: true })
-      .click()
-    await page
       .getByRole("navigation", { name: "组织管理", exact: true })
       .getByRole("link", { name: "成员与邀请", exact: true })
       .click()
@@ -471,9 +459,10 @@ describe("S4-02：真实浏览器认证与组织流程", () => {
     })
     const row = (account) =>
       list.getByRole("row").filter({ hasText: account.email })
-    const directoryTitle = page
-      .getByRole("heading", { name: "成员", exact: true })
-      .locator('xpath=ancestor::*[@tabindex="-1"][1]')
+    const directoryTitle = page.getByRole("heading", {
+      name: "成员",
+      exact: true,
+    })
     const roleFilter = page
       .locator('[data-slot="data-table-toolbar"]')
       .getByRole("button", { name: /^角色/ })

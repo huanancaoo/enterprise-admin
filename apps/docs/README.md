@@ -19,3 +19,5 @@ pnpm --filter docs dev
 | `test`          | 组件与内容门禁测试              |
 
 环境变量见 [.env.example](.env.example)。搜索与 AI 需要 Algolia 与 OpenRouter 密钥。
+
+发布说明在构建时读取 GitHub Releases，运行时每小时重新验证。共享网络中的匿名请求可能耗尽 GitHub 限额；在构建与运行环境中注入具有仓库内容读取权限的 `GITHUB_TOKEN`，只供服务端使用。CI 使用内置的只读 `github.token`。本地可通过进程环境或 `apps/docs/.env.local` 配置，令牌不得提交；配置入口与其余本地环境变量见根 README。

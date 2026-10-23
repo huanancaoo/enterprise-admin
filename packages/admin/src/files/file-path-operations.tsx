@@ -1,3 +1,4 @@
+import { FileActivityLayout } from "./file-activity-layout"
 import {
   useEffect,
   useId,
@@ -122,20 +123,22 @@ export function FilePathOperations<E extends FileEntryView>({
   }
   return (
     <ActionsContext value={actions}>
-      <div
-        id={pathTriggerId}
-        tabIndex={-1}
-        className="flex min-h-0 min-w-0 flex-1 flex-col gap-4"
+      <FileActivityLayout
+        contentId={pathTriggerId}
+        activity={
+          <>
+            <FilePathQueue
+              jobs={queue.jobs}
+              recordError={queue.recordError}
+              onCheck={(id) => void queue.check(id)}
+              onDismiss={queue.dismiss}
+              emptyFocus={() => document.getElementById(pathTriggerId)}
+            />
+          </>
+        }
       >
         {children}
-      </div>
-      <FilePathQueue
-        jobs={queue.jobs}
-        recordError={queue.recordError}
-        onCheck={(id) => void queue.check(id)}
-        onDismiss={queue.dismiss}
-        emptyFocus={() => document.getElementById(pathTriggerId)}
-      />
+      </FileActivityLayout>
       {selection &&
         (selection.action === "trash" || selection.action === "purge" ? (
           <FileDeleteDialog

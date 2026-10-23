@@ -324,10 +324,6 @@ describe("S8-09：浏览器中的个人与组织语言设置", () => {
     )
     const firstOrganizationId = organizations.rows[0].id
     await page
-      .getByRole("navigation", { name: "主导航", exact: true })
-      .getByRole("link", { name: "组织管理", exact: true })
-      .click()
-    await page
       .getByRole("navigation", { name: "组织管理", exact: true })
       .getByRole("link", { name: "常规设置", exact: true })
       .click()
@@ -503,12 +499,6 @@ describe("S8-09：浏览器中的个人与组织语言设置", () => {
       .getByRole("menuitemradio", { name: "简体中文", exact: true })
       .click()
     await expectUI(page.locator("html")).toHaveAttribute("lang", "zh-CN")
-
-    await page
-      .getByRole("navigation", { name: "主导航", exact: true })
-
-      .getByRole("link", { name: "组织管理", exact: true })
-      .click()
 
     await page
       .getByRole("navigation", { name: "组织管理", exact: true })

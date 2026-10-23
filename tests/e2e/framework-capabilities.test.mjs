@@ -290,11 +290,7 @@ describe("通用能力正式浏览器、Worker和外部接收端", () => {
     const { actor, organization, context, page } = await prepare()
     try {
       await page
-        .getByRole("navigation", { name: "主导航", exact: true })
-        .getByRole("link", { name: "组织管理", exact: true })
-        .click()
-      await page
-        .getByRole("navigation", { name: "组织管理", exact: true })
+        .getByRole("navigation", { name: "开发集成", exact: true })
         .getByRole("link", { name: "API Key 与 Webhook", exact: true })
         .click()
       await page

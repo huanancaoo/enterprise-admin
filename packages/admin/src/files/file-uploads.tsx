@@ -1,3 +1,4 @@
+import { FileActivityLayout } from "./file-activity-layout"
 import {
   useEffect,
   useId,
@@ -142,38 +143,45 @@ export function FileUploads<D extends FolderView, F extends FileView>({
         onOverwrite: (file) => choose({ kind: "overwrite", target: file }),
       }}
     >
-      {children}
-      {queue.recordError && (
-        <div className="space-y-2">
-          <p role="alert" className="text-sm text-destructive">
-            {queue.recordError}
-          </p>
-          <Button variant="outline" onClick={queue.retryRecords}>
-            {t("common:retry")}
-          </Button>
-        </div>
-      )}
-      {retryError && (
-        <p role="alert" className="text-sm text-destructive">
-          {retryError}
-        </p>
-      )}
-      {retrying && (
-        <p role="status" className="text-sm">
-          {t("common:loading")}
-        </p>
-      )}
-      <UploadQueue
-        jobs={queue.jobs.map((job) => ({
-          ...job,
-          canRetry: job.canRetry && !retrying,
-        }))}
-        onCheck={queue.check}
-        onDismiss={queue.dismiss}
-        onRetry={(operationId) => void retry(operationId)}
-        onOpenResult={onOpenVersion}
-        emptyFocus={() => document.getElementById(uploadTriggerId)}
-      />
+      <FileActivityLayout
+        activity={
+          <>
+            {queue.recordError && (
+              <div className="space-y-2">
+                <p role="alert" className="text-sm text-destructive">
+                  {queue.recordError}
+                </p>
+                <Button variant="outline" onClick={queue.retryRecords}>
+                  {t("common:retry")}
+                </Button>
+              </div>
+            )}
+            {retryError && (
+              <p role="alert" className="text-sm text-destructive">
+                {retryError}
+              </p>
+            )}
+            {retrying && (
+              <p role="status" className="text-sm">
+                {t("common:loading")}
+              </p>
+            )}
+            <UploadQueue
+              jobs={queue.jobs.map((job) => ({
+                ...job,
+                canRetry: job.canRetry && !retrying,
+              }))}
+              onCheck={queue.check}
+              onDismiss={queue.dismiss}
+              onRetry={(operationId) => void retry(operationId)}
+              onOpenResult={onOpenVersion}
+              emptyFocus={() => document.getElementById(uploadTriggerId)}
+            />
+          </>
+        }
+      >
+        {children}
+      </FileActivityLayout>
       {selection && (
         <UploadSelectionDialog
           {...selection.target}

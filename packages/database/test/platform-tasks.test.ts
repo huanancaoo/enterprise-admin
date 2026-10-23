@@ -164,14 +164,19 @@ describe("平台任务固定函数与行收据", { concurrent: false }, () => {
     }
     owner = new Pool({ ...connection, user: "bootstrap_admin" })
     const authorizationMigration = await readFile(
-      "migrations/0094_platform-file-access.sql",
+      "migrations/0109_remove-dynamic-menu-functions.sql",
       "utf8"
     )
     // 使用正式数据库目录约束身份 fixture，未注册动作不能被宽松权限桩掩盖。
-    const catalogSql = authorizationMigration.split(
-      "--> statement-breakpoint"
-    )[0]
-    await owner.query(catalogSql!)
+    const catalogSql = authorizationMigration
+      .split("--> statement-breakpoint")
+      .find((statement) =>
+        statement.includes(
+          "CREATE OR REPLACE FUNCTION public.platform_permission_catalog()"
+        )
+      )
+    if (!catalogSql) throw new Error("正式迁移缺少平台权限目录")
+    await owner.query(catalogSql)
     await owner.query(`
       CREATE ROLE app_runtime LOGIN PASSWORD '${password}';
       CREATE ROLE platform_executor NOLOGIN;

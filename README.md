@@ -233,14 +233,14 @@ PLATFORM_ASSIGNMENT_DATABASE_URL='postgresql://platform_deployer:...@127.0.0.1:5
 
 配置按执行环境分开，根目录 [`.env.example`](.env.example) 只做索引，不是统一凭据文件。
 
-| 文件                                                     | 用途                                                          |
-| -------------------------------------------------------- | ------------------------------------------------------------- |
-| `apps/tenant/.env.example`、`apps/platform/.env.example` | 公开前端配置；复制为应用目录 `.env.local` 后由 Vite 加载      |
-| `apps/docs/.env.example`                                 | 文档站 Algolia / OpenRouter 配置；`NEXT_PUBLIC_` 会进入浏览器 |
-| `apps/api/.env.example`                                  | API 进程变量                                                  |
-| `apps/worker/.env.example`                               | 核心 Worker 的运行变量                                        |
-| `infra/postgres/.env.example`                            | PostgreSQL 首次初始化，不注入 API                             |
-| `packages/database/.env.example`                         | 仅迁移进程                                                    |
+| 文件                                                     | 用途                                                                            |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `apps/tenant/.env.example`、`apps/platform/.env.example` | 公开前端配置；复制为应用目录 `.env.local` 后由 Vite 加载                        |
+| `apps/docs/.env.example`                                 | 文档站 Algolia / OpenRouter / GitHub Releases 配置；`NEXT_PUBLIC_` 会进入浏览器 |
+| `apps/api/.env.example`                                  | API 进程变量                                                                    |
+| `apps/worker/.env.example`                               | 核心 Worker 的运行变量                                                          |
+| `infra/postgres/.env.example`                            | PostgreSQL 首次初始化，不注入 API                                               |
+| `packages/database/.env.example`                         | 仅迁移进程                                                                      |
 
 任何 `VITE_` 变量都可能进入浏览器，只放公开配置。runtime、migrator 与 bootstrap 凭据不得共享同一份环境文件。
 

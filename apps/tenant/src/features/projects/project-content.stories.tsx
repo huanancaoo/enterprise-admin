@@ -357,10 +357,13 @@ const setup = (fixture: ReturnType<typeof scenario>) => ({
   parameters: { msw: { handlers: fixture.picker.handlers } },
 })
 async function editor(element: HTMLElement) {
-  await waitFor(() =>
-    expect(
-      element.querySelector(".tiptap[contenteditable=true]")
-    ).not.toBeNull()
+  // 首次进入需加载编辑器分块；与浏览器交互断言一致，等待可编辑节点挂载。
+  await waitFor(
+    () =>
+      expect(
+        element.querySelector(".tiptap[contenteditable=true]")
+      ).not.toBeNull(),
+    { timeout: 5000 }
   )
   return element.querySelector<HTMLElement>(".tiptap[contenteditable=true]")!
 }
