@@ -23,7 +23,7 @@ import { FolderKanbanIcon, FolderIcon, BuildingIcon } from "lucide-react"
 import { authClient } from "@/lib/auth-client"
 import { FilesWorkspace } from "./files-workspace"
 
-const { organizationId, root, launch, poster, queries, handlers } =
+const { organizationId, root, launch, brand, poster, queries, handlers } =
   fileWorkspaceScenario
 
 function WorkspaceRoute() {
@@ -192,6 +192,171 @@ export const PreviewSelectionAndNavigation: Story = {
         { name: "品牌资产" }
       )
     ).toHaveAttribute("aria-current", "page")
+  },
+}
+
+export const FolderNavigationKeepsWorkspace: Story = {
+  parameters: {
+    msw: {
+      handlers: fileWorkspaceScenario.slowNavigationHandlers,
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const { canvas } = await openPoster(canvasElement)
+    await userEvent.click(
+      within(canvas.getByRole("region", { name: "预览" })).getByRole("button", {
+        name: "关闭",
+      })
+    )
+    const directory = canvas.getByRole("navigation", { name: "目录" })
+    const search = canvas.getByRole("textbox", { name: "搜索文件和文件夹" })
+    const view = canvas.getByRole("button", { name: "视图" })
+    await userEvent.click(view)
+    await userEvent.click(
+      within(canvasElement.ownerDocument.body).getByRole("checkbox", {
+        name: "显示 类型",
+      })
+    )
+    await userEvent.keyboard("{Escape}")
+    const tableTop = canvas.getByRole("table").getBoundingClientRect().top
+    const previousFile = canvas.getByRole("button", { name: poster.name })
+    const previousActions = canvas.getByRole("button", {
+      name: `${poster.name} 的操作`,
+    })
+    await userEvent.click(
+      within(directory).getByRole("button", { name: brand.name })
+    )
+    // 冷目录的路径请求尚未返回时，导航和搜索不应随内容一起卸载。
+    await expect(directory).toBeInTheDocument()
+    await expect(search).toBeInTheDocument()
+    await expect(view).toBeInTheDocument()
+    await expect(previousFile).toBeDisabled()
+    await expect(previousActions).toBeDisabled()
+    await expect(
+      canvas.getByRole("table").getBoundingClientRect().top
+    ).toBeCloseTo(tableTop, 0)
+    await expect(
+      canvas.getByRole("button", { name: "上传文件" })
+    ).toBeDisabled()
+    await expect(
+      within(directory).getByRole("button", { name: "项目文档" })
+    ).toBeEnabled()
+    await canvas.findByText("此文件夹暂无文件或子文件夹。")
+    await expect(canvas.getByRole("navigation", { name: "目录" })).toBe(
+      directory
+    )
+    await expect(canvas.getByRole("button", { name: "视图" })).toBe(view)
+    await userEvent.click(
+      within(directory).getByRole("button", { name: launch.name })
+    )
+    await canvas.findByRole("button", { name: poster.name })
+    await expect(
+      canvas.queryByRole("columnheader", { name: "类型" })
+    ).not.toBeInTheDocument()
+  },
+}
+
+export const FolderNavigationKeepsHeader: Story = {
+  parameters: {
+    msw: { handlers: fileWorkspaceScenario.slowNavigationHandlers },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await waitFor(() =>
+      expect(canvas.getByRole("table")).toHaveAttribute("aria-busy", "false")
+    )
+    const directory = canvas.getByRole("navigation", { name: "目录" })
+    const path = canvas.getByRole("navigation", { name: "文件夹导航" })
+    const create = canvas.getByRole("button", { name: "创建文件夹" })
+    const upload = canvas.getByRole("button", { name: "上传文件" })
+    await waitFor(() => {
+      expect(getComputedStyle(create).opacity).toBe("1")
+      expect(getComputedStyle(upload).opacity).toBe("1")
+    })
+    const before = {
+      pathConnected: path.isConnected,
+      createOpacity: getComputedStyle(create).opacity,
+      uploadOpacity: getComputedStyle(upload).opacity,
+    }
+    await userEvent.click(
+      await within(directory).findByRole("button", { name: brand.name })
+    )
+    await expect({
+      pathConnected: path.isConnected,
+      createOpacity: getComputedStyle(create).opacity,
+      uploadOpacity: getComputedStyle(upload).opacity,
+    }).toEqual(before)
+    await expect(create).toBeDisabled()
+    await expect(upload).toBeDisabled()
+    await expect(canvas.queryByRole("dialog")).not.toBeInTheDocument()
+    await canvas.findByText("此文件夹暂无文件或子文件夹。")
+    await expect(canvas.getByRole("navigation", { name: "文件夹导航" })).toBe(
+      path
+    )
+    await expect(
+      within(path).getByRole("button", { name: brand.name })
+    ).toBeVisible()
+    await expect(create).toBeEnabled()
+    await expect(upload).toBeEnabled()
+  },
+}
+
+export const PreviewSwitchKeepsListAndPanel: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await waitFor(() =>
+      expect(canvas.getByRole("table")).toHaveAttribute("aria-busy", "false")
+    )
+    const file = canvas.getByRole("button", { name: poster.name })
+    const next = canvas.getByRole("button", { name: "社交媒体文案.docx" })
+    const checkbox = within(file.closest("tr")!).getByRole("checkbox")
+    await userEvent.click(file)
+    const panel = await canvas.findByRole("region", { name: "预览" })
+    await within(panel).findByRole("img")
+    await expect(file).toBeInTheDocument()
+    await expect(file).toHaveFocus()
+    await expect(checkbox).toBeInTheDocument()
+    const close = within(panel).getByRole("button", { name: "关闭" })
+    await userEvent.click(checkbox)
+    await userEvent.click(next)
+    await within(panel).findByRole("heading", { name: "社交媒体文案.docx" })
+    await expect(canvas.getByRole("region", { name: "预览" })).toBe(panel)
+    await expect(close).toBeInTheDocument()
+    await expect(next).toBeInTheDocument()
+    await expect(next).toHaveFocus()
+    await expect(checkbox).toBeChecked()
+    await userEvent.click(close)
+    await expect(next).toHaveFocus()
+  },
+}
+
+export const ScrollingKeepsWorkspaceControls: Story = {
+  play: async ({ canvasElement }) => {
+    const { canvas } = await openPoster(canvasElement)
+    const search = canvas.getByRole("textbox", { name: "搜索文件和文件夹" })
+    const pagination = canvas.getByRole("navigation", { name: "分页" })
+    const header = canvas.getByRole("columnheader", { name: "名称" })
+    const searchTop = search.getBoundingClientRect().top
+    const paginationTop = pagination.getBoundingClientRect().top
+    const headerTop = header.getBoundingClientRect().top
+    const scroller = canvas
+      .getByRole("table")
+      .closest<HTMLElement>('[data-slot="data-table-content"]')!
+    await expect(scroller.scrollHeight).toBeGreaterThan(scroller.clientHeight)
+    scroller.scrollTop = scroller.scrollHeight
+    await expect(search.getBoundingClientRect().top).toBeCloseTo(searchTop, 0)
+    await expect(pagination.getBoundingClientRect().top).toBeCloseTo(
+      paginationTop,
+      0
+    )
+    await expect(header.getBoundingClientRect().top).toBeCloseTo(headerTop, 0)
+    await expect(pagination.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+      window.innerHeight
+    )
+    const trash = canvas.getByRole("button", { name: "回收站" })
+    const trashTop = trash.getBoundingClientRect().top
+    await userEvent.click(canvas.getByRole("button", { name: "收起 全部文件" }))
+    await expect(trash.getBoundingClientRect().top).toBeCloseTo(trashTop, 0)
   },
 }
 

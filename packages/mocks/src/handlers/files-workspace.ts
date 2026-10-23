@@ -1,4 +1,4 @@
-import { http, HttpResponse } from "msw"
+import { delay, http, HttpResponse } from "msw"
 import {
   FileListQuerySchema,
   FileResponseSchema,
@@ -105,6 +105,39 @@ const entries: FileEntryResponse[] = [
 ]
 const queries: FileListQuery[] = []
 
+function listEntries(request: Request) {
+  const query = FileListQuerySchema.parse(
+    Object.fromEntries(new URL(request.url).searchParams)
+  )
+  queries.push(query)
+  const results = entries
+    .filter(
+      (entry) =>
+        entry.parentId !== null &&
+        query.state === "active" &&
+        (query.name
+          ? entry.name.includes(query.name)
+          : entry.parentId === query.parentId)
+    )
+    .sort((left, right) => {
+      const order =
+        query.sortBy === "size"
+          ? (left.kind === "file" ? left.currentVersion.bytes : 0) -
+            (right.kind === "file" ? right.currentVersion.bytes : 0)
+          : left[query.sortBy].localeCompare(right[query.sortBy], "en-US")
+      return query.sortOrder === "desc" ? -order : order
+    })
+  return HttpResponse.json({
+    items: results.slice(
+      (query.page - 1) * query.pageSize,
+      query.page * query.pageSize
+    ),
+    total: results.length,
+    page: query.page,
+    pageSize: query.pageSize,
+  })
+}
+
 const handlers = [
   http.get("*/api/v1/organizations/:organizationId/access", () =>
     HttpResponse.json({
@@ -145,38 +178,9 @@ const handlers = [
       return HttpResponse.json({ items: path })
     }
   ),
-  http.get("*/api/v1/organizations/:organizationId/files", ({ request }) => {
-    const query = FileListQuerySchema.parse(
-      Object.fromEntries(new URL(request.url).searchParams)
-    )
-    queries.push(query)
-    const results = entries
-      .filter(
-        (entry) =>
-          entry.parentId !== null &&
-          query.state === "active" &&
-          (query.name
-            ? entry.name.includes(query.name)
-            : entry.parentId === query.parentId)
-      )
-      .sort((left, right) => {
-        const order =
-          query.sortBy === "size"
-            ? (left.kind === "file" ? left.currentVersion.bytes : 0) -
-              (right.kind === "file" ? right.currentVersion.bytes : 0)
-            : left[query.sortBy].localeCompare(right[query.sortBy], "en-US")
-        return query.sortOrder === "desc" ? -order : order
-      })
-    return HttpResponse.json({
-      items: results.slice(
-        (query.page - 1) * query.pageSize,
-        query.page * query.pageSize
-      ),
-      total: results.length,
-      page: query.page,
-      pageSize: query.pageSize,
-    })
-  }),
+  http.get("*/api/v1/organizations/:organizationId/files", ({ request }) =>
+    listEntries(request)
+  ),
   http.get(
     "*/api/v1/organizations/:organizationId/files/entries/:entryId",
     ({ params }) =>
@@ -197,9 +201,38 @@ export const fileWorkspaceScenario = {
   organizationId,
   root,
   launch,
+  brand: folders[2]!,
   poster,
   queries,
   handlers,
+  slowNavigationHandlers: [
+    http.get(
+      `*/api/v1/organizations/:organizationId/files/folders/${launch.id}/breadcrumbs`,
+      async () => {
+        await delay(500)
+        return HttpResponse.json({ items: [root, marketing, launch] })
+      }
+    ),
+    http.get(
+      "*/api/v1/organizations/:organizationId/files",
+      async ({ request }) => {
+        if (
+          new URL(request.url).searchParams.get("parentId") === folders[2]!.id
+        ) {
+          await delay(500)
+        }
+        return listEntries(request)
+      }
+    ),
+    http.get(
+      `*/api/v1/organizations/:organizationId/files/folders/${folders[2]!.id}/breadcrumbs`,
+      async () => {
+        await delay(500)
+        return HttpResponse.json({ items: [root, marketing, folders[2]!] })
+      }
+    ),
+    ...handlers,
+  ],
   readOnlyHandlers: [
     http.post("*/api/auth/organization/has-permission", async ({ request }) => {
       const body = (await request.json()) as {

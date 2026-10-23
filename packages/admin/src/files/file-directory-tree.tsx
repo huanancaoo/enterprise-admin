@@ -42,15 +42,31 @@ function DirectoryNode<F extends FolderView, Q extends QueryKey>({
   ...props
 }: Props<F, Q> & { folder: F }) {
   const { t } = useTranslation(["files", "common"])
+  const inPath = props.ancestors.some((ancestor) => ancestor.id === folder.id)
   const [expansion, setExpansion] = useState<{
     open: boolean
     folderId?: string
-  }>()
-  const inPath = props.ancestors.some((ancestor) => ancestor.id === folder.id)
-  // 从面包屑或表格导航到后代时重新揭示路径；手动收起只作用于当前浏览位置。
-  const open =
-    (inPath && expansion?.folderId !== props.currentFolderId) ||
-    (expansion?.open ?? (folder.parentId === null || inPath))
+    inPath: boolean
+  }>({
+    open: folder.parentId === null || inPath,
+    folderId: props.currentFolderId,
+    inPath,
+  })
+  // 新路径只展开必要祖先；路径请求期间和离开目录后都保留已展开的分支。
+  const reveal =
+    inPath &&
+    (!expansion.inPath || expansion.folderId !== props.currentFolderId)
+  if (
+    expansion.inPath !== inPath ||
+    expansion.folderId !== props.currentFolderId
+  ) {
+    setExpansion({
+      open: expansion.open || reveal,
+      folderId: props.currentFolderId,
+      inPath,
+    })
+  }
+  const open = expansion.open || reveal
   const children = useQuery({
     ...props.childrenQuery(folder.id),
     enabled: open,
@@ -71,7 +87,11 @@ function DirectoryNode<F extends FolderView, Q extends QueryKey>({
           })}
           aria-expanded={open}
           onClick={() =>
-            setExpansion({ open: !open, folderId: props.currentFolderId })
+            setExpansion({
+              open: !open,
+              folderId: props.currentFolderId,
+              inPath,
+            })
           }
         >
           <ChevronRightIcon
@@ -85,7 +105,11 @@ function DirectoryNode<F extends FolderView, Q extends QueryKey>({
           aria-current={active ? "page" : undefined}
           disabled={props.disabled}
           onClick={() => {
-            setExpansion({ open: true, folderId: props.currentFolderId })
+            setExpansion({
+              open: true,
+              folderId: props.currentFolderId,
+              inPath,
+            })
             props.onOpenFolder(folder)
           }}
         >

@@ -49,6 +49,7 @@ export function DataTableFeedback({
   if (status === "loading" || status === "refreshing" || isActionPending) {
     return (
       <p
+        data-slot="data-table-progress"
         role="status"
         className={
           status === "loading" ? "sr-only" : "text-sm text-muted-foreground"

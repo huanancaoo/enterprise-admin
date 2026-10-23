@@ -104,7 +104,10 @@ function DataTableGrid<TData extends RowData>({
 
   // 原生滚动条交给独立外框裁剪，内层仍作为固定列和键盘操作的滚动容器。
   return (
-    <div className="overflow-clip rounded-xl border bg-card">
+    <div
+      data-slot="data-table-frame"
+      className="overflow-clip rounded-xl border bg-card"
+    >
       <div
         data-slot="data-table-content"
         tabIndex={0}

@@ -24,6 +24,7 @@ export function FilePreviewPanel({
   organizationId,
   authorizationVersion,
   entryId,
+  fileName,
   contentScopeKey,
   canOverwrite,
   onClose,
@@ -31,6 +32,7 @@ export function FilePreviewPanel({
   organizationId: string
   authorizationVersion: number
   entryId: string
+  fileName: string
   contentScopeKey: string
   canOverwrite: boolean
   onClose: () => void
@@ -42,7 +44,7 @@ export function FilePreviewPanel({
     // 窄屏预览排在列表后面，打开时将内容带入视口；关闭仍返回原文件入口。
     if (window.matchMedia("(max-width: 1023px)").matches)
       panel.current?.scrollIntoView({ block: "start" })
-  }, [])
+  }, [entryId])
   // 面板保持打开时，路径/覆盖操作仍会改变条目；始终读取现有失效链更新后的修订和版本。
   const entry = useQuery(
     getFileEntryOptions(organizationId, authorizationVersion, entryId, locale)
@@ -53,13 +55,11 @@ export function FilePreviewPanel({
       ref={panel}
       role="region"
       aria-label={t("files:preview")}
-      className="min-w-0 shrink-0 border-t bg-background p-5 lg:min-h-0 lg:w-80 lg:shrink-0 lg:overflow-y-auto lg:border-s lg:border-t-0 xl:w-96"
+      className="min-w-0 shrink-0 border-t bg-background p-5 lg:min-h-0 lg:w-72 lg:shrink-0 lg:overflow-y-auto lg:border-s lg:border-t-0 xl:w-80"
     >
       <div className="mb-5 flex items-start justify-between gap-3">
         <h2 className="min-w-0 text-base font-semibold wrap-anywhere">
-          {entry.isError
-            ? t("files:preview")
-            : (file?.name ?? t("files:preview"))}
+          {entry.isError ? t("files:preview") : (file?.name ?? fileName)}
         </h2>
         <Button
           variant="ghost"
@@ -82,7 +82,9 @@ export function FilePreviewPanel({
           onRetry={() => void entry.refetch()}
         />
       ) : !file ? (
-        <LoadingState />
+        <div className="flex min-h-48 items-center justify-center rounded-lg bg-muted/40">
+          <LoadingState />
+        </div>
       ) : file.state !== "active" ? (
         <p className="text-sm text-muted-foreground">
           {t("files:trashedContentUnavailable")}
